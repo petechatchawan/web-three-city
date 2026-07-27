@@ -3,6 +3,7 @@ import { allChunkCoords } from '@web-three-city/terrain-core';
 import {
   createCoreTerrainPresentationSource,
   detectWebGL2,
+  TerrainGridPresentation,
   TerrainPresentation,
 } from '@web-three-city/terrain-three';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
@@ -95,16 +96,9 @@ export function bootstrapTerrainLab(root: HTMLElement): void {
   presentation.load(fixture.snapshot);
   const presentationMs = performance.now() - presentationStart;
 
-  const grid = new THREE.GridHelper(
-    WORLD_CONFIG.mapWidth,
-    WORLD_CONFIG.mapWidth,
-    0x335a69,
-    0x70909a,
-  );
-  grid.position.y = 0.012;
-  grid.material.transparent = true;
-  grid.material.opacity = 0.24;
-  scene.add(grid);
+  const grid = new TerrainGridPresentation(scene, WORLD_CONFIG);
+  grid.load(fixture.snapshot);
+  grid.setVisible(true);
 
   const resize = (): void => {
     const width = Math.max(1, canvas.clientWidth);
@@ -173,6 +167,7 @@ export function bootstrapTerrainLab(root: HTMLElement): void {
 
   window.addEventListener('pagehide', () => {
     window.cancelAnimationFrame(animationFrame);
+    grid.dispose();
     presentation.dispose();
     renderer.dispose();
   });

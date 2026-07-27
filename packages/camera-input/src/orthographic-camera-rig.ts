@@ -43,10 +43,8 @@ function resolveLimits(options: CameraRigOptions): CameraLimits {
     options.hardMinimumPitchDegrees ?? CAMERA_DEFAULTS.hardMinimumPitchDegrees;
   const hardMaximumPitchDegrees =
     options.hardMaximumPitchDegrees ?? CAMERA_DEFAULTS.hardMaximumPitchDegrees;
-  const minimumPitchDegrees =
-    options.minimumPitchDegrees ?? CAMERA_DEFAULTS.minimumPitchDegrees;
-  const maximumPitchDegrees =
-    options.maximumPitchDegrees ?? CAMERA_DEFAULTS.maximumPitchDegrees;
+  const minimumPitchDegrees = options.minimumPitchDegrees ?? CAMERA_DEFAULTS.minimumPitchDegrees;
+  const maximumPitchDegrees = options.maximumPitchDegrees ?? CAMERA_DEFAULTS.maximumPitchDegrees;
   const minimumOrthographicSize =
     options.minimumOrthographicSize ?? CAMERA_DEFAULTS.minimumOrthographicSize;
   const maximumOrthographicSize =
@@ -71,10 +69,7 @@ function resolveLimits(options: CameraRigOptions): CameraLimits {
     hardMaximumPitchDegrees < hardMinimumPitchDegrees ||
     maximumPitchDegrees < minimumPitchDegrees
   ) {
-    throw new CameraContractError(
-      'camera:invalid-pitch-limits',
-      'Pitch limits must be ordered.',
-    );
+    throw new CameraContractError('camera:invalid-pitch-limits', 'Pitch limits must be ordered.');
   }
   if (
     minimumPitchDegrees < hardMinimumPitchDegrees ||
@@ -125,7 +120,6 @@ export class OrthographicCameraRig {
   #usableViewportHeight = 1;
   #aspect = 1;
   #fittedOrthographicSize: number;
-  #worldBounds: WorldVerticalBounds = { minimumWorldY: 0, maximumWorldY: 0 };
 
   constructor(
     camera: THREE.OrthographicCamera,
@@ -197,7 +191,10 @@ export class OrthographicCameraRig {
     assertFiniteNumber(height, 'camera:invalid-viewport', 'height');
     validateInsets(insets);
     if (width <= 0 || height <= 0) {
-      throw new CameraContractError('camera:invalid-viewport', 'Viewport dimensions must be positive.');
+      throw new CameraContractError(
+        'camera:invalid-viewport',
+        'Viewport dimensions must be positive.',
+      );
     }
 
     const usableWidth = width - insets.left - insets.right;
@@ -353,7 +350,6 @@ export class OrthographicCameraRig {
       marginRatio: this.#framingMarginRatio,
     });
 
-    this.#worldBounds = { ...bounds };
     this.#fittedOrthographicSize = clamp(
       fit.orthographicSize,
       this.#limits.minimumOrthographicSize,

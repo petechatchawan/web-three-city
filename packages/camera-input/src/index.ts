@@ -13,11 +13,7 @@ export type {
   WorldVerticalBounds,
 } from './camera-state.js';
 export { calculateFittedOrthographicSize } from './camera-framing.js';
-export type {
-  CameraFitRequest,
-  CameraFitResult,
-  ProjectedCameraPoint,
-} from './camera-framing.js';
+export type { CameraFitRequest, CameraFitResult, ProjectedCameraPoint } from './camera-framing.js';
 export { GestureController } from './gesture-controller.js';
 export type {
   GestureHandlers,

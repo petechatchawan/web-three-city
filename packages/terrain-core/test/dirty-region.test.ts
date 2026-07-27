@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
+import { describe, expect, it } from 'vitest';
 import { resolveDirtyChunks } from '../src/dirty-region.js';
 
 describe('dirty-region invalidation', () => {

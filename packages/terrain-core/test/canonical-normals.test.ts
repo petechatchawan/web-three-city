@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
+import { describe, expect, it } from 'vitest';
 import { buildCanonicalNormals } from '../src/canonical-normals.js';
 import { buildTerrainChunkMesh } from '../src/chunk-mesher.js';
 import { createTerrainMap } from '../src/terrain-map.js';

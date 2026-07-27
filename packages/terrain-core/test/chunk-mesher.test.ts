@@ -1,8 +1,8 @@
-import { describe, expect, it } from 'vitest';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
-import { createTerrainMap } from '../src/terrain-map.js';
+import { describe, expect, it } from 'vitest';
 import { buildCanonicalNormals } from '../src/canonical-normals.js';
 import { buildTerrainChunkMesh } from '../src/chunk-mesher.js';
+import { createTerrainMap } from '../src/terrain-map.js';
 
 function flatMap() {
   return createTerrainMap({
@@ -48,7 +48,10 @@ describe('terrain chunk mesher', () => {
       const acy = mesh.positions[c + 1]! - mesh.positions[a + 1]!;
       const acz = mesh.positions[c + 2]! - mesh.positions[a + 2]!;
       const crossY = abz * acx - abx * acz;
-      const areaSquared = (aby * acz - abz * acy) ** 2 + crossY ** 2 + (abx * acy - aby * acx) ** 2;
+      const areaSquared =
+        (aby * acz - abz * acy) ** 2 +
+        crossY ** 2 +
+        (abx * acy - aby * acx) ** 2;
 
       expect(crossY).toBeGreaterThan(0);
       expect(areaSquared).toBeGreaterThan(0);

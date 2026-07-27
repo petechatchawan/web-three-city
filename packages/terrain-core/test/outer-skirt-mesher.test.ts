@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
+import { describe, expect, it } from 'vitest';
 import { buildOuterSkirtMesh } from '../src/outer-skirt-mesher.js';
 import { createTerrainMap } from '../src/terrain-map.js';
 

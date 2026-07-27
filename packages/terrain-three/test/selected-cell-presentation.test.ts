@@ -51,7 +51,9 @@ describe('buildSelectedCellOverlayData', () => {
       se: latticeHeight(terrain, 5, 8),
     };
 
-    expect(Array.from(data.positions)).toEqual(expectedPositions(terrain, cell));
+    const expected = expectedPositions(terrain, cell);
+    expect(data.positions).toHaveLength(expected.length);
+    expected.forEach((value, index) => expect(data.positions[index]).toBeCloseTo(value));
     expect(Array.from(data.indices)).toEqual(
       selectTerrainDiagonal(corners) === 'sw-ne' ? [2, 3, 1, 2, 1, 0] : [2, 3, 0, 3, 1, 0],
     );

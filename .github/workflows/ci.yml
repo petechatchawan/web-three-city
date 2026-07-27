@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: ['agent/**']
+  pull_request:
 
 permissions:
   contents: write
@@ -30,6 +31,7 @@ jobs:
       - run: pnpm --filter @web-three-city/terrain-lab build
       - run: pnpm --filter @web-three-city/game build
       - name: Commit canonical state
+        if: github.event_name == 'push'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

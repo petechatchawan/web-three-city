@@ -35,10 +35,8 @@ export class CameraInteractionController {
     const worldUnitsPerPixel =
       (2 * this.#rig.state.orthographicSize) / this.#rig.usableViewportHeight;
     const yaw = (this.#rig.state.yawDegrees * Math.PI) / 180;
-    const deltaX =
-      (-delta.x * Math.sin(yaw) - delta.y * Math.cos(yaw)) * worldUnitsPerPixel;
-    const deltaZ =
-      (delta.x * Math.cos(yaw) - delta.y * Math.sin(yaw)) * worldUnitsPerPixel;
+    const deltaX = (-delta.x * Math.sin(yaw) - delta.y * Math.cos(yaw)) * worldUnitsPerPixel;
+    const deltaZ = (delta.x * Math.cos(yaw) - delta.y * Math.sin(yaw)) * worldUnitsPerPixel;
     this.#rig.panWorld(deltaX, deltaZ);
   }
 

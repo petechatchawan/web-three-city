@@ -2,10 +2,7 @@ import { allChunkCoords, type TerrainSnapshot } from '@web-three-city/terrain-co
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
-import {
-  TerrainGridPresentation,
-  buildTerrainGridChunkData,
-} from '../src/index.js';
+import { TerrainGridPresentation, buildTerrainGridChunkData } from '../src/index.js';
 
 function snapshot(revision = 0): TerrainSnapshot {
   const width = WORLD_CONFIG.mapWidth + 1;

@@ -1,0 +1,23 @@
+{
+  "name": "@web-three-city/terrain-lab",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@web-three-city/camera-input": "workspace:*",
+    "@web-three-city/shared-testkit": "workspace:*",
+    "@web-three-city/terrain-core": "workspace:*",
+    "@web-three-city/terrain-generator": "workspace:*",
+    "@web-three-city/terrain-three": "workspace:*",
+    "@web-three-city/world-core": "workspace:*",
+    "three": "0.185.1"
+  },
+  "devDependencies": {
+    "@types/three": "0.185.0"
+  },
+  "scripts": {
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}

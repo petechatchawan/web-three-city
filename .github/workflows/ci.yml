@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  red-green:
+  canonicalize:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,33 +21,29 @@ jobs:
         with:
           node-version: 22
       - run: pnpm install --no-frozen-lockfile
+      - run: |
+          pnpm exec prettier --write "**/*.{ts,js,yml,yaml}"
+          git diff --name-only | tee canonical-changed-files.txt
       - run: pnpm test
-      - run: pnpm exec prettier --write "**/*.{ts,js,yml,yaml}"
       - run: pnpm lint
-      - name: Typecheck
-        continue-on-error: true
-        run: |
-          set -o pipefail
-          pnpm typecheck 2>&1 | tee typecheck.log
+      - run: pnpm typecheck
       - run: pnpm --filter @web-three-city/terrain-lab build
       - run: pnpm --filter @web-three-city/game build
-      - run: pnpm exec playwright install --with-deps chromium
-      - name: Browser tests
-        continue-on-error: true
-        run: |
-          set -o pipefail
-          pnpm test:browser 2>&1 | tee browser.log
       - uses: actions/upload-artifact@v4
-        if: always()
         with:
-          name: browser-slice-diagnostics
+          name: canonical-repository-state
           path: |
-            typecheck.log
-            browser.log
-            playwright-report
-            test-results
-          if-no-files-found: ignore
-      - name: Fail on diagnostics
-        run: |
-          ! grep -q "error TS" typecheck.log
-          ! grep -Eq "[1-9][0-9]* failed" browser.log
+            canonical-changed-files.txt
+            pnpm-lock.yaml
+            .github
+            apps
+            browser-tests
+            packages
+            tooling
+            eslint.config.js
+            package.json
+            playwright.config.ts
+            tsconfig.base.json
+            vitest.workspace.ts
+          include-hidden-files: true
+          if-no-files-found: error

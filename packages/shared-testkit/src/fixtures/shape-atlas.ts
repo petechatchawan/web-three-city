@@ -25,10 +25,14 @@ const PLATEAU = matrix(
   ),
 );
 const RIDGE = matrix(
-  Array.from({ length: 8 }, (_, z) => Array.from({ length: 8 }, (_, x) => ((x + z) % 2 === 0 ? 2 : 1))),
+  Array.from({ length: 8 }, (_, z) =>
+    Array.from({ length: 8 }, (_, x) => ((x + z) % 2 === 0 ? 2 : 1)),
+  ),
 );
 const VALLEY = matrix(
-  Array.from({ length: 8 }, (_, z) => Array.from({ length: 8 }, (_, x) => ((x + z) % 2 === 0 ? 1 : 2))),
+  Array.from({ length: 8 }, (_, z) =>
+    Array.from({ length: 8 }, (_, x) => ((x + z) % 2 === 0 ? 1 : 2)),
+  ),
 );
 const BASIN = matrix(
   Array.from({ length: 8 }, (_, z) =>
@@ -39,7 +43,9 @@ const STAIRCASE = matrix(
   Array.from({ length: 8 }, (_, z) => Array<number>(8).fill(z < 3 ? 3 : z < 6 ? 2 : 1)),
 );
 const SADDLE = matrix(
-  Array.from({ length: 8 }, (_, z) => Array.from({ length: 8 }, (_, x) => (x < 4 === z < 4 ? 2 : 1))),
+  Array.from({ length: 8 }, (_, z) =>
+    Array.from({ length: 8 }, (_, x) => (x < 4 === z < 4 ? 2 : 1)),
+  ),
 );
 const SEAM = matrix(Array.from({ length: 8 }, (_, z) => Array<number>(8).fill(z < 4 ? 2 : 1)));
 const BOUNDARY = matrix(

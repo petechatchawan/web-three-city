@@ -22,23 +22,6 @@ jobs:
           node-version: 22
       - run: pnpm install --no-frozen-lockfile
       - run: pnpm test
-      - run: |
-          pnpm exec prettier --write "**/*.{ts,js,yml,yaml}"
-          git diff --name-only -- '*.ts' '*.js' '*.yml' '*.yaml' | tee prettier-changed-files.txt
-      - uses: actions/upload-artifact@v4
-        with:
-          name: prettier-tool-and-output
-          path: |
-            prettier-changed-files.txt
-            .github
-            apps
-            packages
-            *.ts
-            *.js
-            *.yml
-            *.yaml
-            node_modules/prettier
-            node_modules/.bin/prettier
-          include-hidden-files: true
+      - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck

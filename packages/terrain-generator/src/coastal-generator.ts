@@ -80,12 +80,7 @@ export function generateCoastalTerrain(
       input.config.mapHeight,
       profile,
     );
-    const projected = projectCardinalConstraints(
-      initial,
-      latticeWidth,
-      latticeHeight,
-      maxPasses,
-    );
+    const projected = projectCardinalConstraints(initial, latticeWidth, latticeHeight, maxPasses);
     if (!projected.ok) {
       lastError = 'constraint-unsatisfied';
       continue;

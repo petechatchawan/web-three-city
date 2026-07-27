@@ -127,8 +127,16 @@ export function calculateTerrainStatistics(
       const ne = map.heightLevels[z * latticeWidth + x + 1]!;
       const sw = map.heightLevels[(z + 1) * latticeWidth + x]!;
       const se = map.heightLevels[(z + 1) * latticeWidth + x + 1]!;
-      const dry = nw > config.seaLevel && ne > config.seaLevel && sw > config.seaLevel && se > config.seaLevel;
-      const water = nw <= config.seaLevel && ne <= config.seaLevel && sw <= config.seaLevel && se <= config.seaLevel;
+      const dry =
+        nw > config.seaLevel &&
+        ne > config.seaLevel &&
+        sw > config.seaLevel &&
+        se > config.seaLevel;
+      const water =
+        nw <= config.seaLevel &&
+        ne <= config.seaLevel &&
+        sw <= config.seaLevel &&
+        se <= config.seaLevel;
       const flat = nw === ne && nw === sw && nw === se;
       const index = z * width + x;
 

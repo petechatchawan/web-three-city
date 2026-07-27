@@ -48,7 +48,7 @@ describe('buildTerrainGridChunkData', () => {
   it('uses authoritative heights plus the locked grid offset', () => {
     const terrain = snapshot();
     const data = buildTerrainGridChunkData(terrain, { x: 0, z: 0 }, WORLD_CONFIG);
-    const firstY = terrain.heightLevels[0]! * WORLD_CONFIG.heightStep + 0.015;
+    const firstY = terrain.heightLevels[1]! * WORLD_CONFIG.heightStep + 0.015;
 
     expect(data.positions[1]).toBeCloseTo(firstY);
     expect(data.positions.length).toBe(data.segmentCount * 2 * 3);

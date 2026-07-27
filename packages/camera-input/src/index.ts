@@ -19,12 +19,22 @@ export {
   CameraInteractionController,
 } from './camera-interaction-controller.js';
 export type { ScreenPoint, TerrainAnchorResolver } from './camera-interaction-controller.js';
-export { GestureController } from './gesture-controller.js';
+export {
+  DEFAULT_GESTURE_OPTIONS,
+  GestureController,
+  classifyTwoFingerAxes,
+} from './gesture-controller.js';
 export type {
   GestureHandlers,
   GestureOptions,
+  GestureSessionState,
   PointDelta,
   PointerSample,
+  ResolvedGestureOptions,
+  TwoFingerAxis,
+  TwoFingerAxisInput,
+  TwoFingerAxisResult,
+  TwoFingerGestureFrame,
 } from './gesture-controller.js';
 export { OrthographicCameraRig } from './orthographic-camera-rig.js';
 export type { CameraMapConfig } from './orthographic-camera-rig.js';

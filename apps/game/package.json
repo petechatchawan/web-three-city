@@ -1,0 +1,8 @@
+{
+  "name": "@web-three-city/game",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": { "three": "0.185.1" },
+  "scripts": { "build": "vite build", "typecheck": "tsc -p tsconfig.json --noEmit" }
+}

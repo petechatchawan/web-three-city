@@ -4,6 +4,14 @@
   "private": true,
   "type": "module",
   "exports": "./src/index.ts",
-  "dependencies": { "@web-three-city/terrain-core": "workspace:*", "three": "0.185.1" },
-  "scripts": { "test": "vitest run", "typecheck": "tsc -p tsconfig.json --noEmit", "build": "tsc -p tsconfig.build.json" }
+  "dependencies": {
+    "@web-three-city/terrain-core": "workspace:*",
+    "three": "0.185.1"
+  },
+  "scripts": {
+    "test": "vitest run --passWithNoTests",
+    "test:coverage": "vitest run --coverage --passWithNoTests",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "tsc -p tsconfig.build.json"
+  }
 }

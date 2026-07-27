@@ -9,8 +9,8 @@
     "typecheck": "pnpm -r --if-present typecheck",
     "lint": "eslint .",
     "format:check": "prettier --check \"**/*.{ts,js,yml,yaml}\"",
-    "test": "vitest run --workspace vitest.workspace.ts",
-    "test:coverage": "vitest run --coverage --workspace vitest.workspace.ts",
+    "test": "pnpm -r --if-present test",
+    "test:coverage": "pnpm -r --if-present test:coverage",
     "test:browser": "playwright test",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
   },

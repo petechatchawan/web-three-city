@@ -23,7 +23,7 @@ function mesh(indices: readonly number[]): THREE.Mesh {
       3,
     ),
   );
-  geometry.setIndex(indices);
+  geometry.setIndex(Array.from(indices));
   const terrain = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }));
   terrain.name = 'arbitrary-presentation-name';
   terrain.updateMatrixWorld(true);

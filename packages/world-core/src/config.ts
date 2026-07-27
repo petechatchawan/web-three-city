@@ -1,4 +1,16 @@
-export const WORLD_CONFIG = Object.freeze({
+export interface WorldConfig {
+  readonly mapWidth: number;
+  readonly mapHeight: number;
+  readonly chunkSize: number;
+  readonly cellSize: number;
+  readonly heightStep: number;
+  readonly minHeightLevel: number;
+  readonly maxHeightLevel: number;
+  readonly seaLevel: number;
+  readonly dioramaBaseY: number;
+}
+
+export const WORLD_CONFIG: WorldConfig = Object.freeze({
   mapWidth: 128,
   mapHeight: 128,
   chunkSize: 16,
@@ -9,5 +21,3 @@ export const WORLD_CONFIG = Object.freeze({
   seaLevel: 1,
   dioramaBaseY: -1.5,
 });
-
-export type WorldConfig = Readonly<typeof WORLD_CONFIG>;

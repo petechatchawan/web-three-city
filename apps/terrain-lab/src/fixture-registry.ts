@@ -4,12 +4,7 @@ import type { TerrainSnapshot } from '@web-three-city/terrain-core';
 import { generateCoastalTerrain } from '@web-three-city/terrain-generator';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 
-export type FixtureId =
-  | 'coastal'
-  | 'shape-atlas'
-  | 'chunk-seam'
-  | 'boundary-skirt'
-  | 'picking';
+export type FixtureId = 'coastal' | 'shape-atlas' | 'chunk-seam' | 'boundary-skirt' | 'picking';
 
 export type DiagnosticShapeId =
   | 'ramp-north'
@@ -91,10 +86,8 @@ function createShapeMatrix(shape: DiagnosticShapeId): Uint8Array {
       else if (shape === 'ramp-south') set(x, z, z < 4 ? 2 : 3);
       else if (shape === 'ramp-east') set(x, z, x < 4 ? 2 : 3);
       else if (shape === 'ramp-west') set(x, z, x < 4 ? 3 : 2);
-      else if (shape === 'raised-plateau')
-        set(x, z, x >= 2 && x <= 5 && z >= 2 && z <= 5 ? 3 : 2);
-      else if (shape === 'basin')
-        set(x, z, x >= 2 && x <= 5 && z >= 2 && z <= 5 ? 2 : 3);
+      else if (shape === 'raised-plateau') set(x, z, x >= 2 && x <= 5 && z >= 2 && z <= 5 ? 3 : 2);
+      else if (shape === 'basin') set(x, z, x >= 2 && x <= 5 && z >= 2 && z <= 5 ? 2 : 3);
       else if (shape === 'diagonal-ridge') set(x, z, (x + z) % 2 === 0 ? 3 : 2);
       else if (shape === 'diagonal-valley') set(x, z, (x + z) % 2 === 0 ? 2 : 3);
       else if (shape === 'saddle-twist') set(x, z, x < 4 === z < 4 ? 3 : 2);

@@ -148,9 +148,12 @@ if (!capability.supported) {
   requireElement<HTMLButtonElement>('[data-action="rotate-left"]').addEventListener('click', () => {
     cameraRig.rotateLeft();
   });
-  requireElement<HTMLButtonElement>('[data-action="rotate-right"]').addEventListener('click', () => {
-    cameraRig.rotateRight();
-  });
+  requireElement<HTMLButtonElement>('[data-action="rotate-right"]').addEventListener(
+    'click',
+    () => {
+      cameraRig.rotateRight();
+    },
+  );
 
   canvas.addEventListener('webglcontextlost', (event) => {
     event.preventDefault();

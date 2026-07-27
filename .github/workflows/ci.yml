@@ -25,15 +25,15 @@ jobs:
       - run: pnpm exec prettier --write "**/*.{ts,js,yml,yaml}"
       - run: pnpm lint
       - run: pnpm typecheck
+      - run: pnpm --filter @web-three-city/terrain-lab build
+      - run: pnpm --filter @web-three-city/game build
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:browser
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: canonical-source
+          name: browser-red-evidence
           path: |
-            .github
-            apps
-            packages
-            *.ts
-            *.js
-            *.yml
-            *.yaml
-          include-hidden-files: true
+            playwright-report
+            test-results
+          if-no-files-found: ignore

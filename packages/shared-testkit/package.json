@@ -6,7 +6,8 @@
   "exports": "./src/index.ts",
   "dependencies": {
     "@web-three-city/world-core": "workspace:*",
-    "@web-three-city/terrain-core": "workspace:*"
+    "@web-three-city/terrain-core": "workspace:*",
+    "@web-three-city/terrain-generator": "workspace:*"
   },
   "scripts": {
     "test": "vitest run --passWithNoTests",

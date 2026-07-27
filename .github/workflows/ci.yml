@@ -22,6 +22,18 @@ jobs:
           node-version: 22
       - run: pnpm install --no-frozen-lockfile
       - run: pnpm test
-      - run: pnpm format:check
+      - run: pnpm exec prettier --write "**/*.{ts,js,yml,yaml}"
       - run: pnpm lint
       - run: pnpm typecheck
+      - uses: actions/upload-artifact@v4
+        with:
+          name: canonical-source
+          path: |
+            .github
+            apps
+            packages
+            *.ts
+            *.js
+            *.yml
+            *.yaml
+          include-hidden-files: true

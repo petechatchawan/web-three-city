@@ -18,10 +18,7 @@ export {
   CAMERA_INTERACTION_SENSITIVITY,
   CameraInteractionController,
 } from './camera-interaction-controller.js';
-export type {
-  ScreenPoint,
-  TerrainAnchorResolver,
-} from './camera-interaction-controller.js';
+export type { ScreenPoint, TerrainAnchorResolver } from './camera-interaction-controller.js';
 export { GestureController } from './gesture-controller.js';
 export type {
   GestureHandlers,

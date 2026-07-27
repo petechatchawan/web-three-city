@@ -31,7 +31,8 @@ class QueueResolver implements TerrainAnchorResolver {
     this.#values.push(...values);
   }
 
-  pick(_point: ScreenPoint): TerrainPickResult | null {
+  pick(point: ScreenPoint): TerrainPickResult | null {
+    void point;
     return this.#values.shift() ?? null;
   }
 }

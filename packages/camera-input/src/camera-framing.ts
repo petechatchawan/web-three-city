@@ -1,8 +1,4 @@
-import {
-  CameraContractError,
-  assertFiniteNumber,
-  type ViewportInsets,
-} from './camera-state.js';
+import { CameraContractError, assertFiniteNumber, type ViewportInsets } from './camera-state.js';
 
 export interface CameraFitRequest {
   readonly viewportWidth: number;
@@ -70,7 +66,10 @@ function validateRequest(request: CameraFitRequest): void {
   validateInsets(request.insets);
 
   if (request.viewportWidth <= 0 || request.viewportHeight <= 0) {
-    throw new CameraContractError('camera:invalid-viewport', 'Viewport dimensions must be positive.');
+    throw new CameraContractError(
+      'camera:invalid-viewport',
+      'Viewport dimensions must be positive.',
+    );
   }
   if (request.worldHalfWidth <= 0 || request.worldHalfHeight <= 0) {
     throw new CameraContractError(

@@ -108,11 +108,13 @@ describe('bindWorldInput', () => {
   it('anchors wheel zoom at the pointer and prevents page scrolling', () => {
     const binding = createBinding();
     const event = new window.WheelEvent('wheel', {
-      clientX: 100,
-      clientY: 80,
       deltaY: -120,
       bubbles: true,
       cancelable: true,
+    });
+    Object.defineProperties(event, {
+      clientX: { value: 100 },
+      clientY: { value: 80 },
     });
     canvas.dispatchEvent(event);
 

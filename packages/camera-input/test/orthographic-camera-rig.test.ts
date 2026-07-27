@@ -30,10 +30,7 @@ describe('OrthographicCameraRig', () => {
   });
 
   it.each([
-    [
-      { minimumPitchDegrees: 66, maximumPitchDegrees: 65 },
-      'camera:invalid-pitch-limits',
-    ],
+    [{ minimumPitchDegrees: 66, maximumPitchDegrees: 65 }, 'camera:invalid-pitch-limits'],
     [
       { minimumPitchDegrees: 10, maximumPitchDegrees: 65 },
       'camera:pitch-limit-outside-hard-envelope',
@@ -42,10 +39,7 @@ describe('OrthographicCameraRig', () => {
       { minimumPitchDegrees: 35, maximumPitchDegrees: 90 },
       'camera:pitch-limit-outside-hard-envelope',
     ],
-    [
-      { minimumOrthographicSize: 50, maximumOrthographicSize: 20 },
-      'camera:invalid-zoom-limits',
-    ],
+    [{ minimumOrthographicSize: 50, maximumOrthographicSize: 20 }, 'camera:invalid-zoom-limits'],
   ] as const)('rejects invalid limits', (overrides, code) => {
     expect(
       () => new OrthographicCameraRig(new THREE.OrthographicCamera(), MAP, overrides),
@@ -131,8 +125,6 @@ describe('OrthographicCameraRig', () => {
     rig.setViewport(1000, 600, { top: 0, right: 200, bottom: 0, left: 0 });
     rig.fitToWorld(WORLD_BOUNDS);
 
-    expect(camera.right - camera.left).toBeCloseTo(
-      (camera.top - camera.bottom) * (800 / 600),
-    );
+    expect(camera.right - camera.left).toBeCloseTo((camera.top - camera.bottom) * (800 / 600));
   });
 });

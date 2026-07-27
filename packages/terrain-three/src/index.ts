@@ -1,4 +1,5 @@
 export { createChunkGeometry } from './chunk-geometry-adapter.js';
+export { createCoreTerrainPresentationSource } from './core-terrain-source.js';
 export { createTerrainMaterials } from './material-factory.js';
 export type { TerrainMaterials } from './material-factory.js';
 export { createOuterSkirtGeometry } from './outer-skirt-presentation.js';

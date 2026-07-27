@@ -25,7 +25,9 @@ export interface WorldInputBindingOptions {
 
 function toCanvasPoint(canvas: HTMLCanvasElement, clientX: number, clientY: number): ScreenPoint {
   const bounds = canvas.getBoundingClientRect();
-  return { x: clientX - bounds.left, y: clientY - bounds.top };
+  const left = Number.isFinite(bounds.left) ? bounds.left : 0;
+  const top = Number.isFinite(bounds.top) ? bounds.top : 0;
+  return { x: clientX - left, y: clientY - top };
 }
 
 function toPointerSample(canvas: HTMLCanvasElement, event: PointerEvent): PointerSample {

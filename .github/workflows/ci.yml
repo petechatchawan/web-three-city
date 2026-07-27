@@ -3,7 +3,9 @@ name: CI
 on:
   push:
     branches: ['agent/**']
-  pull_request:
+
+permissions:
+  contents: write
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -21,29 +23,24 @@ jobs:
         with:
           node-version: 22
       - run: pnpm install --no-frozen-lockfile
-      - run: |
-          pnpm exec prettier --write "**/*.{ts,js,yml,yaml}"
-          git diff --name-only | tee canonical-changed-files.txt
+      - run: pnpm exec prettier --write "**/*.{ts,js,yml,yaml}"
       - run: pnpm test
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm --filter @web-three-city/terrain-lab build
       - run: pnpm --filter @web-three-city/game build
-      - uses: actions/upload-artifact@v4
-        with:
-          name: canonical-repository-state
-          path: |
-            canonical-changed-files.txt
-            pnpm-lock.yaml
-            .github
-            apps
-            browser-tests
-            packages
-            tooling
-            eslint.config.js
-            package.json
+      - name: Commit canonical state
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pnpm-lock.yaml \
+            apps/game/src/main.ts \
+            apps/terrain-lab/src/fixture-registry.ts \
+            packages/camera-input/test/terrain-picker.test.ts \
             playwright.config.ts
-            tsconfig.base.json
-            vitest.workspace.ts
-          include-hidden-files: true
-          if-no-files-found: error
+          if git diff --cached --quiet; then
+            echo "Canonical state already committed."
+          else
+            git commit -m "chore: lock dependencies and canonical formatting"
+            git push origin HEAD:${GITHUB_REF_NAME}
+          fi

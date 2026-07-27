@@ -19,6 +19,8 @@ export {
   CameraInteractionController,
 } from './camera-interaction-controller.js';
 export type { ScreenPoint, TerrainAnchorResolver } from './camera-interaction-controller.js';
+export { bindWorldInput } from './dom-input-binding.js';
+export type { WorldInputBinding, WorldInputBindingOptions } from './dom-input-binding.js';
 export {
   DEFAULT_GESTURE_OPTIONS,
   GestureController,

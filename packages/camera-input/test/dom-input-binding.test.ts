@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   bindWorldInput,
   type CameraInteractionController,
+  type ScreenPoint,
   type WorldInputBinding,
 } from '../src/index.js';
 
@@ -44,8 +45,8 @@ function createBinding(): WorldInputBinding {
     canvas,
     keyboardTarget: window,
     camera: camera as unknown as CameraInteractionController,
-    onEligibleTap,
-    onReset,
+    onEligibleTap: onEligibleTap as unknown as (point: ScreenPoint) => void,
+    onReset: onReset as unknown as () => void,
   });
 }
 

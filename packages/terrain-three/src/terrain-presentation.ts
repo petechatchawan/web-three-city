@@ -115,7 +115,8 @@ export class TerrainPresentation {
   getChunkMesh(chunk: ChunkCoord): THREE.Mesh {
     this.#assertUsable();
     const mesh = this.#chunkMeshes.get(chunkKey(chunk));
-    if (mesh === undefined) throw new Error(`terrain-presentation:missing-chunk:${chunkKey(chunk)}`);
+    if (mesh === undefined)
+      throw new Error(`terrain-presentation:missing-chunk:${chunkKey(chunk)}`);
     return mesh;
   }
 

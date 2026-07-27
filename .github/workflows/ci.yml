@@ -22,16 +22,14 @@ jobs:
           node-version: 22
       - run: pnpm install --no-frozen-lockfile
       - run: pnpm test
-      - run: |
-          pnpm exec prettier --write "**/*.{ts,js,yml,yaml}"
-          git diff --name-only -- '*.ts' '*.js' '*.yml' '*.yaml' | tee prettier-changed-files.txt
-      - uses: actions/upload-artifact@v4
-        with:
-          name: presentation-prettier-output
-          path: |
-            prettier-changed-files.txt
-            packages/terrain-three
-            packages/camera-input
-          include-hidden-files: true
+      - run: pnpm format:check
       - run: pnpm lint
-      - run: pnpm typecheck
+      - name: Typecheck
+        run: |
+          set -o pipefail
+          pnpm typecheck 2>&1 | tee typecheck.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: presentation-typecheck-log
+          path: typecheck.log

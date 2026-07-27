@@ -53,7 +53,9 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
   };
 
   const refreshTerrainObjects = (): void => {
-    terrainObjects = allChunkCoords(options.config).map((chunk) => options.terrain.getChunkMesh(chunk));
+    terrainObjects = allChunkCoords(options.config).map((chunk) =>
+      options.terrain.getChunkMesh(chunk),
+    );
   };
 
   const pick = (point: ScreenPoint) => {

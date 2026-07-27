@@ -24,15 +24,16 @@ jobs:
       - run: pnpm test
       - run: pnpm exec prettier --write "**/*.{ts,js,yml,yaml}"
       - run: pnpm lint
-      - name: Typecheck
-        continue-on-error: true
-        run: |
-          set -o pipefail
-          pnpm typecheck 2>&1 | tee typecheck.log
+      - run: pnpm typecheck
+      - run: pnpm --filter @web-three-city/terrain-lab build
+      - run: pnpm --filter @web-three-city/game build
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:browser
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: browser-slice-typecheck
-          path: typecheck.log
-      - name: Fail on typecheck errors
-        run: test ! -s typecheck.log || ! grep -q "error TS" typecheck.log
+          name: browser-green-evidence
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore

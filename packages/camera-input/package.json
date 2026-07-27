@@ -8,6 +8,9 @@
     "@web-three-city/world-core": "workspace:*",
     "three": "0.185.1"
   },
+  "devDependencies": {
+    "@types/three": "0.185.0"
+  },
   "scripts": {
     "test": "vitest run --passWithNoTests",
     "test:coverage": "vitest run --coverage --passWithNoTests",

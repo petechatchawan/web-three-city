@@ -6,7 +6,11 @@
   "exports": "./src/index.ts",
   "dependencies": {
     "@web-three-city/terrain-core": "workspace:*",
+    "@web-three-city/world-core": "workspace:*",
     "three": "0.185.1"
+  },
+  "devDependencies": {
+    "@types/three": "0.185.0"
   },
   "scripts": {
     "test": "vitest run --passWithNoTests",

@@ -3,10 +3,7 @@ import { selectTerrainDiagonal } from '@web-three-city/terrain-core';
 import { WORLD_CONFIG, vertexToWorld, type CellCoord } from '@web-three-city/world-core';
 import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
-import {
-  SelectedCellPresentation,
-  buildSelectedCellOverlayData,
-} from '../src/index.js';
+import { SelectedCellPresentation, buildSelectedCellOverlayData } from '../src/index.js';
 
 function snapshot(revision = 0): TerrainSnapshot {
   const width = WORLD_CONFIG.mapWidth + 1;
@@ -37,11 +34,7 @@ function expectedPositions(terrain: TerrainSnapshot, cell: CellCoord): number[] 
     { x: cell.x, z: cell.z + 1 },
     { x: cell.x + 1, z: cell.z + 1 },
   ].flatMap((coord) => {
-    const world = vertexToWorld(
-      coord,
-      latticeHeight(terrain, coord.x, coord.z),
-      WORLD_CONFIG,
-    );
+    const world = vertexToWorld(coord, latticeHeight(terrain, coord.x, coord.z), WORLD_CONFIG);
     return [world.x, world.y + 0.02, world.z];
   });
 }
@@ -60,9 +53,7 @@ describe('buildSelectedCellOverlayData', () => {
 
     expect(Array.from(data.positions)).toEqual(expectedPositions(terrain, cell));
     expect(Array.from(data.indices)).toEqual(
-      selectTerrainDiagonal(corners) === 'sw-ne'
-        ? [2, 3, 1, 2, 1, 0]
-        : [2, 3, 0, 3, 1, 0],
+      selectTerrainDiagonal(corners) === 'sw-ne' ? [2, 3, 1, 2, 1, 0] : [2, 3, 0, 3, 1, 0],
     );
     expect(data.cell).toEqual(cell);
     expect(data.terrainRevision).toBe(0);

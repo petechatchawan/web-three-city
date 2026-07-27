@@ -22,14 +22,6 @@ jobs:
           node-version: 22
       - run: pnpm install --no-frozen-lockfile
       - run: pnpm test
-      - run: pnpm exec prettier --write "**/*.{ts,js,yml,yaml}"
+      - run: pnpm format:check
       - run: pnpm lint
-      - name: Typecheck
-        run: |
-          set -o pipefail
-          pnpm typecheck 2>&1 | tee typecheck.log
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: chunk-typecheck-log
-          path: typecheck.log
+      - run: pnpm typecheck

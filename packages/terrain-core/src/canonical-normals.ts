@@ -69,16 +69,13 @@ function accumulateTriangle(
 
   for (const vertexIndex of triangle) {
     const offset = vertexIndex * 3;
-    accumulation[offset] += normalX;
-    accumulation[offset + 1] += normalY;
-    accumulation[offset + 2] += normalZ;
+    accumulation[offset] = accumulation[offset]! + normalX;
+    accumulation[offset + 1] = accumulation[offset + 1]! + normalY;
+    accumulation[offset + 2] = accumulation[offset + 2]! + normalZ;
   }
 }
 
-export function buildCanonicalNormals(
-  map: TerrainMap,
-  config: WorldConfig,
-): CanonicalNormalField {
+export function buildCanonicalNormals(map: TerrainMap, config: WorldConfig): CanonicalNormalField {
   const latticeWidth = map.width + 1;
   const latticeHeight = map.height + 1;
   const accumulation = new Float64Array(latticeWidth * latticeHeight * 3);

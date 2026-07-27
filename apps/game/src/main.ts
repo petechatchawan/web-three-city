@@ -14,8 +14,9 @@ import './style.css';
 const SAVE_KEY = 'web-three-city:terrain-save:v1';
 const CURATED_SEED = 1464156977;
 
-const root = document.querySelector<HTMLElement>('#app');
-if (root === null) throw new Error('game:missing-root');
+const rootElement = document.querySelector<HTMLElement>('#app');
+if (rootElement === null) throw new Error('game:missing-root');
+const root: HTMLElement = rootElement;
 
 root.innerHTML = `
   <main class="app-shell">

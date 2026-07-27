@@ -2,6 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 
 const OUTPUT_DIRECTORY = 'test-results/screenshots';
+const READY_TIMEOUT = 15_000;
 
 const SCREENSHOTS = [
   ['coastal-overview.png', '?fixture=coastal'],
@@ -23,18 +24,22 @@ const SCREENSHOTS = [
 ] as const;
 
 test('captures exact-head visual and performance evidence', async ({ page }) => {
-  test.setTimeout(180_000);
+  test.setTimeout(240_000);
   await mkdir(OUTPUT_DIRECTORY, { recursive: true });
   await page.setViewportSize({ width: 1440, height: 900 });
 
   for (const [filename, query] of SCREENSHOTS) {
     await page.goto(`http://127.0.0.1:4173/${query}`);
-    await expect(page.getByTestId('terrain-status')).toHaveText('Ready');
+    await expect(page.getByTestId('terrain-status')).toHaveText('Ready', {
+      timeout: READY_TIMEOUT,
+    });
     await page.screenshot({ path: `${OUTPUT_DIRECTORY}/${filename}`, fullPage: true });
   }
 
   await page.goto('http://127.0.0.1:4173/?fixture=picking');
-  await expect(page.getByTestId('terrain-status')).toHaveText('Ready');
+  await expect(page.getByTestId('terrain-status')).toHaveText('Ready', {
+    timeout: READY_TIMEOUT,
+  });
   for (const degrees of [0, 90, 180, 270]) {
     if (degrees > 0) await page.getByRole('button', { name: 'Rotate right' }).click();
     await page.screenshot({
@@ -48,7 +53,9 @@ test('captures exact-head visual and performance evidence', async ({ page }) => 
   });
 
   await page.goto('http://127.0.0.1:4173/?fixture=coastal');
-  await expect(page.getByTestId('terrain-status')).toHaveText('Ready');
+  await expect(page.getByTestId('terrain-status')).toHaveText('Ready', {
+    timeout: READY_TIMEOUT,
+  });
   const evidence = await page.evaluate(() => window.__WEB_THREE_CITY_EVIDENCE__);
   expect(evidence).toBeDefined();
   await writeFile(

@@ -91,16 +91,28 @@ function createShapeMatrix(shape: DiagnosticShapeId): Uint8Array {
       else if (shape === 'ramp-south') set(x, z, z < 4 ? 2 : 3);
       else if (shape === 'ramp-east') set(x, z, x < 4 ? 2 : 3);
       else if (shape === 'ramp-west') set(x, z, x < 4 ? 3 : 2);
-      else if (shape === 'raised-plateau') set(x, z, x >= 2 && x <= 5 && z >= 2 && z <= 5 ? 3 : 2);
-      else if (shape === 'basin') set(x, z, x >= 2 && x <= 5 && z >= 2 && z <= 5 ? 2 : 3);
+      else if (shape === 'raised-plateau')
+        set(x, z, x >= 2 && x <= 5 && z >= 2 && z <= 5 ? 3 : 2);
+      else if (shape === 'basin')
+        set(x, z, x >= 2 && x <= 5 && z >= 2 && z <= 5 ? 2 : 3);
       else if (shape === 'diagonal-ridge') set(x, z, (x + z) % 2 === 0 ? 3 : 2);
       else if (shape === 'diagonal-valley') set(x, z, (x + z) % 2 === 0 ? 2 : 3);
       else if (shape === 'saddle-twist') set(x, z, x < 4 === z < 4 ? 3 : 2);
-      else if (shape === 'staircase') {
-        const rowLevels = [2, 3, 4, 4, 3, 2, 2, 2] as const;
-        set(x, z, rowLevels[z]!);
-      }
     }
+  }
+
+  if (shape === 'staircase') {
+    const rows = [
+      [2, 2, 2, 2, 2, 2, 2, 2],
+      [2, 3, 3, 3, 3, 3, 3, 2],
+      [2, 3, 4, 4, 4, 4, 3, 2],
+      [2, 3, 4, 4, 4, 4, 3, 2],
+      [2, 3, 3, 3, 3, 3, 3, 2],
+      [2, 2, 2, 2, 2, 2, 2, 2],
+      [2, 2, 2, 2, 2, 2, 2, 2],
+      [2, 2, 2, 2, 2, 2, 2, 2],
+    ] as const;
+    rows.forEach((row, z) => row.forEach((level, x) => set(x, z, level)));
   }
 
   if (shape === 'single-corner-high') matrix[4 * 8 + 4] = 3;

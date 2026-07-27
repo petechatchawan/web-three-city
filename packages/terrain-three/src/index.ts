@@ -10,3 +10,14 @@ export type {
 } from './terrain-presentation.js';
 export { detectWebGL2 } from './webgl-capability.js';
 export type { WebGL2Capability } from './webgl-capability.js';
+export {
+  SelectedCellPresentation,
+  SelectionPresentationError,
+  buildSelectedCellOverlayData,
+} from './selected-cell-presentation.js';
+export type {
+  SelectedCellOverlayData,
+  SelectionPresentationErrorCode,
+} from './selected-cell-presentation.js';
+export { TerrainGridPresentation, buildTerrainGridChunkData } from './terrain-grid-presentation.js';
+export type { TerrainGridChunkData } from './terrain-grid-presentation.js';

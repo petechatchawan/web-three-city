@@ -9,10 +9,11 @@
     "typecheck": "pnpm -r --if-present typecheck",
     "lint": "eslint .",
     "format:check": "prettier --check \"**/*.{ts,js,yml,yaml}\"",
+    "provenance:check": "node tooling/check-provenance.mjs",
     "test": "pnpm -r --if-present test",
     "test:coverage": "pnpm -r --if-present test:coverage",
     "test:browser": "playwright test",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm provenance:check && pnpm test && pnpm build"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",

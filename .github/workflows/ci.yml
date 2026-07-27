@@ -1,19 +1,18 @@
 name: CI
 
 on:
-  push:
-    branches: ['agent/**']
   pull_request:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  canonicalize:
+  quality:
+    name: Quality and provenance
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,26 +22,78 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: pnpm install --no-frozen-lockfile
-      - run: pnpm exec prettier --write "**/*.{ts,js,yml,yaml}"
-      - run: pnpm test
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck
+      - run: pnpm provenance:check
+
+  unit:
+    name: Unit, geometry, and golden tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:coverage
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage
+          path: packages/*/coverage
+          if-no-files-found: ignore
+
+  build:
+    name: Build all packages and applications
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-app-builds
+          path: |
+            apps/game/dist
+            apps/terrain-lab/dist
+          if-no-files-found: error
+
+  browser:
+    name: Chromium smoke, interaction, and visual evidence
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @web-three-city/terrain-lab build
       - run: pnpm --filter @web-three-city/game build
-      - name: Commit canonical state
-        if: github.event_name == 'push'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add pnpm-lock.yaml \
-            apps/game/src/main.ts \
-            apps/terrain-lab/src/fixture-registry.ts \
-            packages/camera-input/test/terrain-picker.test.ts \
-            playwright.config.ts
-          if git diff --cached --quiet; then
-            echo "Canonical state already committed."
-          else
-            git commit -m "chore: lock dependencies and canonical formatting"
-            git push origin HEAD:${GITHUB_REF_NAME}
-          fi
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:browser
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-evidence
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: error

@@ -1,5 +1,14 @@
+export { buildCanonicalNormals } from './canonical-normals.js';
+export type { CanonicalNormalField } from './canonical-normals.js';
+export { buildTerrainChunkMesh } from './chunk-mesher.js';
+export { allChunkCoords, chunkCellBounds, chunkForCell } from './chunking.js';
+export type { ChunkCellBounds, ChunkCoord } from './chunking.js';
+export { resolveDirtyChunks } from './dirty-region.js';
+export type { TerrainDirtyRegion } from './dirty-region.js';
 export { HeightLattice, TerrainInvariantError } from './height-lattice.js';
 export type { TerrainInvariantErrorCode } from './height-lattice.js';
+export type { MeshBounds, OuterSkirtMeshData, TerrainChunkMeshData } from './mesh-data.js';
+export { buildOuterSkirtMesh } from './outer-skirt-mesher.js';
 export { classifyTerrainShape, normalizeTerrainCorners } from './shape-classifier.js';
 export type { TerrainShape } from './shape-classifier.js';
 export { decodeTerrainSaveV1, encodeTerrainSaveV1 } from './serialization.js';

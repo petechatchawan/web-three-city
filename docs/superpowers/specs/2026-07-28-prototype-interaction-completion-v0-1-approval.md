@@ -5,7 +5,7 @@
 - **Approved by:** Repository owner
 - **Approval date:** 2026-07-28
 - **Implementation status:** Not authorized yet
-- **Next gate:** Owner review and approval of `docs/superpowers/plans/2026-07-28-prototype-interaction-completion-v0-1.md`
+- **Next gate:** Owner review and approval of `docs/superpowers/plans/2026-07-28-prototype-interaction-completion-v0-1-final.md`
 
 This approval authorizes preparation of the detailed TDD implementation plan. It does not authorize production implementation, merge, Water & Shoreline, Terraform, Roads, Buildings, inertia, perspective mode, or third-party camera controls.
 

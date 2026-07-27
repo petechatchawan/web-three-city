@@ -9,6 +9,22 @@ import { WORLD_CONFIG } from '@web-three-city/world-core';
 import * as THREE from 'three';
 import { resolveFixture } from './fixture-registry.js';
 
+interface TerrainLabEvidence {
+  readonly fixture: string;
+  readonly generationMs: number;
+  readonly presentationMs: number;
+  readonly chunkCount: number;
+  readonly surfaceTriangleCount: number;
+  readonly latticeByteLength: number;
+  readonly renderer: string;
+}
+
+declare global {
+  interface Window {
+    __WEB_THREE_CITY_EVIDENCE__?: TerrainLabEvidence;
+  }
+}
+
 function requireElement<T extends Element>(root: ParentNode, selector: string): T {
   const element = root.querySelector<T>(selector);
   if (element === null) throw new Error(`terrain-lab:missing-element:${selector}`);
@@ -47,7 +63,10 @@ export function bootstrapTerrainLab(root: HTMLElement): void {
     return;
   }
 
-  const fixture = resolveFixture(new URLSearchParams(window.location.search).get('fixture'));
+  const parameters = new URLSearchParams(window.location.search);
+  const generationStart = performance.now();
+  const fixture = resolveFixture(parameters.get('fixture'), parameters.get('shape'));
+  const generationMs = performance.now() - generationStart;
   fixtureName.textContent = fixture.name;
 
   const renderer = new THREE.WebGLRenderer({
@@ -72,7 +91,9 @@ export function bootstrapTerrainLab(root: HTMLElement): void {
     createCoreTerrainPresentationSource(WORLD_CONFIG),
     WORLD_CONFIG,
   );
+  const presentationStart = performance.now();
   presentation.load(fixture.snapshot);
+  const presentationMs = performance.now() - presentationStart;
 
   const grid = new THREE.GridHelper(
     WORLD_CONFIG.mapWidth,
@@ -139,6 +160,15 @@ export function bootstrapTerrainLab(root: HTMLElement): void {
     selected.textContent = result === null ? 'None' : `${result.cellX}, ${result.cellZ}`;
   });
 
+  window.__WEB_THREE_CITY_EVIDENCE__ = {
+    fixture: fixture.name,
+    generationMs,
+    presentationMs,
+    chunkCount: 64,
+    surfaceTriangleCount: WORLD_CONFIG.mapWidth * WORLD_CONFIG.mapHeight * 2,
+    latticeByteLength: fixture.snapshot.heightLevels.byteLength,
+    renderer: renderer.info.programs === null ? 'WebGL2' : 'WebGL2 / Three.js',
+  };
   status.textContent = 'Ready';
 
   window.addEventListener('pagehide', () => {

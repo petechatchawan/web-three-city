@@ -11,6 +11,20 @@ export type FixtureId =
   | 'boundary-skirt'
   | 'picking';
 
+export type DiagnosticShapeId =
+  | 'ramp-north'
+  | 'ramp-south'
+  | 'ramp-east'
+  | 'ramp-west'
+  | 'single-corner-high'
+  | 'single-corner-low'
+  | 'raised-plateau'
+  | 'basin'
+  | 'staircase'
+  | 'diagonal-ridge'
+  | 'diagonal-valley'
+  | 'saddle-twist';
+
 export interface TerrainFixture {
   readonly id: FixtureId;
   readonly name: string;
@@ -18,6 +32,20 @@ export interface TerrainFixture {
 }
 
 const CURATED_SEED = 1464156977;
+const DIAGNOSTIC_SHAPES = new Set<DiagnosticShapeId>([
+  'ramp-north',
+  'ramp-south',
+  'ramp-east',
+  'ramp-west',
+  'single-corner-high',
+  'single-corner-low',
+  'raised-plateau',
+  'basin',
+  'staircase',
+  'diagonal-ridge',
+  'diagonal-valley',
+  'saddle-twist',
+]);
 
 function createSnapshot(levels: Uint8Array, seed: number): TerrainSnapshot {
   return createTerrainMap({
@@ -51,6 +79,55 @@ function createShapeAtlasSnapshot(): TerrainSnapshot {
   return createSnapshot(levels, 1001);
 }
 
+function createShapeMatrix(shape: DiagnosticShapeId): Uint8Array {
+  const matrix = new Uint8Array(64).fill(2);
+  const set = (x: number, z: number, level: number): void => {
+    matrix[z * 8 + x] = level;
+  };
+
+  for (let z = 0; z < 8; z += 1) {
+    for (let x = 0; x < 8; x += 1) {
+      if (shape === 'ramp-north') set(x, z, z < 4 ? 3 : 2);
+      else if (shape === 'ramp-south') set(x, z, z < 4 ? 2 : 3);
+      else if (shape === 'ramp-east') set(x, z, x < 4 ? 2 : 3);
+      else if (shape === 'ramp-west') set(x, z, x < 4 ? 3 : 2);
+      else if (shape === 'raised-plateau') set(x, z, x >= 2 && x <= 5 && z >= 2 && z <= 5 ? 3 : 2);
+      else if (shape === 'basin') set(x, z, x >= 2 && x <= 5 && z >= 2 && z <= 5 ? 2 : 3);
+      else if (shape === 'diagonal-ridge') set(x, z, (x + z) % 2 === 0 ? 3 : 2);
+      else if (shape === 'diagonal-valley') set(x, z, (x + z) % 2 === 0 ? 2 : 3);
+      else if (shape === 'saddle-twist') set(x, z, x < 4 === z < 4 ? 3 : 2);
+      else if (shape === 'staircase') {
+        const rowLevels = [2, 3, 4, 4, 3, 2, 2, 2] as const;
+        set(x, z, rowLevels[z]!);
+      }
+    }
+  }
+
+  if (shape === 'single-corner-high') matrix[4 * 8 + 4] = 3;
+  if (shape === 'single-corner-low') {
+    matrix.fill(3);
+    matrix[4 * 8 + 4] = 2;
+  }
+
+  return matrix;
+}
+
+function createFocusedShapeSnapshot(shape: DiagnosticShapeId): TerrainSnapshot {
+  const latticeWidth = WORLD_CONFIG.mapWidth + 1;
+  const levels = new Uint8Array(latticeWidth * (WORLD_CONFIG.mapHeight + 1)).fill(2);
+  const matrix = createShapeMatrix(shape);
+  const startX = 60;
+  const startZ = 60;
+
+  for (let z = 0; z < 8; z += 1) {
+    for (let x = 0; x < 8; x += 1) {
+      levels[(startZ + z) * latticeWidth + startX + x] = matrix[z * 8 + x]!;
+    }
+  }
+
+  return createSnapshot(levels, 1100 + [...DIAGNOSTIC_SHAPES].indexOf(shape));
+}
+
 function createChunkSeamSnapshot(): TerrainSnapshot {
   const latticeWidth = WORLD_CONFIG.mapWidth + 1;
   const levels = new Uint8Array(latticeWidth * (WORLD_CONFIG.mapHeight + 1)).fill(2);
@@ -67,7 +144,11 @@ function createFlatSnapshot(seed: number): TerrainSnapshot {
   );
 }
 
-export function resolveFixture(input: string | null): TerrainFixture {
+function isDiagnosticShape(value: string | null): value is DiagnosticShapeId {
+  return value !== null && DIAGNOSTIC_SHAPES.has(value as DiagnosticShapeId);
+}
+
+export function resolveFixture(input: string | null, shape: string | null = null): TerrainFixture {
   const id: FixtureId =
     input === 'shape-atlas' ||
     input === 'chunk-seam' ||
@@ -82,7 +163,13 @@ export function resolveFixture(input: string | null): TerrainFixture {
     return { id, name: 'CoastalFixture', snapshot: result.value };
   }
   if (id === 'shape-atlas') {
-    return { id, name: 'ShapeAtlasFixture', snapshot: createShapeAtlasSnapshot() };
+    return {
+      id,
+      name: 'ShapeAtlasFixture',
+      snapshot: isDiagnosticShape(shape)
+        ? createFocusedShapeSnapshot(shape)
+        : createShapeAtlasSnapshot(),
+    };
   }
   if (id === 'chunk-seam') {
     return { id, name: 'ChunkSeamFixture', snapshot: createChunkSeamSnapshot() };

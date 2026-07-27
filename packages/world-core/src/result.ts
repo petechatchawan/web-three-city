@@ -1,6 +1,4 @@
-export type Result<T, E> =
-  | Readonly<{ ok: true; value: T }>
-  | Readonly<{ ok: false; error: E }>;
+export type Result<T, E> = Readonly<{ ok: true; value: T }> | Readonly<{ ok: false; error: E }>;
 
 export function ok<T>(value: T): Result<T, never> {
   return { ok: true, value };

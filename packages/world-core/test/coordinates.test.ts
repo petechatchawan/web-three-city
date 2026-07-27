@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { WORLD_CONFIG } from '../src/config.js';
-import {
-  cellIndex,
-  vertexIndex,
-  vertexToWorld,
-  worldToCell,
-} from '../src/coordinates.js';
+import { cellIndex, vertexIndex, vertexToWorld, worldToCell } from '../src/coordinates.js';
 
 describe('world coordinate contracts', () => {
   it('uses row-major cell and lattice indexing', () => {

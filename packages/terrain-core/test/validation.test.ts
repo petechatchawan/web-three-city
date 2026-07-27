@@ -24,9 +24,7 @@ describe('terrain validation', () => {
 
     const issues = validateTerrainInput(levels, WORLD_CONFIG);
 
-    expect(issues).toContainEqual(
-      expect.objectContaining({ code: 'terrain:non-integer-height' }),
-    );
+    expect(issues).toContainEqual(expect.objectContaining({ code: 'terrain:non-integer-height' }));
     expect(issues).toContainEqual(
       expect.objectContaining({ code: 'terrain:invalid-height-range' }),
     );

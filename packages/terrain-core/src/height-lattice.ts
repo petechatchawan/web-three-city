@@ -2,8 +2,7 @@ import type { GridVertexCoord, WorldConfig } from '@web-three-city/world-core';
 import { vertexIndex } from '@web-three-city/world-core';
 
 export type TerrainInvariantErrorCode =
-  | 'terrain:invalid-lattice-length'
-  | 'terrain:invalid-height-range';
+  'terrain:invalid-lattice-length' | 'terrain:invalid-height-range';
 
 export class TerrainInvariantError extends Error {
   readonly code: TerrainInvariantErrorCode;
@@ -18,11 +17,7 @@ export class TerrainInvariantError extends Error {
 }
 
 function assertHeightLevel(level: number, config: WorldConfig): void {
-  if (
-    !Number.isInteger(level) ||
-    level < config.minHeightLevel ||
-    level > config.maxHeightLevel
-  ) {
+  if (!Number.isInteger(level) || level < config.minHeightLevel || level > config.maxHeightLevel) {
     throw new TerrainInvariantError('terrain:invalid-height-range', { level });
   }
 }

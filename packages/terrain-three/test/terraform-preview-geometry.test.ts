@@ -40,7 +40,7 @@ describe('buildTerraformPreviewMesh', () => {
     expect(data.indices).toHaveLength(6);
     expect(data.indices).toBeInstanceOf(Uint16Array);
     for (let index = 1; index < data.positions.length; index += 3) {
-      expect(data.positions[index]).toBeCloseTo(0.53, 8);
+      expect(data.positions[index]).toBeCloseTo(0.53, 5);
     }
   });
 

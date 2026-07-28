@@ -1,0 +1,58 @@
+name: Verify and commit Water Task 3
+
+on:
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  task3:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: pnpm install --frozen-lockfile
+      - name: Decode verified files from the payload manifest
+        run: |
+          manifest=.github/workflows/water-task3-apply.yml
+          decode_file() {
+            payload=$(sed -n "s/^          $1: //p" "$manifest")
+            test -n "$payload"
+            printf '%s' "$payload" | base64 --decode | gzip --decompress > "$2"
+          }
+          decode_file MESH_DATA packages/water-core/src/mesh-data.ts
+          decode_file CHUNK_MESHER packages/water-core/src/water-chunk-mesher.ts
+          decode_file WALL_MESHER packages/water-core/src/water-wall-mesher.ts
+          decode_file INDEX_FILE packages/water-core/src/index.ts
+          decode_file CHUNK_TEST packages/water-core/test/water-chunk-mesher.test.ts
+          decode_file WALL_TEST packages/water-core/test/water-wall-mesher.test.ts
+      - name: Run Task 3 tests
+        working-directory: packages/water-core
+        run: pnpm exec vitest run test/water-chunk-mesher.test.ts test/water-wall-mesher.test.ts
+      - name: Run Water strict typecheck
+        run: pnpm exec tsc -p packages/water-core/tsconfig.json --noEmit
+      - name: Check Water formatting
+        run: pnpm exec prettier --check packages/water-core
+      - name: Run Water lint
+        run: pnpm exec eslint packages/water-core
+      - name: Commit Task 3
+        run: |
+          if git diff --quiet -- packages/water-core; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add packages/water-core
+          git commit -m "feat(water): build shoreline and Water meshes"
+          git push origin HEAD:${{ github.head_ref }}

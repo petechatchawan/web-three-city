@@ -1,0 +1,40 @@
+name: Stage Water Task 4 RED
+
+on:
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  red:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Decode Task 4 RED package and tests
+        env:
+          TASK4_RED: H4sIAAAAAAAAA+1abW/bOBLu5/wKXr5YLmxFsp2k58K316btboFus2h61w9FUKgSbXMji1qScpor8t9v+KJ3yS9p4fZwYoNUITlDznDm4cxIseffeAvMT249gdlQLBnGJ7HutP/kNHr07c2BdjaZqP+hyf/d81M3/dsdjZ1H7uloPHKdyfgM5rnn7vnkEXK+w9pbW8KFxxB6xCgVm+ZRj3ziS4/h4BC7Olj7eoTQceSt8PEUHf/zFn/WJjD0ibgr2sTxQE5cY8YJjeRcx4Z/ujdmZA0zoVewBKsucRcrjisaJKEhxl9iygSX3fYJZ/4JiQL8xYYeNRzgGENH5BMs58iNofqWYEPMI9HQp0wtcEvZDQd7xdPHik0DiZZiHwLKwmATgdaIUoL75NR2j6H73gixftEsh9QIP6lQOm1b0JY2FJiLGyKq28iW4z4jsSgsIwnk7DWRT4glERoOY4/zD0Qs39L30MkzKeCPqU/hTMHXa0TpwAZ6kMhfYv9G0gruo2GM4D8azclCQQeQRvTlCvZvKD4nJAyaZqsBRaNkO7o/+tF+8f/S4ib8L53it6+xBf+dkXNexf/JyOnw/xDtq0ZmAZClkdk+gZ/cMT2uwwCN0T5dxSTE7DIWcA0o3IHbQ/u4Rn8DTCTywySQqPLxGKD+eGCgaZCijG0WADi57tz9x7XN/p/j8ressbf/j5xT96zz/0O0mv+XwX8Xt597Icfg2FKDLwiTXIzL0yTtCAg4fws2dP7/A1uj/1ch+hvX2Or/bs3/nUmX/x2kkZVMysCfAzwnEb5QR47u0ZzRFeppQzjRhtB7enSkczg52UtCUSKyviKVUQAvHK0Jo9EKR/BnL6IB7g2QcXvw+p5i+vjxyWNb2ZngvWtY8r7/tMOBQ7fm+18fOsND3ctpwnycHtbea2yr/5yN3Yr/j07Puvv/IC3zf59hOOsP8rxfkS8iYThDgc3FCYCFAogwstZMriIv5ksqWrnkZZkihw+X7968+HRx+fbV61/bSbMCTZEUsAn7AoBGVPCrOEmLeQGkapd/MMwBpTwZ11wpK89o7WKR6k8u0Y8Iq6dCYo68MERnE6SYIH+ZRDfQFwWIRhjdykESId+LaER8L0SUgWYAA60+mv1D1WoAUrlAc6PpWYP6rZ5xPsE8slgKkNcDWQAkU2rYuwThWZPaLcPaNgWzQUmzionWl6W52PSmbwv6HFsyi1PjZI6sv+WjsBwwjPLllSayrW9QqVVaWicVz8LQUkWh6j5Vp1l17YW6nljcr85JtMrlln/z1vgNjhZiaZ1N2iZ+dK5/0Y+S5OVfiRfCffVlipwB+g/8VpdPI6XtCWvo9pupzxX1eRO1NAJbA+d7Ldo7vCayemr0XBHcZunw06MD3oTt+L/AdIUFuxt6gRfD2IPhfxv+Q67nVPF/cj7q8P8QzQCjrOVK9JVGcCEN/XfMly884Q103wew5rRrT0QPsKxSf4YMcReAluiSQ+HVEpiFEGL+aoxxUBlP2Nzz20blpvOhDbhu8IwmkAQDoH1FKxLJOFbjw10BJQZo5X0xQ64actWQK+NX5HENjcBynkS+REB9N0i1Wf1pg36VxBpZTQ1fEeSrm3XVUCOcyC3oUa2MPygnKk2fogjfolch9cR49Axo7qyPwNCxT2HPjv5Rz/rH9F/3S9zeUraC/L6FV8ao9FBhcUFDylp308ikwuF1FBAfGxb/IpFwz0p7GGXzU3vZRQnjohbGRTWMi0KkLNvFyFRY/anx2F0QLfh7RrxoEcLaiUyl3Aq75mFtx/L5Hq6SginKK6lkiSWvrhniZmuLdzUzt/w8dO3TVPHmORU62mhrreZWNhl/b2tz8g3BY8qHbDqqUUo+Lp4ZXsiMd/NhpGho9XTomN6yyNyyvBQlyoBzBQFdag+FkNKTm+HologlTQSIHd+RaFGiTgO1QB7vrIhETwuj2Q5mG5DVkjwMmQlzUjp7gcUzIUCoRIBYqV30+rbaool2JL1dRaidGGqr2MDOQNROzJR1bOClnbyd1Wt5a1gQDbYxMB6uOMgwrnSIqd+qTEFlCdXzbDw/dXDtB5iznW28Oy0dwZZky2h3O0XFwa6j7G5Mm5Rf4VjSvxZP6WlWAK/txlu8+C1J+HBDU2F8tM3CGs1CkZJme2D4T+DBIZoI58AcB8hLN4JClcw0m0KbK5s9KQLVsSlMgtzFtu1ARXdbr/lxH/atsUzK9X7J6O1LxihL81MVAE5JBMkaCYaG3zATh/cy2bsC38/X2vM/3REXsvmHZoCb8z93PDkdZ/nfqQP9ozEkhV3+d4hWyv/ATxsywLQ3LS1lHcXwMc+vdskKTbppYsutpcLiR1/fpVj4WKZq73979/KlIVLzt2WtA7QmG0qLterXQMv5gELj1oRUR85tOamOtzempUalFsvi+ihZfcYMUoPqqdQSg1sSiCUwHz3R98ISy/pkreMNXuOwEEA/0ReKO/o76B9+9+05CUPLycJnHMiKmvpjgSPMPEHZv/UXh1PUU+VPLxyu3V5pDozCJY5XsZDKMeVDLVRjDgSSN0ldLlrXkyF/iVdetpssCQqJf5fvEVImsRziYIGHHHv5VrdqDGYrdeU5XnPyVZSsMumqqD/glyaHv3v8puEQnqhDkL9H5iDcfo22nMvgyA8px8EHLCoTnEpielVPhSrnkEcwaXRbKXhkosKQu0/pZB/9dRWTrmKyU8WkyRgfVD0pG2BXRPkeRZTi3Vorn+g0iCP5jXuA6Gedd8myCQqpfwN9TH6uzfQ7OpWZ6zAPblXgTUCXjZkY97HKuKVkKpKwr2RPJTVXRjBtDQFmhiVC6UuxqVkKcjT9/mmKPhayveuBsslpIR3O0rP74srFuN3ssrYJS8kwMLtseEOISmxsMITASgMHuC3MZer2SzLLQBpWLFFqtY+DUrIqJ9ryWEy+3KtnHEM5p9evk0HOfal4Pr97Cxyyd6Um+9Q1dGfq9CAn1+d7KY/XrHS6B8cUObbxPNudpzy7ZiaTsvWYot8M7SlzFt3aEp/aakV7i93ENi356E3Yqc/07QiYK5nyalA2WCmGQJy3kjWw8A58MQ6BD1fv0ZUlSYcMCAekhN5YwidNeFb3ObBrfsrepnMTKRpnNVNRk9NWA5uUtOXt8PUgY1Zx9S2EKd1Phgdzwrh4txUUCpOvMrvPaL+L8RszuopluXBNbB7fXUZWcUk7tasB6pnZva2SjzLJR/1KIVTq0/aXYD/g6zLKlrMs+UGcshv5oBAQzWYz1I5/lc8czDmby7G8ZKOGC96YabRMlqsmXes5xtEFWB4OLiPf+E7BZ9U6bA0+KZYYeb6PYyHv0prLQs62gIH8PcdcvvYwbzvQ3CNhwvBD3DjEApmqo7QU+RHy97p6a95s1sn6EfqldC0PkCqpVnzezb4t2bHOel1YoHrvt4HCz+r2mUns4PXNjqnP/Hkyn2OWlq7tmFFBZVml7qG5MchPmOp18V2lqJS5jXp3rXbv4ZTKIVM9/XDk2AQBqc/lc+wVBM/vMBdwudfAIX27Ies1OLvveBkYSIBXMRWw4fDQ1/jPFGHvaKGj7RaqORn7uqDAhkQkkt9l+1R+d62tZJoWU9NMdLgiHCIzf9nLX/Q8wOtLk80hWzuMNRp8xWydrboqOtWDNWN2FlQU0b266lrXuta1rnWta13rWte61rWuda1r/9PtvwpBV18AUAAA
+        run: |
+          printf '%s' "$TASK4_RED" | base64 --decode | tar -xzf -
+      - name: Update workspace lockfile
+        run: pnpm install --lockfile-only --no-frozen-lockfile
+      - name: Normalize RED files
+        run: pnpm exec prettier --write packages/water-three
+      - name: Commit Task 4 RED
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add packages/water-three pnpm-lock.yaml
+          git commit -m "test(water): define Three.js Water presentation contract"
+          git push origin HEAD:${{ github.head_ref }}

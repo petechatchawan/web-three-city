@@ -1,6 +1,14 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
-import { dispatchCanvasTouch, GAME_URL, readEvidence } from './helpers/interaction.js';
+import {
+  clickTerrainCell,
+  createDeterministicWaterGeometryEvidence,
+  dispatchCanvasTouch,
+  GAME_URL,
+  readEvidence,
+  readTerrainLabWaterEvidence,
+  TERRAIN_LAB_URL,
+} from './helpers/interaction.js';
 
 const OUTPUT_DIRECTORY = 'test-results/screenshots';
 const READY_TIMEOUT = 15_000;
@@ -248,6 +256,124 @@ test('captures canonical desktop and mobile interaction evidence', async ({ page
   expect(Number.isFinite(performanceEvidence.p95PointerFrameMs)).toBe(true);
   await writeFile(
     'test-results/interaction-performance-evidence.json',
+    `${JSON.stringify(performanceEvidence, null, 2)}\n`,
+    'utf8',
+  );
+});
+
+const WATER_OUTPUT_DIRECTORY = 'test-results/water-shoreline-foundation-v0-1';
+const WATER_FIXTURE_SCREENSHOTS = [
+  ['water-straight-coast.png', 'water-straight-coast'],
+  ['water-bay.png', 'water-bay'],
+  ['water-peninsula.png', 'water-peninsula'],
+  ['water-chunk-seam.png', 'water-chunk-seam'],
+  ['water-enclosed-basin.png', 'water-enclosed-basin'],
+  ['water-open-channel.png', 'water-open-channel'],
+  ['water-south-wall.png', 'water-south-wall'],
+] as const;
+
+interface WaterPerformanceEvidence {
+  readonly derivationDurationMs: number;
+  readonly presentationDurationMs: number;
+  readonly seaTriangleCount: number;
+  readonly enclosedWetTriangleCount: number;
+  readonly shorelineSegmentCount: number;
+  readonly surfaceTriangleCount: number;
+  readonly shorelineTriangleCount: number;
+  readonly wallSegmentCount: number;
+  readonly estimatedGeometryBytes: number;
+  readonly geometrySha256: string;
+  readonly rootsBeforeRestore: number;
+  readonly rootsAfterRestore: number;
+}
+
+test('captures Water and shoreline acceptance evidence', async ({ page }) => {
+  test.setTimeout(240_000);
+  await mkdir(WATER_OUTPUT_DIRECTORY, { recursive: true });
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openGame(page);
+  let gameEvidence = await readEvidence(page);
+  expect(gameEvidence.allWorldCornersInsideUsableViewport).toBe(true);
+  expect(gameEvidence.water.waterRootCount).toBe(1);
+  await page.screenshot({
+    path: `${WATER_OUTPUT_DIRECTORY}/water-game-desktop.png`,
+    fullPage: true,
+  });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload();
+  await expect(page.getByTestId('game-status')).toHaveText('Ready', {
+    timeout: READY_TIMEOUT,
+  });
+  gameEvidence = await readEvidence(page);
+  expect(gameEvidence.allWorldCornersInsideUsableViewport).toBe(true);
+  expect(gameEvidence.water.waterRootCount).toBe(1);
+  await page.screenshot({
+    path: `${WATER_OUTPUT_DIRECTORY}/water-game-mobile.png`,
+    fullPage: true,
+  });
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.reload();
+  await expect(page.getByTestId('game-status')).toHaveText('Ready', {
+    timeout: READY_TIMEOUT,
+  });
+  await page.getByRole('button', { name: 'Grid' }).click();
+  await clickTerrainCell(page, { x: 64, z: 116 });
+  gameEvidence = await readEvidence(page);
+  expect(gameEvidence.gridVisible).toBe(true);
+  expect(gameEvidence.selectedCell).toEqual({ x: 64, z: 116 });
+  await page.screenshot({
+    path: `${WATER_OUTPUT_DIRECTORY}/water-grid-selection.png`,
+    fullPage: true,
+  });
+
+  for (const [filename, fixture] of WATER_FIXTURE_SCREENSHOTS) {
+    await page.goto(`${TERRAIN_LAB_URL}?fixture=${fixture}`);
+    await expect(page.getByTestId('terrain-status')).toHaveText('Ready', {
+      timeout: READY_TIMEOUT,
+    });
+    await expect(page.getByTestId('water-status')).toHaveText('Ready');
+    expect((await readTerrainLabWaterEvidence(page)).waterRootCount).toBe(1);
+    await page.screenshot({
+      path: `${WATER_OUTPUT_DIRECTORY}/${filename}`,
+      fullPage: true,
+    });
+  }
+
+  await openGame(page);
+  const beforeRestore = await readEvidence(page);
+  const canvas = page.locator('#game-canvas');
+  await canvas.evaluate((element) => {
+    element.dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
+    element.dispatchEvent(new Event('webglcontextrestored'));
+  });
+  await expect(page.getByTestId('game-status')).toHaveText('Ready');
+  const afterRestore = await readEvidence(page);
+  const geometry = createDeterministicWaterGeometryEvidence();
+  const performanceEvidence: WaterPerformanceEvidence = {
+    derivationDurationMs: afterRestore.water.derivationDurationMs,
+    presentationDurationMs: afterRestore.water.presentationDurationMs,
+    seaTriangleCount: geometry.seaTriangleCount,
+    enclosedWetTriangleCount: geometry.enclosedWetTriangleCount,
+    shorelineSegmentCount: geometry.shorelineSegmentCount,
+    surfaceTriangleCount: geometry.surfaceTriangleCount,
+    shorelineTriangleCount: geometry.shorelineTriangleCount,
+    wallSegmentCount: geometry.wallSegmentCount,
+    estimatedGeometryBytes: geometry.estimatedGeometryBytes,
+    geometrySha256: geometry.geometrySha256,
+    rootsBeforeRestore: beforeRestore.water.waterRootCount,
+    rootsAfterRestore: afterRestore.water.waterRootCount,
+  };
+  expect(performanceEvidence.derivationDurationMs).toBeGreaterThanOrEqual(0);
+  expect(performanceEvidence.presentationDurationMs).toBeGreaterThanOrEqual(0);
+  expect(Number.isFinite(performanceEvidence.derivationDurationMs)).toBe(true);
+  expect(Number.isFinite(performanceEvidence.presentationDurationMs)).toBe(true);
+  expect(performanceEvidence.rootsBeforeRestore).toBe(1);
+  expect(performanceEvidence.rootsAfterRestore).toBe(1);
+  await writeFile(
+    `${WATER_OUTPUT_DIRECTORY}/water-performance-evidence.json`,
     `${JSON.stringify(performanceEvidence, null, 2)}\n`,
     'utf8',
   );

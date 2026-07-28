@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation, deterministic browser evidence, boundary audits, full automated verification, and delegated final visual review are complete on PR #6. The owner instructed the agent on 2026-07-28 to continue and finish the milestone rather than stop at the prior personal visual-review gate. The final exact-head browser artifact was inspected directly and the milestone is authorized for merge after fresh CI succeeds on this documentation descendant.
+Implementation, deterministic browser evidence, boundary audits, full automated verification, and delegated final visual review are complete on PR #6. The owner instructed the agent on 2026-07-28 to continue and finish the milestone rather than stop at the prior personal visual-review gate. The final exact-head browser artifact was inspected directly and the milestone is authorized for merge after fresh CI succeeds on the final documentation descendant.
 
 ## Accepted Contract
 
@@ -135,4 +135,4 @@ Delegated final visual review: **PASS**.
 
 Owner completion instruction: **RECORDED — continue and finish the milestone on 2026-07-28**.
 
-Merge authorization: **GRANTED by the owner's completion instruction, subject to fresh CI success on this documentation descendant**.
+Merge authorization: **GRANTED by the owner's completion instruction, subject to fresh CI success on the final documentation descendant**.

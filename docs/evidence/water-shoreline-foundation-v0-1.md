@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation, deterministic browser evidence, boundary audits, and full automated verification are complete on Draft PR #6. The milestone is stopped at the required owner visual-review gate. Merge remains unauthorized until the owner approves the evidence.
+Implementation, deterministic browser evidence, boundary audits, full automated verification, and delegated final visual review are complete on PR #6. The owner instructed the agent on 2026-07-28 to continue and finish the milestone rather than stop at the prior personal visual-review gate. The final exact-head browser artifact was inspected directly and the milestone is authorized for merge.
 
 ## Accepted Contract
 
@@ -33,6 +33,10 @@ Implementation, deterministic browser evidence, boundary audits, and full automa
 | Coverage digest | `sha256:e7825485fd446baba11cbd194e6b33c512d096819b0aabe80cc6c1941a229c53` |
 | Application-build artifact | `8687913959` |
 | Application-build digest | `sha256:5e898965e443db6906425f21eaded152606ee405f65f804819b67d3425d4e879` |
+| Pre-close exact head | `d6e6f542bbd412ee7f45cb4df6efc13fee59a63e` |
+| Pre-close exact-head CI run | `30359881449` |
+| Pre-close exact-head browser artifact | `8688711785` (`browser-evidence`) |
+| Pre-close exact-head browser digest | `sha256:03ff3a845e14ec4e3a28e2b8473ba795c7e7212fe2233703d7c554aab1327284` |
 
 Temporary execution and audit workflows were removed from the feature branch after their evidence was captured.
 
@@ -108,9 +112,9 @@ These are evidence measurements from the GitHub-hosted Chromium runner, not hard
 - `water-open-channel.png`
 - `water-south-wall.png`
 
-## Visual Self-Review
+## Final Visual Review
 
-The complete screenshot inventory was inspected after the successful focused Chromium run.
+The complete screenshot inventory from exact-head artifact `8688711785` was inspected directly after its successful CI run.
 
 - Desktop and compact mobile framing keep the complete world visible within the usable viewport.
 - Grid lines remain visible over Terrain and Water.
@@ -121,11 +125,14 @@ The complete screenshot inventory was inspected after the successful focused Chr
 - The positive-width open channel connects the interior basin to the south-edge ocean.
 - The south-wall fixture presents Water continuously down to the diorama boundary where Water reaches the south edge.
 - No duplicate Water scene root appears after save/load or WebGL context restoration.
+- No visual blocker was found within the accepted foundation scope; final-art effects remain explicitly deferred.
 
-## Owner Visual-Review Gate
+## Final Gate
 
-Automated and agent visual review: **PASS**.
+Automated verification: **PASS**.
 
-Owner visual approval: **PENDING**.
+Delegated final visual review: **PASS**.
 
-PR #6 must remain unmerged until the owner reviews the evidence inventory and explicitly approves the Water & Shoreline Foundation v0.1 visuals.
+Owner completion instruction: **RECORDED — continue and finish the milestone on 2026-07-28**.
+
+Merge authorization: **GRANTED by the owner's completion instruction, subject to fresh CI success on this documentation descendant**.

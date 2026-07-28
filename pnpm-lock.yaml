@@ -53,6 +53,12 @@ importers:
       '@web-three-city/terrain-three':
         specifier: workspace:*
         version: link:../../packages/terrain-three
+      '@web-three-city/water-core':
+        specifier: workspace:*
+        version: link:../../packages/water-core
+      '@web-three-city/water-three':
+        specifier: workspace:*
+        version: link:../../packages/water-three
       '@web-three-city/world-core':
         specifier: workspace:*
         version: link:../../packages/world-core

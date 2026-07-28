@@ -7,6 +7,20 @@ import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
 import * as THREE from 'three';
 import type { GameInput, GameRenderViewport } from './game-input.js';
 
+export interface WaterInteractionEvidence {
+  readonly sourceTerrainRevision: number;
+  readonly seaTriangleCount: number;
+  readonly enclosedWetTriangleCount: number;
+  readonly shorelineSegmentCount: number;
+  readonly surfaceTriangleCount: number;
+  readonly shorelineTriangleCount: number;
+  readonly wallSegmentCount: number;
+  readonly estimatedGeometryBytes: number;
+  readonly derivationDurationMs: number;
+  readonly presentationDurationMs: number;
+  readonly waterRootCount: number;
+}
+
 export interface InteractionEvidence {
   readonly camera: CameraState;
   readonly selectedCell: CellCoord | null;
@@ -14,8 +28,10 @@ export interface InteractionEvidence {
   readonly activePointerCount: number;
   readonly allWorldCornersInsideUsableViewport: boolean;
   readonly framingMarginRatio: number;
+  readonly water: WaterInteractionEvidence;
   readonly sceneRootCounts: {
     readonly terrain: number;
+    readonly water: number;
     readonly grid: number;
     readonly selection: number;
   };
@@ -30,6 +46,7 @@ export interface InteractionEvidenceSource {
   getViewport(): GameRenderViewport;
   getSelectedCell(): CellCoord | null;
   getGridVisible(): boolean;
+  getWaterEvidence(): Omit<WaterInteractionEvidence, 'waterRootCount'>;
 }
 
 declare global {
@@ -95,9 +112,16 @@ export function publishInteractionEvidence(source: InteractionEvidenceSource): v
       return allCornersInside(source.camera, source.config, source.getViewport());
     },
     framingMarginRatio: CAMERA_DEFAULTS.framingMarginRatio,
+    get water(): WaterInteractionEvidence {
+      return {
+        ...source.getWaterEvidence(),
+        waterRootCount: countRoots(source.scene, 'water-presentation-root'),
+      };
+    },
     get sceneRootCounts() {
       return {
         terrain: countRoots(source.scene, 'terrain-presentation-root'),
+        water: countRoots(source.scene, 'water-presentation-root'),
         grid: countRoots(source.scene, 'terrain-grid-presentation-root'),
         selection: countRoots(source.scene, 'selected-cell-presentation-root'),
       };

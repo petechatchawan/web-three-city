@@ -11,6 +11,8 @@
 - **Implementation status:** Blocked until the TDD implementation plan is approved
 - **Merge status:** Not authorized automatically; owner visual approval remains required after automated verification
 
+The reviewed implementation plan contains eight RED/GREEN tasks covering exact clipping, south-edge connectivity, chunk and wall meshing, atomic Three.js presentation, Terrain Lab fixtures, Game lifecycle composition, browser evidence, and final exact-head verification.
+
 This record accepts the south-edge-connected sea design, exact Terrain-triangle clipping, full Water derivation and full presentation replacement, two-package boundary (`water-core` and `water-three`), unchanged `TerrainSaveV1`, and reuse of Terrain Lab.
 
 This approval does not authorize lakes, hydrology, rivers, flooding, animated waves, reflection, refraction, Water physics, Terraform UI, incremental Water invalidation, WebGPU, final art, production implementation, or automatic merge.

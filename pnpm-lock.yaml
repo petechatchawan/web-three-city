@@ -156,6 +156,10 @@ importers:
       '@web-three-city/world-core':
         specifier: workspace:*
         version: link:../world-core
+    devDependencies:
+      '@web-three-city/shared-testkit':
+        specifier: workspace:*
+        version: link:../shared-testkit
 
   packages/world-core: {}
 

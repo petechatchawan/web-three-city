@@ -134,16 +134,29 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
 
   const rebuildStrokePlan = (): void => {
     if (strokeBase === null || mode === 'navigate' || strokeCenters.size === 0) return;
-    const plan = planTerraformStroke(
-      strokeBase,
-      {
-        operation: mode,
-        brushSize,
-        cells: [...strokeCenters.values()],
-        ...(mode === 'flatten' ? { flattenTargetLevel: strokeFlattenTarget } : {}),
-      },
-      options.config,
-    );
+    const cells = [...strokeCenters.values()];
+    const plan =
+      mode === 'flatten'
+        ? planTerraformStroke(
+            strokeBase,
+            {
+              operation: 'flatten',
+              brushSize,
+              cells,
+              flattenTargetLevel:
+                strokeFlattenTarget ?? options.config.minHeightLevel,
+            },
+            options.config,
+          )
+        : planTerraformStroke(
+            strokeBase,
+            {
+              operation: mode,
+              brushSize,
+              cells,
+            },
+            options.config,
+          );
     strokePlan = plan;
     options.preview.show(plan);
   };

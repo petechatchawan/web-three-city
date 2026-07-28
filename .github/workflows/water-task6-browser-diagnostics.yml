@@ -22,9 +22,7 @@ jobs:
         run: |
           manifest=.github/workflows/water-task6-green-v3.yml
           payload() { sed -n "s/^          $1: //p" "$manifest"; }
-          decode_file() {
-            payload "$1" | base64 --decode | gzip --decompress > "$2"
-          }
+          decode_file() { payload "$1" | base64 --decode | gzip --decompress > "$2"; }
           decode_file PACKAGE_JSON apps/game/package.json
           { payload BOOT_1; payload BOOT_2; payload BOOT_3; payload BOOT_4; } | tr -d '\n' | base64 --decode | gzip --decompress > apps/game/src/game-bootstrap.ts
           decode_file INTERACTION_EVIDENCE apps/game/src/interaction-evidence.ts
@@ -36,15 +34,17 @@ jobs:
       - name: Run focused Chromium and preserve diagnostics
         run: |
           set +e
-          pnpm exec playwright test browser-tests/game.spec.ts browser-tests/interaction.spec.ts --project=chromium --trace=on > test-results/task6-chromium.log 2>&1
+          pnpm exec playwright test browser-tests/game.spec.ts browser-tests/interaction.spec.ts --project=chromium --trace=on > /tmp/task6-chromium.log 2>&1
           status=$?
-          tail -n 300 test-results/task6-chromium.log
+          mkdir -p task6-diagnostics
+          cp /tmp/task6-chromium.log task6-diagnostics/
+          cp -R test-results task6-diagnostics/ 2>/dev/null || true
+          cp -R playwright-report task6-diagnostics/ 2>/dev/null || true
+          tail -n 300 /tmp/task6-chromium.log
           exit $status
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: water-task6-chromium-diagnostics
-          path: |
-            test-results
-            playwright-report
-          if-no-files-found: warn
+          path: task6-diagnostics
+          if-no-files-found: error

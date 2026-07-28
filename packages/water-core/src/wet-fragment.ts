@@ -26,11 +26,7 @@ function isWet(level: number, seaLevel: number): boolean {
   return level <= seaLevel;
 }
 
-function interpolateToSea(
-  from: TriangleVertex,
-  to: TriangleVertex,
-  seaLevel: number,
-): WetVertex {
+function interpolateToSea(from: TriangleVertex, to: TriangleVertex, seaLevel: number): WetVertex {
   const t = (seaLevel - from.level) / (to.level - from.level);
   return Object.freeze({
     x: from.x + (to.x - from.x) * t,

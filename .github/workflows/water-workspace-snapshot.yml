@@ -24,13 +24,14 @@ jobs:
         run: |
           tar \
             --exclude=.git \
-            --exclude='**/dist' \
-            --exclude='**/coverage' \
+            --exclude='./packages/*/dist' \
+            --exclude='./apps/*/dist' \
+            --exclude='./packages/*/coverage' \
             --exclude='test-results' \
             --exclude='playwright-report' \
             -czf /tmp/web-three-city-water-workspace.tgz .
       - uses: actions/upload-artifact@v4
         with:
-          name: water-workspace-snapshot
+          name: water-workspace-snapshot-complete
           path: /tmp/web-three-city-water-workspace.tgz
           if-no-files-found: error

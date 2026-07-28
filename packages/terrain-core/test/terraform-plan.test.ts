@@ -14,9 +14,9 @@ function latticeIndex(x: number, z: number): number {
 function flatTerrain(level: number, revision = 1): TerrainSnapshot {
   return createTerrainMap({
     config: WORLD_CONFIG,
-    heightLevels: new Uint8Array(
-      (WORLD_CONFIG.mapWidth + 1) * (WORLD_CONFIG.mapHeight + 1),
-    ).fill(level),
+    heightLevels: new Uint8Array((WORLD_CONFIG.mapWidth + 1) * (WORLD_CONFIG.mapHeight + 1)).fill(
+      level,
+    ),
     seed: 17,
     generatorVersion: 'coastal-v1',
     generationAttempt: 0,
@@ -29,9 +29,9 @@ function terrainWithLevels(
   baseLevel = 0,
   revision = 1,
 ): TerrainSnapshot {
-  const levels = new Uint8Array(
-    (WORLD_CONFIG.mapWidth + 1) * (WORLD_CONFIG.mapHeight + 1),
-  ).fill(baseLevel);
+  const levels = new Uint8Array((WORLD_CONFIG.mapWidth + 1) * (WORLD_CONFIG.mapHeight + 1)).fill(
+    baseLevel,
+  );
   for (const [x, z, level] of entries) levels[latticeIndex(x, z)] = level;
   return createTerrainMap({
     config: WORLD_CONFIG,
@@ -223,9 +223,9 @@ describe('commitTerraformPlan', () => {
       WORLD_CONFIG,
     );
 
-    expect(() =>
-      commitTerraformPlan({ ...terrain, revision: 5 }, plan, WORLD_CONFIG),
-    ).toThrowError('terraform:stale-plan');
+    expect(() => commitTerraformPlan({ ...terrain, revision: 5 }, plan, WORLD_CONFIG)).toThrowError(
+      'terraform:stale-plan',
+    );
   });
 
   it('rejects an invalid plan', () => {

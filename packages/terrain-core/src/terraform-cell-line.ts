@@ -49,10 +49,7 @@ function rasterizeCanonical(from: CellCoord, to: CellCoord): readonly CellCoord[
   return Object.freeze(cells);
 }
 
-export function rasterizeTerraformCellLine(
-  from: CellCoord,
-  to: CellCoord,
-): readonly CellCoord[] {
+export function rasterizeTerraformCellLine(from: CellCoord, to: CellCoord): readonly CellCoord[] {
   if (
     !Number.isInteger(from.x) ||
     !Number.isInteger(from.z) ||

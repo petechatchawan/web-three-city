@@ -41,7 +41,10 @@ function dispatchPointer(
   return event;
 }
 
-function createTool(enabled = true, claim = true): {
+function createTool(
+  enabled = true,
+  claim = true,
+): {
   readonly delegate: PrimaryPointerToolDelegate;
   readonly isEnabled: ReturnType<typeof vi.fn>;
   readonly begin: ReturnType<typeof vi.fn>;

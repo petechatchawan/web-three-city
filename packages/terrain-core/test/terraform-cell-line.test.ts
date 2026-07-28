@@ -3,9 +3,7 @@ import { rasterizeTerraformCellLine } from '../src/index.js';
 
 describe('rasterizeTerraformCellLine', () => {
   it('returns one cell for a zero-length stroke', () => {
-    expect(rasterizeTerraformCellLine({ x: 3, z: 7 }, { x: 3, z: 7 })).toEqual([
-      { x: 3, z: 7 },
-    ]);
+    expect(rasterizeTerraformCellLine({ x: 3, z: 7 }, { x: 3, z: 7 })).toEqual([{ x: 3, z: 7 }]);
   });
 
   it('fills a fast horizontal drag without holes', () => {

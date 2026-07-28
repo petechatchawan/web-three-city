@@ -143,8 +143,7 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
               operation: 'flatten',
               brushSize,
               cells,
-              flattenTargetLevel:
-                strokeFlattenTarget ?? options.config.minHeightLevel,
+              flattenTargetLevel: strokeFlattenTarget ?? options.config.minHeightLevel,
             },
             options.config,
           )

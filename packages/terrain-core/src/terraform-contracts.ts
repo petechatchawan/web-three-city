@@ -49,9 +49,7 @@ export interface TerraformCommitResult {
 }
 
 export type TerraformContractErrorCode =
-  | 'terraform:invalid-plan'
-  | 'terraform:stale-plan'
-  | 'terraform:invalid-proposed-lattice';
+  'terraform:invalid-plan' | 'terraform:stale-plan' | 'terraform:invalid-proposed-lattice';
 
 export class TerraformContractError extends Error {
   readonly code: TerraformContractErrorCode;

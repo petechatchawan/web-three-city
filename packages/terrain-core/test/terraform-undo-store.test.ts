@@ -1,17 +1,13 @@
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { describe, expect, it } from 'vitest';
-import {
-  createTerrainMap,
-  TerraformUndoStore,
-  type TerrainSnapshot,
-} from '../src/index.js';
+import { createTerrainMap, TerraformUndoStore, type TerrainSnapshot } from '../src/index.js';
 
 function terrain(level: number, revision: number, seed = 23): TerrainSnapshot {
   return createTerrainMap({
     config: WORLD_CONFIG,
-    heightLevels: new Uint8Array(
-      (WORLD_CONFIG.mapWidth + 1) * (WORLD_CONFIG.mapHeight + 1),
-    ).fill(level),
+    heightLevels: new Uint8Array((WORLD_CONFIG.mapWidth + 1) * (WORLD_CONFIG.mapHeight + 1)).fill(
+      level,
+    ),
     seed,
     generatorVersion: 'coastal-v1',
     generationAttempt: 2,

@@ -45,12 +45,12 @@ describe('buildTerraformPreviewMesh', () => {
   });
 
   it('uses valid green and invalid red vertex colors', () => {
-    expect([...buildTerraformPreviewMesh(plan(true), WORLD_CONFIG).colors.slice(0, 3)]).toEqual(
-      [0.2, 0.9, 0.42],
-    );
-    expect([...buildTerraformPreviewMesh(plan(false), WORLD_CONFIG).colors.slice(0, 3)]).toEqual(
-      [0.95, 0.22, 0.2],
-    );
+    expect([...buildTerraformPreviewMesh(plan(true), WORLD_CONFIG).colors.slice(0, 3)]).toEqual([
+      0.2, 0.9, 0.42,
+    ]);
+    expect([...buildTerraformPreviewMesh(plan(false), WORLD_CONFIG).colors.slice(0, 3)]).toEqual([
+      0.95, 0.22, 0.2,
+    ]);
   });
 
   it('emits finite upward-facing geometry for multiple cells', () => {

@@ -156,10 +156,7 @@ function affectedVerticesFor(
   return sortedVertices(vertices.values());
 }
 
-function proposedLevel(
-  base: number,
-  input: TerraformStrokeInput,
-): number {
+function proposedLevel(base: number, input: TerraformStrokeInput): number {
   switch (input.operation) {
     case 'raise':
       return base + 1;
@@ -238,7 +235,10 @@ export function commitTerraformPlan(
   if (terrain.revision !== plan.baseTerrainRevision) {
     throw new TerraformContractError('terraform:stale-plan');
   }
-  if (!validTerrainSnapshot(terrain, config) || !validProposedLattice(plan.proposedHeightLevels, config)) {
+  if (
+    !validTerrainSnapshot(terrain, config) ||
+    !validProposedLattice(plan.proposedHeightLevels, config)
+  ) {
     throw new TerraformContractError('terraform:invalid-proposed-lattice');
   }
 

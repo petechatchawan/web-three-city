@@ -8,9 +8,7 @@ describe('expandTerraformBrushCells', () => {
     [3, 9],
     [5, 25],
   ] as const)('expands size %s to %s centered cells', (size, count) => {
-    expect(expandTerraformBrushCells({ x: 64, z: 64 }, size, WORLD_CONFIG)).toHaveLength(
-      count,
-    );
+    expect(expandTerraformBrushCells({ x: 64, z: 64 }, size, WORLD_CONFIG)).toHaveLength(count);
   });
 
   it('returns cells in deterministic z-major/x-major order', () => {
@@ -42,8 +40,8 @@ describe('expandTerraformBrushCells', () => {
   });
 
   it('rejects unsupported brush sizes', () => {
-    expect(() =>
-      expandTerraformBrushCells({ x: 4, z: 4 }, 2 as 1, WORLD_CONFIG),
-    ).toThrowError('terraform:invalid-brush-size');
+    expect(() => expandTerraformBrushCells({ x: 4, z: 4 }, 2 as 1, WORLD_CONFIG)).toThrowError(
+      'terraform:invalid-brush-size',
+    );
   });
 });

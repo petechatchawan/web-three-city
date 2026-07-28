@@ -99,3 +99,43 @@ test('recovers presentation state after WebGL context loss', async ({ page }) =>
   });
   await expect(page.getByTestId('game-status')).toHaveText('Ready');
 });
+
+test('boots Coastal Water with one presentation root', async ({ page }) => {
+  await waitForReady(page);
+  const evidence = await readEvidence(page);
+  expect(evidence.water.waterRootCount).toBe(1);
+  expect(evidence.water.seaTriangleCount).toBeGreaterThan(0);
+  expect(evidence.water.sourceTerrainRevision).toBeGreaterThanOrEqual(0);
+  expect(evidence.sceneRootCounts.water).toBe(1);
+});
+
+test('save and load reproduce identical Water evidence', async ({ page }) => {
+  await waitForReady(page);
+  const before = (await readEvidence(page)).water;
+  await page.getByRole('button', { name: 'Save terrain' }).click();
+  await page.getByRole('button', { name: 'Load terrain' }).click();
+  await expect(page.getByTestId('game-status')).toHaveText('Loaded');
+  const after = (await readEvidence(page)).water;
+  expect(after.sourceTerrainRevision).toBe(before.sourceTerrainRevision);
+  expect(after.seaTriangleCount).toBe(before.seaTriangleCount);
+  expect(after.enclosedWetTriangleCount).toBe(before.enclosedWetTriangleCount);
+  expect(after.shorelineSegmentCount).toBe(before.shorelineSegmentCount);
+  expect(after.surfaceTriangleCount).toBe(before.surfaceTriangleCount);
+  expect(after.shorelineTriangleCount).toBe(before.shorelineTriangleCount);
+  expect(after.wallSegmentCount).toBe(before.wallSegmentCount);
+  expect(after.estimatedGeometryBytes).toBe(before.estimatedGeometryBytes);
+  expect(after.waterRootCount).toBe(1);
+});
+
+test('restores exactly one Water root after context restoration', async ({ page }) => {
+  await waitForReady(page);
+  const canvas = page.locator('#game-canvas');
+  await canvas.evaluate((element) => {
+    element.dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
+    element.dispatchEvent(new Event('webglcontextrestored'));
+  });
+  await expect(page.getByTestId('game-status')).toHaveText('Ready');
+  const evidence = await readEvidence(page);
+  expect(evidence.water.waterRootCount).toBe(1);
+  expect(evidence.sceneRootCounts.water).toBe(1);
+});

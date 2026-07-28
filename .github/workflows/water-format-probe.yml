@@ -1,0 +1,28 @@
+name: Water format probe
+
+on:
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec prettier --write packages/water-core
+      - uses: actions/upload-artifact@v4
+        with:
+          name: water-task1-formatted
+          path: packages/water-core
+          if-no-files-found: error

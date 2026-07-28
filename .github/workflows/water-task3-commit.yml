@@ -37,13 +37,13 @@ jobs:
           decode_file INDEX_FILE packages/water-core/src/index.ts
           decode_file CHUNK_TEST packages/water-core/test/water-chunk-mesher.test.ts
           decode_file WALL_TEST packages/water-core/test/water-wall-mesher.test.ts
+      - name: Normalize Water package formatting
+        run: pnpm exec prettier --write packages/water-core
       - name: Run Task 3 tests
         working-directory: packages/water-core
         run: pnpm exec vitest run test/water-chunk-mesher.test.ts test/water-wall-mesher.test.ts
       - name: Run Water strict typecheck
         run: pnpm exec tsc -p packages/water-core/tsconfig.json --noEmit
-      - name: Check Water formatting
-        run: pnpm exec prettier --check packages/water-core
       - name: Run Water lint
         run: pnpm exec eslint packages/water-core
       - name: Commit Task 3

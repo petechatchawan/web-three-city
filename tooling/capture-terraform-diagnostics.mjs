@@ -11,6 +11,7 @@ const options = {
 const formattedFiles = [
   'apps/game/src/game-input.ts',
   'browser-tests/terraform.spec.ts',
+  'browser-tests/terraform-visual-evidence.spec.ts',
   'packages/camera-input/test/dom-input-binding.test.ts',
   'packages/terrain-core/src/terraform-cell-line.ts',
   'packages/terrain-core/src/terraform-contracts.ts',

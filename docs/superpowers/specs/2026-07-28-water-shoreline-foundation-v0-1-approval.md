@@ -1,7 +1,7 @@
 # Web Water & Shoreline Foundation v0.1 — Approval Record
 
 - **Specification:** `docs/superpowers/specs/2026-07-28-water-shoreline-foundation-v0-1-design.md`
-- **Implementation plan:** `docs/superpowers/plans/2026-07-28-water-shoreline-foundation-v0-1.md`
+- **Implementation plan:** `docs/superpowers/plans/2026-07-28-water-shoreline-foundation-v0-1-final.md`
 - **Specification decision:** Accepted
 - **Implementation-plan decision:** Pending owner review
 - **Delivery profile:** Single developer / low maintenance

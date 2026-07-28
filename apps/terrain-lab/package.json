@@ -9,6 +9,8 @@
     "@web-three-city/terrain-core": "workspace:*",
     "@web-three-city/terrain-generator": "workspace:*",
     "@web-three-city/terrain-three": "workspace:*",
+    "@web-three-city/water-core": "workspace:*",
+    "@web-three-city/water-three": "workspace:*",
     "@web-three-city/world-core": "workspace:*",
     "three": "0.185.1"
   },

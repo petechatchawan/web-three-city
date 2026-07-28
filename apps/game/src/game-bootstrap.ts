@@ -12,10 +12,20 @@ import {
   TerrainGridPresentation,
   TerrainPresentation,
 } from '@web-three-city/terrain-three';
+import { deriveWaterSnapshot, type WaterSnapshot } from '@web-three-city/water-core';
+import {
+  createCoreWaterPresentationSource,
+  WaterPresentation,
+  type WaterPresentationBuild,
+  type WaterPresentationSource,
+} from '@web-three-city/water-three';
 import { WORLD_CONFIG, type CellCoord } from '@web-three-city/world-core';
 import * as THREE from 'three';
 import { createGameInput, type GameRenderViewport } from './game-input.js';
-import { publishInteractionEvidence } from './interaction-evidence.js';
+import {
+  publishInteractionEvidence,
+  type WaterInteractionEvidence,
+} from './interaction-evidence.js';
 import { renderGameUi, type GameViewportLayout, type QualityLevel } from './game-ui.js';
 
 const SAVE_KEY = 'web-three-city:terrain-save:v1';
@@ -55,6 +65,46 @@ function rebuildSelection(
   if (selectedCell !== null) selection.setSelection(snapshot, selectedCell);
 }
 
+type WaterBuildMetrics = Pick<
+  WaterInteractionEvidence,
+  'surfaceTriangleCount' | 'shorelineTriangleCount' | 'wallSegmentCount' | 'estimatedGeometryBytes'
+>;
+
+function summarizeWaterBuild(build: WaterPresentationBuild): WaterBuildMetrics {
+  let surfaceTriangleCount = 0;
+  let shorelineTriangleCount = 0;
+  let estimatedGeometryBytes = 0;
+  for (const chunk of build.chunks) {
+    surfaceTriangleCount += chunk.surfaceTriangleCount;
+    shorelineTriangleCount += chunk.shorelineTriangleCount;
+    estimatedGeometryBytes +=
+      chunk.surfacePositions.byteLength +
+      chunk.surfaceNormals.byteLength +
+      chunk.surfaceColors.byteLength +
+      chunk.surfaceIndices.byteLength +
+      chunk.shorelinePositions.byteLength +
+      chunk.shorelineColors.byteLength +
+      chunk.shorelineIndices.byteLength;
+  }
+  estimatedGeometryBytes +=
+    build.wall.positions.byteLength +
+    build.wall.normals.byteLength +
+    build.wall.colors.byteLength +
+    build.wall.indices.byteLength;
+  return {
+    surfaceTriangleCount,
+    shorelineTriangleCount,
+    wallSegmentCount: build.wall.segmentCount,
+    estimatedGeometryBytes,
+  };
+}
+
+function requireWater(snapshot: TerrainSnapshot): WaterSnapshot {
+  const result = deriveWaterSnapshot(snapshot, WORLD_CONFIG);
+  if (!result.ok) throw new Error(`game:water-derivation-failed:${result.error.code}`);
+  return result.value;
+}
+
 export function bootstrapGame(root: HTMLElement): GameRuntime {
   const ui = renderGameUi(root);
   const capability = detectWebGL2(ui.canvas);
@@ -66,6 +116,18 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
   const generated = generateCoastalTerrain({ seed: CURATED_SEED, config: WORLD_CONFIG });
   if (!generated.ok) throw new Error(`game:generation-failed:${generated.error.code}`);
   let snapshot = generated.value;
+  const initialWaterDerivationStart = performance.now();
+  let waterSnapshot = requireWater(snapshot);
+  let waterDerivationDurationMs = performance.now() - initialWaterDerivationStart;
+  let waterPresentationDurationMs = 0;
+  let waterBuildMetrics: WaterBuildMetrics = {
+    surfaceTriangleCount: 0,
+    shorelineTriangleCount: 0,
+    wallSegmentCount: 0,
+    estimatedGeometryBytes: 0,
+  };
+  let stagedWaterBuildMetrics = waterBuildMetrics;
+  let replacingWorld = false;
   let selectedCell: CellCoord | null = null;
   let contextLost = false;
   let disposed = false;
@@ -102,7 +164,20 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     createCoreTerrainPresentationSource(WORLD_CONFIG),
     WORLD_CONFIG,
   );
+  const coreWaterSource = createCoreWaterPresentationSource(WORLD_CONFIG);
+  const measuredWaterSource: WaterPresentationSource = {
+    buildAll(terrainSnapshot, nextWaterSnapshot) {
+      const build = coreWaterSource.buildAll(terrainSnapshot, nextWaterSnapshot);
+      stagedWaterBuildMetrics = summarizeWaterBuild(build);
+      return build;
+    },
+  };
+  const water = new WaterPresentation(scene, measuredWaterSource, WORLD_CONFIG);
   terrain.load(snapshot);
+  const initialWaterPresentationStart = performance.now();
+  water.load(snapshot, waterSnapshot);
+  waterPresentationDurationMs = performance.now() - initialWaterPresentationStart;
+  waterBuildMetrics = stagedWaterBuildMetrics;
   const grid = new TerrainGridPresentation(scene, WORLD_CONFIG);
   grid.setVisible(false);
   grid.load(snapshot);
@@ -198,12 +273,33 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
           ui.setStatus('Invalid save');
           return;
         }
-        snapshot = decoded.value;
-        terrain.load(snapshot);
-        grid.load(snapshot);
-        rebuildSelection(selection, snapshot, selectedCell);
-        input.refreshTerrainObjects();
-        ui.setStatus('Loaded');
+        const nextSnapshot = decoded.value;
+        const derivationStart = performance.now();
+        const nextWaterResult = deriveWaterSnapshot(nextSnapshot, WORLD_CONFIG);
+        const nextWaterDerivationDurationMs = performance.now() - derivationStart;
+        if (!nextWaterResult.ok) {
+          ui.setStatus('Invalid save');
+          return;
+        }
+
+        replacingWorld = true;
+        try {
+          terrain.load(nextSnapshot);
+          const presentationStart = performance.now();
+          water.load(nextSnapshot, nextWaterResult.value);
+          const nextWaterPresentationDurationMs = performance.now() - presentationStart;
+          grid.load(nextSnapshot);
+          rebuildSelection(selection, nextSnapshot, selectedCell);
+          input.refreshTerrainObjects();
+          snapshot = nextSnapshot;
+          waterSnapshot = nextWaterResult.value;
+          waterDerivationDurationMs = nextWaterDerivationDurationMs;
+          waterPresentationDurationMs = nextWaterPresentationDurationMs;
+          waterBuildMetrics = stagedWaterBuildMetrics;
+          ui.setStatus('Loaded');
+        } finally {
+          replacingWorld = false;
+        }
       } catch {
         ui.setStatus('Invalid save');
       }
@@ -245,6 +341,10 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     'webglcontextrestored',
     () => {
       terrain.load(snapshot);
+      const presentationStart = performance.now();
+      water.load(snapshot, waterSnapshot);
+      waterPresentationDurationMs = performance.now() - presentationStart;
+      waterBuildMetrics = stagedWaterBuildMetrics;
       grid.load(snapshot);
       rebuildSelection(selection, snapshot, selectedCell);
       input.refreshTerrainObjects();
@@ -263,10 +363,19 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     getViewport: () => renderViewport,
     getSelectedCell: () => selectedCell,
     getGridVisible: () => grid.visible,
+    getWaterEvidence: () => ({
+      sourceTerrainRevision: waterSnapshot.sourceTerrainRevision,
+      seaTriangleCount: waterSnapshot.seaTriangleCount,
+      enclosedWetTriangleCount: waterSnapshot.enclosedWetTriangleCount,
+      shorelineSegmentCount: waterSnapshot.shorelineSegmentCount,
+      ...waterBuildMetrics,
+      derivationDurationMs: waterDerivationDurationMs,
+      presentationDurationMs: waterPresentationDurationMs,
+    }),
   });
 
   const render = (): void => {
-    if (!contextLost) {
+    if (!contextLost && !replacingWorld) {
       renderer.setScissorTest(false);
       renderer.setViewport(0, 0, renderViewport.canvasWidth, renderViewport.canvasHeight);
       renderer.clear(true, true, true);
@@ -303,6 +412,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     input.dispose();
     selection.dispose();
     grid.dispose();
+    water.dispose();
     terrain.dispose();
     renderer.dispose();
     delete window.__WEB_THREE_CITY_INTERACTION__;

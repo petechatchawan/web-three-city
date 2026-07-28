@@ -53,6 +53,12 @@ importers:
       '@web-three-city/terrain-three':
         specifier: workspace:*
         version: link:../../packages/terrain-three
+      '@web-three-city/water-core':
+        specifier: workspace:*
+        version: link:../../packages/water-core
+      '@web-three-city/water-three':
+        specifier: workspace:*
+        version: link:../../packages/water-three
       '@web-three-city/world-core':
         specifier: workspace:*
         version: link:../../packages/world-core
@@ -81,6 +87,12 @@ importers:
       '@web-three-city/terrain-three':
         specifier: workspace:*
         version: link:../../packages/terrain-three
+      '@web-three-city/water-core':
+        specifier: workspace:*
+        version: link:../../packages/water-core
+      '@web-three-city/water-three':
+        specifier: workspace:*
+        version: link:../../packages/water-three
       '@web-three-city/world-core':
         specifier: workspace:*
         version: link:../../packages/world-core
@@ -147,6 +159,41 @@ importers:
       '@types/three':
         specifier: 0.185.0
         version: 0.185.0
+
+  packages/water-core:
+    dependencies:
+      '@web-three-city/terrain-core':
+        specifier: workspace:*
+        version: link:../terrain-core
+      '@web-three-city/world-core':
+        specifier: workspace:*
+        version: link:../world-core
+    devDependencies:
+      '@web-three-city/shared-testkit':
+        specifier: workspace:*
+        version: link:../shared-testkit
+
+  packages/water-three:
+    dependencies:
+      '@web-three-city/terrain-core':
+        specifier: workspace:*
+        version: link:../terrain-core
+      '@web-three-city/water-core':
+        specifier: workspace:*
+        version: link:../water-core
+      '@web-three-city/world-core':
+        specifier: workspace:*
+        version: link:../world-core
+      three:
+        specifier: 0.185.1
+        version: 0.185.1
+    devDependencies:
+      '@types/three':
+        specifier: 0.185.0
+        version: 0.185.0
+      '@web-three-city/shared-testkit':
+        specifier: workspace:*
+        version: link:../shared-testkit
 
   packages/world-core: {}
 

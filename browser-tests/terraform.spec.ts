@@ -31,7 +31,7 @@ async function openGame(page: import('@playwright/test').Page): Promise<void> {
 
 function findValidCenter(
   terrain: TerrainSnapshot,
-  operation: TerraformOperation,
+  operation: Exclude<TerraformOperation, 'flatten'>,
   brushSize: TerraformBrushSize,
 ): Readonly<{ x: number; z: number }> {
   for (let z = 6; z < WORLD_CONFIG.mapHeight - 6; z += 1) {
@@ -39,12 +39,7 @@ function findValidCenter(
       const cell = { x, z };
       const plan = planTerraformStroke(
         terrain,
-        {
-          operation,
-          brushSize,
-          cells: [cell],
-          ...(operation === 'flatten' ? { flattenTargetLevel: 2 } : {}),
-        },
+        { operation, brushSize, cells: [cell] },
         WORLD_CONFIG,
       );
       if (plan.valid) return cell;
@@ -80,16 +75,21 @@ function latticeLevel(terrain: TerrainSnapshot, x: number, z: number): number {
 function findRobustFlattenCell(): Readonly<{ x: number; z: number }> {
   for (let z = 6; z < WORLD_CONFIG.mapHeight - 6; z += 1) {
     for (let x = 6; x < WORLD_CONFIG.mapWidth - 6; x += 1) {
-      const levels = new Set([
+      const cornerLevels = [
         latticeLevel(BASE_TERRAIN, x, z),
         latticeLevel(BASE_TERRAIN, x + 1, z),
         latticeLevel(BASE_TERRAIN, x, z + 1),
         latticeLevel(BASE_TERRAIN, x + 1, z + 1),
-      ]);
-      if (levels.size < 2) continue;
-      const candidates = [...levels];
+      ];
+      const minimum = Math.min(...cornerLevels);
+      const maximum = Math.max(...cornerLevels);
+      if (minimum === maximum) continue;
+      const targets = Array.from(
+        { length: maximum - minimum + 1 },
+        (_, index) => minimum + index,
+      );
       if (
-        candidates.every(
+        targets.every(
           (target) =>
             planTerraformStroke(
               BASE_TERRAIN,
@@ -202,24 +202,26 @@ test('Undo restores Terrain through a newer revision and updates Water once', as
   await expect(page.getByRole('button', { name: 'Undo Terraform' })).toBeDisabled();
 });
 
-test.each([
+for (const [size, count] of [
   [3, 9],
   [5, 25],
-] as const)('previews brush %sx%s with %s affected cells', async ({ page }, size, count) => {
-  await openGame(page);
-  const cell = findValidCenter(BASE_TERRAIN, 'raise', size);
-  const point = await clickTerrainCell(page, cell);
-  await page.getByRole('button', { name: `Brush ${size} × ${size}` }).click();
-  await page.getByRole('button', { name: 'Raise' }).click();
+] as const) {
+  test(`previews brush ${size}x${size} with ${count} affected cells`, async ({ page }) => {
+    await openGame(page);
+    const cell = findValidCenter(BASE_TERRAIN, 'raise', size);
+    const point = await clickTerrainCell(page, cell);
+    await page.getByRole('button', { name: `Brush ${size} × ${size}` }).click();
+    await page.getByRole('button', { name: 'Raise' }).click();
 
-  await page.mouse.move(point.x, point.y);
-  await page.mouse.down();
-  const preview = await readEvidence(page);
-  expect(preview.terraform.brushSize).toBe(size);
-  expect(preview.terraform.previewCellCount).toBe(count);
-  expect(preview.terraform.previewValid).toBe(true);
-  await page.mouse.up();
-});
+    await page.mouse.move(point.x, point.y);
+    await page.mouse.down();
+    const preview = await readEvidence(page);
+    expect(preview.terraform.brushSize).toBe(size);
+    expect(preview.terraform.previewCellCount).toBe(count);
+    expect(preview.terraform.previewValid).toBe(true);
+    await page.mouse.up();
+  });
+}
 
 test('pointer cancellation clears Preview without changing Terrain or Water', async ({ page }) => {
   await openGame(page);
@@ -288,27 +290,55 @@ test('no-op Flatten previews invalid and does not commit', async ({ page }) => {
   );
 });
 
-test('Lower and Flatten each commit through the shared transaction path', async ({ page }) => {
+test('Lower commits through the shared transaction path', async ({ page }) => {
   await openGame(page);
-  const lowerCell = findValidCenter(BASE_TERRAIN, 'lower', 1);
-  let point = await clickTerrainCell(page, lowerCell);
+  const cell = findValidCenter(BASE_TERRAIN, 'lower', 1);
+  const point = await clickTerrainCell(page, cell);
   await page.getByRole('button', { name: 'Lower' }).click();
   const before = await readEvidence(page);
-  await page.mouse.click(point.x, point.y);
-  await expect(page.getByTestId('game-status')).toHaveText('Terraform applied');
-  const lowered = await readEvidence(page);
-  expect(lowered.terraform.commitCount).toBe(before.terraform.commitCount + 1);
 
-  await page.getByRole('button', { name: 'Navigate' }).click();
-  const flattenCell = findRobustFlattenCell();
-  point = await clickTerrainCell(page, flattenCell);
-  await page.getByRole('button', { name: 'Flatten' }).click();
   await page.mouse.click(point.x, point.y);
   await expect(page.getByTestId('game-status')).toHaveText('Terraform applied');
-  const flattened = await readEvidence(page);
-  expect(flattened.terraform.commitCount).toBe(lowered.terraform.commitCount + 1);
-  expect(flattened.terraform.waterRebuildCount).toBe(
-    lowered.terraform.waterRebuildCount + 1,
+  const after = await readEvidence(page);
+
+  expect(after.terraform.commitCount).toBe(before.terraform.commitCount + 1);
+  expect(after.terraform.waterRebuildCount).toBe(before.terraform.waterRebuildCount + 1);
+  expect(after.terraform.waterSourceTerrainRevision).toBe(
+    after.terraform.committedTerrainRevision,
+  );
+});
+
+test('Flatten locks pointer-down target and commits through the shared path', async ({ page }) => {
+  await openGame(page);
+  const cell = findRobustFlattenCell();
+  const point = await clickTerrainCell(page, cell);
+  await page.getByRole('button', { name: 'Flatten' }).click();
+  const before = await readEvidence(page);
+
+  await page.mouse.click(point.x, point.y);
+  await expect(page.getByTestId('game-status')).toHaveText('Terraform applied');
+  const after = await readEvidence(page);
+
+  expect(after.terraform.commitCount).toBe(before.terraform.commitCount + 1);
+  expect(after.terraform.waterRebuildCount).toBe(before.terraform.waterRebuildCount + 1);
+});
+
+test('context loss cancels an active Terraform Preview without committing', async ({ page }) => {
+  await openGame(page);
+  const cell = findValidCenter(BASE_TERRAIN, 'raise', 1);
+  const point = await clickTerrainCell(page, cell);
+  await page.getByRole('button', { name: 'Raise' }).click();
+  const before = await readEvidence(page);
+
+  await dispatchCanvasTouch(page, 'pointerdown', 1, point.x, point.y);
+  await page.locator('#game-canvas').evaluate((canvas) => {
+    canvas.dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
+  });
+  const lost = await readEvidence(page);
+  expect(lost.terraform.previewRootCount).toBe(0);
+  expect(lost.terraform.commitCount).toBe(before.terraform.commitCount);
+  expect(lost.terraform.committedTerrainRevision).toBe(
+    before.terraform.committedTerrainRevision,
   );
 });
 

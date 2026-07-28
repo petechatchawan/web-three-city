@@ -139,3 +139,38 @@ test('restores exactly one Water root after context restoration', async ({ page 
   expect(evidence.water.waterRootCount).toBe(1);
   expect(evidence.sceneRootCounts.water).toBe(1);
 });
+
+test('exposes Terraform tool, brush, and Undo controls', async ({ page }) => {
+  await waitForReady(page);
+
+  await expect(page.getByRole('button', { name: 'Navigate' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(page.getByRole('button', { name: 'Raise' })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
+  await expect(page.getByRole('button', { name: 'Lower' })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
+  await expect(page.getByRole('button', { name: 'Flatten' })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
+  await expect(page.getByRole('button', { name: 'Brush 1 × 1' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(page.getByRole('button', { name: 'Brush 3 × 3' })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
+  await expect(page.getByRole('button', { name: 'Brush 5 × 5' })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
+  await expect(page.getByRole('button', { name: 'Undo Terraform' })).toBeDisabled();
+  await expect(page.getByTestId('active-tool')).toHaveText('Navigate');
+});

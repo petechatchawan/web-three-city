@@ -29,9 +29,7 @@ async function openGame(page: import('@playwright/test').Page): Promise<void> {
   await expect(page.getByTestId('game-status')).toHaveText('Ready');
 }
 
-function centeredInteriorCells(
-  margin: number,
-): readonly Readonly<{ x: number; z: number }>[] {
+function centeredInteriorCells(margin: number): readonly Readonly<{ x: number; z: number }>[] {
   const centerX = (WORLD_CONFIG.mapWidth - 1) / 2;
   const centerZ = (WORLD_CONFIG.mapHeight - 1) / 2;
   const cells: Array<Readonly<{ x: number; z: number }>> = [];
@@ -114,10 +112,7 @@ function findRobustFlattenCell(): Readonly<{ x: number; z: number }> {
     const minimum = Math.min(...levels);
     const maximum = Math.max(...levels);
     if (minimum === maximum) continue;
-    const targets = Array.from(
-      { length: maximum - minimum + 1 },
-      (_, index) => minimum + index,
-    );
+    const targets = Array.from({ length: maximum - minimum + 1 }, (_, index) => minimum + index);
     const allTargetsValid = targets.every(
       (flattenTargetLevel) =>
         planTerraformStroke(
@@ -174,9 +169,7 @@ test('accumulates Raise Preview and commits once on release', async ({ page }) =
   expect(after.terraform.committedTerrainRevision).toBe(
     before.terraform.committedTerrainRevision + 1,
   );
-  expect(after.terraform.waterSourceTerrainRevision).toBe(
-    after.terraform.committedTerrainRevision,
-  );
+  expect(after.terraform.waterSourceTerrainRevision).toBe(after.terraform.committedTerrainRevision);
   expect(after.terraform.commitCount).toBe(before.terraform.commitCount + 1);
   expect(after.terraform.waterRebuildCount).toBe(before.terraform.waterRebuildCount + 1);
   expect(after.terraform.undoAvailable).toBe(true);
@@ -214,10 +207,7 @@ for (const [size, count] of [
 ] as const) {
   test(`previews brush ${size}x${size} with ${count} cells`, async ({ page }) => {
     await openGame(page);
-    const point = await clickTerrainCell(
-      page,
-      findValidCenter(BASE_TERRAIN, 'raise', size),
-    );
+    const point = await clickTerrainCell(page, findValidCenter(BASE_TERRAIN, 'raise', size));
     await page.getByRole('button', { name: `Brush ${size} × ${size}` }).click();
     await page.getByRole('button', { name: 'Raise' }).click();
 
@@ -243,9 +233,7 @@ test('pointer cancellation clears Preview without mutation', async ({ page }) =>
   const after = await readEvidence(page);
 
   expect(after.terraform.previewRootCount).toBe(0);
-  expect(after.terraform.committedTerrainRevision).toBe(
-    before.terraform.committedTerrainRevision,
-  );
+  expect(after.terraform.committedTerrainRevision).toBe(before.terraform.committedTerrainRevision);
   expect(after.terraform.waterRebuildCount).toBe(before.terraform.waterRebuildCount);
   expect(after.terraform.commitCount).toBe(before.terraform.commitCount);
 });
@@ -289,9 +277,7 @@ test('no-op Flatten previews invalid and does not commit', async ({ page }) => {
   const after = await readEvidence(page);
   expect(after.terraform.previewRootCount).toBe(0);
   expect(after.terraform.commitCount).toBe(before.terraform.commitCount);
-  expect(after.terraform.committedTerrainRevision).toBe(
-    before.terraform.committedTerrainRevision,
-  );
+  expect(after.terraform.committedTerrainRevision).toBe(before.terraform.committedTerrainRevision);
 });
 
 test('Lower commits through the shared transaction path', async ({ page }) => {
@@ -336,9 +322,7 @@ test('context loss cancels active Preview without committing', async ({ page }) 
   const lost = await readEvidence(page);
   expect(lost.terraform.previewRootCount).toBe(0);
   expect(lost.terraform.commitCount).toBe(before.terraform.commitCount);
-  expect(lost.terraform.committedTerrainRevision).toBe(
-    before.terraform.committedTerrainRevision,
-  );
+  expect(lost.terraform.committedTerrainRevision).toBe(before.terraform.committedTerrainRevision);
 });
 
 test('load clears Undo and idle Preview state', async ({ page }) => {

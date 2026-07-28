@@ -30,6 +30,11 @@ export interface DeterministicWaterGeometryEvidence {
   readonly geometrySha256: string;
 }
 
+export interface TerrainCellScreenPoint {
+  readonly x: number;
+  readonly y: number;
+}
+
 export async function readEvidence(page: Page): Promise<InteractionEvidence> {
   return page.evaluate(() => {
     const evidence = window.__WEB_THREE_CITY_INTERACTION__;
@@ -108,7 +113,7 @@ export function createDeterministicWaterGeometryEvidence(): DeterministicWaterGe
 export async function clickTerrainCell(
   page: Page,
   target: Readonly<{ x: number; z: number }>,
-): Promise<void> {
+): Promise<TerrainCellScreenPoint> {
   const bounds = await page.locator('#game-canvas').boundingBox();
   if (bounds === null) throw new Error('missing Game canvas bounds');
 
@@ -160,7 +165,9 @@ export async function clickTerrainCell(
   let screenY = bounds.y + bounds.height * 0.58;
   for (let attempt = 0; attempt < 8; attempt += 1) {
     const current = await selectNear(screenX, screenY);
-    if (current.cell.x === target.x && current.cell.z === target.z) return;
+    if (current.cell.x === target.x && current.cell.z === target.z) {
+      return { x: current.screenX, y: current.screenY };
+    }
 
     const candidates: SelectionSample[] = [];
     for (const direction of sampleDirections) {
@@ -213,6 +220,7 @@ export async function clickTerrainCell(
       `terrain-cell:projection-mismatch:expected=${target.x},${target.z}:actual=${selected.cell.x},${selected.cell.z}`,
     );
   }
+  return { x: selected.screenX, y: selected.screenY };
 }
 
 export async function dispatchTouchOn(

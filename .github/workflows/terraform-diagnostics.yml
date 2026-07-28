@@ -1,0 +1,52 @@
+name: Terraform diagnostics
+
+on:
+  push:
+    branches:
+      - agent/terraform-foundation-v0-1
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostics:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Capture diagnostics
+        shell: bash
+        run: |
+          set +e
+          pnpm format:check > terraform-format.log 2>&1
+          echo "format_exit=$?" >> terraform-status.log
+          pnpm --filter @web-three-city/terrain-core test > terraform-core-test.log 2>&1
+          echo "terrain_core_test_exit=$?" >> terraform-status.log
+          pnpm --filter @web-three-city/terrain-three test > terraform-three-test.log 2>&1
+          echo "terrain_three_test_exit=$?" >> terraform-status.log
+          pnpm --filter @web-three-city/camera-input test > camera-input-test.log 2>&1
+          echo "camera_input_test_exit=$?" >> terraform-status.log
+          pnpm typecheck > terraform-typecheck.log 2>&1
+          echo "typecheck_exit=$?" >> terraform-status.log
+          pnpm --filter @web-three-city/game build > terraform-game-build.log 2>&1
+          echo "game_build_exit=$?" >> terraform-status.log
+          exit 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: terraform-diagnostics
+          path: |
+            terraform-status.log
+            terraform-format.log
+            terraform-core-test.log
+            terraform-three-test.log
+            camera-input-test.log
+            terraform-typecheck.log
+            terraform-game-build.log
+          if-no-files-found: error

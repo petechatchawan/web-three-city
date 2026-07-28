@@ -1,7 +1,8 @@
 # Web Water & Shoreline Foundation v0.1 — Design Specification
 
-- Status: **Proposed for owner review**
-- Delivery profile: **single developer / low maintenance**
+- Status: **Accepted on 2026-07-28**
+- Decision owner: repository owner
+- Delivery profile: **single-developer / low-maintenance**
 - Base commit: `8e4b002e547b456cf678aa325f78662121316e6e`
 - Depends on:
   - Web Terrain Foundation v0.1
@@ -11,30 +12,32 @@
 
 Deliver the first deterministic ocean and shoreline system for Web Three City.
 
-The milestone must make the existing Coastal terrain read as a coastal world while preserving the current pure TypeScript domain boundary, chunked Three.js presentation, mobile-first budget, save/load behavior, camera controls, Terrain grid, and cell selection.
+The milestone must make the existing Coastal terrain read visually as a coastal world while preserving the current pure TypeScript domain boundary, chunked Three.js presentation, mobile-first rendering budget, save/load behavior, camera interaction, Terrain grid, and cell selection.
 
-This is not a general hydrology milestone.
+This is a foundation milestone, not a general hydrology system.
 
-## 2. Single-developer scope
+## 2. Single-developer scope policy
 
 The implementation is intentionally smaller than the maximum future architecture.
 
-Locked simplifications:
+The following decisions are locked to reduce ongoing maintenance:
 
-1. Add only:
+1. Add only two packages:
    - `packages/water-core`
    - `packages/water-three`
-2. Extend `apps/terrain-lab`; do not create a Water Lab application.
-3. Derive Water from the complete Terrain snapshot.
-4. Rebuild the complete Water presentation when Terrain is replaced.
-5. Keep chunk-local geometry, but defer dirty-chunk scheduling and chunk signatures.
-6. Keep Water derived; do not change `TerrainSaveV1`.
-7. Support only one ocean policy: south-edge-connected sea.
-8. Defer lakes, rivers, flooding, reflections, refraction, waves, and physics.
+2. Reuse `apps/terrain-lab`; do not create a separate Water Lab application.
+3. Derive the complete Water snapshot from the complete Terrain snapshot.
+4. Rebuild the complete Water presentation when Terrain is loaded or replaced.
+5. Keep chunk-local geometry, but defer incremental dirty-chunk scheduling and chunk signatures.
+6. Keep Water fully derived; do not change `TerrainSaveV1`.
+7. Support one canonical ocean source policy only: the south map boundary.
+8. Defer lakes, rivers, flood simulation, reflection, refraction, animated waves, and water physics.
 
-A later Terraform milestone may initially trigger a complete Water rebuild. Incremental invalidation is allowed only after profiling proves it is needed.
+A later Terraform milestone may initially trigger a full Water rebuild. Incremental Water invalidation is allowed only after profiling proves it is necessary.
 
 ## 3. Architecture
+
+Dependency direction:
 
 ```text
 world-core
@@ -51,134 +54,136 @@ apps/game + apps/terrain-lab
 Rules:
 
 - `water-core` is pure TypeScript.
-- `water-core` must not import Three.js, DOM, browser, or application APIs.
-- `water-three` owns Three.js materials, adapters, lifecycle, and disposal.
-- Terrain remains authoritative for heights and topology.
+- `water-core` must not import Three.js, DOM APIs, browser APIs, or application code.
+- `water-three` owns Three.js materials, geometry adapters, lifecycle, render order, and disposal.
+- Terrain remains authoritative for height and topology.
 - Terrain does not import or reference Water.
-- Water records the Terrain revision and seed from which it was derived.
+- Water reads a `TerrainSnapshot` and records the Terrain revision from which it was derived.
 - The Game application composes Terrain, Water, Grid, Selection, and Camera.
 
-## 4. Canonical constants
+## 4. Canonical world constants
 
 The existing world contract remains authoritative:
 
 ```text
-map                     128 × 128 cells
-chunk                    16 × 16 cells
-cell size                 1.0 world unit
-height step               0.5 world unit
-sea level                 1 height level
-logical water Y           0.5 world unit
-diorama base Y           -1.5 world units
+map                    128 × 128 cells
+chunk                   16 × 16 cells
+cell size                1.0 world unit
+height step              0.5 world unit
+sea level                1 height level
+logical water Y          0.5 world unit
+diorama base Y          -1.5 world units
 ```
 
-Presentation-only offsets:
+Presentation offsets:
 
 ```text
-Water surface            +0.010
-Shoreline ribbon         +0.013
-Terrain grid             +0.015  existing
-Cell selection           +0.020  existing
+water surface offset     +0.010
+shoreline band offset    +0.013
+Terrain grid offset      +0.015  (existing)
+selection offset         +0.020  (existing)
 ```
 
-The rendered Water surface is therefore at world Y `0.51`.
+Therefore the rendered Water surface is at world Y `0.51` while logical classification remains at height level `1`.
 
-Offsets must not affect connectivity, depth, save data, hashes, or fixtures.
+Presentation offsets must never affect connectivity, depth, save data, hashing, or test fixtures.
 
 ## 5. Ocean ownership
 
 Water v0.1 supports one body type: **edge-connected sea**.
 
+The only canonical ocean source is the south map boundary:
+
 ```ts
-export const OCEAN_POLICY_V1 = Object.freeze({
-  version: 'south-edge-sea-v1' as const,
-  sourceBoundary: 'south' as const,
-});
+const OCEAN_POLICY_V1 = {
+  version: 'south-edge-sea-v1',
+  sourceBoundary: 'south',
+} as const;
 ```
 
-A wet Terrain fragment belongs to the sea only when it connects to a wet fragment with positive-length contact on the south map boundary.
+A wet fragment is part of the sea only when it is connected to a wet fragment with non-zero contact on the south boundary.
 
 Connectivity rules:
 
 - Shared wet edge interval with positive length: connected.
-- Point-only contact: not connected.
+- Contact at one point only: not connected.
 - Diagonal corner contact: not connected.
-- North, east, and west boundaries are not ocean sources.
-- Enclosed depressions remain unrendered.
-- A real open channel from the south sea connects an inland depression.
+- Low Terrain touching north, east, or west boundary: not an ocean source.
+- Enclosed depressions: not rendered as water.
+- A real open channel from the south sea into a depression: connected and rendered.
 
-This matches the existing Coastal generator, whose ocean-facing region is on the south side.
+This policy matches the current Coastal generator, whose water-facing region is on the south side of the map.
 
 ## 6. Terrain topology authority
 
-Water uses the exact Terrain topology contract:
+Water must use the exact Terrain topology contract:
 
-- `selectTerrainDiagonal()` chooses the cell diagonal.
-- `CELL_TRIANGLES` defines both canonical triangles.
+- `selectTerrainDiagonal()` chooses the canonical cell diagonal.
+- `CELL_TRIANGLES` defines the two canonical Terrain triangles in the cell.
 - Water may not choose a separate diagonal.
-- Water may not classify from cell-center height.
-- Water may not use a screen-space or texture-derived coastline.
+- Water may not classify from cell center height.
+- Water may not use a screen-space mask or texture-derived coastline.
 
-Canonical Water triangle index:
+Each map cell contributes two canonical Terrain triangles. For Water indexing, the triangle order is the order already defined by `CELL_TRIANGLES[diagonal]`.
+
+Canonical triangle index:
 
 ```text
 triangleIndex = ((cellZ × mapWidth) + cellX) × 2 + localTriangleIndex
 ```
 
-`localTriangleIndex` follows the order in `CELL_TRIANGLES[diagonal]`.
-
-## 7. Wet-fragment clipping
+## 7. Wet fragment derivation
 
 For each canonical Terrain triangle:
 
-1. Read its three corner height levels.
-2. Clip against `heightLevel <= seaLevel`.
-3. Discard zero-area fragments.
-4. Preserve deterministic winding.
-5. Record wet intervals on all triangle edges, including the internal cell diagonal.
+1. Read its three Terrain corner levels.
+2. Clip the triangle against the logical plane `heightLevel <= seaLevel`.
+3. Discard fragments with zero or near-zero area.
+4. Preserve deterministic vertex order.
+5. Record wet intervals on the original triangle edges for connectivity.
 
-Possible results:
+Possible clipped results:
 
 ```text
-no positive area   dry
-3 vertices         triangle fragment
-4 vertices         quad fragment, triangulated deterministically
+0 vertices / zero area   dry
+3 vertices               triangle fragment
+4 vertices               quad fragment, triangulated deterministically
 ```
 
-Edge intersection:
+Intersection parameter on an edge:
 
 ```ts
-t = (seaLevel - levelA) / (levelB - levelA);
+t = (seaLevel - levelA) / (levelB - levelA)
 ```
 
-The calculation uses logical height levels. Rendered surface vertices use constant Y `logicalWaterY + 0.010`.
+The calculation must use Terrain height levels, not presentation Y values.
 
-Coplanar level-1 triangles have positive area and remain valid shallow Water fragments.
+The resulting Water surface vertices use a constant rendered Y of `logicalWaterY + waterSurfaceOffset`.
 
-## 8. Sea connectivity
+## 8. Sea connectivity derivation
 
 `water-core` builds a graph of positive-area wet fragments.
 
 Two fragments are adjacent only when their wet intervals overlap with positive length on the same canonical Terrain edge.
 
-Derivation:
+The derivation then:
 
 ```text
-wet fragments
-→ seed positive-length south-boundary contacts
+all wet fragments
+→ seed fragments with positive-length south-boundary contact
 → deterministic flood fill
-→ reachable fragments become sea
-→ unreachable fragments remain enclosed and unrendered
+→ mark reachable fragments as sea
+→ leave unreachable fragments enclosed and unrendered
 ```
 
-Determinism:
+Determinism requirements:
 
-- iterate cells z-major then x-major;
-- iterate local triangles in canonical order;
-- visit graph neighbors by ascending triangle index;
-- identical Terrain produces byte-identical masks and stable counts.
+- Iterate cells in z-major, then x-major order.
+- Iterate local triangles in canonical array order.
+- Visit graph neighbors in ascending triangle index order.
+- Identical Terrain input must produce byte-identical Water masks and stable counts.
 
-## 9. Water domain contract
+## 9. Water domain model
 
 ```ts
 export interface WaterSnapshot {
@@ -199,81 +204,104 @@ export interface WaterSnapshot {
 `seaTriangleMask` contains one byte per canonical Terrain triangle:
 
 ```text
-0 = not connected sea
+0 = not sea
 1 = connected sea
 ```
 
-The snapshot does not duplicate Terrain heights, clipped vertices, Three.js geometry, materials, or save data.
+The snapshot does not duplicate Terrain heights, clipped vertices, Three.js geometry, material data, or save data.
+
+Public derivation:
 
 ```ts
 export function deriveWaterSnapshot(
   terrain: TerrainSnapshot,
   config: WorldConfig,
-): Result<WaterSnapshot, WaterDerivationError>;
+): Result<WaterSnapshot, WaterError>;
 ```
 
-Derivation error codes:
+Validation requirements:
+
+- Terrain dimensions match the world configuration.
+- Height lattice length is correct.
+- Terrain revision is a non-negative integer.
+- Sea level is inside the configured Terrain level range.
+
+Typed error codes:
 
 ```text
 water:invalid-terrain-dimensions
 water:invalid-height-lattice
 water:invalid-terrain-revision
 water:invalid-sea-level
+water:terrain-revision-mismatch
+water:disposed
+water:not-loaded
 ```
 
-## 10. Depth and shoreline semantics
+## 10. Water surface classification
 
-Shoreline and depth are separate concepts.
+Rendered sea geometry carries continuous depth information.
 
-**Shoreline** is the geometric boundary where connected sea meets dry or non-sea Terrain.
-
-**Depth** controls Water color:
+For each Water vertex:
 
 ```text
 depthLevels = seaLevel - interpolatedTerrainHeightLevel
-
-shallow      0.0 <= depthLevels <= 0.5
-transition   0.5 <  depthLevels <  1.0
-deep         depthLevels >= 1.0
 ```
 
-Consequences:
+Depth labels:
 
-- Terrain level `1` is a shallow shelf even though its logical depth is `0`.
-- Terrain level `0` is deep Water.
-- A shoreline ribbon may cross a shallow fragment.
-- Shoreline is not inferred from color or depth alone.
+```text
+shallow shelf  depthLevels = 0 on level-1 Terrain covered by Water
+transition     0 < depthLevels < 1
+ deep          depthLevels >= 1 on level-0 Terrain
+```
 
-Vertex colors interpolate from light cyan-blue to darker blue. No depth texture, distance field, animation, or extra render pass is required.
+Shoreline is not a depth category. It is the geometric boundary of connected sea and is emitted separately as a ribbon.
 
-## 11. Canonical shoreline
+The current Coastal terrain therefore renders level-1 shelf areas as shallow water and level-0 areas as deep water.
 
-A shoreline segment is a positive-length boundary of connected sea whose adjacent side is dry or non-sea.
+Vertex colors interpolate between shallow and deep colors. No depth texture, distance field, second render pass, or animated shader is required in v0.1.
 
-The south map boundary is excluded because it is the ocean exit.
+## 11. Shoreline definition
 
-Requirements:
+A canonical shoreline segment is a positive-length boundary of connected sea where the adjacent side is dry or non-sea.
+
+The south map boundary is excluded from shoreline output because it is the ocean exit boundary.
+
+Shoreline segments must be:
 
 - deterministic;
 - unique;
-- no zero-length segments;
+- free of zero-length segments;
 - exact across chunk seams;
-- derived from clipped Terrain geometry;
+- derived from clipped Terrain edges;
 - independent of camera and renderer state.
 
-Presentation uses a triangle ribbon rather than WebGL line width.
+Presentation uses a narrow triangle ribbon, not WebGL line width.
+
+Locked ribbon width:
 
 ```text
-ribbon width = 0.35 × cellSize
+0.35 × cellSize
 ```
 
-The ribbon is assigned to the chunk of its owning Terrain cell and rendered at Water Y `+0.013`.
+The ribbon is clipped to its owning Water chunk and rendered slightly above the Water surface.
 
-## 12. Chunk-local geometry
+## 12. Chunk-local mesh ownership
 
-Water uses the existing 16 × 16 Terrain chunk partition.
+Water geometry uses the existing 16 × 16 Terrain chunk partition.
 
-A fragment belongs to the chunk of its owning Terrain cell.
+A Water fragment belongs to the chunk of its owning Terrain cell.
+
+Each `WaterChunkMeshData` may contain:
+
+- Water surface positions;
+- upward normals;
+- vertex colors;
+- surface indices;
+- shoreline ribbon positions and indices;
+- counts and bounds;
+- source Terrain revision.
 
 ```ts
 export interface WaterChunkMeshData {
@@ -292,6 +320,8 @@ export interface WaterChunkMeshData {
 }
 ```
 
+Mesh build contract:
+
 ```ts
 export function buildWaterChunkMesh(
   terrain: TerrainSnapshot,
@@ -301,43 +331,31 @@ export function buildWaterChunkMesh(
 ): WaterChunkMeshData;
 ```
 
-The builder must reject Terrain/Water revision or dimension mismatch.
+The builder must reject Terrain/Water revision mismatch.
 
-Geometry rules:
-
-- upward normals `[0, 1, 0]`;
-- deterministic indices;
-- exact shared seam positions;
-- no NaN, Infinity, or zero-area triangles;
-- indices fit `Uint16Array`.
-
-Mesh error codes:
-
-```text
-water:terrain-revision-mismatch
-water:snapshot-dimension-mismatch
-water:mesh-capacity-exceeded
-```
+All chunk indices must fit in `Uint16Array`.
 
 ## 13. Diorama Water wall
 
-Connected sea intervals on the south map boundary create a vertical Water wall.
+Connected sea intervals on the south map boundary produce a vertical Water wall.
+
+Wall coordinates:
 
 ```text
-top Y       logicalWaterY + 0.010
+top Y       logicalWaterY + waterSurfaceOffset
 bottom Y    dioramaBaseY
-boundary Z  south world boundary + 0.010 outward
+boundary Z  south world boundary + 0.01 outward offset
 ```
 
 Rules:
 
-- build only for connected sea intervals;
-- no wall behind south-boundary land;
-- merge adjacent collinear intervals when safe;
-- no walls on north, east, or west boundaries;
-- no Water-wall overshoot above the surface;
-- fully cover the Terrain skirt where the sea exits the diorama;
-- use an opaque material so earth does not show through.
+- Build wall only for connected sea intervals.
+- Do not build wall behind south-boundary land.
+- Merge adjacent collinear intervals when safe.
+- Do not create walls on north, east, or west boundaries.
+- The Water wall must not extend above the Water surface.
+- The Water wall must fully cover the Terrain skirt where the sea exits the diorama.
+- The Water wall is opaque to prevent the earth skirt showing through.
 
 The Terrain outer skirt remains unchanged.
 
@@ -346,9 +364,9 @@ The Terrain outer skirt remains unchanged.
 `water-three` owns:
 
 - BufferGeometry adapters;
-- one shared Water material set;
+- shared Water materials;
 - one `WaterPresentation` lifecycle owner;
-- atomic replacement of its own presentation root;
+- atomic full load;
 - context restoration;
 - idempotent disposal.
 
@@ -366,9 +384,9 @@ export interface WaterPresentationSource {
 }
 ```
 
-`WaterPresentation.load()` stages the new Water root before replacing the previous Water root.
+`WaterPresentation.load()` stages a complete replacement root before swapping it into the scene.
 
-v0.1 does not expose partial `rebuild(chunks)`.
+v0.1 intentionally does not expose partial `rebuild(chunks)`.
 
 Object names:
 
@@ -390,7 +408,7 @@ Terrain grid     10
 Cell selection   20–21
 ```
 
-Surface material:
+Water surface material:
 
 ```text
 transparent       true
@@ -400,7 +418,7 @@ depthWrite        false
 vertexColors      true
 ```
 
-Wall material:
+Water wall material:
 
 ```text
 transparent       false
@@ -409,19 +427,11 @@ depthWrite        true
 vertexColors      true
 ```
 
-Water meshes never join Terrain raycast targets. Underwater clicks continue to select Terrain.
-
-Presentation error codes:
-
-```text
-water-presentation:not-loaded
-water-presentation:disposed
-water-presentation:invalid-build
-```
+Water meshes are not included in Terrain raycast targets. Underwater clicks continue to select the Terrain cell beneath Water.
 
 ## 15. Game composition
 
-Boot:
+Boot order:
 
 ```text
 generate Terrain

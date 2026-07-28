@@ -148,6 +148,15 @@ importers:
         specifier: 0.185.0
         version: 0.185.0
 
+  packages/water-core:
+    dependencies:
+      '@web-three-city/terrain-core':
+        specifier: workspace:*
+        version: link:../terrain-core
+      '@web-three-city/world-core':
+        specifier: workspace:*
+        version: link:../world-core
+
   packages/world-core: {}
 
 packages:

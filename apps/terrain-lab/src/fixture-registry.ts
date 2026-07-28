@@ -1,10 +1,16 @@
-import { SHAPE_ATLAS_FIXTURES } from '@web-three-city/shared-testkit';
+import {
+  SHAPE_ATLAS_FIXTURES,
+  WATER_FIXTURE_NAMES,
+  createWaterFixture,
+  type WaterFixtureName,
+} from '@web-three-city/shared-testkit';
 import { createTerrainMap } from '@web-three-city/terrain-core';
 import type { TerrainSnapshot } from '@web-three-city/terrain-core';
 import { generateCoastalTerrain } from '@web-three-city/terrain-generator';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 
-export type FixtureId = 'coastal' | 'shape-atlas' | 'chunk-seam' | 'boundary-skirt' | 'picking';
+export type FixtureId =
+  'coastal' | 'shape-atlas' | 'chunk-seam' | 'boundary-skirt' | 'picking' | WaterFixtureName;
 
 export type DiagnosticShapeId =
   | 'ramp-north'
@@ -153,7 +159,16 @@ function isDiagnosticShape(value: string | null): value is DiagnosticShapeId {
   return value !== null && DIAGNOSTIC_SHAPES.has(value as DiagnosticShapeId);
 }
 
+function isWaterFixture(value: string | null): value is WaterFixtureName {
+  return value !== null && WATER_FIXTURE_NAMES.includes(value as WaterFixtureName);
+}
+
 export function resolveFixture(input: string | null, shape: string | null = null): TerrainFixture {
+  if (isWaterFixture(input)) {
+    const fixture = createWaterFixture(input);
+    return { id: input, name: input, snapshot: fixture.terrain };
+  }
+
   const id: FixtureId =
     input === 'shape-atlas' ||
     input === 'chunk-seam' ||

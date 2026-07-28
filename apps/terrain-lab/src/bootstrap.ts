@@ -6,9 +6,20 @@ import {
   TerrainGridPresentation,
   TerrainPresentation,
 } from '@web-three-city/terrain-three';
+import { createCoreWaterPresentationSource, WaterPresentation } from '@web-three-city/water-three';
+import { deriveWaterSnapshot } from '@web-three-city/water-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import * as THREE from 'three';
 import { resolveFixture } from './fixture-registry.js';
+
+interface TerrainLabWaterEvidence {
+  readonly fixture: string;
+  readonly sourceTerrainRevision: number;
+  readonly seaTriangleCount: number;
+  readonly enclosedWetTriangleCount: number;
+  readonly shorelineSegmentCount: number;
+  readonly waterRootCount: number;
+}
 
 interface TerrainLabEvidence {
   readonly fixture: string;
@@ -23,6 +34,7 @@ interface TerrainLabEvidence {
 declare global {
   interface Window {
     __WEB_THREE_CITY_EVIDENCE__?: TerrainLabEvidence;
+    __WEB_THREE_CITY_WATER_EVIDENCE__?: TerrainLabWaterEvidence;
   }
 }
 
@@ -41,6 +53,7 @@ export function bootstrapTerrainLab(root: HTMLElement): void {
         <h1 data-testid="fixture-name">Loading</h1>
         <dl class="metrics">
           <div><dt>Status</dt><dd data-testid="terrain-status">Loading</dd></div>
+          <div><dt>Water</dt><dd data-testid="water-status">Loading</dd></div>
           <div><dt>Camera</dt><dd data-testid="camera-rotation">0°</dd></div>
           <div><dt>Selected</dt><dd data-testid="selected-cell">None</dd></div>
         </dl>
@@ -56,17 +69,23 @@ export function bootstrapTerrainLab(root: HTMLElement): void {
   const canvas = requireElement<HTMLCanvasElement>(root, '#terrain-canvas');
   const fixtureName = requireElement<HTMLElement>(root, '[data-testid="fixture-name"]');
   const status = requireElement<HTMLElement>(root, '[data-testid="terrain-status"]');
+  const waterStatus = requireElement<HTMLElement>(root, '[data-testid="water-status"]');
   const rotation = requireElement<HTMLElement>(root, '[data-testid="camera-rotation"]');
   const selected = requireElement<HTMLElement>(root, '[data-testid="selected-cell"]');
   const capability = detectWebGL2(canvas);
   if (!capability.supported) {
     status.textContent = 'WebGL2 unavailable';
+    waterStatus.textContent = 'Unavailable';
     return;
   }
 
   const parameters = new URLSearchParams(window.location.search);
   const generationStart = performance.now();
   const fixture = resolveFixture(parameters.get('fixture'), parameters.get('shape'));
+  const waterResult = deriveWaterSnapshot(fixture.snapshot, WORLD_CONFIG);
+  if (!waterResult.ok)
+    throw new Error(`terrain-lab:water-derivation-failed:${waterResult.error.code}`);
+  const waterSnapshot = waterResult.value;
   const generationMs = performance.now() - generationStart;
   fixtureName.textContent = fixture.name;
 
@@ -94,6 +113,12 @@ export function bootstrapTerrainLab(root: HTMLElement): void {
   );
   const presentationStart = performance.now();
   presentation.load(fixture.snapshot);
+  const water = new WaterPresentation(
+    scene,
+    createCoreWaterPresentationSource(WORLD_CONFIG),
+    WORLD_CONFIG,
+  );
+  water.load(fixture.snapshot, waterSnapshot);
   const presentationMs = performance.now() - presentationStart;
 
   const grid = new TerrainGridPresentation(scene, WORLD_CONFIG);
@@ -154,6 +179,15 @@ export function bootstrapTerrainLab(root: HTMLElement): void {
     selected.textContent = result === null ? 'None' : `${result.cellX}, ${result.cellZ}`;
   });
 
+  window.__WEB_THREE_CITY_WATER_EVIDENCE__ = {
+    fixture: fixture.id,
+    sourceTerrainRevision: waterSnapshot.sourceTerrainRevision,
+    seaTriangleCount: waterSnapshot.seaTriangleCount,
+    enclosedWetTriangleCount: waterSnapshot.enclosedWetTriangleCount,
+    shorelineSegmentCount: waterSnapshot.shorelineSegmentCount,
+    waterRootCount: scene.children.filter((node) => node.name === 'water-presentation-root').length,
+  };
+
   window.__WEB_THREE_CITY_EVIDENCE__ = {
     fixture: fixture.name,
     generationMs,
@@ -164,10 +198,12 @@ export function bootstrapTerrainLab(root: HTMLElement): void {
     renderer: renderer.info.programs === null ? 'WebGL2' : 'WebGL2 / Three.js',
   };
   status.textContent = 'Ready';
+  waterStatus.textContent = 'Ready';
 
   window.addEventListener('pagehide', () => {
     window.cancelAnimationFrame(animationFrame);
     grid.dispose();
+    water.dispose();
     presentation.dispose();
     renderer.dispose();
   });

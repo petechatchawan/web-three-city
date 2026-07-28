@@ -29,6 +29,8 @@ jobs:
           printf '%s' "$TASK4_RED" | base64 --decode | tar -xzf -
       - name: Update workspace lockfile
         run: pnpm install --lockfile-only --no-frozen-lockfile
+      - name: Install frozen workspace dependencies
+        run: pnpm install --frozen-lockfile
       - name: Normalize RED files
         run: pnpm exec prettier --write packages/water-three
       - name: Commit Task 4 RED

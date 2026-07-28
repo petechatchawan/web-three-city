@@ -8,6 +8,9 @@
     "@web-three-city/terrain-core": "workspace:*",
     "@web-three-city/world-core": "workspace:*"
   },
+  "devDependencies": {
+    "@web-three-city/shared-testkit": "workspace:*"
+  },
   "scripts": {
     "test": "vitest run --passWithNoTests",
     "test:coverage": "vitest run --coverage --passWithNoTests",

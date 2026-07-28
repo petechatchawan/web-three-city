@@ -129,8 +129,7 @@ function pointOnOriginalEdge(
   second: TriangleVertex,
 ): boolean {
   const cross =
-    (point.x - first.x) * (second.z - first.z) -
-    (point.z - first.z) * (second.x - first.x);
+    (point.x - first.x) * (second.z - first.z) - (point.z - first.z) * (second.x - first.x);
   if (Math.abs(cross) > WATER_GEOMETRY_EPSILON) return false;
   return (
     point.x >= Math.min(first.x, second.x) - WATER_GEOMETRY_EPSILON &&
@@ -190,10 +189,7 @@ export function deriveWaterSnapshot(
           const first = vertices[edgeIndex]!;
           const second = vertices[(edgeIndex + 1) % 3]!;
           const interval = wetIntervalForEdge(first.level, second.level, config.seaLevel);
-          if (
-            interval === null ||
-            interval.end - interval.start <= WATER_GEOMETRY_EPSILON
-          ) {
+          if (interval === null || interval.end - interval.start <= WATER_GEOMETRY_EPSILON) {
             continue;
           }
           const key = edgeKey(first, second);

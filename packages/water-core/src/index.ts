@@ -5,3 +5,6 @@ export { clipTriangleToSea, wetIntervalForEdge } from './wet-fragment.js';
 export type { TriangleVertex, WetFragment, WetInterval, WetVertex } from './wet-fragment.js';
 export { deriveWaterSnapshot, triangleIndexFor } from './water-snapshot.js';
 export type { WaterSnapshot } from './water-snapshot.js';
+export { buildWaterChunkMesh } from './water-chunk-mesher.js';
+export { buildWaterWallMesh } from './water-wall-mesher.js';
+export type { WaterChunkMeshData, WaterWallMeshData } from './mesh-data.js';

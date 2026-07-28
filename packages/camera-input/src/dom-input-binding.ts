@@ -8,6 +8,15 @@ import { GestureController, type PointerSample } from './gesture-controller.js';
 const DEFAULT_UI_BLOCK_SELECTOR =
   'button, input, select, textarea, label, a, [data-world-input-block]';
 
+export interface PrimaryPointerToolDelegate {
+  isEnabled(): boolean;
+  begin(pointerId: number, point: ScreenPoint): boolean;
+  move(pointerId: number, point: ScreenPoint): void;
+  end(pointerId: number, point: ScreenPoint): void;
+  cancel(pointerId: number): void;
+  cancelAll(): void;
+}
+
 export interface WorldInputBinding {
   readonly activePointerCount: number;
   clearActiveSession(): void;
@@ -20,6 +29,7 @@ export interface WorldInputBindingOptions {
   readonly camera: CameraInteractionController;
   readonly onEligibleTap: (point: ScreenPoint) => void;
   readonly onReset: () => void;
+  readonly tool?: PrimaryPointerToolDelegate;
   readonly uiBlockSelector?: string;
 }
 
@@ -33,6 +43,10 @@ function toCanvasPoint(canvas: HTMLCanvasElement, clientX: number, clientY: numb
 function toPointerSample(canvas: HTMLCanvasElement, event: PointerEvent): PointerSample {
   const point = toCanvasPoint(canvas, event.clientX, event.clientY);
   return { id: event.pointerId, x: point.x, y: point.y };
+}
+
+function toScreenPoint(sample: PointerSample): ScreenPoint {
+  return { x: sample.x, y: sample.y };
 }
 
 function isBlockedTarget(target: EventTarget | null, selector: string): boolean {
@@ -50,6 +64,9 @@ function isFormControlFocused(): boolean {
 export function bindWorldInput(options: WorldInputBindingOptions): WorldInputBinding {
   const selector = options.uiBlockSelector ?? DEFAULT_UI_BLOCK_SELECTOR;
   const acceptedPointers = new Set<number>();
+  let toolPointerId: number | null = null;
+  let toolLatestSample: PointerSample | null = null;
+  let gestureOnlyUntilEmpty = false;
   let disposed = false;
 
   const gestures = new GestureController({
@@ -85,40 +102,105 @@ export function bindWorldInput(options: WorldInputBindingOptions): WorldInputBin
     }
   };
 
+  const resetOwnershipWhenEmpty = (): void => {
+    if (acceptedPointers.size !== 0) return;
+    toolPointerId = null;
+    toolLatestSample = null;
+    gestureOnlyUntilEmpty = false;
+  };
+
   const clearActiveSession = (): void => {
+    if (toolPointerId !== null) options.tool?.cancelAll();
     for (const pointerId of acceptedPointers) releaseCapture(pointerId);
     acceptedPointers.clear();
     gestures.clearActiveSession();
+    toolPointerId = null;
+    toolLatestSample = null;
+    gestureOnlyUntilEmpty = false;
+  };
+
+  const transferToolToGestures = (second: PointerSample): void => {
+    const first = toolLatestSample;
+    options.tool?.cancelAll();
+    toolPointerId = null;
+    toolLatestSample = null;
+    gestureOnlyUntilEmpty = true;
+    gestures.clearActiveSession();
+    if (first !== null) gestures.pointerDown(first);
+    gestures.pointerDown(second);
   };
 
   const onPointerDown = (event: PointerEvent): void => {
     if (isBlockedTarget(event.target, selector)) return;
+    const sample = toPointerSample(options.canvas, event);
     acceptedPointers.add(event.pointerId);
     try {
       options.canvas.setPointerCapture(event.pointerId);
     } catch {
       // Pointer capture is best-effort on browsers that reject stale contacts.
     }
-    gestures.pointerDown(toPointerSample(options.canvas, event));
+
+    if (toolPointerId !== null) {
+      transferToolToGestures(sample);
+      return;
+    }
+
+    if (gestureOnlyUntilEmpty) {
+      gestures.pointerDown(sample);
+      return;
+    }
+
+    if (
+      acceptedPointers.size === 1 &&
+      options.tool?.isEnabled() === true &&
+      options.tool.begin(sample.id, toScreenPoint(sample))
+    ) {
+      toolPointerId = sample.id;
+      toolLatestSample = sample;
+      return;
+    }
+
+    gestures.pointerDown(sample);
   };
 
   const onPointerMove = (event: PointerEvent): void => {
     if (!acceptedPointers.has(event.pointerId)) return;
-    gestures.pointerMove(toPointerSample(options.canvas, event));
+    const sample = toPointerSample(options.canvas, event);
+    if (event.pointerId === toolPointerId) {
+      toolLatestSample = sample;
+      options.tool?.move(sample.id, toScreenPoint(sample));
+      return;
+    }
+    gestures.pointerMove(sample);
   };
 
   const onPointerUp = (event: PointerEvent): void => {
     if (!acceptedPointers.has(event.pointerId)) return;
-    gestures.pointerUp(toPointerSample(options.canvas, event));
+    const sample = toPointerSample(options.canvas, event);
+    if (event.pointerId === toolPointerId) {
+      options.tool?.end(sample.id, toScreenPoint(sample));
+      toolPointerId = null;
+      toolLatestSample = null;
+    } else {
+      gestures.pointerUp(sample);
+    }
     acceptedPointers.delete(event.pointerId);
     releaseCapture(event.pointerId);
+    resetOwnershipWhenEmpty();
   };
 
   const onPointerCancel = (event: PointerEvent): void => {
     if (!acceptedPointers.has(event.pointerId)) return;
-    gestures.pointerCancel(event.pointerId);
+    if (event.pointerId === toolPointerId) {
+      options.tool?.cancel(event.pointerId);
+      toolPointerId = null;
+      toolLatestSample = null;
+    } else {
+      gestures.pointerCancel(event.pointerId);
+    }
     acceptedPointers.delete(event.pointerId);
     releaseCapture(event.pointerId);
+    resetOwnershipWhenEmpty();
   };
 
   const onLostPointerCapture = (event: PointerEvent): void => {
@@ -158,7 +240,7 @@ export function bindWorldInput(options: WorldInputBindingOptions): WorldInputBin
 
   return {
     get activePointerCount(): number {
-      return gestures.activePointerCount;
+      return acceptedPointers.size;
     },
     clearActiveSession,
     dispose(): void {

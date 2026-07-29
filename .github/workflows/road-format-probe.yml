@@ -21,4 +21,6 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec prettier packages/terrain-core/test/terrain-cell-surface.test.ts
+      - run: |
+          pnpm exec prettier packages/terrain-core/test/terrain-cell-surface.test.ts
+          exit 1

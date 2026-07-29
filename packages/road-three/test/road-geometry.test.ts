@@ -105,14 +105,49 @@ function boundaryVertices(mesh: RoadMeshData, axis: 'x' | 'z', value: number): r
 }
 
 const GOLDENS = [
-  ['isolated', 0, 'flat', '__PENDING_ISOLATED__'],
-  ['end-north', ROAD_NORTH, 'flat', '__PENDING_END_NORTH__'],
-  ['straight-ns', ROAD_NORTH | ROAD_SOUTH, 'flat', '__PENDING_STRAIGHT_NS__'],
-  ['corner-ne', ROAD_NORTH | ROAD_EAST, 'flat', '__PENDING_CORNER_NE__'],
-  ['t-nes', ROAD_NORTH | ROAD_EAST | ROAD_SOUTH, 'flat', '__PENDING_T_NES__'],
-  ['four-way', ROAD_NORTH | ROAD_EAST | ROAD_SOUTH | ROAD_WEST, 'flat', '__PENDING_FOUR_WAY__'],
-  ['ramp-ns', ROAD_NORTH | ROAD_SOUTH, 'ramp-north', '__PENDING_RAMP_NS__'],
-  ['ramp-ew', ROAD_EAST | ROAD_WEST, 'ramp-east', '__PENDING_RAMP_EW__'],
+  ['isolated', 0, 'flat', '788b8f383afad66a054c1cf21037afefe72e9677c229d94a55054cdd487d80cf'],
+  [
+    'end-north',
+    ROAD_NORTH,
+    'flat',
+    '00254c8385de39920406630539713682899b7216165e643e378be00a909cbe58',
+  ],
+  [
+    'straight-ns',
+    ROAD_NORTH | ROAD_SOUTH,
+    'flat',
+    '829c16766212f4304071b998a7d4d8cdd37fb6663b5932a7f6dca37c4951b1ce',
+  ],
+  [
+    'corner-ne',
+    ROAD_NORTH | ROAD_EAST,
+    'flat',
+    'a59c9aea790e83bc3d6796c01cbbeb053d8714dc44fc29aa8de82b2551e60e4e',
+  ],
+  [
+    't-nes',
+    ROAD_NORTH | ROAD_EAST | ROAD_SOUTH,
+    'flat',
+    '711dd942411f94f5b34e2ce42658b8efb62986766867c635b7bd745a8792a57d',
+  ],
+  [
+    'four-way',
+    ROAD_NORTH | ROAD_EAST | ROAD_SOUTH | ROAD_WEST,
+    'flat',
+    '5a2cdaa1c090f0f290c19d5004c8810ab3389ba5e69be96752b0f76e124b471d',
+  ],
+  [
+    'ramp-ns',
+    ROAD_NORTH | ROAD_SOUTH,
+    'ramp-north',
+    '111f6fb1b75c8d17b32009d56ccbb1ba2715862b508026851fa800b58a8bfd8d',
+  ],
+  [
+    'ramp-ew',
+    ROAD_EAST | ROAD_WEST,
+    'ramp-east',
+    '00fb94cfd7acdd2006a40dc4ec078b1968aeff366533145b7140374eb5126663',
+  ],
 ] as const;
 
 describe('road geometry', () => {

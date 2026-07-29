@@ -14,10 +14,7 @@ export type { TerrainShape } from './shape-classifier.js';
 export { decodeTerrainSaveV1, encodeTerrainSaveV1 } from './serialization.js';
 export type { TerrainSaveError, TerrainSaveErrorCode, TerrainSaveV1 } from './serialization.js';
 export { terrainCellSurfaceProfile } from './terrain-cell-surface.js';
-export type {
-  TerrainCellSurfaceProfile,
-  TerrainSlopeAxis,
-} from './terrain-cell-surface.js';
+export type { TerrainCellSurfaceProfile, TerrainSlopeAxis } from './terrain-cell-surface.js';
 export { createTerrainMap } from './terrain-map.js';
 export type { CreateTerrainMapInput, TerrainMap, TerrainSnapshot } from './terrain-map.js';
 export { expandTerraformBrushCells } from './terraform-brush.js';

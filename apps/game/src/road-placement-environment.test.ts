@@ -7,9 +7,9 @@ import { createRoadPlacementEnvironment } from './road-placement-environment.js'
 function terrainWithLevel(level: number, revision = 2) {
   return createTerrainMap({
     config: WORLD_CONFIG,
-    heightLevels: new Uint8Array(
-      (WORLD_CONFIG.mapWidth + 1) * (WORLD_CONFIG.mapHeight + 1),
-    ).fill(level),
+    heightLevels: new Uint8Array((WORLD_CONFIG.mapWidth + 1) * (WORLD_CONFIG.mapHeight + 1)).fill(
+      level,
+    ),
     seed: 1464156977,
     generatorVersion: 'coastal-v1',
     generationAttempt: 0,

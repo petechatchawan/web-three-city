@@ -1,8 +1,4 @@
-import {
-  createRoadSnapshot,
-  roadOccupiedAt,
-  type RoadSnapshot,
-} from '@web-three-city/road-core';
+import { createRoadSnapshot, roadOccupiedAt, type RoadSnapshot } from '@web-three-city/road-core';
 import {
   createTerrainMap,
   encodeTerrainSaveV1,
@@ -44,10 +40,7 @@ describe('WorldSaveV1', () => {
   it('round-trips Terrain and valid Roads as one coherent staged world', () => {
     const sourceTerrain = terrain();
     const sourceRoads = roads([{ x: 4, z: 4 }]);
-    const decoded = decodeWorldSave(
-      encodeWorldSaveV1(sourceTerrain, sourceRoads),
-      WORLD_CONFIG,
-    );
+    const decoded = decodeWorldSave(encodeWorldSaveV1(sourceTerrain, sourceRoads), WORLD_CONFIG);
 
     expect(decoded.ok).toBe(true);
     if (!decoded.ok) return;
@@ -99,10 +92,7 @@ describe('WorldSaveV1', () => {
       generationAttempt: 0,
       revision: unsupported.revision,
     });
-    const decoded = decodeWorldSave(
-      encodeWorldSaveV1(shapedTerrain, roads([cell])),
-      WORLD_CONFIG,
-    );
+    const decoded = decodeWorldSave(encodeWorldSaveV1(shapedTerrain, roads([cell])), WORLD_CONFIG);
 
     expect(decoded).toEqual({
       ok: false,

@@ -53,10 +53,7 @@ function isWorldEnvelope(input: unknown): input is Record<string, unknown> {
   return isRecord(input) && (input.kind === 'world-save' || 'roads' in input || 'terrain' in input);
 }
 
-export function encodeWorldSaveV1(
-  terrain: TerrainSnapshot,
-  roads: RoadSnapshot,
-): WorldSaveV1 {
+export function encodeWorldSaveV1(terrain: TerrainSnapshot, roads: RoadSnapshot): WorldSaveV1 {
   return Object.freeze({
     kind: 'world-save' as const,
     schemaVersion: 1 as const,

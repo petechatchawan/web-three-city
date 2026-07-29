@@ -44,6 +44,9 @@ importers:
       '@web-three-city/camera-input':
         specifier: workspace:*
         version: link:../../packages/camera-input
+      '@web-three-city/road-core':
+        specifier: workspace:*
+        version: link:../../packages/road-core
       '@web-three-city/terrain-core':
         specifier: workspace:*
         version: link:../../packages/terrain-core

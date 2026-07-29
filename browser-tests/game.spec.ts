@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { GAME_URL, readEvidence } from './helpers/interaction.js';
 
-const SAVE_KEY = 'web-three-city:terrain-save:v1';
+const SAVE_KEY = 'web-three-city:world-save:v1';
 
 async function waitForReady(page: import('@playwright/test').Page): Promise<void> {
   await page.goto(GAME_URL);
@@ -71,12 +71,16 @@ test('tap selects, grid toggles, and reset restores defaults', async ({ page }) 
   expect(evidence.allWorldCornersInsideUsableViewport).toBe(true);
 });
 
-test('changes quality and round-trips terrain save data', async ({ page }) => {
+test('changes quality and round-trips world save data', async ({ page }) => {
   await waitForReady(page);
 
   await page.getByRole('button', { name: 'Save terrain' }).click();
   const saved = await page.evaluate((key) => localStorage.getItem(key), SAVE_KEY);
   expect(saved).not.toBeNull();
+  expect(JSON.parse(saved ?? '{}')).toMatchObject({
+    kind: 'world-save',
+    schemaVersion: 1,
+  });
 
   await page.getByLabel('Quality').selectOption('low');
   await expect(page.getByTestId('quality-value')).toHaveText('Low');
@@ -98,15 +102,21 @@ test('recovers presentation state after WebGL context loss', async ({ page }) =>
     element.dispatchEvent(new Event('webglcontextrestored'));
   });
   await expect(page.getByTestId('game-status')).toHaveText('Ready');
+  const evidence = await readEvidence(page);
+  expect(evidence.sceneRootCounts.roadCommitted).toBe(1);
+  expect(evidence.sceneRootCounts.roadPreview).toBe(0);
 });
 
-test('boots Coastal Water with one presentation root', async ({ page }) => {
+test('boots Coastal Water and Roads with one presentation root each', async ({ page }) => {
   await waitForReady(page);
   const evidence = await readEvidence(page);
   expect(evidence.water.waterRootCount).toBe(1);
   expect(evidence.water.seaTriangleCount).toBeGreaterThan(0);
   expect(evidence.water.sourceTerrainRevision).toBeGreaterThanOrEqual(0);
   expect(evidence.sceneRootCounts.water).toBe(1);
+  expect(evidence.road.committedRootCount).toBe(1);
+  expect(evidence.road.previewRootCount).toBe(0);
+  expect(evidence.road.occupiedCellCount).toBe(0);
 });
 
 test('save and load reproduce identical Water evidence', async ({ page }) => {
@@ -127,7 +137,7 @@ test('save and load reproduce identical Water evidence', async ({ page }) => {
   expect(after.waterRootCount).toBe(1);
 });
 
-test('restores exactly one Water root after context restoration', async ({ page }) => {
+test('restores exactly one Water and Road root after context restoration', async ({ page }) => {
   await waitForReady(page);
   const canvas = page.locator('#game-canvas');
   await canvas.evaluate((element) => {
@@ -138,27 +148,20 @@ test('restores exactly one Water root after context restoration', async ({ page 
   const evidence = await readEvidence(page);
   expect(evidence.water.waterRootCount).toBe(1);
   expect(evidence.sceneRootCounts.water).toBe(1);
+  expect(evidence.sceneRootCounts.roadCommitted).toBe(1);
+  expect(evidence.sceneRootCounts.roadPreview).toBe(0);
 });
 
-test('exposes Terraform tool, brush, and Undo controls', async ({ page }) => {
+test('exposes Terraform and Road tools with mode-aware brush controls', async ({ page }) => {
   await waitForReady(page);
 
   await expect(page.getByRole('button', { name: 'Navigate' })).toHaveAttribute(
     'aria-pressed',
     'true',
   );
-  await expect(page.getByRole('button', { name: 'Raise' })).toHaveAttribute(
-    'aria-pressed',
-    'false',
-  );
-  await expect(page.getByRole('button', { name: 'Lower' })).toHaveAttribute(
-    'aria-pressed',
-    'false',
-  );
-  await expect(page.getByRole('button', { name: 'Flatten' })).toHaveAttribute(
-    'aria-pressed',
-    'false',
-  );
+  for (const name of ['Raise', 'Lower', 'Flatten', 'Build Road', 'Bulldoze Road']) {
+    await expect(page.getByRole('button', { name })).toHaveAttribute('aria-pressed', 'false');
+  }
   await expect(page.getByRole('button', { name: 'Brush 1 × 1' })).toHaveAttribute(
     'aria-pressed',
     'true',
@@ -173,4 +176,15 @@ test('exposes Terraform tool, brush, and Undo controls', async ({ page }) => {
   );
   await expect(page.getByRole('button', { name: 'Undo Terraform' })).toBeDisabled();
   await expect(page.getByTestId('active-tool')).toHaveText('Navigate');
+
+  await page.getByRole('button', { name: 'Build Road' }).click();
+  await expect(page.getByRole('button', { name: 'Build Road' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(page.getByTestId('active-tool')).toHaveText('Build Road');
+  await expect(page.getByTestId('terraform-brush-controls')).toBeHidden();
+
+  await page.getByRole('button', { name: 'Raise' }).click();
+  await expect(page.getByTestId('terraform-brush-controls')).toBeVisible();
 });

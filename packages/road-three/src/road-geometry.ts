@@ -6,11 +6,7 @@ import {
   type RoadCellView,
 } from '@web-three-city/road-core';
 import type { WorldConfig } from '@web-three-city/world-core';
-import {
-  createRoadMeshData,
-  emptyRoadMeshData,
-  type RoadMeshData,
-} from './road-mesh-data.js';
+import { createRoadMeshData, emptyRoadMeshData, type RoadMeshData } from './road-mesh-data.js';
 
 interface RoadRectangle {
   readonly minX: number;
@@ -34,12 +30,7 @@ function levelAt(view: RoadCellView, worldX: number, worldZ: number, config: Wor
   const u = (worldX - cellMinX) / config.cellSize;
   const v = (worldZ - cellMinZ) / config.cellSize;
   const { nw, ne, sw, se } = view.surface.corners;
-  return (
-    nw * (1 - u) * (1 - v) +
-    ne * u * (1 - v) +
-    sw * (1 - u) * v +
-    se * u * v
-  );
+  return nw * (1 - u) * (1 - v) + ne * u * (1 - v) + sw * (1 - u) * v + se * u * v;
 }
 
 function positionAt(

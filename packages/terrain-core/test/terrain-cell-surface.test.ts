@@ -19,9 +19,13 @@ function terrainWithCellCorners(corners: {
   );
   heightLevels.fill(1);
   heightLevels[vertexIndex({ x: CELL.x, z: CELL.z }, WORLD_CONFIG)] = corners.nw;
-  heightLevels[vertexIndex({ x: CELL.x + 1, z: CELL.z }, WORLD_CONFIG)] = corners.ne;
-  heightLevels[vertexIndex({ x: CELL.x, z: CELL.z + 1 }, WORLD_CONFIG)] = corners.sw;
-  heightLevels[vertexIndex({ x: CELL.x + 1, z: CELL.z + 1 }, WORLD_CONFIG)] = corners.se;
+  heightLevels[vertexIndex({ x: CELL.x + 1, z: CELL.z }, WORLD_CONFIG)] =
+    corners.ne;
+  heightLevels[vertexIndex({ x: CELL.x, z: CELL.z + 1 }, WORLD_CONFIG)] =
+    corners.sw;
+  heightLevels[
+    vertexIndex({ x: CELL.x + 1, z: CELL.z + 1 }, WORLD_CONFIG)
+  ] = corners.se;
 
   return createTerrainMap({
     config: WORLD_CONFIG,
@@ -55,7 +59,9 @@ describe('terrain cell surface profile', () => {
   it('reports a north-south axis for a north ramp', () => {
     const terrain = terrainWithCellCorners({ nw: 2, ne: 2, sw: 1, se: 1 });
 
-    expect(terrainCellSurfaceProfile(terrain, CELL, WORLD_CONFIG)).toMatchObject({
+    expect(
+      terrainCellSurfaceProfile(terrain, CELL, WORLD_CONFIG),
+    ).toMatchObject({
       shape: 'ramp-north',
       minimumLevel: 1,
       maximumLevel: 2,
@@ -66,7 +72,9 @@ describe('terrain cell surface profile', () => {
   it('reports an east-west axis for an east ramp', () => {
     const terrain = terrainWithCellCorners({ nw: 1, ne: 2, sw: 1, se: 2 });
 
-    expect(terrainCellSurfaceProfile(terrain, CELL, WORLD_CONFIG)).toMatchObject({
+    expect(
+      terrainCellSurfaceProfile(terrain, CELL, WORLD_CONFIG),
+    ).toMatchObject({
       shape: 'ramp-east',
       minimumLevel: 1,
       maximumLevel: 2,
@@ -83,8 +91,8 @@ describe('terrain cell surface profile', () => {
   ])('rejects an invalid cell coordinate %o', (cell) => {
     const terrain = terrainWithCellCorners({ nw: 1, ne: 1, sw: 1, se: 1 });
 
-    expect(() => terrainCellSurfaceProfile(terrain, cell, WORLD_CONFIG)).toThrow(
-      'terrain-cell-surface:invalid-cell',
-    );
+    expect(() =>
+      terrainCellSurfaceProfile(terrain, cell, WORLD_CONFIG),
+    ).toThrow('terrain-cell-surface:invalid-cell');
   });
 });

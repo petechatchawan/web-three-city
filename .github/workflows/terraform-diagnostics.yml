@@ -6,6 +6,7 @@ on:
       - agent/terraform-foundation-v0-1
 
 permissions:
+  checks: read
   contents: read
 
 jobs:
@@ -21,7 +22,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Capture diagnostics
+      - name: Capture repository diagnostics
         shell: bash
         run: |
           set +e
@@ -38,6 +39,75 @@ jobs:
           pnpm --filter @web-three-city/game build > terraform-game-build.log 2>&1
           echo "game_build_exit=$?" >> terraform-status.log
           exit 0
+      - name: Capture Sonar check runs and annotations
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for attempt in $(seq 1 20); do
+            gh api \
+              -H 'Accept: application/vnd.github+json' \
+              "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/check-runs?per_page=100" \
+              > check-runs.json
+
+            sonar_count="$(
+              jq '[.check_runs[] | select(
+                ((.name // "") | ascii_downcase | contains("sonar")) or
+                ((.app.slug // "") | ascii_downcase | contains("sonar"))
+              )] | length' check-runs.json
+            )"
+            pending_count="$(
+              jq '[.check_runs[] | select(
+                (((.name // "") | ascii_downcase | contains("sonar")) or
+                 ((.app.slug // "") | ascii_downcase | contains("sonar"))) and
+                .status != "completed"
+              )] | length' check-runs.json
+            )"
+
+            if [[ "$sonar_count" -gt 0 && "$pending_count" -eq 0 ]]; then
+              break
+            fi
+
+            if [[ "$attempt" -eq 20 ]]; then
+              echo "Sonar check run did not complete before diagnostic timeout." > sonar-timeout.log
+              break
+            fi
+
+            sleep 15
+          done
+
+          jq '{
+            total_count,
+            check_runs: [
+              .check_runs[] | select(
+                ((.name // "") | ascii_downcase | contains("sonar")) or
+                ((.app.slug // "") | ascii_downcase | contains("sonar"))
+              ) | {
+                id,
+                name,
+                status,
+                conclusion,
+                details_url,
+                app: .app.slug,
+                output
+              }
+            ]
+          }' check-runs.json > sonar-check-runs.json
+
+          : > sonar-annotations.jsonl
+          while IFS= read -r check_id; do
+            gh api \
+              -H 'Accept: application/vnd.github+json' \
+              "repos/$GITHUB_REPOSITORY/check-runs/$check_id/annotations?per_page=100" \
+              | jq -c '.[]' >> sonar-annotations.jsonl
+          done < <(
+            jq -r '.check_runs[] | select(
+              ((.name // "") | ascii_downcase | contains("sonar")) or
+              ((.app.slug // "") | ascii_downcase | contains("sonar"))
+            ) | .id' check-runs.json
+          )
       - uses: actions/upload-artifact@v4
         with:
           name: terraform-diagnostics
@@ -49,4 +119,8 @@ jobs:
             camera-input-test.log
             terraform-typecheck.log
             terraform-game-build.log
-          if-no-files-found: error
+            check-runs.json
+            sonar-check-runs.json
+            sonar-annotations.jsonl
+            sonar-timeout.log
+          if-no-files-found: warn

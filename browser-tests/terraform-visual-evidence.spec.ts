@@ -8,7 +8,12 @@ import {
 } from '../packages/terrain-core/src/index.js';
 import { generateCoastalTerrain } from '../packages/terrain-generator/src/index.js';
 import { WORLD_CONFIG } from '../packages/world-core/src/index.js';
-import { GAME_URL, clickTerrainCell, readEvidence } from './helpers/interaction.js';
+import {
+  GAME_URL,
+  clickTerrainCell,
+  readEvidence,
+  type TerrainCellScreenPoint,
+} from './helpers/interaction.js';
 
 const OUTPUT_DIRECTORY = 'test-results/terraform-foundation-v0-1';
 const SCREENSHOTS = [
@@ -57,27 +62,6 @@ function validRaiseCell(
   throw new Error(`terraform-evidence:no-valid-raise:${brushSize}`);
 }
 
-function validRaiseLine(): Readonly<{
-  start: Readonly<{ x: number; z: number }>;
-  end: Readonly<{ x: number; z: number }>;
-}> {
-  for (const center of centeredCells(12)) {
-    const start = { x: center.x - 2, z: center.z };
-    const end = { x: center.x + 2, z: center.z };
-    const plan = planTerraformStroke(
-      BASE_TERRAIN,
-      {
-        operation: 'raise',
-        brushSize: 1,
-        cells: rasterizeTerraformCellLine(start, end),
-      },
-      WORLD_CONFIG,
-    );
-    if (plan.valid) return { start, end };
-  }
-  throw new Error('terraform-evidence:no-valid-line');
-}
-
 function levelAt(terrain: TerrainSnapshot, x: number, z: number): number {
   return terrain.heightLevels[z * (terrain.width + 1) + x]!;
 }
@@ -98,6 +82,66 @@ function flatCell(): Readonly<{ x: number; z: number }> {
 async function openGame(page: import('@playwright/test').Page): Promise<void> {
   await page.goto(GAME_URL);
   await expect(page.getByTestId('game-status')).toHaveText('Ready');
+}
+
+interface VisibleTerrainSample {
+  readonly point: TerrainCellScreenPoint;
+  readonly cell: Readonly<{ x: number; z: number }>;
+}
+
+async function findVisibleRaiseLine(
+  page: import('@playwright/test').Page,
+): Promise<Readonly<{ start: TerrainCellScreenPoint; end: TerrainCellScreenPoint }>> {
+  const bounds = await page.locator('#game-canvas').boundingBox();
+  if (bounds === null) throw new Error('terraform-evidence:missing-canvas');
+
+  const sampleRatios = [
+    [0.5, 0.58],
+    [0.42, 0.62],
+    [0.58, 0.62],
+    [0.32, 0.68],
+    [0.5, 0.68],
+    [0.68, 0.68],
+    [0.25, 0.74],
+    [0.42, 0.74],
+    [0.58, 0.74],
+    [0.75, 0.74],
+  ] as const;
+  const samples: VisibleTerrainSample[] = [];
+  const seenCells = new Set<string>();
+
+  for (const [xRatio, yRatio] of sampleRatios) {
+    const point = {
+      x: bounds.x + bounds.width * xRatio,
+      y: bounds.y + bounds.height * yRatio,
+    };
+    await page.mouse.click(point.x, point.y);
+    const cell = (await readEvidence(page)).selectedCell;
+    if (cell === null) continue;
+
+    const key = `${cell.x}:${cell.z}`;
+    if (seenCells.has(key)) continue;
+    seenCells.add(key);
+    samples.push({ point, cell });
+  }
+
+  for (let firstIndex = 0; firstIndex < samples.length; firstIndex += 1) {
+    const first = samples[firstIndex]!;
+    for (let secondIndex = firstIndex + 1; secondIndex < samples.length; secondIndex += 1) {
+      const second = samples[secondIndex]!;
+      const cells = rasterizeTerraformCellLine(first.cell, second.cell);
+      if (cells.length < 5) continue;
+
+      const plan = planTerraformStroke(
+        BASE_TERRAIN,
+        { operation: 'raise', brushSize: 1, cells },
+        WORLD_CONFIG,
+      );
+      if (plan.valid) return { start: first.point, end: second.point };
+    }
+  }
+
+  throw new Error('terraform-evidence:no-visible-valid-raise-line');
 }
 
 test('captures Terraform Foundation visual and timing evidence', async ({ page }) => {
@@ -192,13 +236,11 @@ test('captures Terraform Foundation visual and timing evidence', async ({ page }
     fullPage: true,
   });
 
-  const line = validRaiseLine();
-  const start = await clickTerrainCell(page, line.start);
-  const end = await clickTerrainCell(page, line.end);
+  const line = await findVisibleRaiseLine(page);
   await page.getByRole('button', { name: 'Raise' }).click();
-  await page.mouse.move(start.x, start.y);
+  await page.mouse.move(line.start.x, line.start.y);
   await page.mouse.down();
-  await page.mouse.move(end.x, end.y, { steps: 4 });
+  await page.mouse.move(line.end.x, line.end.y, { steps: 4 });
   const mobilePreview = await readEvidence(page);
   expect(mobilePreview.terraform.previewValid).toBe(true);
   expect(mobilePreview.terraform.previewCellCount).toBeGreaterThanOrEqual(5);

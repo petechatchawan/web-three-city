@@ -3,33 +3,28 @@ import { describe, expect, it } from 'vitest';
 import {
   createTerrainMap,
   terrainCellSurfaceProfile,
+  type TerrainCorners,
   type TerrainSnapshot,
 } from '../src/index.js';
 
 const CELL = Object.freeze({ x: 4, z: 7 });
+const LATTICE_SIZE =
+  (WORLD_CONFIG.mapWidth + 1) * (WORLD_CONFIG.mapHeight + 1);
 
-function terrainWithCellCorners(corners: {
-  readonly nw: number;
-  readonly ne: number;
-  readonly sw: number;
-  readonly se: number;
-}): TerrainSnapshot {
-  const heightLevels = new Uint8Array(
-    (WORLD_CONFIG.mapWidth + 1) * (WORLD_CONFIG.mapHeight + 1),
-  );
-  heightLevels.fill(1);
-  heightLevels[vertexIndex({ x: CELL.x, z: CELL.z }, WORLD_CONFIG)] = corners.nw;
-  heightLevels[vertexIndex({ x: CELL.x + 1, z: CELL.z }, WORLD_CONFIG)] =
-    corners.ne;
-  heightLevels[vertexIndex({ x: CELL.x, z: CELL.z + 1 }, WORLD_CONFIG)] =
-    corners.sw;
-  heightLevels[
-    vertexIndex({ x: CELL.x + 1, z: CELL.z + 1 }, WORLD_CONFIG)
-  ] = corners.se;
+function cellVertexIndex(dx: number, dz: number): number {
+  return vertexIndex({ x: CELL.x + dx, z: CELL.z + dz }, WORLD_CONFIG);
+}
+
+function terrainWithCellCorners(corners: TerrainCorners): TerrainSnapshot {
+  const levels = new Uint8Array(LATTICE_SIZE).fill(1);
+  levels[cellVertexIndex(0, 0)] = corners.nw;
+  levels[cellVertexIndex(1, 0)] = corners.ne;
+  levels[cellVertexIndex(0, 1)] = corners.sw;
+  levels[cellVertexIndex(1, 1)] = corners.se;
 
   return createTerrainMap({
     config: WORLD_CONFIG,
-    heightLevels,
+    heightLevels: levels,
     seed: 1464156977,
     generatorVersion: 'coastal-v1',
     generationAttempt: 0,
@@ -39,7 +34,12 @@ function terrainWithCellCorners(corners: {
 
 describe('terrain cell surface profile', () => {
   it('reports a flat cell with copied immutable data', () => {
-    const terrain = terrainWithCellCorners({ nw: 2, ne: 2, sw: 2, se: 2 });
+    const terrain = terrainWithCellCorners({
+      nw: 2,
+      ne: 2,
+      sw: 2,
+      se: 2,
+    });
     const profile = terrainCellSurfaceProfile(terrain, CELL, WORLD_CONFIG);
 
     expect(profile).toEqual({
@@ -57,11 +57,15 @@ describe('terrain cell surface profile', () => {
   });
 
   it('reports a north-south axis for a north ramp', () => {
-    const terrain = terrainWithCellCorners({ nw: 2, ne: 2, sw: 1, se: 1 });
+    const terrain = terrainWithCellCorners({
+      nw: 2,
+      ne: 2,
+      sw: 1,
+      se: 1,
+    });
+    const profile = terrainCellSurfaceProfile(terrain, CELL, WORLD_CONFIG);
 
-    expect(
-      terrainCellSurfaceProfile(terrain, CELL, WORLD_CONFIG),
-    ).toMatchObject({
+    expect(profile).toMatchObject({
       shape: 'ramp-north',
       minimumLevel: 1,
       maximumLevel: 2,
@@ -70,11 +74,15 @@ describe('terrain cell surface profile', () => {
   });
 
   it('reports an east-west axis for an east ramp', () => {
-    const terrain = terrainWithCellCorners({ nw: 1, ne: 2, sw: 1, se: 2 });
+    const terrain = terrainWithCellCorners({
+      nw: 1,
+      ne: 2,
+      sw: 1,
+      se: 2,
+    });
+    const profile = terrainCellSurfaceProfile(terrain, CELL, WORLD_CONFIG);
 
-    expect(
-      terrainCellSurfaceProfile(terrain, CELL, WORLD_CONFIG),
-    ).toMatchObject({
+    expect(profile).toMatchObject({
       shape: 'ramp-east',
       minimumLevel: 1,
       maximumLevel: 2,
@@ -89,10 +97,14 @@ describe('terrain cell surface profile', () => {
     { x: 0, z: WORLD_CONFIG.mapHeight },
     { x: 0.5, z: 0 },
   ])('rejects an invalid cell coordinate %o', (cell) => {
-    const terrain = terrainWithCellCorners({ nw: 1, ne: 1, sw: 1, se: 1 });
+    const terrain = terrainWithCellCorners({
+      nw: 1,
+      ne: 1,
+      sw: 1,
+      se: 1,
+    });
+    const read = () => terrainCellSurfaceProfile(terrain, cell, WORLD_CONFIG);
 
-    expect(() =>
-      terrainCellSurfaceProfile(terrain, cell, WORLD_CONFIG),
-    ).toThrow('terrain-cell-surface:invalid-cell');
+    expect(read).toThrow('terrain-cell-surface:invalid-cell');
   });
 });

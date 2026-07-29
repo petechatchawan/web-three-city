@@ -1,4 +1,10 @@
-export { BASIC_ROAD_CODE, EMPTY_ROAD_CODE } from './contracts.js';
+export {
+  BASIC_ROAD_CODE,
+  BASIC_ROAD_DEFINITION,
+  EMPTY_ROAD_CODE,
+  roadDefinitionForCode,
+  roadDefinitionForId,
+} from './contracts.js';
 export type {
   RoadConnectionMask,
   RoadDefinition,

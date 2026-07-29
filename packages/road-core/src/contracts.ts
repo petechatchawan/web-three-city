@@ -13,6 +13,24 @@ export interface RoadDefinition {
   readonly surfaceOffset: number;
 }
 
+export const BASIC_ROAD_DEFINITION: RoadDefinition = Object.freeze({
+  id: 'basic-road',
+  code: BASIC_ROAD_CODE,
+  width: 0.72,
+  surfaceOffset: 0.02,
+});
+
+export function roadDefinitionForCode(code: RoadDefinitionCode): RoadDefinition | null {
+  return code === EMPTY_ROAD_CODE ? null : BASIC_ROAD_DEFINITION;
+}
+
+export function roadDefinitionForId(id: RoadDefinitionId): RoadDefinition {
+  if (id !== 'basic-road') {
+    throw new RangeError('road-definition:unknown-id');
+  }
+  return BASIC_ROAD_DEFINITION;
+}
+
 export interface RoadSnapshot {
   readonly width: number;
   readonly height: number;

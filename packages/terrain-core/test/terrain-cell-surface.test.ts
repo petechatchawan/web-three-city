@@ -8,8 +8,7 @@ import {
 } from '../src/index.js';
 
 const CELL = Object.freeze({ x: 4, z: 7 });
-const LATTICE_SIZE =
-  (WORLD_CONFIG.mapWidth + 1) * (WORLD_CONFIG.mapHeight + 1);
+const LATTICE_SIZE = (WORLD_CONFIG.mapWidth + 1) * (WORLD_CONFIG.mapHeight + 1);
 
 function cellVertexIndex(dx: number, dz: number): number {
   return vertexIndex({ x: CELL.x + dx, z: CELL.z + dz }, WORLD_CONFIG);

@@ -8,6 +8,7 @@ on:
 permissions:
   checks: read
   contents: read
+  issues: write
 
 jobs:
   diagnostics:
@@ -108,6 +109,50 @@ jobs:
               ((.app.slug // "") | ascii_downcase | contains("sonar"))
             ) | .id' check-runs.json
           )
+      - name: Publish Sonar diagnostics
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          marker='<!-- terraform-sonar-diagnostics -->'
+          summary="$(jq -c '.check_runs' sonar-check-runs.json | head -c 30000)"
+          annotations="$(head -c 20000 sonar-annotations.jsonl)"
+          body="$(cat <<EOF
+          $marker
+          ## Temporary Sonar diagnostics
+
+          Commit: \`$GITHUB_SHA\`
+
+          <details><summary>Sonar check runs</summary>
+
+          \`\`\`json
+          $summary
+          \`\`\`
+          </details>
+
+          <details><summary>Sonar annotations</summary>
+
+          \`\`\`json
+          $annotations
+          \`\`\`
+          </details>
+          EOF
+          )"
+
+          comment_id="$(
+            gh api "repos/$GITHUB_REPOSITORY/issues/7/comments" --paginate \
+              | jq -r --arg marker "$marker" '.[] | select(.body | contains($marker)) | .id' \
+              | head -n 1
+          )"
+
+          if [[ -n "$comment_id" ]]; then
+            gh api --method PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$comment_id" \
+              -f body="$body" >/dev/null
+          else
+            gh api --method POST "repos/$GITHUB_REPOSITORY/issues/7/comments" \
+              -f body="$body" >/dev/null
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: terraform-diagnostics

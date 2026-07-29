@@ -64,6 +64,12 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
+      - name: Verify deployable asset paths
+        run: |
+          grep -Eq '(src|href)="\./assets/' apps/game/dist/index.html
+          grep -Eq '(src|href)="\./assets/' apps/terrain-lab/dist/index.html
+          ! grep -Eq '(src|href)="/assets/' apps/game/dist/index.html
+          ! grep -Eq '(src|href)="/assets/' apps/terrain-lab/dist/index.html
       - uses: actions/upload-artifact@v4
         with:
           name: web-app-builds

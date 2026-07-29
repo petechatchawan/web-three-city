@@ -17,63 +17,38 @@ Provide browser-accessible Game and Terrain Lab deployments from a private GitHu
 
 ## Security boundary
 
-The workflow that can read Vercel secrets checks out only trusted `master`. It never checks out or executes pull-request code.
+The workflow that can read `VERCEL_TOKEN` checks out only trusted `master`. It never checks out or executes pull-request code.
 
 PR code is built in the ordinary unprivileged `CI` workflow. The deployment workflow downloads only the `web-app-builds` artifact from a successful exact-head CI run, composes Vercel Build Output API v3, and deploys with `vercel deploy --prebuilt`.
 
 Fork PRs, stale CI runs, closed PRs, and PRs without `preview-ready` are not deployed.
 
-## One-time Vercel project setup
+## One-time owner setup
 
-1. Sign in to the Vercel Personal/Hobby account owned by `petechatchawan`.
-2. Create one project and import the private repository `petechatchawan/web-three-city`.
-3. Keep the repository root as the Vercel project root.
-4. Confirm the Production Branch is `master`.
-5. Confirm automatic Git deployments are disabled. The repository enforces this with `vercel.json`:
+Only one GitHub Actions repository secret is required:
 
-   ```json
-   {
-     "git": {
-       "deploymentEnabled": false
-     }
-   }
-   ```
+```text
+VERCEL_TOKEN
+```
 
-6. Open Project Settings → Deployment Protection.
-7. Enable Vercel Authentication for **Preview deployments only**.
-8. Leave Production unprotected/public.
-
-## One-time GitHub secrets
-
-The repository requires these Actions secrets:
-
-- `VERCEL_TOKEN`
-- `VERCEL_ORG_ID`
-- `VERCEL_PROJECT_ID`
-
-Create a Vercel token from the Vercel account token settings. Obtain the organization and project IDs from the linked Vercel project. A one-time `vercel link` also writes both values to `.vercel/project.json`; that generated directory must not be committed.
-
-Add each value at:
+Create the token in the Vercel Personal/Hobby account owned by `petechatchawan`, then add it at:
 
 `GitHub repository → Settings → Secrets and variables → Actions → New repository secret`
 
-The deployment workflow fails before upload with a named error when any required secret is missing.
+Do not commit or paste the token into source files, issues, pull requests, or chat messages.
 
-## One-time GitHub label
+## Automated Vercel bootstrap
 
-Create the label:
+The trusted deployment workflow performs the remaining setup automatically and idempotently:
 
-```text
-preview-ready
-```
+1. `vercel link --yes --project web-three-city` finds or creates the Personal/Hobby project.
+2. Vercel writes `.vercel/project.json` with `projectId` and `orgId`; the directory is generated and ignored by Git.
+3. The workflow updates the project through `PATCH /v9/projects/{projectId}` with Preview-only Vercel Authentication.
+4. The workflow reads the project back and fails closed unless `ssoProtection.deploymentType` is `preview`.
+5. Production remains public because only Preview deployments are protected.
+6. The first Production workflow creates the GitHub label `preview-ready` when it does not already exist.
 
-Recommended description:
-
-```text
-Deploy the exact green PR head to protected Vercel Preview once
-```
-
-The label is intentionally consumed after successful deployment.
+The repository does not connect Vercel Git automatic deployments. `vercel.json` also declares `git.deploymentEnabled: false`, so pushes alone do not create Vercel Preview deployments.
 
 ## Requesting a Preview
 
@@ -89,7 +64,7 @@ The label is intentionally consumed after successful deployment.
 6. Sign in to Vercel when opening the Preview URL.
 7. After successful deployment, `preview-ready` is removed automatically.
 
-Applying the label before CI finishes is also safe. The label event waits without deploying; the later successful exact-head CI completion performs the deployment.
+Applying the label before CI finishes is also safe. The label event exits without deploying; the later successful exact-head CI completion performs the deployment while the label remains present.
 
 ## Requesting another Preview
 
@@ -102,7 +77,7 @@ No deployment occurs merely because another commit was pushed.
 
 ## Production
 
-A push to `master` builds from trusted `master`, runs the deployment composer tests, creates Build Output API v3, and deploys with:
+A push to `master` builds from trusted `master`, runs deployment composer and bootstrap tests, creates Build Output API v3, ensures the Preview label exists, and deploys with:
 
 ```text
 vercel deploy --prebuilt --prod
@@ -133,17 +108,21 @@ The repository composer creates:
 
 Verify the PR is open, is not from a fork, and the current head has a successful `CI` run. A stale successful run cannot deploy a newer head.
 
-### Workflow reports a missing secret
+### Workflow reports a missing token
 
-Add the named secret under GitHub Actions repository secrets and reapply `preview-ready`.
+Confirm the repository Actions secret is named exactly `VERCEL_TOKEN`, then reapply `preview-ready`.
+
+### Bootstrap cannot create or link the project
+
+Confirm the Vercel token belongs to the Personal/Hobby account `petechatchawan`, has not expired, and permits project management.
+
+### Preview protection verification fails
+
+Open Vercel Project Settings → Deployment Protection and confirm the account plan allows Vercel Authentication for Preview. The workflow intentionally stops instead of deploying an unprotected Preview.
 
 ### Preview opens a Vercel login screen
 
 This is expected. Sign in with the Vercel account that owns or has access to the project.
-
-### Production is protected unexpectedly
-
-Change Vercel Authentication to protect Preview deployments only, not all deployments.
 
 ## GitHub Pages migration cleanup
 

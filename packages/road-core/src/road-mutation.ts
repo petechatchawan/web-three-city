@@ -40,9 +40,7 @@ function frozenCell(cell: CellCoord): CellCoord {
 
 function sortCells(cells: Iterable<CellCoord>): readonly CellCoord[] {
   return Object.freeze(
-    [...cells]
-      .map(frozenCell)
-      .sort((first, second) => first.z - second.z || first.x - second.x),
+    [...cells].map(frozenCell).sort((first, second) => first.z - second.z || first.x - second.x),
   );
 }
 

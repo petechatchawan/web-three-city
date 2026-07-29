@@ -1,7 +1,4 @@
-import type {
-  ChunkCoord,
-  TerrainCellSurfaceProfile,
-} from '@web-three-city/terrain-core';
+import type { ChunkCoord, TerrainCellSurfaceProfile } from '@web-three-city/terrain-core';
 import type { CellCoord } from '@web-three-city/world-core';
 
 export const EMPTY_ROAD_CODE = 0 as const;

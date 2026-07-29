@@ -10,6 +10,16 @@ import {
   readProjectLink,
 } from './bootstrap-vercel-project.mjs';
 
+function jsonResponse(body, status = 200) {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    async text() {
+      return JSON.stringify(body);
+    },
+  };
+}
+
 async function withTempDirectory(run) {
   const directory = await mkdtemp(join(tmpdir(), 'web-three-city-vercel-'));
   try {
@@ -48,16 +58,13 @@ test('configurePreviewProtection patches and verifies preview-only authenticatio
   const fetchImpl = async (url, options = {}) => {
     requests.push({ url, options });
     if (options.method === 'PATCH') {
-      return new Response(JSON.stringify({ id: 'prj_web_three_city' }), { status: 200 });
+      return jsonResponse({ id: 'prj_web_three_city' });
     }
-    return new Response(
-      JSON.stringify({
-        id: 'prj_web_three_city',
-        name: 'web-three-city',
-        ssoProtection: { deploymentType: 'preview' },
-      }),
-      { status: 200 },
-    );
+    return jsonResponse({
+      id: 'prj_web_three_city',
+      name: 'web-three-city',
+      ssoProtection: { deploymentType: 'preview' },
+    });
   };
 
   const result = await configurePreviewProtection({
@@ -83,13 +90,10 @@ test('configurePreviewProtection patches and verifies preview-only authenticatio
 
 test('configurePreviewProtection fails closed when Vercel does not retain protection', async () => {
   const fetchImpl = async (_url, options = {}) =>
-    new Response(
-      JSON.stringify(
-        options.method === 'PATCH'
-          ? { id: 'prj_web_three_city' }
-          : { id: 'prj_web_three_city', name: 'web-three-city', ssoProtection: null },
-      ),
-      { status: 200 },
+    jsonResponse(
+      options.method === 'PATCH'
+        ? { id: 'prj_web_three_city' }
+        : { id: 'prj_web_three_city', name: 'web-three-city', ssoProtection: null },
     );
 
   await assert.rejects(
@@ -115,17 +119,14 @@ test('bootstrapVercelProject links idempotently and returns no token material', 
       return { stderr: '', stdout: '' };
     };
     const fetchImpl = async (_url, options = {}) =>
-      new Response(
-        JSON.stringify(
-          options.method === 'PATCH'
-            ? { id: 'prj_web_three_city' }
-            : {
-                id: 'prj_web_three_city',
-                name: 'web-three-city',
-                ssoProtection: { deploymentType: 'preview' },
-              },
-        ),
-        { status: 200 },
+      jsonResponse(
+        options.method === 'PATCH'
+          ? { id: 'prj_web_three_city' }
+          : {
+              id: 'prj_web_three_city',
+              name: 'web-three-city',
+              ssoProtection: { deploymentType: 'preview' },
+            },
       );
 
     const result = await bootstrapVercelProject({

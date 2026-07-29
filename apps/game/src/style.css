@@ -19,6 +19,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 html,
 body,
 #app,
@@ -50,7 +54,7 @@ canvas {
   z-index: 2;
   top: calc(16px + var(--safe-top));
   left: calc(16px + var(--safe-left));
-  width: min(360px, calc(100vw - 32px - var(--safe-left) - var(--safe-right)));
+  width: min(380px, calc(100vw - 32px - var(--safe-left) - var(--safe-right)));
   max-height: calc(100vh - 32px - var(--safe-top) - var(--safe-bottom));
   padding: 18px;
   overflow-y: auto;
@@ -172,9 +176,20 @@ select {
   gap: 7px;
 }
 
-.terraform-tools,
+.world-tools,
 .terraform-brushes {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.brush-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 7px;
+}
+
+.undo-button {
+  min-width: 82px;
 }
 
 button {
@@ -213,7 +228,7 @@ select:focus-visible {
     right: var(--safe-right);
     left: var(--safe-left);
     width: auto;
-    max-height: min(52vh, 390px);
+    max-height: min(56vh, 430px);
     padding: 10px 12px 11px;
     border-radius: 0 0 15px 15px;
     border-top: 0;
@@ -267,12 +282,17 @@ select:focus-visible {
     font-size: 9px;
   }
 
-  .actions {
+  .actions,
+  .brush-row {
     gap: 5px;
   }
 
   .world-actions {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .undo-button {
+    min-width: 70px;
   }
 
   select,

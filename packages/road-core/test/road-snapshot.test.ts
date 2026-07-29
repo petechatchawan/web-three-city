@@ -2,17 +2,34 @@ import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { describe, expect, it } from 'vitest';
 import {
   BASIC_ROAD_CODE,
+  BASIC_ROAD_DEFINITION,
   EMPTY_ROAD_CODE,
   createEmptyRoadSnapshot,
   createRoadSnapshot,
   occupiedRoadCellCount,
   roadDefinitionCodeAt,
+  roadDefinitionForCode,
+  roadDefinitionForId,
   roadOccupiedAt,
 } from '../src/index.js';
 
 const CELL_COUNT = WORLD_CONFIG.mapWidth * WORLD_CONFIG.mapHeight;
 
 describe('road snapshot', () => {
+  it('exposes one frozen basic road definition with deterministic lookup', () => {
+    expect(Object.isFrozen(BASIC_ROAD_DEFINITION)).toBe(true);
+    expect(BASIC_ROAD_DEFINITION).toMatchObject({
+      id: 'basic-road',
+      code: BASIC_ROAD_CODE,
+    });
+    expect(roadDefinitionForCode(EMPTY_ROAD_CODE)).toBeNull();
+    expect(roadDefinitionForCode(BASIC_ROAD_CODE)).toBe(BASIC_ROAD_DEFINITION);
+    expect(roadDefinitionForId('basic-road')).toBe(BASIC_ROAD_DEFINITION);
+    expect(() => roadDefinitionForId('unknown-road' as never)).toThrow(
+      'road-definition:unknown-id',
+    );
+  });
+
   it('creates an empty immutable road map', () => {
     const snapshot = createEmptyRoadSnapshot(WORLD_CONFIG);
 

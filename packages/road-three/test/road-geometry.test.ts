@@ -72,7 +72,10 @@ function expectValidMesh(mesh: RoadMeshData, cell: CellCoord): void {
   expect(mesh.indices.length % 3).toBe(0);
   expect(mesh.triangleCount).toBe(mesh.indices.length / 3);
   expect(mesh.estimatedGeometryBytes).toBe(
-    mesh.positions.byteLength + mesh.normals.byteLength + mesh.colors.byteLength + mesh.indices.byteLength,
+    mesh.positions.byteLength +
+      mesh.normals.byteLength +
+      mesh.colors.byteLength +
+      mesh.indices.byteLength,
   );
   expect([...mesh.positions, ...mesh.normals, ...mesh.colors]).toSatisfy((values: number[]) =>
     values.every(Number.isFinite),
@@ -107,12 +110,7 @@ const GOLDENS = [
   ['straight-ns', ROAD_NORTH | ROAD_SOUTH, 'flat', '__PENDING_STRAIGHT_NS__'],
   ['corner-ne', ROAD_NORTH | ROAD_EAST, 'flat', '__PENDING_CORNER_NE__'],
   ['t-nes', ROAD_NORTH | ROAD_EAST | ROAD_SOUTH, 'flat', '__PENDING_T_NES__'],
-  [
-    'four-way',
-    ROAD_NORTH | ROAD_EAST | ROAD_SOUTH | ROAD_WEST,
-    'flat',
-    '__PENDING_FOUR_WAY__',
-  ],
+  ['four-way', ROAD_NORTH | ROAD_EAST | ROAD_SOUTH | ROAD_WEST, 'flat', '__PENDING_FOUR_WAY__'],
   ['ramp-ns', ROAD_NORTH | ROAD_SOUTH, 'ramp-north', '__PENDING_RAMP_NS__'],
   ['ramp-ew', ROAD_EAST | ROAD_WEST, 'ramp-east', '__PENDING_RAMP_EW__'],
 ] as const;

@@ -153,5 +153,11 @@ test('context restore preserves grid and selection with one root each', async ({
   const evidence = await readEvidence(page);
   expect(evidence.gridVisible).toBe(true);
   expect(evidence.selectedCell).not.toBeNull();
-  expect(evidence.sceneRootCounts).toEqual({ terrain: 1, water: 1, grid: 1, selection: 1 });
+  expect(evidence.sceneRootCounts).toEqual({
+    terrain: 1,
+    water: 1,
+    grid: 1,
+    selection: 1,
+    preview: 0,
+  });
 });

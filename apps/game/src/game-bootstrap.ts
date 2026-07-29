@@ -1,8 +1,13 @@
 import { OrthographicCameraRig } from '@web-three-city/camera-input';
 import {
+  commitTerraformPlan,
   decodeTerrainSaveV1,
   encodeTerrainSaveV1,
+  TerraformUndoStore,
   type TerrainSnapshot,
+  type TerraformBrushSize,
+  type TerraformPlan,
+  type WorldToolMode,
 } from '@web-three-city/terrain-core';
 import { generateCoastalTerrain } from '@web-three-city/terrain-generator';
 import {
@@ -11,6 +16,7 @@ import {
   SelectedCellPresentation,
   TerrainGridPresentation,
   TerrainPresentation,
+  TerraformPreviewPresentation,
 } from '@web-three-city/terrain-three';
 import { deriveWaterSnapshot, type WaterSnapshot } from '@web-three-city/water-core';
 import {
@@ -132,6 +138,9 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
   let contextLost = false;
   let disposed = false;
   let animationFrame = 0;
+  let terraformCommitCount = 0;
+  let terraformUndoCount = 0;
+  let terraformWaterRebuildCount = 0;
   let renderViewport: GameRenderViewport = {
     left: 0,
     top: 0,
@@ -182,6 +191,8 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
   grid.setVisible(false);
   grid.load(snapshot);
   const selection = new SelectedCellPresentation(scene, WORLD_CONFIG);
+  const preview = new TerraformPreviewPresentation(scene, WORLD_CONFIG);
+  const undoStore = new TerraformUndoStore();
 
   const setSelection = (cell: CellCoord | null): void => {
     selectedCell = cell === null ? null : { ...cell };
@@ -191,6 +202,69 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
   };
 
   const inputRef: { current: ReturnType<typeof createGameInput> | null } = { current: null };
+
+  const replaceWorld = (nextSnapshot: TerrainSnapshot, successStatus: string): boolean => {
+    const derivationStart = performance.now();
+    const nextWaterResult = deriveWaterSnapshot(nextSnapshot, WORLD_CONFIG);
+    const nextWaterDerivationDurationMs = performance.now() - derivationStart;
+    if (!nextWaterResult.ok) {
+      ui.setStatus('World update failed');
+      return false;
+    }
+
+    const previousSnapshot = snapshot;
+    const previousWaterSnapshot = waterSnapshot;
+    replacingWorld = true;
+    try {
+      terrain.load(nextSnapshot);
+      const presentationStart = performance.now();
+      water.load(nextSnapshot, nextWaterResult.value);
+      const nextWaterPresentationDurationMs = performance.now() - presentationStart;
+      grid.load(nextSnapshot);
+      rebuildSelection(selection, nextSnapshot, selectedCell);
+      inputRef.current?.refreshTerrainObjects();
+
+      snapshot = nextSnapshot;
+      waterSnapshot = nextWaterResult.value;
+      waterDerivationDurationMs = nextWaterDerivationDurationMs;
+      waterPresentationDurationMs = nextWaterPresentationDurationMs;
+      waterBuildMetrics = stagedWaterBuildMetrics;
+      ui.setStatus(successStatus);
+      return true;
+    } catch {
+      try {
+        terrain.load(previousSnapshot);
+        water.load(previousSnapshot, previousWaterSnapshot);
+        grid.load(previousSnapshot);
+        rebuildSelection(selection, previousSnapshot, selectedCell);
+        inputRef.current?.refreshTerrainObjects();
+        waterBuildMetrics = stagedWaterBuildMetrics;
+      } catch {
+        // Preserve the original failure status; context restoration can rebuild the committed world.
+      }
+      ui.setStatus('World update failed');
+      return false;
+    } finally {
+      replacingWorld = false;
+    }
+  };
+
+  const applyTerraformPlan = (plan: TerraformPlan): void => {
+    try {
+      const committed = commitTerraformPlan(snapshot, plan, WORLD_CONFIG);
+      undoStore.captureBeforeCommit(snapshot);
+      if (replaceWorld(committed.snapshot, 'Terraform applied')) {
+        terraformCommitCount += 1;
+        terraformWaterRebuildCount += 1;
+      } else {
+        undoStore.clear();
+      }
+    } catch {
+      ui.setStatus('Terraform rejected');
+    }
+    ui.setUndoAvailable(undoStore.available);
+  };
+
   const resetCamera = (): void => {
     const layout = ui.measureViewport();
     ui.setControlsMode(layout.mode);
@@ -205,8 +279,11 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     camera,
     cameraRig,
     terrain,
+    preview,
     config: WORLD_CONFIG,
+    getTerrainSnapshot: () => snapshot,
     onSelection: setSelection,
+    onTerraformCommit: applyTerraformPlan,
     onReset: resetCamera,
   });
   inputRef.current = input;
@@ -240,6 +317,20 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     updateViewport();
   };
 
+  const setToolMode = (mode: WorldToolMode): void => {
+    input.setToolMode(mode);
+    ui.setToolMode(mode);
+    if (mode !== 'navigate' && !grid.visible) {
+      grid.setVisible(true);
+      ui.setGridVisible(true);
+    }
+  };
+
+  const setBrushSize = (size: TerraformBrushSize): void => {
+    input.setBrushSize(size);
+    ui.setBrushSize(size);
+  };
+
   updateViewport();
   applyQuality('medium');
 
@@ -254,6 +345,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
   ui.saveButton.addEventListener(
     'click',
     () => {
+      input.clearActiveSession();
       localStorage.setItem(SAVE_KEY, JSON.stringify(encodeTerrainSaveV1(snapshot)));
       ui.setStatus('Saved');
     },
@@ -262,6 +354,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
   ui.loadButton.addEventListener(
     'click',
     () => {
+      input.clearActiveSession();
       const saved = localStorage.getItem(SAVE_KEY);
       if (saved === null) {
         ui.setStatus('No save');
@@ -273,32 +366,9 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
           ui.setStatus('Invalid save');
           return;
         }
-        const nextSnapshot = decoded.value;
-        const derivationStart = performance.now();
-        const nextWaterResult = deriveWaterSnapshot(nextSnapshot, WORLD_CONFIG);
-        const nextWaterDerivationDurationMs = performance.now() - derivationStart;
-        if (!nextWaterResult.ok) {
-          ui.setStatus('Invalid save');
-          return;
-        }
-
-        replacingWorld = true;
-        try {
-          terrain.load(nextSnapshot);
-          const presentationStart = performance.now();
-          water.load(nextSnapshot, nextWaterResult.value);
-          const nextWaterPresentationDurationMs = performance.now() - presentationStart;
-          grid.load(nextSnapshot);
-          rebuildSelection(selection, nextSnapshot, selectedCell);
-          input.refreshTerrainObjects();
-          snapshot = nextSnapshot;
-          waterSnapshot = nextWaterResult.value;
-          waterDerivationDurationMs = nextWaterDerivationDurationMs;
-          waterPresentationDurationMs = nextWaterPresentationDurationMs;
-          waterBuildMetrics = stagedWaterBuildMetrics;
-          ui.setStatus('Loaded');
-        } finally {
-          replacingWorld = false;
+        if (replaceWorld(decoded.value, 'Loaded')) {
+          undoStore.clear();
+          ui.setUndoAvailable(false);
         }
       } catch {
         ui.setStatus('Invalid save');
@@ -325,6 +395,27 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     },
     listenerOptions,
   );
+  ui.navigateButton.addEventListener('click', () => setToolMode('navigate'), listenerOptions);
+  ui.raiseButton.addEventListener('click', () => setToolMode('raise'), listenerOptions);
+  ui.lowerButton.addEventListener('click', () => setToolMode('lower'), listenerOptions);
+  ui.flattenButton.addEventListener('click', () => setToolMode('flatten'), listenerOptions);
+  ui.brush1Button.addEventListener('click', () => setBrushSize(1), listenerOptions);
+  ui.brush3Button.addEventListener('click', () => setBrushSize(3), listenerOptions);
+  ui.brush5Button.addEventListener('click', () => setBrushSize(5), listenerOptions);
+  ui.undoButton.addEventListener(
+    'click',
+    () => {
+      input.clearActiveSession();
+      const restored = undoStore.undo(snapshot, WORLD_CONFIG);
+      if (restored === null) return;
+      if (replaceWorld(restored, 'Terraform undone')) {
+        terraformUndoCount += 1;
+        terraformWaterRebuildCount += 1;
+      }
+      ui.setUndoAvailable(undoStore.available);
+    },
+    listenerOptions,
+  );
   window.addEventListener('resize', updateViewport, listenerOptions);
 
   ui.canvas.addEventListener(
@@ -340,6 +431,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
   ui.canvas.addEventListener(
     'webglcontextrestored',
     () => {
+      preview.clear();
       terrain.load(snapshot);
       const presentationStart = performance.now();
       water.load(snapshot, waterSnapshot);
@@ -372,6 +464,18 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
       derivationDurationMs: waterDerivationDurationMs,
       presentationDurationMs: waterPresentationDurationMs,
     }),
+    getTerraformEvidence: () => {
+      const state = input.getTerraformState();
+      return {
+        ...state,
+        committedTerrainRevision: snapshot.revision,
+        waterSourceTerrainRevision: waterSnapshot.sourceTerrainRevision,
+        undoAvailable: undoStore.available,
+        commitCount: terraformCommitCount,
+        undoCount: terraformUndoCount,
+        waterRebuildCount: terraformWaterRebuildCount,
+      };
+    },
   });
 
   const render = (): void => {
@@ -401,6 +505,9 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
 
   ui.setGridVisible(false);
   ui.setSelectedCell(null);
+  ui.setToolMode('navigate');
+  ui.setBrushSize(1);
+  ui.setUndoAvailable(false);
   ui.setStatus('Ready');
   render();
 
@@ -410,6 +517,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     abortController.abort();
     window.cancelAnimationFrame(animationFrame);
     input.dispose();
+    preview.dispose();
     selection.dispose();
     grid.dispose();
     water.dispose();

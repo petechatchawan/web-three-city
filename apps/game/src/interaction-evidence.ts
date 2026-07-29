@@ -3,6 +3,7 @@ import {
   type CameraState,
   type OrthographicCameraRig,
 } from '@web-three-city/camera-input';
+import type { TerraformBrushSize, WorldToolMode } from '@web-three-city/terrain-core';
 import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
 import * as THREE from 'three';
 import type { GameInput, GameRenderViewport } from './game-input.js';
@@ -21,6 +22,21 @@ export interface WaterInteractionEvidence {
   readonly waterRootCount: number;
 }
 
+export interface TerraformInteractionEvidence {
+  readonly mode: WorldToolMode;
+  readonly brushSize: TerraformBrushSize;
+  readonly strokeActive: boolean;
+  readonly previewValid: boolean | null;
+  readonly previewCellCount: number;
+  readonly committedTerrainRevision: number;
+  readonly waterSourceTerrainRevision: number;
+  readonly undoAvailable: boolean;
+  readonly commitCount: number;
+  readonly undoCount: number;
+  readonly waterRebuildCount: number;
+  readonly previewRootCount: number;
+}
+
 export interface InteractionEvidence {
   readonly camera: CameraState;
   readonly selectedCell: CellCoord | null;
@@ -29,11 +45,13 @@ export interface InteractionEvidence {
   readonly allWorldCornersInsideUsableViewport: boolean;
   readonly framingMarginRatio: number;
   readonly water: WaterInteractionEvidence;
+  readonly terraform: TerraformInteractionEvidence;
   readonly sceneRootCounts: {
     readonly terrain: number;
     readonly water: number;
     readonly grid: number;
     readonly selection: number;
+    readonly preview: number;
   };
 }
 
@@ -47,6 +65,7 @@ export interface InteractionEvidenceSource {
   getSelectedCell(): CellCoord | null;
   getGridVisible(): boolean;
   getWaterEvidence(): Omit<WaterInteractionEvidence, 'waterRootCount'>;
+  getTerraformEvidence(): Omit<TerraformInteractionEvidence, 'previewRootCount'>;
 }
 
 declare global {
@@ -118,12 +137,19 @@ export function publishInteractionEvidence(source: InteractionEvidenceSource): v
         waterRootCount: countRoots(source.scene, 'water-presentation-root'),
       };
     },
+    get terraform(): TerraformInteractionEvidence {
+      return {
+        ...source.getTerraformEvidence(),
+        previewRootCount: countRoots(source.scene, 'terraform-preview-root'),
+      };
+    },
     get sceneRootCounts() {
       return {
         terrain: countRoots(source.scene, 'terrain-presentation-root'),
         water: countRoots(source.scene, 'water-presentation-root'),
         grid: countRoots(source.scene, 'terrain-grid-presentation-root'),
         selection: countRoots(source.scene, 'selected-cell-presentation-root'),
+        preview: countRoots(source.scene, 'terraform-preview-root'),
       };
     },
   };

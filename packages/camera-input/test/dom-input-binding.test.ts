@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   bindWorldInput,
   type CameraInteractionController,
+  type PrimaryPointerToolDelegate,
   type ScreenPoint,
   type WorldInputBinding,
 } from '../src/index.js';
@@ -40,13 +41,43 @@ function dispatchPointer(
   return event;
 }
 
-function createBinding(): WorldInputBinding {
+function createTool(
+  enabled = true,
+  claim = true,
+): {
+  readonly delegate: PrimaryPointerToolDelegate;
+  readonly isEnabled: ReturnType<typeof vi.fn>;
+  readonly begin: ReturnType<typeof vi.fn>;
+  readonly move: ReturnType<typeof vi.fn>;
+  readonly end: ReturnType<typeof vi.fn>;
+  readonly cancel: ReturnType<typeof vi.fn>;
+  readonly cancelAll: ReturnType<typeof vi.fn>;
+} {
+  const isEnabled = vi.fn(() => enabled);
+  const begin = vi.fn(() => claim);
+  const move = vi.fn();
+  const end = vi.fn();
+  const cancel = vi.fn();
+  const cancelAll = vi.fn();
+  return {
+    delegate: { isEnabled, begin, move, end, cancel, cancelAll },
+    isEnabled,
+    begin,
+    move,
+    end,
+    cancel,
+    cancelAll,
+  };
+}
+
+function createBinding(tool?: PrimaryPointerToolDelegate): WorldInputBinding {
   return bindWorldInput({
     canvas,
     keyboardTarget: window,
     camera: camera as unknown as CameraInteractionController,
     onEligibleTap: onEligibleTap as unknown as (point: ScreenPoint) => void,
     onReset: onReset as unknown as () => void,
+    ...(tool === undefined ? {} : { tool }),
   });
 }
 
@@ -153,6 +184,95 @@ describe('bindWorldInput', () => {
     dispatchPointer(canvas, 'pointercancel', 3, 40, 40);
 
     expect(onEligibleTap).not.toHaveBeenCalled();
+    expect(binding.activePointerCount).toBe(0);
+    binding.dispose();
+  });
+
+  it('routes a claimed primary pointer to the tool instead of camera pan or tap', () => {
+    const tool = createTool();
+    const binding = createBinding(tool.delegate);
+
+    dispatchPointer(canvas, 'pointerdown', 1, 100, 100);
+    dispatchPointer(canvas, 'pointermove', 1, 140, 100);
+    dispatchPointer(canvas, 'pointerup', 1, 140, 100);
+
+    expect(tool.begin).toHaveBeenCalledWith(1, { x: 100, y: 100 });
+    expect(tool.move).toHaveBeenCalledWith(1, { x: 140, y: 100 });
+    expect(tool.end).toHaveBeenCalledWith(1, { x: 140, y: 100 });
+    expect(camera.panScreen).not.toHaveBeenCalled();
+    expect(onEligibleTap).not.toHaveBeenCalled();
+    expect(binding.activePointerCount).toBe(0);
+    binding.dispose();
+  });
+
+  it('falls back to normal camera input when the tool is disabled or declines the pointer', () => {
+    const disabled = createTool(false, true);
+    let binding = createBinding(disabled.delegate);
+    dispatchPointer(canvas, 'pointerdown', 1, 20, 20);
+    dispatchPointer(canvas, 'pointermove', 1, 40, 20);
+    dispatchPointer(canvas, 'pointerup', 1, 40, 20);
+    expect(disabled.begin).not.toHaveBeenCalled();
+    expect(camera.panScreen).toHaveBeenCalled();
+    binding.dispose();
+
+    camera.panScreen.mockClear();
+    const declined = createTool(true, false);
+    binding = createBinding(declined.delegate);
+    dispatchPointer(canvas, 'pointerdown', 2, 20, 20);
+    dispatchPointer(canvas, 'pointermove', 2, 40, 20);
+    dispatchPointer(canvas, 'pointerup', 2, 40, 20);
+    expect(declined.begin).toHaveBeenCalledOnce();
+    expect(camera.panScreen).toHaveBeenCalled();
+    binding.dispose();
+  });
+
+  it('cancels the tool and transfers two contacts to camera gestures', () => {
+    const tool = createTool();
+    const binding = createBinding(tool.delegate);
+    dispatchPointer(canvas, 'pointerdown', 1, 100, 100);
+    dispatchPointer(canvas, 'pointermove', 1, 110, 100);
+    dispatchPointer(canvas, 'pointerdown', 2, 200, 100);
+
+    for (const offset of [10, 20, 30, 40]) {
+      dispatchPointer(canvas, 'pointermove', 1, 110 - offset, 100);
+      dispatchPointer(canvas, 'pointermove', 2, 200 + offset, 100);
+    }
+
+    expect(tool.cancelAll).toHaveBeenCalledOnce();
+    expect(tool.move).toHaveBeenCalledTimes(1);
+    expect(camera.zoomAt).toHaveBeenCalled();
+    expect(binding.activePointerCount).toBe(2);
+
+    dispatchPointer(canvas, 'pointerup', 1, 70, 100);
+    dispatchPointer(canvas, 'pointerup', 2, 240, 100);
+    expect(binding.activePointerCount).toBe(0);
+    binding.dispose();
+  });
+
+  it('cancels a claimed tool pointer on pointercancel', () => {
+    const tool = createTool();
+    const binding = createBinding(tool.delegate);
+    dispatchPointer(canvas, 'pointerdown', 1, 20, 20);
+    dispatchPointer(canvas, 'pointercancel', 1, 20, 20);
+
+    expect(tool.cancel).toHaveBeenCalledWith(1);
+    expect(tool.end).not.toHaveBeenCalled();
+    expect(binding.activePointerCount).toBe(0);
+    binding.dispose();
+  });
+
+  it('cancels a claimed tool session on blur, explicit clear, and lost capture', () => {
+    const tool = createTool();
+    const binding = createBinding(tool.delegate);
+
+    dispatchPointer(canvas, 'pointerdown', 1, 20, 20);
+    window.dispatchEvent(new Event('blur'));
+    dispatchPointer(canvas, 'pointerdown', 2, 30, 30);
+    binding.clearActiveSession();
+    dispatchPointer(canvas, 'pointerdown', 3, 40, 40);
+    dispatchPointer(canvas, 'lostpointercapture', 3, 40, 40);
+
+    expect(tool.cancelAll).toHaveBeenCalledTimes(3);
     expect(binding.activePointerCount).toBe(0);
     binding.dispose();
   });

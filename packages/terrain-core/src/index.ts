@@ -15,6 +15,22 @@ export { decodeTerrainSaveV1, encodeTerrainSaveV1 } from './serialization.js';
 export type { TerrainSaveError, TerrainSaveErrorCode, TerrainSaveV1 } from './serialization.js';
 export { createTerrainMap } from './terrain-map.js';
 export type { CreateTerrainMapInput, TerrainMap, TerrainSnapshot } from './terrain-map.js';
+export { expandTerraformBrushCells } from './terraform-brush.js';
+export { rasterizeTerraformCellLine } from './terraform-cell-line.js';
+export { TerraformContractError } from './terraform-contracts.js';
+export type {
+  TerraformBrushSize,
+  TerraformCommitReceipt,
+  TerraformCommitResult,
+  TerraformContractErrorCode,
+  TerraformInvalidReason,
+  TerraformOperation,
+  TerraformPlan,
+  TerraformStrokeInput,
+  WorldToolMode,
+} from './terraform-contracts.js';
+export { commitTerraformPlan, planTerraformStroke } from './terraform-plan.js';
+export { TerraformUndoStore } from './terraform-undo-store.js';
 export { CELL_TRIANGLES, selectTerrainDiagonal } from './topology.js';
 export type { TerrainCorner, TerrainCorners, TerrainDiagonal } from './topology.js';
 export { validateTerrainInput } from './validation.js';

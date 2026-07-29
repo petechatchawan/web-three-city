@@ -1,4 +1,5 @@
 import type { ViewportInsets } from '@web-three-city/camera-input';
+import type { TerraformBrushSize, WorldToolMode } from '@web-three-city/terrain-core';
 import type { CellCoord } from '@web-three-city/world-core';
 
 export type ControlsMode = 'expanded' | 'compact';
@@ -22,18 +23,34 @@ export interface GameUi {
   readonly rotateRightButton: HTMLButtonElement;
   readonly resetButton: HTMLButtonElement;
   readonly gridButton: HTMLButtonElement;
+  readonly navigateButton: HTMLButtonElement;
+  readonly raiseButton: HTMLButtonElement;
+  readonly lowerButton: HTMLButtonElement;
+  readonly flattenButton: HTMLButtonElement;
+  readonly brush1Button: HTMLButtonElement;
+  readonly brush3Button: HTMLButtonElement;
+  readonly brush5Button: HTMLButtonElement;
+  readonly undoButton: HTMLButtonElement;
   measureViewport(): GameViewportLayout;
   setStatus(value: string): void;
   setQuality(value: string): void;
   setSelectedCell(cell: CellCoord | null): void;
   setGridVisible(visible: boolean): void;
   setControlsMode(mode: ControlsMode): void;
+  setToolMode(mode: WorldToolMode): void;
+  setBrushSize(size: TerraformBrushSize): void;
+  setUndoAvailable(available: boolean): void;
 }
 
 function requireElement<T extends Element>(root: ParentNode, selector: string): T {
   const element = root.querySelector<T>(selector);
   if (element === null) throw new Error(`game:missing-element:${selector}`);
   return element;
+}
+
+function setPressed(button: HTMLButtonElement, pressed: boolean): void {
+  button.setAttribute('aria-pressed', String(pressed));
+  button.classList.toggle('is-active', pressed);
 }
 
 export function renderGameUi(root: HTMLElement): GameUi {
@@ -52,9 +69,15 @@ export function renderGameUi(root: HTMLElement): GameUi {
           <span>Status</span>
           <strong data-testid="game-status">Loading</strong>
         </div>
-        <div class="metrics-row">
-          <span>Selected</span>
-          <strong data-testid="selected-cell">None</strong>
+        <div class="metrics-grid">
+          <div class="metrics-row">
+            <span>Selected</span>
+            <strong data-testid="selected-cell">None</strong>
+          </div>
+          <div class="metrics-row">
+            <span>Tool</span>
+            <strong data-testid="active-tool">Navigate</strong>
+          </div>
         </div>
         <label class="field" for="quality-select">
           <span>Quality</span>
@@ -65,7 +88,25 @@ export function renderGameUi(root: HTMLElement): GameUi {
           </select>
         </label>
         <p class="quality-value">Active quality: <strong data-testid="quality-value">Medium</strong></p>
-        <div class="actions">
+        <div class="control-group">
+          <p class="control-label">Terraform tool</p>
+          <div class="actions terraform-tools">
+            <button type="button" data-action="tool-navigate" aria-pressed="true">Navigate</button>
+            <button type="button" data-action="tool-raise" aria-pressed="false">Raise</button>
+            <button type="button" data-action="tool-lower" aria-pressed="false">Lower</button>
+            <button type="button" data-action="tool-flatten" aria-pressed="false">Flatten</button>
+          </div>
+        </div>
+        <div class="control-group">
+          <p class="control-label">Brush</p>
+          <div class="actions terraform-brushes">
+            <button type="button" data-action="brush-1" aria-label="Brush 1 × 1" aria-pressed="true">1 × 1</button>
+            <button type="button" data-action="brush-3" aria-label="Brush 3 × 3" aria-pressed="false">3 × 3</button>
+            <button type="button" data-action="brush-5" aria-label="Brush 5 × 5" aria-pressed="false">5 × 5</button>
+            <button type="button" data-action="undo" aria-label="Undo Terraform" disabled>Undo</button>
+          </div>
+        </div>
+        <div class="actions world-actions">
           <button type="button" data-action="save">Save terrain</button>
           <button type="button" data-action="load">Load terrain</button>
           <button type="button" data-action="rotate-left">Rotate left</button>
@@ -82,6 +123,7 @@ export function renderGameUi(root: HTMLElement): GameUi {
   const status = requireElement<HTMLElement>(root, '[data-testid="game-status"]');
   const qualityValue = requireElement<HTMLElement>(root, '[data-testid="quality-value"]');
   const selectedCell = requireElement<HTMLElement>(root, '[data-testid="selected-cell"]');
+  const activeTool = requireElement<HTMLElement>(root, '[data-testid="active-tool"]');
   const controlsMode = requireElement<HTMLElement>(root, '[data-testid="controls-mode"]');
   const qualitySelect = requireElement<HTMLSelectElement>(root, '#quality-select');
   const saveButton = requireElement<HTMLButtonElement>(root, '[data-action="save"]');
@@ -90,6 +132,31 @@ export function renderGameUi(root: HTMLElement): GameUi {
   const rotateRightButton = requireElement<HTMLButtonElement>(root, '[data-action="rotate-right"]');
   const resetButton = requireElement<HTMLButtonElement>(root, '[data-action="reset"]');
   const gridButton = requireElement<HTMLButtonElement>(root, '[data-action="grid"]');
+  const navigateButton = requireElement<HTMLButtonElement>(root, '[data-action="tool-navigate"]');
+  const raiseButton = requireElement<HTMLButtonElement>(root, '[data-action="tool-raise"]');
+  const lowerButton = requireElement<HTMLButtonElement>(root, '[data-action="tool-lower"]');
+  const flattenButton = requireElement<HTMLButtonElement>(root, '[data-action="tool-flatten"]');
+  const brush1Button = requireElement<HTMLButtonElement>(root, '[data-action="brush-1"]');
+  const brush3Button = requireElement<HTMLButtonElement>(root, '[data-action="brush-3"]');
+  const brush5Button = requireElement<HTMLButtonElement>(root, '[data-action="brush-5"]');
+  const undoButton = requireElement<HTMLButtonElement>(root, '[data-action="undo"]');
+  const toolButtons: Readonly<Record<WorldToolMode, HTMLButtonElement>> = {
+    navigate: navigateButton,
+    raise: raiseButton,
+    lower: lowerButton,
+    flatten: flattenButton,
+  };
+  const brushButtons: Readonly<Record<TerraformBrushSize, HTMLButtonElement>> = {
+    1: brush1Button,
+    3: brush3Button,
+    5: brush5Button,
+  };
+  const toolLabels: Readonly<Record<WorldToolMode, string>> = {
+    navigate: 'Navigate',
+    raise: 'Raise',
+    lower: 'Lower',
+    flatten: 'Flatten',
+  };
 
   const ui: GameUi = {
     canvas,
@@ -102,6 +169,14 @@ export function renderGameUi(root: HTMLElement): GameUi {
     rotateRightButton,
     resetButton,
     gridButton,
+    navigateButton,
+    raiseButton,
+    lowerButton,
+    flattenButton,
+    brush1Button,
+    brush3Button,
+    brush5Button,
+    undoButton,
     measureViewport(): GameViewportLayout {
       const canvasRect = canvas.getBoundingClientRect();
       const panelRect = panel.getBoundingClientRect();
@@ -136,12 +211,25 @@ export function renderGameUi(root: HTMLElement): GameUi {
       selectedCell.textContent = cell === null ? 'None' : `${cell.x}, ${cell.z}`;
     },
     setGridVisible(visible: boolean): void {
-      gridButton.setAttribute('aria-pressed', String(visible));
-      gridButton.classList.toggle('is-active', visible);
+      setPressed(gridButton, visible);
     },
     setControlsMode(mode: ControlsMode): void {
       controlsMode.textContent = mode;
       panel.dataset.mode = mode;
+    },
+    setToolMode(mode: WorldToolMode): void {
+      activeTool.textContent = toolLabels[mode];
+      for (const [candidate, button] of Object.entries(toolButtons)) {
+        setPressed(button, candidate === mode);
+      }
+    },
+    setBrushSize(size: TerraformBrushSize): void {
+      for (const [candidate, button] of Object.entries(brushButtons)) {
+        setPressed(button, Number(candidate) === size);
+      }
+    },
+    setUndoAvailable(available: boolean): void {
+      undoButton.disabled = !available;
     },
   };
 

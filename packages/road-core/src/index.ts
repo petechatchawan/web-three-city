@@ -40,3 +40,5 @@ export {
   roadOccupiedAt,
 } from './road-snapshot.js';
 export type { CreateRoadSnapshotInput } from './road-snapshot.js';
+export { decodeRoadSaveV1, encodeRoadSaveV1 } from './serialization.js';
+export type { RoadSaveError, RoadSaveErrorCode, RoadSaveV1 } from './serialization.js';

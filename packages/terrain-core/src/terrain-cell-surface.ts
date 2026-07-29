@@ -25,12 +25,7 @@ function validCell(cell: CellCoord, config: WorldConfig): boolean {
   );
 }
 
-function levelAt(
-  terrain: TerrainSnapshot,
-  x: number,
-  z: number,
-  config: WorldConfig,
-): number {
+function levelAt(terrain: TerrainSnapshot, x: number, z: number, config: WorldConfig): number {
   return terrain.heightLevels[vertexIndex({ x, z }, config)]!;
 }
 

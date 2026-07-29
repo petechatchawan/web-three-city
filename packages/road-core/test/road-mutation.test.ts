@@ -47,12 +47,14 @@ function profile(cell: CellCoord, shape: TerrainShape = 'flat'): TerrainCellSurf
   });
 }
 
-function environment(options: {
-  readonly terrainRevision?: number;
-  readonly waterRevision?: number;
-  readonly shapes?: Readonly<Record<string, TerrainShape>>;
-  readonly wet?: ReadonlySet<string>;
-} = {}): RoadPlacementEnvironment {
+function environment(
+  options: {
+    readonly terrainRevision?: number;
+    readonly waterRevision?: number;
+    readonly shapes?: Readonly<Record<string, TerrainShape>>;
+    readonly wet?: ReadonlySet<string>;
+  } = {},
+): RoadPlacementEnvironment {
   const shapes = options.shapes ?? {};
   const wet = options.wet ?? new Set<string>();
   return Object.freeze({
@@ -158,8 +160,9 @@ describe('road mutation planning', () => {
     expect(
       planRoadMutation(empty, build([{ x: 1, z: 1 }]), incoherent, WORLD_CONFIG).invalidReason,
     ).toBe('road:incoherent-world-revision');
-    expect(planRoadMutation(empty, bulldoze([{ x: 1, z: 1 }]), environment(), WORLD_CONFIG))
-      .toMatchObject({ valid: false, invalidReason: 'road:no-change' });
+    expect(
+      planRoadMutation(empty, bulldoze([{ x: 1, z: 1 }]), environment(), WORLD_CONFIG),
+    ).toMatchObject({ valid: false, invalidReason: 'road:no-change' });
     expect(
       planRoadMutation(
         roads([{ x: 1, z: 1 }]),

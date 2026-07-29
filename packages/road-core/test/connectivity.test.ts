@@ -86,9 +86,9 @@ describe('road connectivity', () => {
     const flat = environment();
 
     expect(roadConnectionMaskAt(roads([center]), center, flat, WORLD_CONFIG)).toBe(0);
-    expect(
-      roadConnectionMaskAt(roads([center, { x: 8, z: 7 }]), center, flat, WORLD_CONFIG),
-    ).toBe(ROAD_NORTH);
+    expect(roadConnectionMaskAt(roads([center, { x: 8, z: 7 }]), center, flat, WORLD_CONFIG)).toBe(
+      ROAD_NORTH,
+    );
     expect(
       roadConnectionMaskAt(
         roads([center, { x: 8, z: 7 }, { x: 8, z: 9 }]),
@@ -115,13 +115,7 @@ describe('road connectivity', () => {
     ).toBe(ROAD_NORTH | ROAD_EAST | ROAD_SOUTH);
     expect(
       roadConnectionMaskAt(
-        roads([
-          center,
-          { x: 8, z: 7 },
-          { x: 9, z: 8 },
-          { x: 8, z: 9 },
-          { x: 7, z: 8 },
-        ]),
+        roads([center, { x: 8, z: 7 }, { x: 9, z: 8 }, { x: 8, z: 9 }, { x: 7, z: 8 }]),
         center,
         flat,
         WORLD_CONFIG,

@@ -1,8 +1,4 @@
-import {
-  type CellCoord,
-  type WorldConfig,
-  vertexIndex,
-} from '@web-three-city/world-core';
+import { type CellCoord, type WorldConfig, vertexIndex } from '@web-three-city/world-core';
 import { classifyTerrainShape, type TerrainShape } from './shape-classifier.js';
 import type { TerrainSnapshot } from './terrain-map.js';
 import type { TerrainCorners } from './topology.js';

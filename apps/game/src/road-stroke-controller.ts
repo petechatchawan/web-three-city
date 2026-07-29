@@ -29,7 +29,10 @@ export interface CreateRoadStrokeControllerOptions {
   readonly getMode: () => RoadToolMode | null;
   readonly getRoadSnapshot: () => RoadSnapshot;
   readonly getEnvironment: () => RoadPlacementEnvironment;
-  readonly onPreview: (plan: RoadMutationPlan | null) => void;
+  readonly onPreview: (
+    plan: RoadMutationPlan | null,
+    environment: RoadPlacementEnvironment | null,
+  ) => void;
 }
 
 interface RoadStrokeSession {
@@ -62,7 +65,7 @@ export function createRoadStrokeController(
   const clear = (): void => {
     if (session === null) return;
     session = null;
-    options.onPreview(null);
+    options.onPreview(null, null);
   };
 
   const replan = (): void => {
@@ -77,7 +80,7 @@ export function createRoadStrokeController(
       session.environment,
       options.config,
     );
-    options.onPreview(session.plan);
+    options.onPreview(session.plan, session.environment);
   };
 
   const addCell = (cell: CellCoord): void => {

@@ -77,10 +77,7 @@ export function createEmptyRoadSnapshot(config: WorldConfig): RoadSnapshot {
   );
 }
 
-export function roadDefinitionCodeAt(
-  snapshot: RoadSnapshot,
-  cell: CellCoord,
-): RoadDefinitionCode {
+export function roadDefinitionCodeAt(snapshot: RoadSnapshot, cell: CellCoord): RoadDefinitionCode {
   if (!validCell(snapshot, cell)) {
     throw new RangeError('road-snapshot:invalid-cell');
   }

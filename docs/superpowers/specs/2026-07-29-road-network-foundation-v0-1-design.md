@@ -1,6 +1,6 @@
 # Road Network Foundation v0.1 — Design Specification
 
-**Status:** Accepted for written specification review  
+**Status:** Accepted design; written specification pending owner review  
 **Date:** 2026-07-29  
 **Repository baseline:** `master@2707d40b3a0dfd563c8b183a8422fa1c013e5bf1`  
 **Audience:** Web Three City maintainers and implementation agents  
@@ -95,9 +95,9 @@ Responsibilities:
 Allowed dependencies:
 
 - `@web-three-city/world-core`;
-- read-only Terrain contracts from `@web-three-city/terrain-core`.
+- read-only Terrain contracts and shared chunk-coordinate helpers from `@web-three-city/terrain-core`.
 
-Water eligibility is supplied through a read-only placement-environment contract so `road-core` does not own Water derivation.
+Water eligibility is supplied through a read-only placement-environment contract so `road-core` does not own Water derivation or import `water-core`.
 
 ### 3.2 `@web-three-city/road-three`
 
@@ -128,12 +128,13 @@ The dependency direction is:
 
 ```text
 world-core
-   ↑
-terrain-core      water-core      road-core
-   ↑                  ↑              ↑
-terrain-three     water-three     road-three
-          \           |           /
-                 apps/game
+   ├── terrain-core ── read-only surface/chunk contracts ──▶ road-core
+   ├── water-core
+   ├── terrain-three
+   ├── water-three
+   └── road-three
+
+apps/game composes all domain and presentation packages.
 ```
 
 Terrain does not import Roads. Water does not import Roads. Roads do not mutate Terrain or Water.
@@ -142,25 +143,26 @@ Terrain does not import Roads. Water does not import Roads. Roads do not mutate 
 
 ### 4.1 Stored state
 
-`RoadSnapshot` stores only authoritative information:
+`RoadSnapshot` stores one private definition-code byte per map cell. Its public contract does not expose the mutable backing buffer:
 
 ```ts
 interface RoadSnapshot {
   readonly width: number;
   readonly height: number;
   readonly revision: number;
-  readonly definitionCodes: Uint8Array;
+  definitionCodeAt(cell: CellCoord): RoadDefinitionCode;
+  copyDefinitionCodes(): Uint8Array;
 }
 ```
 
-The array contains one value per map cell:
+Definition codes are:
 
 - `0`: empty;
 - `1`: `basic-road`.
 
 Unknown definition codes are invalid.
 
-`RoadSnapshot` is immutable by contract. Constructors defensively copy mutable buffers. Queries never expose mutable internal arrays.
+Constructors defensively copy input buffers. `copyDefinitionCodes()` always returns a new buffer. No query returns mutable internal storage.
 
 ### 4.2 Road definitions
 
@@ -170,12 +172,12 @@ v0.1 ships one definition:
 interface RoadDefinition {
   readonly id: 'basic-road';
   readonly code: 1;
-  readonly width: number;
-  readonly surfaceOffset: number;
+  readonly width: 0.64;
+  readonly surfaceOffset: 0.02;
 }
 ```
 
-The definition boundary exists now so later Road types do not require replacing the authoritative state model. v0.1 does not implement multiple Road types, upgrades, lanes, costs, or one-way semantics.
+Measurements are in world units against the existing `1.0` cell size. The definition boundary exists now so later Road types do not require replacing the authoritative state model. v0.1 does not implement multiple Road types, upgrades, lanes, costs, or one-way semantics.
 
 ### 4.3 Derived state
 
@@ -218,7 +220,7 @@ interface RoadPlacementEnvironment {
 
 `TerrainCellSurfaceProfile` includes the authoritative four corner levels, classified Terrain shape, minimum level, maximum level, and slope axis.
 
-A cell is dry when Water derivation contains no positive-area wet fragment in that cell. Contact only along a zero-area shoreline boundary is permitted. Any positive wet area makes the cell invalid for Road placement.
+A cell is dry when Water derivation contains no positive-area wet fragment in that cell. Contact only along a zero-area shoreline boundary is permitted. Road eligibility is based on authoritative Water geometry, not the visual width of the shoreline presentation ribbon.
 
 The environment must describe one coherent world revision:
 
@@ -226,7 +228,7 @@ The environment must describe one coherent world revision:
 waterSourceTerrainRevision === terrainRevision
 ```
 
-Otherwise planning fails as stale or inconsistent world state.
+Otherwise planning fails as inconsistent world state.
 
 ## 6. Terrain compatibility policy
 
@@ -282,15 +284,14 @@ This rule is evaluated against final transaction occupancy. A valid Build stroke
 
 ## 7. Connectivity
 
-Two cardinally adjacent occupied cells connect when:
+Connectivity uses a non-iterative deterministic rule:
 
-1. both cells remain occupied in the final proposed Road state;
-2. the shared map edge is valid in both cells’ final topology;
-3. each cell’s Terrain policy permits the resulting connection mask.
+1. For each occupied cell in the final proposed state, derive a raw mask from all occupied cardinal neighbors.
+2. The shared Terrain lattice supplies the exact shared-edge heights; no Road-specific elevation cache is stored.
+3. Validate each occupied cell’s raw mask against its Flat or Ramp placement policy.
+4. Do not remove or prune individual connections to make an invalid cell valid. Any invalid affected cell rejects the complete transaction.
 
-The shared Terrain lattice makes the geometric edge heights authoritative. No Road-specific elevation cache is stored.
-
-Connectivity derivation is deterministic and independent of Build stroke cell ordering.
+This makes connectivity independent of Build stroke ordering and prevents topology from changing according to validation iteration order.
 
 ## 8. Mutation planning and commit
 
@@ -304,7 +305,23 @@ interface RoadStrokeInput {
 }
 ```
 
-### 8.2 Plan
+### 8.2 Invalid reasons
+
+```ts
+type RoadInvalidReason =
+  | 'road:invalid-state'
+  | 'road:invalid-environment'
+  | 'road:invalid-cell'
+  | 'road:unknown-definition'
+  | 'road:no-change'
+  | 'road:unsupported-terrain'
+  | 'road:wet-cell'
+  | 'road:invalid-ramp-topology';
+```
+
+Stale revisions are commit-time contract errors rather than Preview invalid reasons.
+
+### 8.3 Plan
 
 ```ts
 interface RoadMutationPlan {
@@ -323,12 +340,15 @@ interface RoadMutationPlan {
 }
 ```
 
+The proposed buffer is owned by the immutable plan and is never the snapshot’s backing buffer.
+
 Planning pipeline:
 
 ```text
-normalize and deduplicate requested cells
-→ apply Build or Bulldoze to a proposed occupancy buffer
-→ derive candidate connectivity from final occupancy
+validate the complete base Road snapshot
+→ normalize and deduplicate requested cells
+→ apply Build or Bulldoze to a copied occupancy buffer
+→ derive raw connectivity from final occupancy
 → validate Terrain and Water eligibility
 → validate final Ramp/Flat topology
 → derive changed cells and N/E/S/W topology neighbors
@@ -338,27 +358,42 @@ normalize and deduplicate requested cells
 
 The plan is invalid when:
 
-- input or map state is malformed;
+- input or base Road state is malformed;
 - any requested cell is outside the map;
 - Terrain and Water revisions are incoherent;
 - no effective occupancy mutation exists;
+- an unknown Road definition is requested;
 - any final occupied affected cell violates Terrain or Water policy;
 - any final Ramp connection mask violates the slope-axis rule.
 
-### 8.3 Commit
+The affected validation neighborhood consists of all added or removed cells plus their cardinal neighbors. Valid `RoadSnapshot` construction and atomic load guarantee that unaffected occupied cells already satisfy invariants.
 
-`commitRoadMutation()` rejects:
+### 8.4 Commit
+
+The commit API receives current Road state and the current read-only placement environment:
+
+```ts
+commitRoadMutation(
+  roads: RoadSnapshot,
+  plan: RoadMutationPlan,
+  environment: RoadPlacementEnvironment,
+  config: WorldConfig,
+): RoadCommitResult;
+```
+
+It rejects:
 
 - an invalid plan;
 - a stale Road revision;
 - a stale Terrain revision;
 - a stale Water source Terrain revision;
+- incoherent current Terrain and Water revisions;
 - a proposed buffer inconsistent with the plan’s changed-cell counts;
 - malformed or unknown Road definition codes.
 
 Successful commit increments Road revision exactly once and returns an immutable snapshot and receipt.
 
-### 8.4 Receipt
+### 8.5 Receipt
 
 ```ts
 interface RoadMutationReceipt {
@@ -373,7 +408,7 @@ interface RoadMutationReceipt {
 
 ## 9. Road-owned dirty chunks
 
-Roads own their dirty-chunk lifecycle.
+Roads own their dirty-chunk lifecycle while reusing the project’s existing chunk-coordinate contract.
 
 For every added, removed, or topology-changed cell, the Road mutation invalidates:
 
@@ -403,7 +438,7 @@ Supported render shapes:
 - North–South ramp straight;
 - East–West ramp straight.
 
-Flat Road geometry sits at the authoritative flat cell height plus the Road definition’s fixed surface offset.
+Flat Road geometry sits at the authoritative flat cell height plus `0.02` world units.
 
 Ramp Road geometry follows the authoritative Terrain corner heights along the supported slope axis plus the same fixed offset. It does not flatten, carve, or otherwise mutate Terrain.
 
@@ -471,7 +506,7 @@ Rules:
 - Road Undo changes Roads only and does not rebuild Water;
 - Terraform Undo changes Terrain and performs exactly one Water update under the existing Terraform contract.
 
-Multi-level Undo and Redo are excluded.
+Because Terraform cannot affect occupied Road cells, a successful Terraform commit cannot invalidate the current Road snapshot. Multi-level Undo and Redo are excluded.
 
 ## 13. Save and load
 
@@ -501,6 +536,8 @@ interface WorldSaveV1 {
   readonly roads: RoadSaveV1;
 }
 ```
+
+The world-envelope codec lives in Game integration for v0.1 and delegates to Terrain and Road domain codecs. No new generic persistence package is introduced.
 
 The Game saves `WorldSaveV1` after this milestone.
 

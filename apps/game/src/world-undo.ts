@@ -6,23 +6,31 @@ export type WorldUndoEntry =
   | Readonly<{ readonly kind: 'terraform'; readonly terrain: TerrainSnapshot }>
   | Readonly<{ readonly kind: 'road'; readonly roads: RoadSnapshot }>;
 
-function copyTerrain(snapshot: TerrainSnapshot, config: WorldConfig): TerrainSnapshot {
+function copyTerrain(
+  snapshot: TerrainSnapshot,
+  config: WorldConfig,
+  revision = snapshot.revision,
+): TerrainSnapshot {
   return createTerrainMap({
     config,
     heightLevels: snapshot.heightLevels,
     seed: snapshot.seed,
     generatorVersion: snapshot.generatorVersion,
     generationAttempt: snapshot.generationAttempt,
-    revision: snapshot.revision,
+    revision,
   });
 }
 
-function copyRoads(snapshot: RoadSnapshot, config: WorldConfig): RoadSnapshot {
+function copyRoads(
+  snapshot: RoadSnapshot,
+  config: WorldConfig,
+  revision = snapshot.revision,
+): RoadSnapshot {
   return createRoadSnapshot(
     {
       width: snapshot.width,
       height: snapshot.height,
-      revision: snapshot.revision,
+      revision,
       definitionCodes: snapshot.definitionCodes,
     },
     config,
@@ -33,6 +41,18 @@ function copyEntry(entry: WorldUndoEntry, config: WorldConfig): WorldUndoEntry {
   return entry.kind === 'terraform'
     ? Object.freeze({ kind: 'terraform' as const, terrain: copyTerrain(entry.terrain, config) })
     : Object.freeze({ kind: 'road' as const, roads: copyRoads(entry.roads, config) });
+}
+
+function restoredEntry(entry: WorldUndoEntry, config: WorldConfig): WorldUndoEntry {
+  return entry.kind === 'terraform'
+    ? Object.freeze({
+        kind: 'terraform' as const,
+        terrain: copyTerrain(entry.terrain, config, entry.terrain.revision + 2),
+      })
+    : Object.freeze({
+        kind: 'road' as const,
+        roads: copyRoads(entry.roads, config, entry.roads.revision + 2),
+      });
 }
 
 export class WorldUndoStore {
@@ -59,7 +79,7 @@ export class WorldUndoStore {
     const entry = this.#entry;
     if (entry === null) return null;
     this.#entry = null;
-    return copyEntry(entry, this.#config);
+    return restoredEntry(entry, this.#config);
   }
 
   clear(): void {

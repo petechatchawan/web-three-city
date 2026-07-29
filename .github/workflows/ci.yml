@@ -43,6 +43,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm test:coverage
+      - run: pnpm test:deployment
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -70,6 +71,12 @@ jobs:
           grep -Eq '(src|href)="\./assets/' apps/terrain-lab/dist/index.html
           ! grep -Eq '(src|href)="/assets/' apps/game/dist/index.html
           ! grep -Eq '(src|href)="/assets/' apps/terrain-lab/dist/index.html
+      - run: pnpm compose:vercel
+      - name: Verify Vercel Build Output API
+        run: |
+          node -e "const fs=require('node:fs'); const config=JSON.parse(fs.readFileSync('.vercel/output/config.json','utf8')); if(config.version!==3) process.exit(1)"
+          test -f .vercel/output/static/index.html
+          test -f .vercel/output/static/terrain-lab/index.html
       - uses: actions/upload-artifact@v4
         with:
           name: web-app-builds

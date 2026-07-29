@@ -45,13 +45,13 @@ describe('WorldUndoStore', () => {
     store.replace({ kind: 'road', roads: roads(4, 3, 3) });
     expect(store.available).toBe(true);
     expect(store.kind).toBe('road');
-    expect(store.consume()).toMatchObject({ kind: 'road', roads: { revision: 4 } });
+    expect(store.consume()).toMatchObject({ kind: 'road', roads: { revision: 6 } });
     expect(store.available).toBe(false);
     expect(store.kind).toBeNull();
     expect(store.consume()).toBeNull();
   });
 
-  it('defensively copies Terrain bytes when replacing and consuming', () => {
+  it('defensively copies Terrain bytes and restores through a newer revision', () => {
     const original = terrain(5, 2);
     const store = new WorldUndoStore(WORLD_CONFIG);
     store.replace({ kind: 'terraform', terrain: original });
@@ -60,13 +60,14 @@ describe('WorldUndoStore', () => {
     const entry = store.consume();
     expect(entry?.kind).toBe('terraform');
     if (entry?.kind !== 'terraform') return;
+    expect(entry.terrain.revision).toBe(7);
     expect(entry.terrain.heightLevels[0]).toBe(2);
     entry.terrain.heightLevels[0] = 0;
     expect(original.heightLevels[0]).toBe(4);
     expect(Object.isFrozen(entry)).toBe(true);
   });
 
-  it('defensively copies Road bytes and preserves revision', () => {
+  it('defensively copies Road bytes and restores through a newer revision', () => {
     const original = roads(7, 6, 8);
     const store = new WorldUndoStore(WORLD_CONFIG);
     store.replace({ kind: 'road', roads: original });
@@ -76,7 +77,7 @@ describe('WorldUndoStore', () => {
     const entry = store.consume();
     expect(entry?.kind).toBe('road');
     if (entry?.kind !== 'road') return;
-    expect(entry.roads.revision).toBe(7);
+    expect(entry.roads.revision).toBe(9);
     expect(entry.roads.definitionCodes[8 * WORLD_CONFIG.mapWidth + 6]).toBe(BASIC_ROAD_CODE);
   });
 

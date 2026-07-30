@@ -249,6 +249,7 @@ validate snapshot and core cells
 → reject when distance exceeds four rings or support count exceeds 256
 → continue until queue drains
 → derive affected/support cells from incident cells of changed vertices
+→ remove every core cell from supportCells so semantic layers are disjoint
 → validate every affected cell plus one-cell halo with classifyTerrainShape
 → allow flat, cardinal ramps, and single-corner-high/low transitions
 → reject diagonal-ridge, diagonal-valley, saddle-or-twist, and severe-delta
@@ -1545,6 +1546,7 @@ Only after every gate passes may the owner be asked to approve squash merge. Thi
 - `TerraformStrokeSessionState` and `TerraformStrokeRelease` are produced in Task 4 and consumed by Tasks 5, 6, 8, and 10.
 - `TerraformPreviewSceneModel` is produced by the Task 6 adapter and consumed only by `terrain-three` presentation.
 - `GameToolPresentationState` is produced in Task 8 and consumed by Game UI/bootstrap in Tasks 8–9.
+- `supportCells` excludes `coreCells`; `affectedCells` is their sorted union.
 - Road authoritative contracts remain unchanged.
 
 ### Scope boundary

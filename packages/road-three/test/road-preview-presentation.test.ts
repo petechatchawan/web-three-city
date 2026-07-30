@@ -56,7 +56,7 @@ function plan(valid: boolean): RoadMutationPlan {
 }
 
 describe('RoadPreviewPresentation', () => {
-  it('uses separate valid and invalid preview roots and clears without touching committed objects', () => {
+  it('uses separate valid and invalid roots with a non-color invalid marker', () => {
     const scene = new THREE.Scene();
     const committed = new THREE.Group();
     committed.name = 'committed-sentinel';
@@ -71,8 +71,18 @@ describe('RoadPreviewPresentation', () => {
 
     preview.show(plan(false), environment);
     expect(preview.root?.name).toBe('road-preview-root-invalid');
-    const invalidMesh = preview.root?.children[0] as THREE.Mesh;
-    expect((invalidMesh.material as THREE.Material).name).toBe('road-material-preview-invalid');
+    const invalidMesh = preview.root?.getObjectByName('road-preview-invalid-surface') as THREE.Mesh;
+    const invalidMarker = preview.root?.getObjectByName(
+      'road-preview-invalid-marker',
+    ) as THREE.LineSegments;
+    expect((invalidMesh.material as THREE.Material).name).toBe(
+      'road-material-preview-invalid',
+    );
+    expect(invalidMarker).toBeInstanceOf(THREE.LineSegments);
+    expect((invalidMarker.material as THREE.Material).name).toBe(
+      'road-material-preview-invalid-marker',
+    );
+    expect((invalidMarker.material as THREE.LineBasicMaterial).depthTest).toBe(true);
     expect(scene.getObjectByName('committed-sentinel')).toBe(committed);
 
     preview.clear();

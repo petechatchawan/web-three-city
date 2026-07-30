@@ -1,6 +1,7 @@
 import './style.css';
 import { bootstrapGame } from './game-bootstrap.js';
 import { bindGameKeyboardShortcuts } from './game-keyboard-shortcuts.js';
+import { bindGameToolHud } from './game-tool-hud-binding.js';
 import type { GameToolMode } from './game-tool-mode.js';
 
 const root = document.querySelector<HTMLElement>('#app');
@@ -13,6 +14,8 @@ function requireButton(action: string): HTMLButtonElement {
   return button;
 }
 
+const canvas = root.querySelector<HTMLCanvasElement>('#game-canvas');
+if (canvas === null) throw new Error('game:missing-canvas');
 const toolActions: Readonly<Record<GameToolMode, string>> = Object.freeze({
   navigate: 'tool-navigate',
   raise: 'tool-raise',
@@ -27,6 +30,7 @@ const closeToolButton = requireButton('tool-close');
 const undoButton = requireButton('undo');
 const bindings = new AbortController();
 
+bindGameToolHud(root, canvas, bindings.signal);
 closeToolButton.addEventListener('click', () => navigateButton.click(), {
   signal: bindings.signal,
 });

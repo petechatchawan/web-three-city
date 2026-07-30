@@ -120,6 +120,7 @@ export class RoadChunkPresentation {
     this.#materials.committed.dispose();
     this.#materials.validPreview.dispose();
     this.#materials.invalidPreview.dispose();
+    this.#materials.invalidMarker.dispose();
   }
 
   #buildChunkObject(

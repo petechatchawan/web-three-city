@@ -4,7 +4,7 @@
 **Approved by:** Repository owner  
 **Approval date:** 2026-07-30  
 **Specification:** `docs/superpowers/specs/2026-07-30-web-interaction-tooling-conformance-v0-1-design.md`  
-**Specification commit:** `9434ccace6c864cc17ed3cbfaf89dcbc5daa9c2d`
+**Approved specification commit:** `18375bc39e8c84968aa79c69fbdd7eb52490088a`
 
 ## Approved scope
 

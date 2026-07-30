@@ -54,30 +54,29 @@ canvas {
   z-index: 2;
   top: calc(16px + var(--safe-top));
   left: calc(16px + var(--safe-left));
-  width: min(380px, calc(100vw - 32px - var(--safe-left) - var(--safe-right)));
+  width: min(344px, calc(100vw - 32px - var(--safe-left) - var(--safe-right)));
   max-height: calc(100vh - 32px - var(--safe-top) - var(--safe-bottom));
-  padding: 18px;
   overflow-y: auto;
-  border: 1px solid rgb(255 255 255 / 55%);
+  border: 1px solid rgb(255 255 255 / 58%);
   border-radius: 16px;
-  background: rgb(248 252 249 / 90%);
+  background: rgb(248 252 249 / 91%);
   box-shadow: 0 18px 50px rgb(25 48 57 / 18%);
   backdrop-filter: blur(14px);
 }
 
-.panel-heading,
-.status-row,
-.metrics-row {
+.hud-heading {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid rgb(49 95 105 / 12%);
 }
 
 .eyebrow {
-  margin: 0 0 4px;
+  margin: 0 0 3px;
   color: #51717c;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -85,7 +84,8 @@ canvas {
 
 h1 {
   margin: 0;
-  font-size: 24px;
+  font-size: 20px;
+  line-height: 1.1;
 }
 
 .controls-mode {
@@ -93,72 +93,184 @@ h1 {
   border-radius: 999px;
   color: #315f69;
   background: #e2efeb;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   text-transform: capitalize;
 }
 
+.primary-workspace {
+  display: grid;
+  gap: 9px;
+  padding: 12px 14px 14px;
+}
+
+.primary-tool-surface,
+.tool-context {
+  border-radius: 12px;
+  background: rgb(255 255 255 / 66%);
+}
+
+.primary-tool-surface {
+  padding: 10px;
+}
+
+.control-label {
+  margin: 0 0 6px;
+  color: #51717c;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.world-tools,
+.terraform-brushes,
+.world-actions {
+  display: grid;
+  gap: 6px;
+}
+
+.world-tools {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.terraform-brushes,
+.world-actions {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.tool-close {
+  grid-column: 1 / -1;
+}
+
+.terraform-brush {
+  margin-top: 9px;
+  padding-top: 9px;
+  border-top: 1px solid rgb(49 95 105 / 12%);
+}
+
+.tool-context {
+  min-height: 112px;
+  padding: 11px 12px;
+}
+
+.context-heading,
 .status-row,
 .metrics-row {
-  margin-top: 12px;
-  padding: 8px 10px;
-  border-radius: 10px;
-  background: #e2efeb;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.context-heading {
+  color: #51717c;
+  font-size: 11px;
+}
+
+.context-heading strong {
+  color: #18323d;
+  font-size: 12px;
+}
+
+.context-state {
+  display: block;
+  margin-top: 8px;
   font-size: 13px;
+}
+
+.context-message {
+  min-height: 32px;
+  margin: 4px 0 0;
+  color: #45636d;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.context-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+  margin-top: 9px;
+}
+
+.road-context-metrics {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.context-metrics span {
+  min-width: 0;
+  padding: 5px 6px;
+  border-radius: 7px;
+  background: #e2efeb;
+  color: #51717c;
+  font-size: 9px;
+  text-align: center;
+}
+
+.context-metrics strong {
+  display: block;
+  overflow: hidden;
+  color: #18323d;
+  font-size: 11px;
+  text-overflow: ellipsis;
+}
+
+.undo-button {
+  width: 100%;
+}
+
+.secondary-controls {
+  border-top: 1px solid rgb(49 95 105 / 13%);
+}
+
+.secondary-controls summary {
+  padding: 10px 14px;
+  color: #315f69;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+}
+
+.secondary-content {
+  display: grid;
+  gap: 8px;
+  padding: 0 14px 14px;
+}
+
+.status-row,
+.metrics-row {
+  padding: 7px 9px;
+  border-radius: 9px;
+  background: #e2efeb;
+  font-size: 11px;
 }
 
 .metrics-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 7px;
-  margin-top: 7px;
-}
-
-.metrics-grid .metrics-row {
-  min-width: 0;
-  margin-top: 0;
-  background: rgb(255 255 255 / 68%);
-}
-
-.metrics-grid .metrics-row strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  grid-template-columns: 1fr;
+  gap: 6px;
 }
 
 .field {
   display: grid;
   grid-template-columns: auto 1fr;
   align-items: center;
-  gap: 10px;
-  margin: 12px 0 6px;
-  font-size: 13px;
+  gap: 9px;
+  font-size: 11px;
   font-weight: 700;
 }
 
 .quality-value {
-  margin: 0 0 12px;
-  font-size: 12px;
+  margin: 0;
   color: #51717c;
-}
-
-.control-group + .control-group,
-.world-actions {
-  margin-top: 8px;
-}
-
-.control-label {
-  margin: 0 0 5px;
-  color: #51717c;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: 10px;
 }
 
 select,
 button {
-  min-height: 38px;
+  min-height: 36px;
   border: 0;
   border-radius: 9px;
   font: inherit;
@@ -166,36 +278,15 @@ button {
 
 select {
   min-width: 0;
-  padding: 7px 9px;
+  padding: 6px 8px;
   background: white;
 }
 
-.actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 7px;
-}
-
-.world-tools,
-.terraform-brushes {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.brush-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
-  gap: 7px;
-}
-
-.undo-button {
-  min-width: 82px;
-}
-
 button {
-  padding: 7px 10px;
+  padding: 6px 8px;
   color: white;
   background: #315f69;
+  font-size: 10px;
   cursor: pointer;
 }
 
@@ -206,7 +297,7 @@ button.is-active {
 }
 
 button.is-active {
-  box-shadow: inset 0 0 0 2px rgb(255 255 255 / 52%);
+  box-shadow: inset 0 0 0 2px rgb(255 255 255 / 58%);
 }
 
 button:disabled {
@@ -217,8 +308,9 @@ button:disabled {
 }
 
 button:focus-visible,
-select:focus-visible {
-  outline: 3px solid rgb(49 95 105 / 25%);
+select:focus-visible,
+.secondary-controls summary:focus-visible {
+  outline: 3px solid rgb(49 95 105 / 28%);
   outline-offset: 2px;
 }
 
@@ -228,80 +320,84 @@ select:focus-visible {
     right: var(--safe-right);
     left: var(--safe-left);
     width: auto;
-    max-height: min(56vh, 430px);
-    padding: 10px 12px 11px;
+    max-height: min(48vh, 390px);
     border-radius: 0 0 15px 15px;
     border-top: 0;
   }
 
-  .panel-heading {
-    align-items: flex-start;
+  .hud-heading {
+    padding: 8px 10px 7px;
   }
 
   h1 {
-    font-size: 18px;
+    font-size: 16px;
   }
 
-  .status-row {
-    margin-top: 8px;
-    padding: 6px 8px;
-    font-size: 11px;
+  .primary-workspace {
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    align-items: start;
+    gap: 6px;
+    padding: 7px 8px 8px;
   }
 
-  .metrics-grid {
-    margin-top: 5px;
-    gap: 5px;
+  .primary-tool-surface,
+  .tool-context {
+    padding: 7px;
   }
 
-  .metrics-grid .metrics-row {
-    padding: 6px 8px;
-    font-size: 11px;
-  }
-
-  .field {
-    display: inline-grid;
-    grid-template-columns: auto minmax(80px, 1fr);
-    width: calc(58% - 4px);
-    margin: 8px 0 6px;
-  }
-
-  .quality-value {
-    display: inline-block;
-    width: 40%;
-    margin: 0 0 7px 4px;
-    text-align: right;
-  }
-
-  .control-group + .control-group,
-  .world-actions {
-    margin-top: 6px;
-  }
-
-  .control-label {
-    margin-bottom: 3px;
-    font-size: 9px;
-  }
-
-  .actions,
-  .brush-row {
-    gap: 5px;
-  }
-
-  .world-actions {
+  .world-tools {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .terraform-brush {
+    margin-top: 6px;
+    padding-top: 6px;
+  }
+
+  .terraform-brushes {
+    gap: 4px;
+  }
+
+  .tool-context {
+    min-height: 0;
+  }
+
+  .context-message {
+    min-height: 0;
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+  }
+
+  .context-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .undo-button {
-    min-width: 70px;
+    grid-column: 1 / -1;
+  }
+
+  .secondary-controls summary {
+    padding: 7px 10px;
+  }
+
+  .secondary-content {
+    padding: 0 9px 9px;
   }
 
   select,
   button {
-    min-height: 32px;
-    font-size: 10px;
+    font-size: 9px;
   }
+}
 
-  button {
-    padding: 4px 5px;
+@media (max-width: 720px) and (pointer: coarse) {
+  .world-tools button,
+  .terraform-brushes button,
+  .undo-button,
+  .secondary-controls summary {
+    min-height: 44px;
   }
 }

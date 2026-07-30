@@ -74,7 +74,7 @@ test('tap selects, grid toggles, and reset restores defaults', async ({ page }) 
 test('changes quality and round-trips world save data', async ({ page }) => {
   await waitForReady(page);
 
-  await page.getByRole('button', { name: 'Save terrain' }).click();
+  await page.getByRole('button', { name: 'Save world' }).click();
   const saved = await page.evaluate((key) => localStorage.getItem(key), SAVE_KEY);
   expect(saved).not.toBeNull();
   expect(JSON.parse(saved ?? '{}')).toMatchObject({
@@ -85,7 +85,7 @@ test('changes quality and round-trips world save data', async ({ page }) => {
   await page.getByLabel('Quality').selectOption('low');
   await expect(page.getByTestId('quality-value')).toHaveText('Low');
 
-  await page.getByRole('button', { name: 'Load terrain' }).click();
+  await page.getByRole('button', { name: 'Load world' }).click();
   await expect(page.getByTestId('game-status')).toHaveText('Loaded');
 });
 
@@ -122,8 +122,8 @@ test('boots Coastal Water and Roads with one presentation root each', async ({ p
 test('save and load reproduce identical Water evidence', async ({ page }) => {
   await waitForReady(page);
   const before = (await readEvidence(page)).water;
-  await page.getByRole('button', { name: 'Save terrain' }).click();
-  await page.getByRole('button', { name: 'Load terrain' }).click();
+  await page.getByRole('button', { name: 'Save world' }).click();
+  await page.getByRole('button', { name: 'Load world' }).click();
   await expect(page.getByTestId('game-status')).toHaveText('Loaded');
   const after = (await readEvidence(page)).water;
   expect(after.sourceTerrainRevision).toBe(before.sourceTerrainRevision);
@@ -174,7 +174,7 @@ test('exposes Terraform and Road tools with mode-aware brush controls', async ({
     'aria-pressed',
     'false',
   );
-  await expect(page.getByRole('button', { name: 'Undo Terraform' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Undo latest world change' })).toBeDisabled();
   await expect(page.getByTestId('active-tool')).toHaveText('Navigate');
 
   await page.getByRole('button', { name: 'Build Road' }).click();

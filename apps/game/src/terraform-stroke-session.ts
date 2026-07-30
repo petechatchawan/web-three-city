@@ -132,14 +132,13 @@ export function createTerraformStrokeSession(
 
   const inputFor = (anchors: readonly CellCoord[]): TerraformStrokeInput => {
     if (operation === null) throw new Error('terraform-stroke-session:no-operation');
-    return operation === 'flatten'
-      ? {
-          operation,
-          brushSize,
-          cells: anchors,
-          flattenTargetLevel: flattenTargetLevel ?? undefined,
-        }
-      : { operation, brushSize, cells: anchors };
+    if (operation !== 'flatten') return { operation, brushSize, cells: anchors };
+    return {
+      operation,
+      brushSize,
+      cells: anchors,
+      ...(flattenTargetLevel === null ? {} : { flattenTargetLevel }),
+    };
   };
 
   const evaluateAnchor = (anchor: CellCoord): void => {

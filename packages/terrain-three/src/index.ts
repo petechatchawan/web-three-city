@@ -21,6 +21,20 @@ export type {
 } from './selected-cell-presentation.js';
 export { TerrainGridPresentation, buildTerrainGridChunkData } from './terrain-grid-presentation.js';
 export type { TerrainGridChunkData } from './terrain-grid-presentation.js';
-export { buildTerraformPreviewMesh } from './terraform-preview-geometry.js';
-export type { TerraformPreviewMeshData } from './terraform-preview-geometry.js';
+export {
+  TERRAFORM_PREVIEW_Y_OFFSET,
+  buildTerraformPreviewMesh,
+} from './terraform-preview-geometry.js';
+export type {
+  TerraformPreviewLayerMeshData,
+  TerraformPreviewMeshData,
+} from './terraform-preview-geometry.js';
+export {
+  terraformPreviewModelEmpty,
+  validateTerraformPreviewSceneModel,
+} from './terraform-preview-model.js';
+export type {
+  ProjectedTerrainCell,
+  TerraformPreviewSceneModel,
+} from './terraform-preview-model.js';
 export { TerraformPreviewPresentation } from './terraform-preview-presentation.js';

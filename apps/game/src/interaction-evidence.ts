@@ -203,8 +203,11 @@ export function publishInteractionEvidence(source: InteractionEvidenceSource): v
       };
     },
     get terraform(): TerraformInteractionEvidence {
+      const state = source.getTerraformEvidence();
       return {
-        ...source.getTerraformEvidence(),
+        ...state,
+        previewValid: state.currentStampKind === 'no-change' ? false : state.previewValid,
+        previewCellCount: Math.max(0, state.previewCellCount - state.supportCellCount),
         previewRootCount: countRoots(source.scene, 'terraform-preview-root'),
         previewCoreCount: countNamedObjects(source.scene, 'terraform-preview-core'),
         previewSupportCount: countNamedObjects(source.scene, 'terraform-preview-support'),

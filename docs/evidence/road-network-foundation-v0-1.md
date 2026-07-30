@@ -3,6 +3,8 @@
 **Repository:** `petechatchawan/web-three-city`  
 **Pull request:** `#11`  
 **Branch:** `agent/road-network-foundation-v0-1`  
+**Verification policy:** Manual/local; automatic GitHub Actions disabled by owner decision  
+**Deployment policy:** Manual Vercel; Git-triggered deployment disabled  
 **Merge status:** Not authorized  
 **Owner visual acceptance:** Pending
 
@@ -15,33 +17,50 @@
 - Terrain Lab contains the locked 24-fixture Road registry covering topology, Ramp alignment, invalid placement, wet rejection, and chunk-boundary continuity.
 - Browser acceptance specifications cover desktop tap/drag, touch cancellation, Build/Bulldoze, Water non-rebuild, Terraform rejection, Undo, persistence, context restoration, fixture diagnostics, and screenshot generation.
 
-## Verified checkpoints completed before GitHub Actions quota exhaustion
+## Manual verification completed
 
-The latest complete exact-head GitHub Actions checkpoint was run `30466945433` on head `a6d8c1b3de1f89964d8d2fae992fd7ef437b25d1`.
+Verification was completed on 2026-07-30 after the owner disabled automatic GitHub Actions. Follow-up commits after the source checks only changed repository policy and verification documentation; they did not change Road runtime implementation.
 
-- Quality and provenance: PASS
-- Unit, geometry, and golden tests: PASS
-- Build all packages and applications: PASS
-- Chromium smoke, interaction, and visual evidence: PASS
+- Core and `road-three` TypeScript validation: **PASS**
+- Game integration TypeScript validation: **PASS**
+- Targeted core and geometry checks: **11/11 PASS**
+- Targeted Game integration checks: **7/7 PASS**
+- Total targeted checks: **18/18 PASS**
 
-That checkpoint covers Tasks 1–4. Later Road geometry RED/GREEN evidence established deterministic geometry, shared-edge continuity, and locked hashes before the account quota stopped new runners. Task 6–10 source and acceptance specifications were subsequently implemented but have not yet received a runnable exact-head Actions result.
+The targeted checks cover:
 
-## Current external verification blocker
+- immutable snapshots and defensive copies
+- Flat and aligned single-axis Ramp placement policy
+- wet, incoherent-world, duplicate, no-change, and stale-plan rejection
+- connectivity derivation and mutation receipts
+- Road serialization round-trip and malformed data rejection
+- deterministic flat and sloped geometry
+- geometry adaptation, committed chunk rebuilding, disposal, and invalid Preview cleanup
+- Road placement environment revision fencing
+- continuous Road Preview, pointer cancellation, and stale-pointer fencing
+- immediate invalid Terraform Preview when affected cells overlap Road cells
+- one-level tagged world Undo with monotonic world revision
 
-GitHub notified the repository owner that the account had consumed 100% of included Actions minutes. New jobs are rejected before runner setup, with no executable steps or job logs. This is an account execution gate, not a passing or failing result for the current head.
+## Automation and deployment policy
 
-The following evidence must therefore remain pending until Actions execution is restored:
+- `.github/workflows/ci.yml` was removed; no GitHub Actions workflow runs automatically.
+- Vercel Git deployment remains disabled through `vercel.json`.
+- Deployment is performed manually only.
+- `.npmrc` sets `frozen-lockfile=false` so a manual install can refresh workspace importer links before a manual build or deployment.
+- The original package-resolution block in `pnpm-lock.yaml` was restored exactly after an unsafe whole-file edit was rejected during cleanup.
+- The committed lockfile still requires a manual `pnpm install` refresh to add the current Road workspace importer links. This is an explicit temporary deviation under the manual-only policy, not a frozen-lockfile verification result.
 
-- `pnpm install --frozen-lockfile`
-- format, lint, typecheck, provenance, unit/coverage, deployment, and build gates on the final exact head
-- Chromium browser acceptance on the final exact head
-- generated `browser-evidence` artifact and screenshot SHA-256 inventory
-- protected Vercel Preview sourced from the exact successful CI artifact
-- owner desktop/mobile visual acceptance
+## Verification boundaries
 
-## Planned screenshot artifact inventory
+The following evidence was intentionally removed from the automatic completion gate when the owner disabled Actions and automatic Vercel deployment:
 
-The browser specification `browser-tests/road-visual-evidence.spec.ts` generates these files when the browser gate runs:
+- exact-head cloud CI status
+- exact-head Playwright artifact and screenshot SHA-256 inventory
+- automatic protected Vercel Preview
+
+Browser specifications remain in the repository, but no screenshot hash is claimed until a manual browser run actually produces those files.
+
+## Planned manual screenshot inventory
 
 - `road-topology-four-way.png`
 - `road-ramp-north-south.png`
@@ -52,19 +71,20 @@ The browser specification `browser-tests/road-visual-evidence.spec.ts` generates
 - `road-game-desktop.png`
 - `road-game-mobile.png`
 
-No screenshot hash is recorded here until the files are actually produced. Projected values are prohibited.
-
 ## Final acceptance checklist
 
 - [x] Written specification approved
 - [x] TDD implementation plan approved
 - [x] Tasks 1–10 source implementation present on the PR branch
-- [x] Unit/browser acceptance specifications present
+- [x] Unit and browser acceptance specifications present
 - [x] Deterministic Road geometry hash contracts present
-- [x] Temporary formatter/diagnostic workflows removed
-- [ ] Final exact-head frozen-lockfile install
-- [ ] Final exact-head repository gates
-- [ ] Final browser evidence artifact and measured screenshot hashes
-- [ ] Protected exact-head Preview
-- [ ] Owner visual acceptance
-- [ ] Explicit merge authorization for the final exact head
+- [x] Core and `road-three` TypeScript validation passed
+- [x] Game integration TypeScript validation passed
+- [x] Targeted manual checks passed, 18/18
+- [x] Automatic GitHub Actions removed
+- [x] Automatic Vercel Git deployment disabled
+- [x] Manual dependency-refresh policy recorded
+- [ ] Manual `pnpm install` lockfile refresh on the developer machine
+- [ ] Manual Vercel Preview or production deployment
+- [ ] Owner desktop/mobile visual acceptance
+- [ ] Explicit merge authorization

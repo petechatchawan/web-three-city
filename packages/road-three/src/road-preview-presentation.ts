@@ -11,6 +11,7 @@ import * as THREE from 'three';
 import { createRoadGeometry } from './geometry-adapter.js';
 import { createRoadMaterials } from './material-factory.js';
 import { buildRoadCellMesh, mergeRoadCellMeshes } from './road-geometry.js';
+import { buildRoadInvalidMarker } from './road-invalid-marker.js';
 import type { RoadPresentationSource } from './road-chunk-presentation.js';
 
 function sortedChunks(chunks: readonly ChunkCoord[]): readonly ChunkCoord[] {
@@ -23,7 +24,9 @@ function sortedChunks(chunks: readonly ChunkCoord[]): readonly ChunkCoord[] {
 
 function disposeRoot(root: THREE.Group): void {
   root.traverse((object) => {
-    if (object instanceof THREE.Mesh) object.geometry.dispose();
+    if (object instanceof THREE.Mesh || object instanceof THREE.LineSegments) {
+      object.geometry.dispose();
+    }
   });
   root.clear();
 }
@@ -83,7 +86,25 @@ export class RoadPreviewPresentation {
           views.map((view) => buildRoadCellMesh(view, this.#config)),
         );
         if (data.positions.length > 0) {
-          staged.add(new THREE.Mesh(createRoadGeometry(data), material));
+          const invalidMesh = new THREE.Mesh(createRoadGeometry(data), material);
+          invalidMesh.name = 'road-preview-invalid-surface';
+          staged.add(invalidMesh);
+        }
+        const markerData = buildRoadInvalidMarker(plan, environment, this.#config);
+        if (markerData.segmentCount > 0) {
+          const markerGeometry = new THREE.BufferGeometry();
+          markerGeometry.setAttribute(
+            'position',
+            new THREE.BufferAttribute(markerData.positions, 3),
+          );
+          markerGeometry.computeBoundingBox();
+          markerGeometry.computeBoundingSphere();
+          const marker = new THREE.LineSegments(
+            markerGeometry,
+            this.#materials.invalidMarker,
+          );
+          marker.name = 'road-preview-invalid-marker';
+          staged.add(marker);
         }
       }
     } catch (error) {
@@ -122,6 +143,7 @@ export class RoadPreviewPresentation {
     this.#materials.committed.dispose();
     this.#materials.validPreview.dispose();
     this.#materials.invalidPreview.dispose();
+    this.#materials.invalidMarker.dispose();
     this.#disposed = true;
   }
 

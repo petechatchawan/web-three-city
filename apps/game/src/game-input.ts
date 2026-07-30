@@ -33,7 +33,10 @@ import {
   isTerraformToolMode,
   type GameToolMode,
 } from './game-tool-mode.js';
-import { dispatchGameToolEvent } from './game-tool-events.js';
+import {
+  bindGameToolCancel,
+  dispatchGameToolEvent,
+} from './game-tool-events.js';
 import {
   createRoadStrokeController,
   type RoadInputState,
@@ -297,6 +300,8 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
     roadController.cancelAll();
     terraformSession.cancelAll();
   };
+  const toolEventController = new AbortController();
+  bindGameToolCancel(options.canvas, clearAllSessions, toolEventController.signal);
 
   return {
     controller,
@@ -368,6 +373,7 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
       clearAllSessions();
     },
     dispose(): void {
+      toolEventController.abort();
       binding?.dispose();
       binding = null;
       roadController.cancelAll();

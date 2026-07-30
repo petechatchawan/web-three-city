@@ -173,9 +173,20 @@ export function propagateTerraformSupport(
   config: WorldConfig,
 ): TerraformSupportResult {
   const proposedHeightLevels = terrain.heightLevels.slice();
+  if (coreCells.some((cell) => !validCell(cell, config))) {
+    return Object.freeze({
+      proposedHeightLevels,
+      coreVertices: Object.freeze([]),
+      supportVertices: Object.freeze([]),
+      affectedVertices: Object.freeze([]),
+      supportCells: Object.freeze([]),
+      valid: false,
+      invalidReason: 'terraform:invalid-cell',
+    });
+  }
+
   const coreByKey = new Map<string, GridVertexCoord>();
   for (const cell of coreCells) {
-    if (!validCell(cell, config)) return finish(false, 'terraform:invalid-cell');
     for (const vertex of verticesForCell(cell)) coreByKey.set(coordinateKey(vertex), vertex);
   }
 

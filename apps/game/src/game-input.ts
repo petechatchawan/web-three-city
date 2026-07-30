@@ -89,7 +89,6 @@ export interface CreateGameInputOptions {
   readonly getRoadEnvironment: () => RoadPlacementEnvironment;
   readonly onSelection: (cell: CellCoord | null) => void;
   readonly onTerraformCommit: (plan: TerraformPlan) => void;
-  readonly onTerraformRejected: (reason: GameTerraformInvalidReason) => void;
   readonly onRoadPlan: (plan: RoadMutationPlan) => void;
   readonly onReset: () => void;
 }
@@ -276,9 +275,10 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
       if (cell !== null) addTerraformCell(cell);
       const finalPlan = terraformPlan;
       clearTerraformStroke();
-      if (finalPlan?.valid === true) options.onTerraformCommit(finalPlan.corePlan);
-      else if (finalPlan?.invalidReason === 'terraform:road-occupied') {
-        options.onTerraformRejected(finalPlan.invalidReason);
+      if (finalPlan?.valid === true) {
+        options.onTerraformCommit(finalPlan.corePlan);
+      } else if (finalPlan?.invalidReason === 'terraform:road-occupied') {
+        options.onTerraformCommit(finalPlan.corePlan);
       }
     },
     cancel(pointerId: number): void {

@@ -61,7 +61,11 @@ describe('planTerraformStroke', () => {
     );
 
     expect(plan.valid).toBe(true);
+    expect(plan.coreCells).toHaveLength(2);
+    expect(plan.supportCells).toEqual([]);
     expect(plan.affectedCells).toHaveLength(2);
+    expect(plan.coreVertices).toHaveLength(6);
+    expect(plan.supportVertices).toEqual([]);
     expect(plan.affectedVertices).toHaveLength(6);
     expect(plan.changedVertexCount).toBe(6);
     expect(plan.proposedHeightLevels[latticeIndex(11, 10)]).toBe(2);
@@ -83,7 +87,10 @@ describe('planTerraformStroke', () => {
     );
 
     expect(plan.valid).toBe(true);
+    expect(plan.coreCells).toHaveLength(12);
+    expect(plan.supportCells).toEqual([]);
     expect(plan.affectedCells).toHaveLength(12);
+    expect(plan.coreVertices).toHaveLength(20);
     expect(plan.affectedVertices).toHaveLength(20);
   });
 
@@ -113,34 +120,28 @@ describe('planTerraformStroke', () => {
     });
   });
 
-  it('flattens every affected vertex to the locked target', () => {
-    const terrain = terrainWithLevels(
-      [
-        [10, 10, 1],
-        [11, 10, 2],
-        [10, 11, 2],
-        [11, 11, 1],
-      ],
-      1,
-    );
+  it('moves Flatten vertices one level toward the locked target', () => {
+    const terrain = flatTerrain(4);
     const plan = planTerraformStroke(
       terrain,
       {
         operation: 'flatten',
         brushSize: 1,
         cells: [{ x: 10, z: 10 }],
-        flattenTargetLevel: 2,
+        flattenTargetLevel: 1,
       },
       WORLD_CONFIG,
     );
 
     expect(plan.valid).toBe(true);
-    for (const vertex of plan.affectedVertices) {
-      expect(plan.proposedHeightLevels[latticeIndex(vertex.x, vertex.z)]).toBe(2);
+    expect(plan.coreCells).toEqual([{ x: 10, z: 10 }]);
+    expect(plan.supportCells).toEqual([]);
+    for (const vertex of plan.coreVertices) {
+      expect(plan.proposedHeightLevels[latticeIndex(vertex.x, vertex.z)]).toBe(3);
     }
   });
 
-  it('rejects a resulting cardinal delta greater than one', () => {
+  it('adds deterministic support instead of leaving a cardinal delta greater than one', () => {
     const terrain = terrainWithLevels(
       [
         [20, 20, 1],
@@ -156,10 +157,14 @@ describe('planTerraformStroke', () => {
       WORLD_CONFIG,
     );
 
-    expect(plan).toMatchObject({
-      valid: false,
-      invalidReason: 'terraform:cardinal-delta',
-    });
+    expect(plan.valid).toBe(true);
+    expect(plan.supportVertices.length).toBeGreaterThan(0);
+    expect(plan.supportCells.length).toBeGreaterThan(0);
+    expect(
+      plan.supportCells.every(
+        (cell) => !plan.coreCells.some((core) => core.x === cell.x && core.z === cell.z),
+      ),
+    ).toBe(true);
   });
 
   it('rejects a no-op Flatten plan', () => {

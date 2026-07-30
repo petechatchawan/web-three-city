@@ -3,6 +3,7 @@ import type { GameToolMode } from './game-tool-mode.js';
 
 export interface GameKeyboardActions {
   readonly selectTool: (mode: GameToolMode) => void;
+  readonly getBrush: () => TerraformBrushSize;
   readonly selectBrush: (size: TerraformBrushSize) => void;
   readonly requestUndo: () => void;
   readonly cancelPreviewOrCloseTool: () => void;
@@ -24,7 +25,15 @@ export function bindGameKeyboardShortcuts(
   signal: AbortSignal,
 ): void {
   const brushOrder: readonly TerraformBrushSize[] = [1, 3, 5];
-  let brushIndex = 0;
+  const selectRelativeBrush = (offset: -1 | 1): void => {
+    const currentIndex = Math.max(0, brushOrder.indexOf(actions.getBrush()));
+    const nextIndex = Math.min(
+      brushOrder.length - 1,
+      Math.max(0, currentIndex + offset),
+    );
+    actions.selectBrush(brushOrder[nextIndex]!);
+  };
+
   target.addEventListener(
     'keydown',
     (event) => {
@@ -51,12 +60,10 @@ export function bindGameKeyboardShortcuts(
             actions.selectTool('road-bulldoze');
             break;
           case '[':
-            brushIndex = Math.max(0, brushIndex - 1);
-            actions.selectBrush(brushOrder[brushIndex]!);
+            selectRelativeBrush(-1);
             break;
           case ']':
-            brushIndex = Math.min(brushOrder.length - 1, brushIndex + 1);
-            actions.selectBrush(brushOrder[brushIndex]!);
+            selectRelativeBrush(1);
             break;
           case 'Escape':
             actions.cancelPreviewOrCloseTool();

@@ -37,6 +37,7 @@ import {
   createRoadStrokeController,
   type RoadInputState,
 } from './road-stroke-controller.js';
+import { createTerraformPreviewSceneModel } from './terraform-preview-adapter.js';
 import type { GameTerraformInvalidReason } from './terraform-road-guard.js';
 import {
   createTerraformStrokeSession,
@@ -160,22 +161,18 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
     });
   };
 
-  const renderLegacyTerraformPreview = (state: TerraformStrokeSessionState): void => {
-    if (state.currentStamp.kind === 'rejected' || state.currentStamp.kind === 'no-change') {
-      options.preview.show(state.currentStamp.preview.previewPlan);
-    } else if (state.acceptedPlan !== null) {
-      options.preview.show(state.acceptedPlan);
-    } else {
-      options.preview.clear();
-    }
-  };
-
   const terraformSession = createTerraformStrokeSession({
     config: options.config,
     getTerrainSnapshot: options.getTerrainSnapshot,
     getRoadSnapshot: options.getRoadSnapshot,
     onState(state): void {
-      renderLegacyTerraformPreview(state);
+      options.preview.show(
+        createTerraformPreviewSceneModel(
+          state,
+          options.getTerrainSnapshot(),
+          options.config,
+        ),
+      );
       options.onTerraformState?.(state);
     },
   });

@@ -1,6 +1,7 @@
 # Web Interaction & Tooling Conformance v0.1 — Design Specification
 
-**Status:** Accepted scope; written specification pending owner review  
+**Status:** APPROVED  
+**Approved:** 2026-07-30  
 **Date:** 2026-07-30  
 **Repository:** `petechatchawan/web-three-city`  
 **Working branch:** `agent/road-network-foundation-v0-1`  

@@ -74,4 +74,18 @@ describe('RoadChunkPresentation', () => {
     presentation.dispose();
     expect(scene.getObjectByName('road-committed-root')).toBeUndefined();
   });
+
+  it('disposes the marker material created by the shared Road material factory', () => {
+    const markerDispose = vi.spyOn(THREE.LineBasicMaterial.prototype, 'dispose');
+    const presentation = new RoadChunkPresentation(
+      new THREE.Scene(),
+      { buildChunk: () => triangle() },
+      WORLD_CONFIG,
+    );
+
+    presentation.dispose();
+
+    expect(markerDispose).toHaveBeenCalledOnce();
+    markerDispose.mockRestore();
+  });
 });

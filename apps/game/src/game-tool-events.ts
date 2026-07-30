@@ -4,6 +4,7 @@ import type { GameOperationReason } from './game-reason-catalog.js';
 import type { TerraformStrokeSessionState } from './terraform-stroke-session.js';
 
 export const GAME_TOOL_EVENT = 'web-three-city:game-tool-presentation';
+export const GAME_TOOL_CANCEL_EVENT = 'web-three-city:cancel-tool-session';
 
 export type GameToolEventDetail =
   | { readonly type: 'terraform-state'; readonly state: TerraformStrokeSessionState }
@@ -26,6 +27,22 @@ export function bindGameToolEvents(
   target.addEventListener(
     GAME_TOOL_EVENT,
     (event) => listener((event as CustomEvent<GameToolEventDetail>).detail),
+    signal === undefined ? undefined : { signal },
+  );
+}
+
+export function dispatchGameToolCancel(target: EventTarget): void {
+  target.dispatchEvent(new Event(GAME_TOOL_CANCEL_EVENT));
+}
+
+export function bindGameToolCancel(
+  target: EventTarget,
+  listener: () => void,
+  signal?: AbortSignal,
+): void {
+  target.addEventListener(
+    GAME_TOOL_CANCEL_EVENT,
+    listener,
     signal === undefined ? undefined : { signal },
   );
 }

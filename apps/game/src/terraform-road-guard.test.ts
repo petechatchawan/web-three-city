@@ -4,7 +4,7 @@ import {
   createRoadSnapshot,
 } from '@web-three-city/road-core';
 import { createTerrainMap, planTerraformStroke } from '@web-three-city/terrain-core';
-import { WORLD_CONFIG } from '@web-three-city/world-core';
+import { WORLD_CONFIG, type CellCoord } from '@web-three-city/world-core';
 import { describe, expect, it } from 'vitest';
 import { guardTerraformPlanWithRoads } from './terraform-road-guard.js';
 
@@ -21,9 +21,9 @@ function terrain() {
   });
 }
 
-function roadsAt(x: number, z: number) {
+function roadsAt(...cells: readonly CellCoord[]) {
   const codes = new Uint8Array(WORLD_CONFIG.mapWidth * WORLD_CONFIG.mapHeight);
-  codes[z * WORLD_CONFIG.mapWidth + x] = BASIC_ROAD_CODE;
+  for (const cell of cells) codes[cell.z * WORLD_CONFIG.mapWidth + cell.x] = BASIC_ROAD_CODE;
   return createRoadSnapshot(
     {
       width: WORLD_CONFIG.mapWidth,
@@ -36,7 +36,7 @@ function roadsAt(x: number, z: number) {
 }
 
 describe('Terraform Road guard', () => {
-  it('marks the complete valid plan and Preview invalid when any affected cell has a Road', () => {
+  it('returns every sorted Road cell intersecting the final Terraform footprint', () => {
     const corePlan = planTerraformStroke(
       terrain(),
       { operation: 'raise', brushSize: 3, cells: [{ x: 8, z: 8 }] },
@@ -44,10 +44,17 @@ describe('Terraform Road guard', () => {
     );
     expect(corePlan.valid).toBe(true);
 
-    const guarded = guardTerraformPlanWithRoads(corePlan, roadsAt(9, 8));
+    const guarded = guardTerraformPlanWithRoads(
+      corePlan,
+      roadsAt({ x: 9, z: 8 }, { x: 7, z: 7 }, { x: 40, z: 40 }),
+    );
 
     expect(guarded.valid).toBe(false);
     expect(guarded.invalidReason).toBe('terraform:road-occupied');
+    expect(guarded.blockedRoadCells).toEqual([
+      { x: 7, z: 7 },
+      { x: 9, z: 8 },
+    ]);
     expect(guarded.corePlan).toBe(corePlan);
     expect(guarded.previewPlan.valid).toBe(false);
     expect(guarded.previewPlan.affectedCells).toEqual(corePlan.affectedCells);
@@ -66,6 +73,7 @@ describe('Terraform Road guard', () => {
     );
 
     expect(guarded).toMatchObject({ valid: true, invalidReason: null });
+    expect(guarded.blockedRoadCells).toEqual([]);
     expect(guarded.previewPlan).toBe(corePlan);
   });
 
@@ -77,10 +85,11 @@ describe('Terraform Road guard', () => {
     );
     expect(corePlan.valid).toBe(false);
 
-    const guarded = guardTerraformPlanWithRoads(corePlan, roadsAt(8, 8));
+    const guarded = guardTerraformPlanWithRoads(corePlan, roadsAt({ x: 8, z: 8 }));
 
     expect(guarded.valid).toBe(false);
     expect(guarded.invalidReason).toBe(corePlan.invalidReason);
+    expect(guarded.blockedRoadCells).toEqual([]);
     expect(guarded.previewPlan).toBe(corePlan);
   });
 });

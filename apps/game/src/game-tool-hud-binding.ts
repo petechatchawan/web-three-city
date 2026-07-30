@@ -36,10 +36,16 @@ export function bindGameToolHud(
   const roadEffective = requireElement<HTMLElement>(root, '[data-testid="road-effective-count"]');
   const status = requireElement<HTMLElement>(root, '[data-testid="game-status"]');
   let interactionActive = false;
+  let suppressedStatusMutations = 0;
 
   const hideMetrics = (): void => {
     terraformMetrics.hidden = true;
     roadMetrics.hidden = true;
+  };
+
+  const setCompatibilityStatus = (value: string): void => {
+    suppressedStatusMutations += 1;
+    status.textContent = value;
   };
 
   bindGameToolEvents(
@@ -86,14 +92,26 @@ export function bindGameToolHud(
           contextMessage.textContent = 'Release to apply the Road command';
         }
       } else {
+        interactionActive = false;
         contextState.textContent = detail.reason.endsWith(':no-change') ? 'No change' : 'Rejected';
         contextMessage.textContent = messageForGameReason(detail.reason);
+        if (detail.reason === 'terraform:road-occupied') {
+          setCompatibilityStatus('Terraform blocked by road');
+        } else if (detail.reason === 'terraform:no-change') {
+          setCompatibilityStatus('Terraform unchanged');
+        } else if (detail.reason.startsWith('terraform:')) {
+          setCompatibilityStatus('Terraform rejected');
+        }
       }
     },
     signal,
   );
 
   const observer = new MutationObserver(() => {
+    if (suppressedStatusMutations > 0) {
+      suppressedStatusMutations -= 1;
+      return;
+    }
     if (interactionActive) return;
     const value = status.textContent?.trim();
     if (value === undefined || value.length === 0 || value === 'Loading') return;

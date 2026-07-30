@@ -33,6 +33,7 @@ import {
   isTerraformToolMode,
   type GameToolMode,
 } from './game-tool-mode.js';
+import { dispatchGameToolEvent } from './game-tool-events.js';
 import {
   createRoadStrokeController,
   type RoadInputState,
@@ -173,6 +174,10 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
           options.config,
         ),
       );
+      dispatchGameToolEvent(
+        options.canvas,
+        Object.freeze({ type: 'terraform-state', state }),
+      );
       options.onTerraformState?.(state);
     },
   });
@@ -185,8 +190,31 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
     onPreview(plan, environment): void {
       if (plan === null || environment === null) options.roadPreview.clear();
       else options.roadPreview.show(plan, environment);
+      dispatchGameToolEvent(
+        options.canvas,
+        Object.freeze({
+          type: 'road-state',
+          state: Object.freeze({
+            mode: isRoadToolMode(mode) ? mode : null,
+            strokeActive: plan !== null,
+            previewValid: plan?.valid ?? null,
+            previewCellCount: plan?.requestedCells.length ?? 0,
+          }),
+          reason: plan?.invalidReason ?? null,
+        }),
+      );
     },
   });
+
+  const rejectTerraform = (
+    reason: GameTerraformInvalidReason | 'terraform:no-change',
+  ): void => {
+    dispatchGameToolEvent(
+      options.canvas,
+      Object.freeze({ type: 'reason', reason }),
+    );
+    options.onTerraformReject?.(reason);
+  };
 
   const tool: PrimaryPointerToolDelegate = {
     isEnabled(): boolean {
@@ -235,11 +263,7 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
       if (options.onTerraformRelease !== undefined) {
         options.onTerraformRelease(release);
       } else {
-        routeTerraformRelease(
-          release,
-          options.onTerraformCommit,
-          options.onTerraformReject ?? (() => undefined),
-        );
+        routeTerraformRelease(release, options.onTerraformCommit, rejectTerraform);
       }
     },
     cancel(pointerId: number): void {

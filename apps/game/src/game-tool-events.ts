@@ -1,6 +1,6 @@
 import type { RoadInvalidReason } from '@web-three-city/road-core';
-import type { RoadInputState } from './road-stroke-controller.js';
 import type { GameOperationReason } from './game-reason-catalog.js';
+import type { RoadInputState } from './road-stroke-controller.js';
 import type { TerraformStrokeSessionState } from './terraform-stroke-session.js';
 
 export const GAME_TOOL_EVENT = 'web-three-city:game-tool-presentation';
@@ -13,7 +13,12 @@ export type GameToolEventDetail =
       readonly state: RoadInputState;
       readonly reason: RoadInvalidReason | null;
     }
-  | { readonly type: 'reason'; readonly reason: GameOperationReason };
+  | { readonly type: 'reason'; readonly reason: GameOperationReason }
+  | {
+      readonly type: 'transaction-state';
+      readonly state: 'committing' | 'undoing';
+      readonly domain: 'terraform' | 'road' | null;
+    };
 
 export function dispatchGameToolEvent(target: EventTarget, detail: GameToolEventDetail): void {
   target.dispatchEvent(new CustomEvent<GameToolEventDetail>(GAME_TOOL_EVENT, { detail }));

@@ -23,11 +23,11 @@ import {
   type TerraformPlan,
   type WorldToolMode,
 } from '@web-three-city/terrain-core';
+import type { RoadPreviewPresentation } from '@web-three-city/road-three';
 import type {
   TerrainPresentation,
   TerraformPreviewPresentation,
 } from '@web-three-city/terrain-three';
-import type { RoadPreviewPresentation } from '@web-three-city/road-three';
 import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
 import * as THREE from 'three';
 import {
@@ -39,6 +39,11 @@ import {
   createRoadStrokeController,
   type RoadInputState,
 } from './road-stroke-controller.js';
+import {
+  guardTerraformPlanWithRoads,
+  type GameTerraformInvalidReason,
+  type GuardedTerraformPlan,
+} from './terraform-road-guard.js';
 
 export interface GameRenderViewport {
   readonly left: number;
@@ -54,6 +59,7 @@ export interface TerraformInputState {
   readonly brushSize: TerraformBrushSize;
   readonly strokeActive: boolean;
   readonly previewValid: boolean | null;
+  readonly previewInvalidReason: GameTerraformInvalidReason | null;
   readonly previewCellCount: number;
 }
 
@@ -83,6 +89,7 @@ export interface CreateGameInputOptions {
   readonly getRoadEnvironment: () => RoadPlacementEnvironment;
   readonly onSelection: (cell: CellCoord | null) => void;
   readonly onTerraformCommit: (plan: TerraformPlan) => void;
+  readonly onTerraformRejected: (reason: GameTerraformInvalidReason) => void;
   readonly onRoadPlan: (plan: RoadMutationPlan) => void;
   readonly onReset: () => void;
 }
@@ -110,9 +117,10 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
   let brushSize: TerraformBrushSize = 1;
   let terraformPointerId: number | null = null;
   let terraformBase: TerrainSnapshot | null = null;
+  let terraformRoadBase: RoadSnapshot | null = null;
   let terraformLastCell: CellCoord | null = null;
   let terraformFlattenTarget: number | undefined;
-  let terraformPlan: TerraformPlan | null = null;
+  let terraformPlan: GuardedTerraformPlan | null = null;
   const terraformCenters = new Map<string, CellCoord>();
 
   const refreshTerrainObjects = (): void => {
@@ -145,6 +153,7 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
   const clearTerraformStroke = (): void => {
     terraformPointerId = null;
     terraformBase = null;
+    terraformRoadBase = null;
     terraformLastCell = null;
     terraformFlattenTarget = undefined;
     terraformPlan = null;
@@ -153,11 +162,16 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
   };
 
   const rebuildTerraformPlan = (): void => {
-    if (terraformBase === null || !isTerraformToolMode(mode) || terraformCenters.size === 0) {
+    if (
+      terraformBase === null ||
+      terraformRoadBase === null ||
+      !isTerraformToolMode(mode) ||
+      terraformCenters.size === 0
+    ) {
       return;
     }
     const cells = [...terraformCenters.values()];
-    const plan =
+    const corePlan =
       mode === 'flatten'
         ? planTerraformStroke(
             terraformBase,
@@ -179,8 +193,8 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
             },
             options.config,
           );
-    terraformPlan = plan;
-    options.preview.show(plan);
+    terraformPlan = guardTerraformPlanWithRoads(corePlan, terraformRoadBase);
+    options.preview.show(terraformPlan.previewPlan);
   };
 
   const addTerraformCell = (cell: CellCoord): void => {
@@ -224,6 +238,7 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
 
       terraformPointerId = pointerId;
       terraformBase = options.getTerrainSnapshot();
+      terraformRoadBase = options.getRoadSnapshot();
       terraformLastCell = null;
       terraformPlan = null;
       terraformCenters.clear();
@@ -261,7 +276,10 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
       if (cell !== null) addTerraformCell(cell);
       const finalPlan = terraformPlan;
       clearTerraformStroke();
-      if (finalPlan?.valid === true) options.onTerraformCommit(finalPlan);
+      if (finalPlan?.valid === true) options.onTerraformCommit(finalPlan.corePlan);
+      else if (finalPlan?.invalidReason === 'terraform:road-occupied') {
+        options.onTerraformRejected(finalPlan.invalidReason);
+      }
     },
     cancel(pointerId: number): void {
       roadController.cancel(pointerId);
@@ -331,7 +349,8 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
         brushSize,
         strokeActive: terraformPointerId !== null,
         previewValid: terraformPlan?.valid ?? null,
-        previewCellCount: terraformPlan?.affectedCells.length ?? 0,
+        previewInvalidReason: terraformPlan?.invalidReason ?? null,
+        previewCellCount: terraformPlan?.corePlan.affectedCells.length ?? 0,
       };
     },
     getRoadState(): RoadInputState {

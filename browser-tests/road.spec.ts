@@ -63,7 +63,8 @@ function interiorCells(): readonly Readonly<{ x: number; z: number }>[] {
   const centerZ = WORLD_CONFIG.mapHeight / 2;
   return cells.sort(
     (first, second) =>
-      (first.x - centerX) ** 2 + (first.z - centerZ) ** 2 -
+      (first.x - centerX) ** 2 +
+        (first.z - centerZ) ** 2 -
         ((second.x - centerX) ** 2 + (second.z - centerZ) ** 2) ||
       first.z - second.z ||
       first.x - second.x,
@@ -253,7 +254,7 @@ test('Bulldoze updates topology and tagged Undo restores the Road only', async (
   expect(bulldozed.road.bulldozeCount).toBe(built.road.bulldozeCount + 1);
   expect(bulldozed.water.sourceTerrainRevision).toBe(built.water.sourceTerrainRevision);
 
-  await page.getByRole('button', { name: 'Undo Terraform' }).click();
+  await page.getByRole('button', { name: 'Undo latest world change' }).click();
   await expect(page.getByTestId('game-status')).toHaveText('Road undone');
   const undone = await readEvidence(page);
   expect(undone.road.occupiedCellCount).toBe(built.road.occupiedCellCount);
@@ -286,17 +287,25 @@ test('second touch cancels Road Preview and transfers to camera gesture ownershi
   expect((await readEvidence(page)).activePointerCount).toBe(0);
 });
 
-test('Terraform touching one Road cell rejects the whole transaction', async ({ page }) => {
+test('Terraform touching one Road cell invalidates Preview and rejects the whole transaction', async ({ page }) => {
   await openGame(page);
   const cell = findRoadAndRaiseCell();
   await buildRoadTap(page, cell);
   const before = await readEvidence(page);
   const point = await clickTerrainCell(page, cell);
   await page.getByRole('button', { name: 'Raise' }).click();
-  await page.mouse.click(point.x, point.y);
+
+  await page.mouse.move(point.x, point.y);
+  await page.mouse.down();
+  const preview = await readEvidence(page);
+  expect(preview.terraform.previewValid).toBe(false);
+  expect(preview.terraform.previewInvalidReason).toBe('terraform:road-occupied');
+  expect(preview.terraform.previewRootCount).toBe(1);
+  await page.mouse.up();
+
   await expect(page.getByTestId('game-status')).toHaveText('Terraform blocked by road');
   const after = await readEvidence(page);
-
+  expect(after.terraform.previewRootCount).toBe(0);
   expect(after.terraform.committedTerrainRevision).toBe(
     before.terraform.committedTerrainRevision,
   );
@@ -310,7 +319,7 @@ test('WorldSaveV1 restores Roads and legacy Terrain saves migrate to empty Roads
   await openGame(page);
   const cell = findRoadLine(1)[0]!;
   await buildRoadTap(page, cell);
-  await page.getByRole('button', { name: 'Save terrain' }).click();
+  await page.getByRole('button', { name: 'Save world' }).click();
   const worldSave = await page.evaluate((key) => localStorage.getItem(key), WORLD_SAVE_KEY);
   expect(worldSave).not.toBeNull();
 
@@ -318,7 +327,7 @@ test('WorldSaveV1 restores Roads and legacy Terrain saves migrate to empty Roads
   await page.getByRole('button', { name: 'Bulldoze Road' }).click();
   await page.mouse.click(point.x, point.y);
   expect((await readEvidence(page)).road.occupiedCellCount).toBe(0);
-  await page.getByRole('button', { name: 'Load terrain' }).click();
+  await page.getByRole('button', { name: 'Load world' }).click();
   await expect(page.getByTestId('game-status')).toHaveText('Loaded');
   expect((await readEvidence(page)).road.occupiedCellCount).toBe(1);
 
@@ -333,7 +342,7 @@ test('WorldSaveV1 restores Roads and legacy Terrain saves migrate to empty Roads
       legacy: JSON.stringify(encodeTerrainSaveV1(BASE_TERRAIN)),
     },
   );
-  await page.getByRole('button', { name: 'Load terrain' }).click();
+  await page.getByRole('button', { name: 'Load world' }).click();
   await expect(page.getByTestId('game-status')).toHaveText('Loaded');
   const migrated = await readEvidence(page);
   expect(migrated.road.occupiedCellCount).toBe(0);

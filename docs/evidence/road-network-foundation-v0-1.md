@@ -5,107 +5,141 @@
 **Branch:** `agent/road-network-foundation-v0-1`  
 **Verification policy:** Manual/local; automatic GitHub Actions disabled by owner decision  
 **Deployment policy:** Manual Vercel; Git-triggered deployment disabled  
-**Merge status:** Conditionally authorized by owner; not executed while final dependency and exact-head WebGL gates remain open  
-**Owner visual acceptance:** Source-exact responsive UI/control matrix passed; exact-head WebGL application rendering remains pending
+**Merge status:** Open; not authorized for final merge until Web Interaction & Tooling Conformance v0.1 and all exact-head gates pass
 
-## Implemented contract inventory
+## 1. Evidence interpretation
 
-- Terrain exposes immutable cell-surface profiles; Terrain and Water do not import Road modules.
-- `road-core` owns immutable Road snapshots, topology derivation, placement policy, mutation plans, stale-plan fencing, receipts, persistence, and legacy empty-Road migration.
-- `road-three` owns deterministic procedural Road geometry, Three.js adaptation, committed chunk presentation, valid/invalid Preview presentation, atomic replacement, and disposal.
-- Game composition owns Road input routing, Road/Toolbar UI state, Terrain-over-Road rejection, tagged one-level world Undo, world Save/Load, context restoration, and cross-system diagnostics.
-- Terrain Lab contains the locked 24-fixture Road registry covering topology, Ramp alignment, invalid placement, wet rejection, and chunk-boundary continuity.
-- Browser acceptance specifications cover desktop tap/drag, touch cancellation, Build/Bulldoze, Water non-rebuild, Terraform rejection, Undo, persistence, context restoration, fixture diagnostics, and screenshot generation.
+This ledger contains two distinct evidence generations:
 
-## Manual verification completed
+1. **Historical Road Network Foundation baseline evidence** produced before the Web Interaction & Tooling Conformance v0.1 amendment.
+2. **Current conformance implementation evidence** for the amendment approved on 2026-07-30.
 
-Verification was performed on 2026-07-30 after the owner disabled automatic GitHub Actions.
+Historical results remain useful regression evidence, but they do **not** prove the current PR head passes typecheck, tests, build, or WebGL acceptance after the interaction, Terraform planning, preview, HUD, and browser-test changes.
 
-- Core and `road-three` TypeScript validation: **PASS**
-- Game integration TypeScript validation: **PASS**
-- Targeted core and geometry checks: **11/11 PASS**
-- Targeted Game integration checks: **7/7 PASS**
-- Original targeted checks: **18/18 PASS**
-- Fresh production Road mesh-data verification after final review: **5/5 PASS**
-- Source-exact desktop/mobile UI and control verification: **30/30 PASS**
-- Desktop viewport: **1440 × 900**, expanded controls, panel fully within viewport
-- Mobile viewport: **390 × 844**, compact controls, panel fully within viewport
+## 2. Historical Road baseline evidence
 
-The targeted checks cover:
+The earlier Road foundation review recorded:
 
-- immutable snapshots and defensive copies
-- Flat and aligned single-axis Ramp placement policy
-- wet, incoherent-world, duplicate, no-change, and stale-plan rejection
-- connectivity derivation and mutation receipts
-- Road serialization round-trip and malformed data rejection
-- deterministic flat and sloped geometry
-- shared Road edge continuity and merged mesh index offsets
-- geometry adaptation, committed chunk rebuilding, disposal, and invalid Preview cleanup
-- Road placement environment revision fencing
-- continuous Road Preview, pointer cancellation, and stale-pointer fencing
-- immediate invalid Terraform Preview when affected cells overlap Road cells
-- one-level tagged world Undo with monotonic world revision
-- desktop/mobile responsive control layout
-- Road/Terraform tool activation and mode-aware brush visibility
-- world-level Save, Load, and Undo accessible names
-- quality control and Grid toggle state
+- original targeted checks: **18/18 PASS**;
+- fresh Road mesh-data checks: **5/5 PASS**;
+- source-exact responsive UI/control checks: **30/30 PASS**;
+- desktop review viewport: **1440 × 900**;
+- responsive review viewport: **390 × 844**;
+- correction of obsolete world-action labels in commit `3c9940444bb71ac2db598be188f250e4da98f3a0`.
 
-## Final-review correction
+Those checks covered the pre-amendment Road snapshot, connectivity, placement, geometry, save/load, Undo, input, UI, and presentation baseline. The screenshots `road-ui-desktop.png` and `road-ui-mobile.png` are historical artifacts and no longer represent the current desktop-first HUD implementation.
 
-The final review found that `apps/game/src/main.ts` replaced the world-level action labels rendered by `game-ui.ts` with obsolete Terraform-only labels. This would make current browser locators for `Save world`, `Load world`, and `Undo latest world change` fail. Commit `3c9940444bb71ac2db598be188f250e4da98f3a0` removed those overrides and preserves the canonical world-level labels.
+## 3. Current conformance implementation inventory
 
-## Dependency gate
+The current branch now contains source and regression-test changes for Tasks 1–10 of:
 
-The package manifests require these workspace links that are not yet represented in the committed lockfile importers:
+`docs/superpowers/plans/2026-07-30-web-interaction-tooling-conformance-v0-1.md`
 
-- `apps/game` → `@web-three-city/road-three`
-- `apps/terrain-lab` → `@web-three-city/road-core`
-- `apps/terrain-lab` → `@web-three-city/road-three`
+Implemented source areas include:
 
-The existing `packages:` and `snapshots:` resolution blocks are valid and must remain unchanged. A real `pnpm install` with repository pnpm `10.13.1` is still required to generate and validate the three importer entries. The verification sandbox could not download the official pnpm executable because outbound DNS and release-asset downloads are blocked. This gate is therefore **PENDING**, not passed by manual file editing.
+- one-step Raise, Lower, and Flatten planning from an immutable pointer-down Terrain baseline;
+- bounded automatic support propagation with explicit core/support plan data;
+- projected Water and shoreline comparison without authoritative Water mutation;
+- exhaustive product reason catalog;
+- exact blocked-Road cell reporting;
+- per-stamp Terraform acceptance, rejection, no-change, cancellation, and release routing;
+- prevention of invalid or Road-blocked releases entering authoritative Terrain mutation;
+- semantic Terraform preview layers for accepted core, support, rejected stamp, no-change, and projected Water;
+- non-color rejected Terraform markers;
+- non-color invalid Road markers that follow Terrain ramps;
+- desktop-first/map-first HUD hierarchy;
+- live contextual Terraform and Road counts/reasons;
+- Close Tool, keyboard shortcuts, visibility cancellation, and page-exit disposal;
+- exact-head Playwright conformance scenarios;
+- disposal of the Road invalid-marker material in both Road presentation owners.
 
-## Automation and deployment policy
+## 4. Verification performed for the amendment
 
-- `.github/workflows/ci.yml` was removed; no GitHub Actions workflow runs automatically.
-- Vercel Git deployment remains disabled through `vercel.json`.
-- Deployment is performed manually only.
-- `.npmrc` sets `frozen-lockfile=false` so a manual install can refresh workspace importer links before a manual build or deployment.
-- The original package-resolution block in `pnpm-lock.yaml` remains preserved.
+The constrained execution environment has no local repository checkout and cannot install repository dependencies. Within that limitation, the following checks were performed:
 
-## Verification boundaries
+- exact-source TypeScript harnesses for Tasks 1–4: **PASS**;
+- focused runtime assertions for one-step Terraform planning and support propagation: **PASS**;
+- focused projected-Water transition and immutability assertions: **PASS**;
+- guarded Terraform blocked-cell and exhaustive-reason assertions: **PASS**;
+- per-stamp session assertions for accepted → rejected → accepted, immutable baseline, no-change, release, and cancellation: **PASS**;
+- source audit found and fixed a missing disposal call for the newly added Road invalid-marker material;
+- GitHub combined status for the implementation head reported no checks because automatic CI is disabled.
 
-The responsive UI/control screenshots and Road mesh-data tests verify the reviewed production UI structure, control state transitions, and Road geometry data. They do not replace an exact-head build of the complete Three.js application. The following remain open until dependencies can be installed:
+These checks are partial evidence only. They do not replace repository Vitest, TypeScript 6.0.3, Vite, or Playwright execution.
 
-- real `pnpm install` and generated lockfile importer validation
-- exact-head complete application build
-- exact-head WebGL Road rendering and interaction run on desktop/mobile emulation
+## 5. Dependency and workspace blocker
 
-Automatic protected Vercel Preview remains outside the completion gate under the owner-selected manual deployment policy.
+The repository requires:
 
-## Manual screenshot inventory produced during final review
+```text
+Node >=22.0.0
+pnpm 10.13.1
+```
 
-- `road-ui-desktop.png`
-- `road-ui-mobile.png`
+The execution environment currently has Node `v22.16.0` and Corepack `0.32.0`, but:
 
-No repository screenshot hash is claimed because these review artifacts were produced outside the repository workspace and were not committed.
+- no `pnpm` executable is installed;
+- no local `web-three-city` checkout is mounted;
+- `corepack prepare pnpm@10.13.1 --activate` fails while requesting `https://registry.npmjs.org/pnpm/-/pnpm-10.13.1.tgz`;
+- no usable offline pnpm cache is available.
 
-## Final acceptance checklist
+Therefore `pnpm install` was not run and no generated lockfile claim is made.
 
-- [x] Written specification approved
+The lockfile still requires a real pnpm-generated importer refresh for:
+
+- `apps/game` → `@web-three-city/road-three`;
+- `apps/terrain-lab` → `@web-three-city/road-core`;
+- `apps/terrain-lab` → `@web-three-city/road-three`.
+
+Manual reconstruction of integrity-bearing package or snapshot blocks is prohibited.
+
+## 6. Exact-head gates still required
+
+Run from a clean local checkout of `agent/road-network-foundation-v0-1`:
+
+```bash
+corepack enable
+corepack prepare pnpm@10.13.1 --activate
+pnpm install
+pnpm check
+pnpm --filter @web-three-city/game build
+pnpm --filter @web-three-city/terrain-lab build
+pnpm exec playwright install chromium
+pnpm test:browser
+git diff --check
+git status --short
+```
+
+Verification must record:
+
+- exact pushed HEAD SHA;
+- generated `pnpm-lock.yaml` importer diff;
+- focused and repository-wide test counts;
+- TypeScript and build exit codes;
+- Playwright test count and failures, if any;
+- desktop `1440 × 900` screenshots and interaction observations;
+- responsive `390 × 844` screenshots and compatibility observations;
+- preview root/layer cleanup evidence;
+- any remaining limitation.
+
+## 7. Current acceptance checklist
+
+- [x] Web Interaction & Tooling Conformance v0.1 specification approved
 - [x] TDD implementation plan approved
-- [x] Tasks 1–10 source implementation present on the PR branch
-- [x] Unit and browser acceptance specifications present
-- [x] Deterministic Road geometry hash contracts present
-- [x] Core and `road-three` TypeScript validation passed
-- [x] Game integration TypeScript validation passed
-- [x] Targeted manual checks passed, 18/18
-- [x] Fresh Road mesh-data checks passed, 5/5
-- [x] Source-exact desktop/mobile UI and control checks passed, 30/30
-- [x] Obsolete world-action aria-label overrides removed
-- [x] Automatic GitHub Actions removed
-- [x] Automatic Vercel Git deployment disabled
-- [x] Conditional owner merge authorization received
-- [ ] Real `pnpm install` lockfile refresh
-- [ ] Exact-head complete application build
-- [ ] Exact-head WebGL desktop/mobile Road visual and interaction acceptance
+- [x] Inline Execution selected
+- [x] Tasks 1–10 source changes and regression specifications present
+- [x] Invalid Terraform commit route removed from normal release routing
+- [x] Semantic Terraform preview contracts and object names present
+- [x] Non-color Road invalid marker present
+- [x] Desktop-first HUD and responsive compatibility rules present
+- [x] Historical Road baseline evidence retained and labelled as historical
+- [ ] Real `pnpm install` and generated lockfile refresh
+- [ ] Current exact-head TypeScript 6.0.3 typecheck
+- [ ] Current exact-head focused and repository-wide Vitest execution
+- [ ] Current exact-head Game and Terrain Lab builds
+- [ ] Current exact-head Playwright/WebGL suite
+- [ ] Current desktop visual acceptance
+- [ ] Current responsive compatibility smoke
+- [ ] Exact-head evidence counts and screenshots recorded
+- [ ] Final owner merge authorization
 - [ ] Merge execution

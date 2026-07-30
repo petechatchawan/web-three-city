@@ -16,8 +16,6 @@ import type {
 } from '@web-three-city/road-core';
 import {
   allChunkCoords,
-  planTerraformStroke,
-  rasterizeTerraformCellLine,
   type TerrainSnapshot,
   type TerraformBrushSize,
   type TerraformPlan,
@@ -39,11 +37,12 @@ import {
   createRoadStrokeController,
   type RoadInputState,
 } from './road-stroke-controller.js';
+import type { GameTerraformInvalidReason } from './terraform-road-guard.js';
 import {
-  guardTerraformPlanWithRoads,
-  type GameTerraformInvalidReason,
-  type GuardedTerraformPlan,
-} from './terraform-road-guard.js';
+  createTerraformStrokeSession,
+  type TerraformStrokeRelease,
+  type TerraformStrokeSessionState,
+} from './terraform-stroke-session.js';
 
 export interface GameRenderViewport {
   readonly left: number;
@@ -61,6 +60,10 @@ export interface TerraformInputState {
   readonly previewValid: boolean | null;
   readonly previewInvalidReason: GameTerraformInvalidReason | null;
   readonly previewCellCount: number;
+  readonly acceptedStampCount: number;
+  readonly supportCellCount: number;
+  readonly currentStampKind: TerraformStrokeSessionState['currentStamp']['kind'];
+  readonly flattenTargetLevel: number | null;
 }
 
 export interface GameInput {
@@ -88,17 +91,28 @@ export interface CreateGameInputOptions {
   readonly getRoadSnapshot: () => RoadSnapshot;
   readonly getRoadEnvironment: () => RoadPlacementEnvironment;
   readonly onSelection: (cell: CellCoord | null) => void;
-  readonly onTerraformCommit: (plan: TerraformPlan) => void;
+  readonly onTerraformRelease: (release: TerraformStrokeRelease) => void;
+  readonly onTerraformState: (state: TerraformStrokeSessionState) => void;
   readonly onRoadPlan: (plan: RoadMutationPlan) => void;
   readonly onReset: () => void;
 }
 
-function cellKey(cell: CellCoord): string {
-  return `${cell.x}:${cell.z}`;
-}
-
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value));
+}
+
+export function routeTerraformRelease(
+  release: TerraformStrokeRelease,
+  commit: (plan: TerraformPlan) => void,
+  reject: (reason: GameTerraformInvalidReason | 'terraform:no-change') => void,
+): void {
+  if (release.kind === 'commit') {
+    commit(release.plan);
+  } else if (release.kind === 'rejected') {
+    reject(release.reason);
+  } else if (release.kind === 'no-change') {
+    reject('terraform:no-change');
+  }
 }
 
 export function createGameInput(options: CreateGameInputOptions): GameInput {
@@ -114,13 +128,6 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
   };
   let mode: GameToolMode = 'navigate';
   let brushSize: TerraformBrushSize = 1;
-  let terraformPointerId: number | null = null;
-  let terraformBase: TerrainSnapshot | null = null;
-  let terraformRoadBase: RoadSnapshot | null = null;
-  let terraformLastCell: CellCoord | null = null;
-  let terraformFlattenTarget: number | undefined;
-  let terraformPlan: GuardedTerraformPlan | null = null;
-  const terraformCenters = new Map<string, CellCoord>();
 
   const refreshTerrainObjects = (): void => {
     terrainObjects = allChunkCoords(options.config).map((chunk) =>
@@ -149,67 +156,25 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
     });
   };
 
-  const clearTerraformStroke = (): void => {
-    terraformPointerId = null;
-    terraformBase = null;
-    terraformRoadBase = null;
-    terraformLastCell = null;
-    terraformFlattenTarget = undefined;
-    terraformPlan = null;
-    terraformCenters.clear();
-    options.preview.clear();
-  };
-
-  const rebuildTerraformPlan = (): void => {
-    if (
-      terraformBase === null ||
-      terraformRoadBase === null ||
-      !isTerraformToolMode(mode) ||
-      terraformCenters.size === 0
-    ) {
-      return;
-    }
-    const cells = [...terraformCenters.values()];
-    const corePlan =
-      mode === 'flatten'
-        ? planTerraformStroke(
-            terraformBase,
-            {
-              operation: 'flatten',
-              brushSize,
-              cells,
-              flattenTargetLevel:
-                terraformFlattenTarget ?? options.config.minHeightLevel,
-            },
-            options.config,
-          )
-        : planTerraformStroke(
-            terraformBase,
-            {
-              operation: mode,
-              brushSize,
-              cells,
-            },
-            options.config,
-          );
-    terraformPlan = guardTerraformPlanWithRoads(corePlan, terraformRoadBase);
-    options.preview.show(terraformPlan.previewPlan);
-  };
-
-  const addTerraformCell = (cell: CellCoord): void => {
-    const previousSize = terraformCenters.size;
-    if (terraformLastCell === null) {
-      terraformCenters.set(cellKey(cell), { ...cell });
+  const renderLegacyTerraformPreview = (state: TerraformStrokeSessionState): void => {
+    if (state.currentStamp.kind === 'rejected' || state.currentStamp.kind === 'no-change') {
+      options.preview.show(state.currentStamp.preview.previewPlan);
+    } else if (state.acceptedPlan !== null) {
+      options.preview.show(state.acceptedPlan);
     } else {
-      for (const traversed of rasterizeTerraformCellLine(terraformLastCell, cell)) {
-        terraformCenters.set(cellKey(traversed), { ...traversed });
-      }
-    }
-    terraformLastCell = { ...cell };
-    if (terraformCenters.size !== previousSize || terraformPlan === null) {
-      rebuildTerraformPlan();
+      options.preview.clear();
     }
   };
+
+  const terraformSession = createTerraformStrokeSession({
+    config: options.config,
+    getTerrainSnapshot: options.getTerrainSnapshot,
+    getRoadSnapshot: options.getRoadSnapshot,
+    onState(state): void {
+      renderLegacyTerraformPreview(state);
+      options.onTerraformState(state);
+    },
+  });
 
   const roadController = createRoadStrokeController({
     config: options.config,
@@ -233,31 +198,24 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
       const cell = { x: result.cellX, z: result.cellZ };
 
       if (isRoadToolMode(mode)) return roadController.begin(pointerId, cell);
-      if (!isTerraformToolMode(mode) || terraformPointerId !== null) return false;
+      if (!isTerraformToolMode(mode)) return false;
 
-      terraformPointerId = pointerId;
-      terraformBase = options.getTerrainSnapshot();
-      terraformRoadBase = options.getRoadSnapshot();
-      terraformLastCell = null;
-      terraformPlan = null;
-      terraformCenters.clear();
-      terraformFlattenTarget =
-        mode === 'flatten'
-          ? clamp(
-              Math.round(result.worldPoint.y / options.config.heightStep),
-              options.config.minHeightLevel,
-              options.config.maxHeightLevel,
-            )
-          : undefined;
-      addTerraformCell(cell);
-      return true;
+      if (mode === 'flatten') {
+        const target = clamp(
+          Math.floor(result.worldPoint.y / options.config.heightStep + 0.5),
+          options.config.minHeightLevel,
+          options.config.maxHeightLevel,
+        );
+        return terraformSession.begin(pointerId, mode, brushSize, cell, target);
+      }
+      return terraformSession.begin(pointerId, mode, brushSize, cell);
     },
     move(pointerId: number, point: ScreenPoint): void {
       const result = pick(point);
       if (result === null) return;
       const cell = { x: result.cellX, z: result.cellZ };
       if (isRoadToolMode(mode)) roadController.move(pointerId, cell);
-      else if (pointerId === terraformPointerId) addTerraformCell(cell);
+      else if (isTerraformToolMode(mode)) terraformSession.move(pointerId, cell);
     },
     end(pointerId: number, point: ScreenPoint): void {
       const result = pick(point);
@@ -271,23 +229,16 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
         if (finalPlan !== null) options.onRoadPlan(finalPlan);
         return;
       }
-      if (pointerId !== terraformPointerId) return;
-      if (cell !== null) addTerraformCell(cell);
-      const finalPlan = terraformPlan;
-      clearTerraformStroke();
-      if (finalPlan?.valid === true) {
-        options.onTerraformCommit(finalPlan.corePlan);
-      } else if (finalPlan?.invalidReason === 'terraform:road-occupied') {
-        options.onTerraformCommit(finalPlan.corePlan);
-      }
+      if (!isTerraformToolMode(mode)) return;
+      options.onTerraformRelease(terraformSession.end(pointerId, cell));
     },
     cancel(pointerId: number): void {
       roadController.cancel(pointerId);
-      if (pointerId === terraformPointerId) clearTerraformStroke();
+      terraformSession.cancel(pointerId);
     },
     cancelAll(): void {
       roadController.cancelAll();
-      if (terraformPointerId !== null || terraformPlan !== null) clearTerraformStroke();
+      terraformSession.cancelAll();
     },
   };
 
@@ -310,7 +261,7 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
   const clearAllSessions = (): void => {
     binding?.clearActiveSession();
     roadController.cancelAll();
-    clearTerraformStroke();
+    terraformSession.cancelAll();
   };
 
   return {
@@ -344,13 +295,36 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
       brushSize = value;
     },
     getTerraformState(): TerraformInputState {
+      const state = terraformSession.getState();
+      const previewInvalidReason =
+        state.currentStamp.kind === 'rejected'
+          ? state.currentStamp.reason
+          : state.currentStamp.kind === 'no-change'
+            ? 'terraform:no-change'
+            : null;
+      const previewValid =
+        state.currentStamp.kind === 'accepted'
+          ? true
+          : state.currentStamp.kind === 'rejected'
+            ? false
+            : state.acceptedPlan === null
+              ? null
+              : true;
+      const previewCellCount =
+        state.currentStamp.kind === 'rejected' || state.currentStamp.kind === 'no-change'
+          ? state.currentStamp.preview.corePlan.affectedCells.length
+          : (state.acceptedPlan?.affectedCells.length ?? 0);
       return {
         mode: isRoadToolMode(mode) ? 'navigate' : mode,
         brushSize,
-        strokeActive: terraformPointerId !== null,
-        previewValid: terraformPlan?.valid ?? null,
-        previewInvalidReason: terraformPlan?.invalidReason ?? null,
-        previewCellCount: terraformPlan?.corePlan.affectedCells.length ?? 0,
+        strokeActive: state.strokeActive,
+        previewValid,
+        previewInvalidReason,
+        previewCellCount,
+        acceptedStampCount: state.acceptedAnchors.length,
+        supportCellCount: state.acceptedPlan?.supportCells.length ?? 0,
+        currentStampKind: state.currentStamp.kind,
+        flattenTargetLevel: state.flattenTargetLevel,
       };
     },
     getRoadState(): RoadInputState {
@@ -363,7 +337,8 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
       binding?.dispose();
       binding = null;
       roadController.cancelAll();
-      clearTerraformStroke();
+      terraformSession.cancelAll();
+      options.preview.clear();
       terrainObjects = [];
     },
   };

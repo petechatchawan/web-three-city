@@ -35,6 +35,14 @@ export function bindGameToolHud(
   const roadRequested = requireElement<HTMLElement>(root, '[data-testid="road-requested-count"]');
   const roadEffective = requireElement<HTMLElement>(root, '[data-testid="road-effective-count"]');
   const status = requireElement<HTMLElement>(root, '[data-testid="game-status"]');
+  const mutationButtons = [
+    '[data-action="tool-raise"]',
+    '[data-action="tool-lower"]',
+    '[data-action="tool-flatten"]',
+    '[data-action="tool-road-build"]',
+    '[data-action="tool-road-bulldoze"]',
+  ].map((selector) => requireElement<HTMLButtonElement>(root, selector));
+  const undoButton = requireElement<HTMLButtonElement>(root, '[data-action="undo"]');
   let interactionActive = false;
   let suppressedStatusMutations = 0;
 
@@ -46,6 +54,11 @@ export function bindGameToolHud(
   const setCompatibilityStatus = (value: string): void => {
     suppressedStatusMutations += 1;
     status.textContent = value;
+  };
+
+  const setMutationBlocked = (blocked: boolean): void => {
+    for (const button of mutationButtons) button.disabled = blocked;
+    if (blocked) undoButton.disabled = true;
   };
 
   bindGameToolEvents(
@@ -115,8 +128,10 @@ export function bindGameToolHud(
     if (interactionActive) return;
     const value = status.textContent?.trim();
     if (value === undefined || value.length === 0 || value === 'Loading') return;
+    const blocked = recoveryStatus(value);
     hideMetrics();
-    contextState.textContent = recoveryStatus(value) ? 'Recovery required' : 'Ready';
+    setMutationBlocked(blocked);
+    contextState.textContent = blocked ? 'Recovery required' : 'Ready';
     contextMessage.textContent = value;
   });
   observer.observe(status, { childList: true, characterData: true, subtree: true });

@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { bindGameToolCancel } from './game-tool-events.js';
 import { bindGameToolHud } from './game-tool-hud-binding.js';
 import { renderGameUi } from './game-ui.js';
 
@@ -9,15 +10,21 @@ function flushMutationObserver(): Promise<void> {
 }
 
 describe('Game HUD recovery fencing', () => {
-  it('blocks mutation tools after an unsafe status and re-enables them after Load succeeds', async () => {
+  it('cancels mutation mode, blocks tools, and re-enables them after Load succeeds', async () => {
     const root = document.createElement('div');
     const ui = renderGameUi(root);
     const controller = new AbortController();
+    const cancel = vi.fn();
+    bindGameToolCancel(ui.canvas, cancel, controller.signal);
     bindGameToolHud(root, ui.canvas, controller.signal);
+    ui.navigateButton.addEventListener('click', () => ui.setToolMode('navigate'));
+    ui.setToolMode('raise');
 
     ui.setStatus('World update failed');
     await flushMutationObserver();
 
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(root.querySelector('[data-testid="active-tool"]')?.textContent).toBe('Navigate');
     expect(ui.raiseButton.disabled).toBe(true);
     expect(ui.lowerButton.disabled).toBe(true);
     expect(ui.flattenButton.disabled).toBe(true);

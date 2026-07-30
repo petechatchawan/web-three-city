@@ -207,7 +207,7 @@ test('invalid Road preview exposes a non-color marker and reason', async ({ page
   await page.mouse.up();
 });
 
-test('Escape clears an active preview and returns to Navigate without mutation', async ({ page }) => {
+test('Escape cancels a preview before closing the active tool', async ({ page }) => {
   await openGame(page);
   const line = findAcceptedThenRoadBlockedLine();
   const point = await clickTerrainCell(page, line.start);
@@ -218,9 +218,14 @@ test('Escape clears an active preview and returns to Navigate without mutation',
   expect((await readEvidence(page)).terraform.previewRootCount).toBe(1);
 
   await page.keyboard.press('Escape');
-  const after = await readEvidence(page);
-  expect(after.terraform.previewRootCount).toBe(0);
-  expect(after.terraform.committedTerrainRevision).toBe(before.terraform.committedTerrainRevision);
+  const afterCancel = await readEvidence(page);
+  expect(afterCancel.terraform.previewRootCount).toBe(0);
+  expect(afterCancel.terraform.committedTerrainRevision).toBe(
+    before.terraform.committedTerrainRevision,
+  );
+  await expect(page.getByTestId('active-tool')).toHaveText('Raise');
+
+  await page.keyboard.press('Escape');
   await expect(page.getByTestId('active-tool')).toHaveText('Navigate');
 });
 

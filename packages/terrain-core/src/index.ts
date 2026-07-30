@@ -32,6 +32,8 @@ export type {
   WorldToolMode,
 } from './terraform-contracts.js';
 export { commitTerraformPlan, planTerraformStroke } from './terraform-plan.js';
+export { propagateTerraformSupport } from './terraform-support-propagation.js';
+export type { TerraformSupportResult } from './terraform-support-propagation.js';
 export { TerraformUndoStore } from './terraform-undo-store.js';
 export { CELL_TRIANGLES, selectTerrainDiagonal } from './topology.js';
 export type { TerrainCorner, TerrainCorners, TerrainDiagonal } from './topology.js';

@@ -91,8 +91,12 @@ export interface CreateGameInputOptions {
   readonly getRoadSnapshot: () => RoadSnapshot;
   readonly getRoadEnvironment: () => RoadPlacementEnvironment;
   readonly onSelection: (cell: CellCoord | null) => void;
-  readonly onTerraformRelease: (release: TerraformStrokeRelease) => void;
-  readonly onTerraformState: (state: TerraformStrokeSessionState) => void;
+  readonly onTerraformCommit: (plan: TerraformPlan) => void;
+  readonly onTerraformRelease?: (release: TerraformStrokeRelease) => void;
+  readonly onTerraformState?: (state: TerraformStrokeSessionState) => void;
+  readonly onTerraformReject?: (
+    reason: GameTerraformInvalidReason | 'terraform:no-change',
+  ) => void;
   readonly onRoadPlan: (plan: RoadMutationPlan) => void;
   readonly onReset: () => void;
 }
@@ -172,7 +176,7 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
     getRoadSnapshot: options.getRoadSnapshot,
     onState(state): void {
       renderLegacyTerraformPreview(state);
-      options.onTerraformState(state);
+      options.onTerraformState?.(state);
     },
   });
 
@@ -230,7 +234,16 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
         return;
       }
       if (!isTerraformToolMode(mode)) return;
-      options.onTerraformRelease(terraformSession.end(pointerId, cell));
+      const release = terraformSession.end(pointerId, cell);
+      if (options.onTerraformRelease !== undefined) {
+        options.onTerraformRelease(release);
+      } else {
+        routeTerraformRelease(
+          release,
+          options.onTerraformCommit,
+          options.onTerraformReject ?? (() => undefined),
+        );
+      }
     },
     cancel(pointerId: number): void {
       roadController.cancel(pointerId);

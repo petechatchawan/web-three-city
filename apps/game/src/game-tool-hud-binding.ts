@@ -1,4 +1,4 @@
-import { bindGameToolEvents } from './game-tool-events.js';
+import { dispatchGameToolCancel, bindGameToolEvents } from './game-tool-events.js';
 import { messageForGameReason } from './game-reason-catalog.js';
 
 function requireElement<T extends Element>(root: ParentNode, selector: string): T {
@@ -35,6 +35,7 @@ export function bindGameToolHud(
   const roadRequested = requireElement<HTMLElement>(root, '[data-testid="road-requested-count"]');
   const roadEffective = requireElement<HTMLElement>(root, '[data-testid="road-effective-count"]');
   const status = requireElement<HTMLElement>(root, '[data-testid="game-status"]');
+  const navigateButton = requireElement<HTMLButtonElement>(root, '[data-action="tool-navigate"]');
   const mutationButtons = [
     '[data-action="tool-raise"]',
     '[data-action="tool-lower"]',
@@ -131,6 +132,10 @@ export function bindGameToolHud(
     const blocked = recoveryStatus(value);
     hideMetrics();
     setMutationBlocked(blocked);
+    if (blocked) {
+      dispatchGameToolCancel(canvas);
+      navigateButton.click();
+    }
     contextState.textContent = blocked ? 'Recovery required' : 'Ready';
     contextMessage.textContent = value;
   });

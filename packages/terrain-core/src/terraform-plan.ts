@@ -2,7 +2,6 @@ import {
   type CellCoord,
   type GridVertexCoord,
   type WorldConfig,
-  vertexIndex,
 } from '@web-three-city/world-core';
 import type { TerrainDirtyRegion } from './dirty-region.js';
 import { createTerrainMap, type TerrainSnapshot } from './terrain-map.js';
@@ -14,6 +13,7 @@ import {
   type TerraformPlan,
   type TerraformStrokeInput,
 } from './terraform-contracts.js';
+import { propagateTerraformSupport } from './terraform-support-propagation.js';
 
 function validTerrainSnapshot(terrain: TerrainSnapshot, config: WorldConfig): boolean {
   if (
@@ -48,27 +48,28 @@ function validCell(cell: CellCoord, config: WorldConfig): boolean {
   );
 }
 
-function cellKey(cell: CellCoord): number {
-  return cell.z * 1_000_000 + cell.x;
+function cellKey(cell: CellCoord): string {
+  return `${cell.x}:${cell.z}`;
 }
 
-function vertexKey(vertex: GridVertexCoord, config: WorldConfig): number {
-  return vertex.z * (config.mapWidth + 1) + vertex.x;
+function coordinateOrder(
+  first: Readonly<{ x: number; z: number }>,
+  second: Readonly<{ x: number; z: number }>,
+): number {
+  return first.z - second.z || first.x - second.x;
 }
 
-function sortedCells(cells: Iterable<CellCoord>): readonly CellCoord[] {
+function frozenCells(cells: Iterable<CellCoord>): readonly CellCoord[] {
   return Object.freeze(
-    [...cells]
-      .map((cell) => Object.freeze({ x: cell.x, z: cell.z }))
-      .sort((first, second) => first.z - second.z || first.x - second.x),
+    [...cells].map((cell) => Object.freeze({ x: cell.x, z: cell.z })).sort(coordinateOrder),
   );
 }
 
-function sortedVertices(vertices: Iterable<GridVertexCoord>): readonly GridVertexCoord[] {
+function frozenVertices(vertices: Iterable<GridVertexCoord>): readonly GridVertexCoord[] {
   return Object.freeze(
     [...vertices]
       .map((vertex) => Object.freeze({ x: vertex.x, z: vertex.z }))
-      .sort((first, second) => first.z - second.z || first.x - second.x),
+      .sort(coordinateOrder),
   );
 }
 
@@ -101,9 +102,7 @@ function hasInvalidCardinalDelta(levels: Uint8Array, config: WorldConfig): boole
   for (let z = 0; z < height; z += 1) {
     for (let x = 0; x < width; x += 1) {
       const index = z * width + x;
-      if (x + 1 < width && Math.abs(levels[index]! - levels[index + 1]!) > 1) {
-        return true;
-      }
+      if (x + 1 < width && Math.abs(levels[index]! - levels[index + 1]!) > 1) return true;
       if (z + 1 < height && Math.abs(levels[index]! - levels[index + width]!) > 1) {
         return true;
       }
@@ -124,7 +123,7 @@ function affectedCellsFor(
   input: TerraformStrokeInput,
   config: WorldConfig,
 ): Readonly<{ cells: readonly CellCoord[]; invalid: boolean }> {
-  const cells = new Map<number, CellCoord>();
+  const cells = new Map<string, CellCoord>();
   for (const center of input.cells) {
     if (!validCell(center, config)) return { cells: Object.freeze([]), invalid: true };
     let footprint: readonly CellCoord[];
@@ -135,36 +134,21 @@ function affectedCellsFor(
     }
     for (const cell of footprint) cells.set(cellKey(cell), cell);
   }
-  return { cells: sortedCells(cells.values()), invalid: false };
+  return { cells: frozenCells(cells.values()), invalid: false };
 }
 
-function affectedVerticesFor(
-  cells: readonly CellCoord[],
+function changedVerticesBetween(
+  base: Uint8Array,
+  proposed: Uint8Array,
   config: WorldConfig,
 ): readonly GridVertexCoord[] {
-  const vertices = new Map<number, GridVertexCoord>();
-  for (const cell of cells) {
-    for (const vertex of [
-      { x: cell.x, z: cell.z },
-      { x: cell.x + 1, z: cell.z },
-      { x: cell.x, z: cell.z + 1 },
-      { x: cell.x + 1, z: cell.z + 1 },
-    ]) {
-      vertices.set(vertexKey(vertex, config), vertex);
-    }
+  const result: GridVertexCoord[] = [];
+  const width = config.mapWidth + 1;
+  for (let index = 0; index < base.length; index += 1) {
+    if (base[index] === proposed[index]) continue;
+    result.push({ x: index % width, z: Math.floor(index / width) });
   }
-  return sortedVertices(vertices.values());
-}
-
-function proposedLevel(base: number, input: TerraformStrokeInput): number {
-  switch (input.operation) {
-    case 'raise':
-      return base + 1;
-    case 'lower':
-      return base - 1;
-    case 'flatten':
-      return input.flattenTargetLevel ?? Number.NaN;
-  }
+  return frozenVertices(result);
 }
 
 export function planTerraformStroke(
@@ -172,38 +156,32 @@ export function planTerraformStroke(
   input: TerraformStrokeInput,
   config: WorldConfig,
 ): TerraformPlan {
-  const proposedHeightLevels = terrain.heightLevels.slice();
   let invalidReason: TerraformInvalidReason | null = null;
-
   if (!validTerrainSnapshot(terrain, config)) invalidReason = 'terraform:invalid-terrain';
 
   const affected = affectedCellsFor(input, config);
   if (invalidReason === null && affected.invalid) invalidReason = 'terraform:invalid-cell';
-  const affectedCells = affected.cells;
-  const affectedVertices = affectedVerticesFor(affectedCells, config);
-  let changedVertexCount = 0;
-
-  if (invalidReason === null) {
-    for (const vertex of affectedVertices) {
-      const index = vertexIndex(vertex, config);
-      const base = terrain.heightLevels[index]!;
-      const rawLevel = proposedLevel(base, input);
-      if (
-        !Number.isInteger(rawLevel) ||
-        rawLevel < config.minHeightLevel ||
-        rawLevel > config.maxHeightLevel
-      ) {
-        invalidReason = 'terraform:height-range';
-        proposedHeightLevels[index] = Math.min(
-          config.maxHeightLevel,
-          Math.max(config.minHeightLevel, Number.isFinite(rawLevel) ? Math.round(rawLevel) : base),
-        );
-        continue;
-      }
-      proposedHeightLevels[index] = rawLevel;
-      if (rawLevel !== base) changedVertexCount += 1;
-    }
+  const coreCells = affected.cells;
+  const support =
+    invalidReason === null ? propagateTerraformSupport(terrain, input, coreCells, config) : null;
+  const proposedHeightLevels = support?.proposedHeightLevels ?? terrain.heightLevels.slice();
+  if (invalidReason === null && support !== null && !support.valid) {
+    invalidReason = support.invalidReason;
   }
+
+  const supportCells = support?.supportCells ?? Object.freeze([]);
+  const affectedCellMap = new Map<string, CellCoord>();
+  for (const cell of [...coreCells, ...supportCells]) affectedCellMap.set(cellKey(cell), cell);
+  const affectedCells = frozenCells(affectedCellMap.values());
+  const coreVertices = support?.coreVertices ?? Object.freeze([]);
+  const supportVertices = support?.supportVertices ?? Object.freeze([]);
+  const affectedVertices = support?.affectedVertices ?? Object.freeze([]);
+  const changedVertices = changedVerticesBetween(
+    terrain.heightLevels,
+    proposedHeightLevels,
+    config,
+  );
+  const changedVertexCount = changedVertices.length;
 
   if (invalidReason === null && hasInvalidCardinalDelta(proposedHeightLevels, config)) {
     invalidReason = 'terraform:cardinal-delta';
@@ -214,11 +192,15 @@ export function planTerraformStroke(
     operation: input.operation,
     brushSize: input.brushSize,
     baseTerrainRevision: terrain.revision,
+    coreCells,
+    supportCells,
     affectedCells,
+    coreVertices,
+    supportVertices,
     affectedVertices,
     proposedHeightLevels,
     changedVertexCount,
-    dirtyRegion: dirtyRegionFor(affectedVertices),
+    dirtyRegion: dirtyRegionFor(changedVertices),
     valid: invalidReason === null,
     invalidReason,
   });

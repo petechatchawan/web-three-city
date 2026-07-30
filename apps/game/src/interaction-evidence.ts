@@ -7,6 +7,7 @@ import type { TerraformBrushSize, WorldToolMode } from '@web-three-city/terrain-
 import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
 import * as THREE from 'three';
 import type { GameInput, GameRenderViewport } from './game-input.js';
+import type { GameTerraformInvalidReason } from './terraform-road-guard.js';
 
 export interface WaterInteractionEvidence {
   readonly sourceTerrainRevision: number;
@@ -27,6 +28,7 @@ export interface TerraformInteractionEvidence {
   readonly brushSize: TerraformBrushSize;
   readonly strokeActive: boolean;
   readonly previewValid: boolean | null;
+  readonly previewInvalidReason: GameTerraformInvalidReason | null;
   readonly previewCellCount: number;
   readonly committedTerrainRevision: number;
   readonly waterSourceTerrainRevision: number;

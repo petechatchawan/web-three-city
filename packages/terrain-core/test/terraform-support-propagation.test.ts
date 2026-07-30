@@ -35,6 +35,18 @@ function terrainFromLevels(
 }
 
 describe('propagateTerraformSupport', () => {
+  it('returns a stable invalid-cell result for an out-of-bounds core cell', () => {
+    const terrain = terrainFromLevels(TEST_CONFIG, () => 0);
+    expect(
+      propagateTerraformSupport(
+        terrain,
+        { operation: 'raise', brushSize: 1, cells: [{ x: -1, z: 0 }] },
+        [{ x: -1, z: 0 }],
+        TEST_CONFIG,
+      ),
+    ).toMatchObject({ valid: false, invalidReason: 'terraform:invalid-cell' });
+  });
+
   it('raises the smallest deterministic support set needed for canonical continuity', () => {
     const terrain = terrainFromLevels(TEST_CONFIG, (x, z) =>
       x >= 1 && x <= 2 && z >= 1 && z <= 2 ? 1 : 0,

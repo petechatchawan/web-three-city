@@ -4,6 +4,7 @@ export interface RoadMaterials {
   readonly committed: THREE.MeshStandardMaterial;
   readonly validPreview: THREE.MeshStandardMaterial;
   readonly invalidPreview: THREE.MeshStandardMaterial;
+  readonly invalidMarker: THREE.LineBasicMaterial;
 }
 
 export function createRoadMaterials(): RoadMaterials {
@@ -19,6 +20,7 @@ export function createRoadMaterials(): RoadMaterials {
     color: 0x56d681,
     transparent: true,
     opacity: 0.72,
+    depthTest: true,
     depthWrite: false,
     side: THREE.DoubleSide,
   });
@@ -28,10 +30,20 @@ export function createRoadMaterials(): RoadMaterials {
     color: 0xef5b5b,
     transparent: true,
     opacity: 0.76,
+    depthTest: true,
     depthWrite: false,
     side: THREE.DoubleSide,
   });
   invalidPreview.name = 'road-material-preview-invalid';
 
-  return Object.freeze({ committed, validPreview, invalidPreview });
+  const invalidMarker = new THREE.LineBasicMaterial({
+    color: 0x7d1111,
+    transparent: true,
+    opacity: 0.96,
+    depthTest: true,
+    depthWrite: false,
+  });
+  invalidMarker.name = 'road-material-preview-invalid-marker';
+
+  return Object.freeze({ committed, validPreview, invalidPreview, invalidMarker });
 }

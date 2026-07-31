@@ -2,9 +2,13 @@ import './style.css';
 import type { TerraformBrushSize } from '@web-three-city/terrain-core';
 import { bootstrapGame } from './game-bootstrap.js';
 import { bindGameKeyboardShortcuts } from './game-keyboard-shortcuts.js';
-import { dispatchGameToolCancel } from './game-tool-events.js';
+import {
+  dispatchGameToolCancel,
+  dispatchGameTransactionState,
+} from './game-tool-events.js';
 import { bindGameToolHud } from './game-tool-hud-binding.js';
 import type { GameToolMode } from './game-tool-mode.js';
+import { expandGameSecondaryControls } from './game-secondary-controls.js';
 
 const root = document.querySelector<HTMLElement>('#app');
 if (root === null) throw new Error('game:missing-root');
@@ -48,8 +52,32 @@ function cancelPreviewOrCloseTool(): void {
   }
 }
 
+function announcePointerReleaseTransaction(): void {
+  const evidence = window.__WEB_THREE_CITY_INTERACTION__;
+  if (evidence?.terraform.strokeActive === true && evidence.terraform.acceptedStampCount > 0) {
+    dispatchGameTransactionState(canvas, 'committing', 'terraform');
+  } else if (evidence?.road.strokeActive === true && evidence.road.previewValid === true) {
+    dispatchGameTransactionState(canvas, 'committing', 'road');
+  }
+}
+
+expandGameSecondaryControls(root);
 bindGameToolHud(root, canvas, bindings.signal);
 closeToolButton.addEventListener('click', () => navigateButton.click(), {
+  signal: bindings.signal,
+});
+undoButton.addEventListener(
+  'click',
+  () => {
+    const domain = window.__WEB_THREE_CITY_INTERACTION__?.road.undoKind;
+    if (domain !== null && domain !== undefined) {
+      dispatchGameTransactionState(canvas, 'undoing', domain);
+    }
+  },
+  { capture: true, signal: bindings.signal },
+);
+window.addEventListener('pointerup', announcePointerReleaseTransaction, {
+  capture: true,
   signal: bindings.signal,
 });
 

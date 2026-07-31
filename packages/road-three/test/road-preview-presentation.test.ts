@@ -1,7 +1,4 @@
-import type {
-  RoadMutationPlan,
-  RoadPlacementEnvironment,
-} from '@web-three-city/road-core';
+import type { RoadMutationPlan, RoadPlacementEnvironment } from '@web-three-city/road-core';
 import type { TerrainCellSurfaceProfile } from '@web-three-city/terrain-core';
 import { WORLD_CONFIG, type CellCoord } from '@web-three-city/world-core';
 import * as THREE from 'three';

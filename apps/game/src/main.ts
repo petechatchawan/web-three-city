@@ -9,10 +9,7 @@ import {
 import { bindGameToolHud } from './game-tool-hud-binding.js';
 import type { GameToolMode } from './game-tool-mode.js';
 import { expandGameSecondaryControls } from './game-secondary-controls.js';
-import {
-  pointerReleaseTransaction,
-  undoTransaction,
-} from './game-transaction-presentation.js';
+import { undoTransaction } from './game-transaction-presentation.js';
 
 const rootElement = document.querySelector<HTMLElement>('#app');
 if (rootElement === null) throw new Error('game:missing-root');
@@ -58,9 +55,8 @@ function cancelPreviewOrCloseTool(): void {
   }
 }
 
-function dispatchTransaction(
-  transaction: ReturnType<typeof pointerReleaseTransaction>,
-): void {
+function dispatchUndoTransaction(): void {
+  const transaction = undoTransaction(window.__WEB_THREE_CITY_INTERACTION__);
   if (transaction === null) return;
   dispatchGameTransactionState(canvas, transaction.state, transaction.domain);
 }
@@ -71,16 +67,10 @@ bindGameToolHud(root, canvas, bindings.signal);
 closeToolButton.addEventListener('click', () => navigateButton.click(), {
   signal: bindings.signal,
 });
-undoButton.addEventListener(
-  'click',
-  () => dispatchTransaction(undoTransaction(window.__WEB_THREE_CITY_INTERACTION__)),
-  { capture: true, signal: bindings.signal },
-);
-window.addEventListener(
-  'pointerup',
-  () => dispatchTransaction(pointerReleaseTransaction(window.__WEB_THREE_CITY_INTERACTION__)),
-  { capture: true, signal: bindings.signal },
-);
+undoButton.addEventListener('click', dispatchUndoTransaction, {
+  capture: true,
+  signal: bindings.signal,
+});
 
 bindGameKeyboardShortcuts(
   window,

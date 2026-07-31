@@ -29,6 +29,13 @@ function model(
   };
 }
 
+function expectFloat32Color(actual: Float32Array, expected: readonly number[]): void {
+  expect(actual).toHaveLength(expected.length);
+  expected.forEach((component, index) => {
+    expect(actual[index]).toBeCloseTo(component, 5);
+  });
+}
+
 describe('buildTerraformPreviewMesh', () => {
   it('builds exactly two canonical triangles for one accepted core cell', () => {
     const data = buildTerraformPreviewMesh(
@@ -60,10 +67,10 @@ describe('buildTerraformPreviewMesh', () => {
       WORLD_CONFIG,
     );
 
-    expect([...data.core.colors.slice(0, 3)]).toEqual([0.2, 0.9, 0.42]);
-    expect([...data.support.colors.slice(0, 3)]).toEqual([0.94, 0.72, 0.2]);
-    expect([...data.rejected.colors.slice(0, 3)]).toEqual([0.95, 0.22, 0.2]);
-    expect([...data.noChange.colors.slice(0, 3)]).toEqual([0.78, 0.82, 0.84]);
+    expectFloat32Color(data.core.colors.slice(0, 3), [0.2, 0.9, 0.42]);
+    expectFloat32Color(data.support.colors.slice(0, 3), [0.94, 0.72, 0.2]);
+    expectFloat32Color(data.rejected.colors.slice(0, 3), [0.95, 0.22, 0.2]);
+    expectFloat32Color(data.noChange.colors.slice(0, 3), [0.78, 0.82, 0.84]);
   });
 
   it('emits finite geometry for multiple semantic and Water cells', () => {

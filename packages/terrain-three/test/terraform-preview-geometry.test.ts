@@ -32,7 +32,7 @@ function model(
 function expectFloat32Color(actual: Float32Array, expected: readonly number[]): void {
   expect(actual).toHaveLength(expected.length);
   expected.forEach((component, index) => {
-    expect(actual[index]).toBeCloseTo(component, 5);
+    expect(actual[index]!).toBeCloseTo(component, 5);
   });
 }
 

@@ -1,0 +1,176 @@
+name: Vercel deployments
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  production:
+    name: Deploy Production
+    if: >-
+      (
+        github.event_name == 'workflow_run' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_branch == 'master' &&
+        github.event.workflow_run.conclusion == 'success'
+      ) || (
+        github.event_name == 'workflow_dispatch' &&
+        github.ref == 'refs/heads/master'
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: vercel-production
+      cancel-in-progress: false
+
+    steps:
+      - name: Resolve verified source
+        id: source
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
+          WORKFLOW_RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+          DISPATCH_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "workflow_run" ]]; then
+            echo "sha=$WORKFLOW_RUN_SHA" >> "$GITHUB_OUTPUT"
+            echo "run_id=$WORKFLOW_RUN_ID" >> "$GITHUB_OUTPUT"
+            echo "artifact=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "sha=$DISPATCH_SHA" >> "$GITHUB_OUTPUT"
+            echo "run_id=" >> "$GITHUB_OUTPUT"
+            echo "artifact=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout exact verified source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.source.outputs.sha }}
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:deployment
+
+      - name: Download exact CI build artifact
+        if: steps.source.outputs.artifact == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: web-app-builds
+          path: verified-build
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ steps.source.outputs.run_id }}
+
+      - name: Build manual recovery artifact
+        if: steps.source.outputs.artifact != 'true'
+        run: pnpm build:browser
+
+      - name: Verify Vercel token
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${VERCEL_TOKEN:-}" ]]; then
+            echo "::error::Missing required repository secret: VERCEL_TOKEN"
+            exit 1
+          fi
+
+      - name: Bootstrap protected Vercel project
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: node tooling/bootstrap-vercel-project.mjs --project web-three-city
+
+      - name: Compose Vercel Build Output API
+        env:
+          USE_CI_ARTIFACT: ${{ steps.source.outputs.artifact }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$USE_CI_ARTIFACT" == "true" ]]; then
+            game_path="verified-build/game/dist"
+            terrain_lab_path="verified-build/terrain-lab/dist"
+          else
+            game_path="apps/game/dist"
+            terrain_lab_path="apps/terrain-lab/dist"
+          fi
+
+          test -f "$game_path/index.html"
+          test -f "$terrain_lab_path/index.html"
+
+          node tooling/compose-vercel-output.mjs \
+            --game "$game_path" \
+            --terrain-lab "$terrain_lab_path" \
+            --output .vercel/output
+
+      - name: Verify deployment output
+        shell: bash
+        run: |
+          set -euo pipefail
+          node -e "const fs=require('node:fs'); const config=JSON.parse(fs.readFileSync('.vercel/output/config.json','utf8')); if(config.version!==3) process.exit(1)"
+          test -f .vercel/output/static/index.html
+          test -f .vercel/output/static/terrain-lab/index.html
+
+      - name: Deploy public Production
+        id: deploy
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TELEMETRY_DISABLED: '1'
+        shell: bash
+        run: |
+          set -euo pipefail
+          deployment_url="$(
+            pnpm dlx vercel@58.0.0 deploy \
+              --prebuilt \
+              --prod \
+              --yes \
+              --token="$VERCEL_TOKEN"
+          )"
+          deployment_url="$(printf '%s\n' "$deployment_url" | tail -n 1 | tr -d '\r')"
+          if [[ ! "$deployment_url" =~ ^https:// ]]; then
+            echo "::error::Vercel CLI did not return a deployment URL."
+            exit 1
+          fi
+          echo "url=$deployment_url" >> "$GITHUB_OUTPUT"
+
+      - name: Record Production deployment
+        env:
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.url }}
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+          UPSTREAM_RUN_ID: ${{ steps.source.outputs.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          game_url="${DEPLOYMENT_URL%/}/"
+          terrain_lab_url="${DEPLOYMENT_URL%/}/terrain-lab/"
+          {
+            echo "## Public Vercel Production"
+            echo
+            echo "- Game: $game_url"
+            echo "- Terrain Lab: $terrain_lab_url"
+            echo "- Source: \`$SOURCE_SHA\`"
+            if [[ -n "$UPSTREAM_RUN_ID" ]]; then
+              echo "- Upstream CI run: \`$UPSTREAM_RUN_ID\`"
+            else
+              echo "- Trigger: manual recovery from master"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

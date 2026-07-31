@@ -10,36 +10,48 @@ permissions:
 
 jobs:
   verify:
-    if: github.head_ref == 'agent/road-network-foundation-v0-1' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.13.1
-          run_install: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Format check
-        run: pnpm format:check
-      - name: Typecheck
-        run: pnpm typecheck
-      - name: Build browser apps
-        run: pnpm build:browser
-      - name: Install Chromium
-        run: pnpm exec playwright install --with-deps chromium
-      - name: Focused Terraform browser regression
-        run: >-
-          pnpm exec playwright test
-          browser-tests/terraform.spec.ts
-          -g "accumulates Raise Preview and commits once on release"
-          --project=chromium
-          --reporter=line
-          --workers=1
-      - name: Full browser suite
-        run: pnpm test:browser:only
+      - name: Checkout exact PR branch without external actions
+        run: |
+          gh repo clone "${GITHUB_REPOSITORY}" repo -- --depth 1 --branch "${GITHUB_HEAD_REF}"
+          cd repo
+          git rev-parse HEAD
+      - name: Install and verify source gates in Node 22
+        working-directory: repo
+        run: |
+          docker run --rm \
+            -v "$PWD:/work" \
+            -w /work \
+            node:22-bookworm \
+            bash -lc '
+              corepack enable &&
+              corepack prepare pnpm@10.13.1 --activate &&
+              node --version &&
+              pnpm --version &&
+              pnpm install --frozen-lockfile &&
+              pnpm format:check &&
+              pnpm typecheck &&
+              pnpm build:browser
+            '
+      - name: Focused and full Chromium verification
+        working-directory: repo
+        run: |
+          docker run --rm \
+            -v "$PWD:/work" \
+            -w /work \
+            mcr.microsoft.com/playwright:v1.61.1-noble \
+            bash -lc '
+              corepack enable &&
+              corepack prepare pnpm@10.13.1 --activate &&
+              pnpm exec playwright test \
+                browser-tests/terraform.spec.ts \
+                -g "accumulates Raise Preview and commits once on release" \
+                --project=chromium \
+                --reporter=line \
+                --workers=1 &&
+              pnpm test:browser:only
+            '

@@ -3,7 +3,7 @@ import type {
   RoadPlacementEnvironment,
 } from '@web-three-city/road-core';
 import type { TerrainCellSurfaceProfile } from '@web-three-city/terrain-core';
-import type { WorldConfig } from '@web-three-city/world-core';
+import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
 import { describe, expect, it } from 'vitest';
 import { buildRoadInvalidMarker } from '../src/index.js';
 
@@ -40,7 +40,7 @@ function environment(ramp = false): RoadPlacementEnvironment {
   return Object.freeze({
     terrainRevision: 1,
     waterSourceTerrainRevision: 1,
-    surfaceAt(cell): TerrainCellSurfaceProfile {
+    surfaceAt(cell: CellCoord): TerrainCellSurfaceProfile {
       return Object.freeze({
         cell: Object.freeze({ ...cell }),
         corners: ramp

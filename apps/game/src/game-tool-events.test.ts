@@ -6,6 +6,7 @@ import {
   bindGameToolEvents,
   dispatchGameToolCancel,
   dispatchGameToolEvent,
+  dispatchGameTransactionState,
   type GameToolEventDetail,
 } from './game-tool-events.js';
 
@@ -26,6 +27,25 @@ describe('Game tool presentation events', () => {
     expect(listener).toHaveBeenCalledOnce();
     expect(listener).toHaveBeenCalledWith(DETAIL);
     expect(Object.isFrozen(DETAIL)).toBe(true);
+  });
+
+  it('delivers committing and undoing transaction states with an explicit domain', () => {
+    const target = document.createElement('canvas');
+    const listener = vi.fn();
+    const controller = new AbortController();
+    bindGameToolEvents(target, listener, controller.signal);
+
+    dispatchGameTransactionState(target, 'committing', 'terraform');
+    dispatchGameTransactionState(target, 'undoing', 'road');
+
+    expect(listener).toHaveBeenNthCalledWith(
+      1,
+      Object.freeze({ type: 'transaction-state', state: 'committing', domain: 'terraform' }),
+    );
+    expect(listener).toHaveBeenNthCalledWith(
+      2,
+      Object.freeze({ type: 'transaction-state', state: 'undoing', domain: 'road' }),
+    );
   });
 
   it('delivers explicit cancellation independently from presentation events', () => {

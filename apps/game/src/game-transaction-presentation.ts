@@ -1,8 +1,10 @@
+import type { RoadMutationPlan } from '@web-three-city/road-core';
 import type { InteractionEvidence } from './interaction-evidence.js';
 import type {
   GameTransactionDomain,
   GameTransactionState,
 } from './game-tool-events.js';
+import type { TerraformStrokeRelease } from './terraform-stroke-session.js';
 
 export interface GameTransactionAnnouncement {
   readonly state: GameTransactionState;
@@ -26,16 +28,16 @@ const ROAD_UNDO = Object.freeze({
   domain: 'road',
 }) satisfies GameTransactionAnnouncement;
 
-export function pointerReleaseTransaction(
-  evidence: InteractionEvidence | undefined,
+export function terraformReleaseTransaction(
+  release: TerraformStrokeRelease,
 ): GameTransactionAnnouncement | null {
-  if (evidence?.terraform.strokeActive === true && evidence.terraform.acceptedStampCount > 0) {
-    return TERRAFORM_COMMIT;
-  }
-  if (evidence?.road.strokeActive === true && evidence.road.previewValid === true) {
-    return ROAD_COMMIT;
-  }
-  return null;
+  return release.kind === 'commit' ? TERRAFORM_COMMIT : null;
+}
+
+export function roadPlanTransaction(
+  plan: RoadMutationPlan | null,
+): GameTransactionAnnouncement | null {
+  return plan?.valid === true ? ROAD_COMMIT : null;
 }
 
 export function undoTransaction(

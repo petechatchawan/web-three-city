@@ -27,8 +27,8 @@
 - Consumes: current `master` ref.
 - Produces: persistent `develop` ref at the same starting commit as `master`.
 
-- [ ] Create `develop` from exact `master`.
-- [ ] Compare `master...develop`; expect zero divergence immediately after creation.
+- [x] Create `develop` from exact `master`.
+- [x] Compare `master...develop`; zero divergence confirmed at `6a0ba2a1c71c188a22408da1bbcbd54d0b149cc5`.
 
 ### Task 2: Move active implementation to the integration flow
 
@@ -38,8 +38,8 @@
 - Consumes: PR #11 head `agent/road-network-foundation-v0-1`.
 - Produces: PR #11 targeting `develop`.
 
-- [ ] Retarget PR #11 base branch to `develop`.
-- [ ] Confirm PR #11 remains open, unmerged, and mergeable.
+- [x] Retarget PR #11 base branch to `develop`.
+- [x] Confirm PR #11 remains open, unmerged, and mergeable.
 
 ### Task 3: Remove quota-dependent workflows
 
@@ -51,9 +51,9 @@
 - Consumes: restored but unusable GitHub-hosted workflows.
 - Produces: repository changes that no longer create permanently failing hosted-runner checks.
 
-- [ ] Delete CI workflow from the feature branch.
-- [ ] Delete Vercel Actions deployment workflow from the feature branch.
-- [ ] Confirm the PR no longer proposes GitHub Actions workflow files.
+- [x] Delete CI workflow from the feature branch.
+- [x] Delete Vercel Actions deployment workflow from the feature branch.
+- [x] Confirm the PR no longer proposes GitHub Actions workflow files.
 
 ### Task 4: Enable master-only Vercel Git deployments
 
@@ -64,7 +64,7 @@
 - Consumes: Vercel Git Integration branch matching.
 - Produces: `git.deploymentEnabled` rules that disable all branches except `master`.
 
-- [ ] Replace global deployment disablement with:
+- [x] Replace global deployment disablement with:
 
 ```json
 {
@@ -78,17 +78,17 @@
 }
 ```
 
-- [ ] Validate that `master` matches a `true` rule and all other branches match only the wildcard `false` rule.
+- [x] Validate that `master` matches a `true` rule and all other branches match only the wildcard `false` rule.
 
 ### Task 5: Record and verify the release policy
 
 **Files:**
 - Create: `docs/development-workflow.md`
-- Modify: PR #11 body/comment.
+- Modify: PR #11 comment.
 
 **Interfaces:**
 - Produces: canonical contributor guidance for `feature/* → develop → master`.
 
-- [ ] Document branch purposes, PR targets, release promotion, verification ownership, and Vercel behavior.
-- [ ] Compare PR #11 against `develop` and confirm `master` is no longer the active implementation target.
-- [ ] Confirm final branch state: `develop` exists, PR #11 targets `develop`, workflows are absent, and `vercel.json` enables only `master`.
+- [x] Document branch purposes, PR targets, release promotion, verification ownership, and Vercel behavior.
+- [x] Compare PR #11 against `develop` and confirm `master` is no longer the active implementation target.
+- [x] Confirm final branch state: `develop` exists, PR #11 targets `develop`, workflows are absent, and `vercel.json` enables only `master`.

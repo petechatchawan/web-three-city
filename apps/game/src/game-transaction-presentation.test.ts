@@ -1,76 +1,62 @@
+import type { RoadMutationPlan } from '@web-three-city/road-core';
 import { describe, expect, it } from 'vitest';
 import type { InteractionEvidence } from './interaction-evidence.js';
 import {
-  pointerReleaseTransaction,
+  roadPlanTransaction,
+  terraformReleaseTransaction,
   undoTransaction,
 } from './game-transaction-presentation.js';
+import type { TerraformStrokeRelease } from './terraform-stroke-session.js';
 
-function evidence(
-  terraform: Readonly<{ strokeActive: boolean; acceptedStampCount: number }>,
-  road: Readonly<{
-    strokeActive: boolean;
-    previewValid: boolean | null;
-    undoKind: 'terraform' | 'road' | null;
-  }>,
-): InteractionEvidence {
+function roadPlan(valid: boolean): RoadMutationPlan {
+  return { valid } as RoadMutationPlan;
+}
+
+function evidence(undoKind: 'terraform' | 'road' | null): InteractionEvidence {
   return {
-    terraform,
-    road,
+    road: { undoKind },
   } as unknown as InteractionEvidence;
 }
 
 describe('game transaction presentation ownership', () => {
-  it('announces an accepted Terraform release even when the current stamp is rejected', () => {
-    expect(
-      pointerReleaseTransaction(
-        evidence(
-          { strokeActive: true, acceptedStampCount: 2 },
-          { strokeActive: false, previewValid: null, undoKind: null },
-        ),
-      ),
-    ).toEqual({ state: 'committing', domain: 'terraform' });
+  it('announces only committed Terraform releases', () => {
+    const commit = {
+      kind: 'commit',
+      plan: Object.freeze({}),
+    } as unknown as TerraformStrokeRelease;
+    const rejected = {
+      kind: 'rejected',
+      reason: 'terraform:road-occupied',
+    } as TerraformStrokeRelease;
+
+    expect(terraformReleaseTransaction(commit)).toEqual({
+      state: 'committing',
+      domain: 'terraform',
+    });
+    expect(terraformReleaseTransaction(rejected)).toBeNull();
+    expect(terraformReleaseTransaction({ kind: 'no-change' })).toBeNull();
+    expect(terraformReleaseTransaction({ kind: 'ignored' })).toBeNull();
   });
 
-  it('announces only valid Road releases', () => {
-    expect(
-      pointerReleaseTransaction(
-        evidence(
-          { strokeActive: false, acceptedStampCount: 0 },
-          { strokeActive: true, previewValid: true, undoKind: null },
-        ),
-      ),
-    ).toEqual({ state: 'committing', domain: 'road' });
-    expect(
-      pointerReleaseTransaction(
-        evidence(
-          { strokeActive: false, acceptedStampCount: 0 },
-          { strokeActive: true, previewValid: false, undoKind: null },
-        ),
-      ),
-    ).toBeNull();
-  });
-
-  it('does not announce no-change or idle pointer releases', () => {
-    expect(
-      pointerReleaseTransaction(
-        evidence(
-          { strokeActive: true, acceptedStampCount: 0 },
-          { strokeActive: false, previewValid: null, undoKind: null },
-        ),
-      ),
-    ).toBeNull();
-    expect(pointerReleaseTransaction(undefined)).toBeNull();
+  it('announces only valid final Road plans', () => {
+    expect(roadPlanTransaction(roadPlan(true))).toEqual({
+      state: 'committing',
+      domain: 'road',
+    });
+    expect(roadPlanTransaction(roadPlan(false))).toBeNull();
+    expect(roadPlanTransaction(null)).toBeNull();
   });
 
   it('derives Undo ownership from the tagged world Undo entry', () => {
-    expect(
-      undoTransaction(
-        evidence(
-          { strokeActive: false, acceptedStampCount: 0 },
-          { strokeActive: false, previewValid: null, undoKind: 'road' },
-        ),
-      ),
-    ).toEqual({ state: 'undoing', domain: 'road' });
+    expect(undoTransaction(evidence('terraform'))).toEqual({
+      state: 'undoing',
+      domain: 'terraform',
+    });
+    expect(undoTransaction(evidence('road'))).toEqual({
+      state: 'undoing',
+      domain: 'road',
+    });
+    expect(undoTransaction(evidence(null))).toBeNull();
     expect(undoTransaction(undefined)).toBeNull();
   });
 });

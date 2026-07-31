@@ -208,8 +208,8 @@ for (const [size, count] of [
   test(`previews brush ${size}x${size} with ${count} cells`, async ({ page }) => {
     await openGame(page);
     const point = await clickTerrainCell(page, findValidCenter(BASE_TERRAIN, 'raise', size));
-    await page.getByRole('button', { name: `Brush ${size} × ${size}` }).click();
     await page.getByRole('button', { name: 'Raise' }).click();
+    await page.getByRole('button', { name: `Brush ${size} × ${size}` }).click();
 
     await page.mouse.move(point.x, point.y);
     await page.mouse.down();

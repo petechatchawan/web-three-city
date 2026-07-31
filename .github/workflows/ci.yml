@@ -62,7 +62,7 @@ jobs:
           name: coverage
           path: packages/*/coverage
           if-no-files-found: ignore
-          retention-days: 7
+          retention-days: 1
 
   build:
     name: Build all packages and applications
@@ -101,7 +101,7 @@ jobs:
             apps/game/dist
             apps/terrain-lab/dist
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 1
 
   browser:
     name: Chromium smoke, interaction, and visual evidence
@@ -132,4 +132,4 @@ jobs:
             playwright-report
             test-results
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 1

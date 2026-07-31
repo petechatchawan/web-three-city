@@ -48,6 +48,49 @@ function stateAt(
   return 'shoreline';
 }
 
+function latticeLevel(terrain: TerrainSnapshot, x: number, z: number): number {
+  return terrain.heightLevels[z * (terrain.width + 1) + x]!;
+}
+
+function crossesSeaSurface(
+  terrain: TerrainSnapshot,
+  water: WaterSnapshot,
+  cell: CellCoord,
+): boolean {
+  const levels = [
+    latticeLevel(terrain, cell.x, cell.z),
+    latticeLevel(terrain, cell.x + 1, cell.z),
+    latticeLevel(terrain, cell.x, cell.z + 1),
+    latticeLevel(terrain, cell.x + 1, cell.z + 1),
+  ];
+  const hasSeaTriangle =
+    water.seaTriangleMask[triangleIndexFor(cell.x, cell.z, 0, terrain.width)] === 1 ||
+    water.seaTriangleMask[triangleIndexFor(cell.x, cell.z, 1, terrain.width)] === 1;
+  return hasSeaTriangle && Math.min(...levels) <= water.seaLevel && Math.max(...levels) > water.seaLevel;
+}
+
+function touchesProjectedShoreline(
+  terrain: TerrainSnapshot,
+  water: WaterSnapshot,
+  cell: CellCoord,
+  config: WorldConfig,
+): boolean {
+  const state = stateAt(water, cell, config.mapWidth);
+  if (state === 'shoreline' || crossesSeaSurface(terrain, water, cell)) return true;
+
+  for (const neighbor of [
+    { x: cell.x, z: cell.z - 1 },
+    { x: cell.x + 1, z: cell.z },
+    { x: cell.x, z: cell.z + 1 },
+    { x: cell.x - 1, z: cell.z },
+  ]) {
+    if (validCell(neighbor, config) && stateAt(water, neighbor, config.mapWidth) !== state) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function projectTerraformWater(
   terrain: TerrainSnapshot,
   water: WaterSnapshot,
@@ -104,6 +147,12 @@ export function projectTerraformWater(
     if (projectedState === 'wet') projectedWetCells.push(cell);
     else if (projectedState === 'dry') projectedDryCells.push(cell);
     else projectedShorelineCells.push(cell);
+    if (
+      projectedState !== 'shoreline' &&
+      touchesProjectedShoreline(projectedTerrain, projectedWater, cell, config)
+    ) {
+      projectedShorelineCells.push(cell);
+    }
     if (projectedState === 'wet' && sourceState !== 'wet') newlyWetCells.push(cell);
     if (projectedState === 'dry' && sourceState !== 'dry') newlyDryCells.push(cell);
   }

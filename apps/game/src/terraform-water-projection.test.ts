@@ -50,9 +50,6 @@ function mixedTriangleShorelinePlan(terrain: TerrainSnapshot): TerraformPlan {
   );
   const proposedHeightLevels = terrain.heightLevels.slice();
   proposedHeightLevels[latticeIndex(1, 3)] = 2;
-  proposedHeightLevels[latticeIndex(2, 3)] = 2;
-  proposedHeightLevels[latticeIndex(1, 4)] = 2;
-  proposedHeightLevels[latticeIndex(2, 4)] = 1;
   return Object.freeze({
     ...basePlan,
     affectedCells: Object.freeze([{ x: 1, z: 3 }]),

@@ -3,7 +3,7 @@ import type {
   RoadPlacementEnvironment,
 } from '@web-three-city/road-core';
 import type { TerrainCellSurfaceProfile } from '@web-three-city/terrain-core';
-import { WORLD_CONFIG } from '@web-three-city/world-core';
+import { WORLD_CONFIG, type CellCoord } from '@web-three-city/world-core';
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import {
@@ -15,7 +15,7 @@ import {
 const environment: RoadPlacementEnvironment = Object.freeze({
   terrainRevision: 1,
   waterSourceTerrainRevision: 1,
-  surfaceAt(cell): TerrainCellSurfaceProfile {
+  surfaceAt(cell: CellCoord): TerrainCellSurfaceProfile {
     return Object.freeze({
       cell: Object.freeze({ ...cell }),
       corners: Object.freeze({ nw: 2, ne: 2, sw: 2, se: 2 }),

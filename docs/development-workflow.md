@@ -42,21 +42,38 @@ For small changes, work may be committed directly to `develop` when explicitly a
 
 ## Verification policy
 
-GitHub-hosted Actions are not a required execution path because the private-repository runner quota is limited. Verification commands remain repository-owned and must be run from an available execution environment before a release merge.
+GitHub-hosted Actions are not a required execution path because the private-repository runner quota is limited. Verification commands are repository-owned and must be run from a local machine or another execution environment containing the exact source checkout before a release merge.
 
-The full release gate is:
+### Standard verification
+
+Run during implementation and before merging feature work into `develop`:
 
 ```bash
-pnpm install --frozen-lockfile
-pnpm check
-pnpm build:browser
-pnpm exec playwright install chromium
-pnpm test:browser:only
-git diff --check
-git status --short
+pnpm verify
 ```
 
-Exact commit SHA and test/build evidence must be recorded before merging `develop` into `master`.
+This is the canonical alias for `pnpm check` and covers formatting, linting, TypeScript, provenance, workspace tests, deployment-tool tests, and all package/application builds.
+
+### Full release verification
+
+Commit all intended changes first, then run from the exact candidate commit before merging `develop` into `master`:
+
+```bash
+pnpm verify:full
+```
+
+The full command performs a frozen-lockfile install, runs `pnpm verify`, ensures Chromium is installed for Playwright, runs the complete built-application browser suite, checks whitespace errors, and fails when tracked or untracked worktree changes remain.
+
+Record the following evidence on the release pull request:
+
+- exact commit SHA
+- Node and pnpm versions
+- `pnpm verify` result and test counts
+- `pnpm verify:full` result and Playwright counts
+- screenshots or traces required by the release scope
+- any known limitations
+
+A release must not merge into `master` without accepted evidence for the exact candidate SHA.
 
 ## Vercel deployment policy
 

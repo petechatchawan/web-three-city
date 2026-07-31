@@ -14,8 +14,9 @@ import {
   undoTransaction,
 } from './game-transaction-presentation.js';
 
-const root = document.querySelector<HTMLElement>('#app');
-if (root === null) throw new Error('game:missing-root');
+const rootElement = document.querySelector<HTMLElement>('#app');
+if (rootElement === null) throw new Error('game:missing-root');
+const root: HTMLElement = rootElement;
 const runtime = bootstrapGame(root);
 
 function requireButton(action: string): HTMLButtonElement {
@@ -24,8 +25,9 @@ function requireButton(action: string): HTMLButtonElement {
   return button;
 }
 
-const canvas = root.querySelector<HTMLCanvasElement>('#game-canvas');
-if (canvas === null) throw new Error('game:missing-canvas');
+const canvasElement = root.querySelector<HTMLCanvasElement>('#game-canvas');
+if (canvasElement === null) throw new Error('game:missing-canvas');
+const canvas: HTMLCanvasElement = canvasElement;
 const toolActions: Readonly<Record<GameToolMode, string>> = Object.freeze({
   navigate: 'tool-navigate',
   raise: 'tool-raise',

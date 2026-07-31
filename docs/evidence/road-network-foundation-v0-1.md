@@ -4,6 +4,7 @@
 **Pull request:** `#11`  
 **Branch:** `agent/road-network-foundation-v0-1`  
 **Implementation checkpoint HEAD:** `23cbeda685c016ad9d12832ed4b53a6abdcd028e`  
+**Evidence-ledger update commit:** `de0c62daf0f7da4d69a3da7b9269468cea248914`  
 **Verification policy:** Manual/local; automatic GitHub Actions disabled by owner decision  
 **Deployment policy:** Manual Vercel; Git-triggered deployment disabled  
 **Merge status:** Open and unmerged; final merge remains blocked by the exact-head repository and WebGL gates
@@ -84,7 +85,7 @@ The constrained execution environment has no local repository checkout and canno
 
 The Task 9 harnesses are partial evidence only. They do not replace repository TypeScript `6.0.3`, Vitest, Vite build, or the complete Playwright/WebGL application run.
 
-GitHub combined status for checkpoint HEAD `23cbeda685c016ad9d12832ed4b53a6abdcd028e` reports no checks because automatic CI is disabled.
+GitHub combined status for implementation checkpoint HEAD `23cbeda685c016ad9d12832ed4b53a6abdcd028e` reports no checks because automatic CI is disabled.
 
 ## 5. Dependency and workspace blocker
 

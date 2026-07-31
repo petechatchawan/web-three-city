@@ -9,6 +9,10 @@ import {
 import { bindGameToolHud } from './game-tool-hud-binding.js';
 import type { GameToolMode } from './game-tool-mode.js';
 import { expandGameSecondaryControls } from './game-secondary-controls.js';
+import {
+  pointerReleaseTransaction,
+  undoTransaction,
+} from './game-transaction-presentation.js';
 
 const root = document.querySelector<HTMLElement>('#app');
 if (root === null) throw new Error('game:missing-root');
@@ -52,13 +56,11 @@ function cancelPreviewOrCloseTool(): void {
   }
 }
 
-function announcePointerReleaseTransaction(): void {
-  const evidence = window.__WEB_THREE_CITY_INTERACTION__;
-  if (evidence?.terraform.strokeActive === true && evidence.terraform.acceptedStampCount > 0) {
-    dispatchGameTransactionState(canvas, 'committing', 'terraform');
-  } else if (evidence?.road.strokeActive === true && evidence.road.previewValid === true) {
-    dispatchGameTransactionState(canvas, 'committing', 'road');
-  }
+function dispatchTransaction(
+  transaction: ReturnType<typeof pointerReleaseTransaction>,
+): void {
+  if (transaction === null) return;
+  dispatchGameTransactionState(canvas, transaction.state, transaction.domain);
 }
 
 expandGameSecondaryControls(root);
@@ -68,18 +70,14 @@ closeToolButton.addEventListener('click', () => navigateButton.click(), {
 });
 undoButton.addEventListener(
   'click',
-  () => {
-    const domain = window.__WEB_THREE_CITY_INTERACTION__?.road.undoKind;
-    if (domain !== null && domain !== undefined) {
-      dispatchGameTransactionState(canvas, 'undoing', domain);
-    }
-  },
+  () => dispatchTransaction(undoTransaction(window.__WEB_THREE_CITY_INTERACTION__)),
   { capture: true, signal: bindings.signal },
 );
-window.addEventListener('pointerup', announcePointerReleaseTransaction, {
-  capture: true,
-  signal: bindings.signal,
-});
+window.addEventListener(
+  'pointerup',
+  () => dispatchTransaction(pointerReleaseTransaction(window.__WEB_THREE_CITY_INTERACTION__)),
+  { capture: true, signal: bindings.signal },
+);
 
 bindGameKeyboardShortcuts(
   window,

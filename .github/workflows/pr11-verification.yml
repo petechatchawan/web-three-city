@@ -1,0 +1,45 @@
+name: PR 11 Verification
+
+on:
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    if: github.head_ref == 'agent/road-network-foundation-v0-1' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+          run_install: false
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Format check
+        run: pnpm format:check
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Build browser apps
+        run: pnpm build:browser
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Focused Terraform browser regression
+        run: >-
+          pnpm exec playwright test
+          browser-tests/terraform.spec.ts
+          -g "accumulates Raise Preview and commits once on release"
+          --project=chromium
+          --reporter=line
+          --workers=1
+      - name: Full browser suite
+        run: pnpm test:browser:only

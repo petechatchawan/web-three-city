@@ -187,6 +187,14 @@ function roadDirtyChunksBetween(
   return frozenDirtyChunks(chunks);
 }
 
+function geometryAttributeByteLength(attribute: unknown): number {
+  if (attribute instanceof THREE.BufferAttribute) return attribute.array.byteLength;
+  if (attribute instanceof THREE.InterleavedBufferAttribute) {
+    return attribute.data.array.byteLength;
+  }
+  return 0;
+}
+
 function roadGeometryBytes(scene: THREE.Scene): number {
   const root = scene.getObjectByName('road-committed-root');
   if (root === undefined) return 0;
@@ -194,7 +202,7 @@ function roadGeometryBytes(scene: THREE.Scene): number {
   root.traverse((object) => {
     if (!(object instanceof THREE.Mesh)) return;
     for (const attribute of Object.values(object.geometry.attributes)) {
-      bytes += attribute.array.byteLength;
+      bytes += geometryAttributeByteLength(attribute);
     }
     if (object.geometry.index !== null) bytes += object.geometry.index.array.byteLength;
   });

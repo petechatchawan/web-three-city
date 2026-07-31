@@ -1,0 +1,126 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Quality and provenance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm provenance:check
+
+  unit:
+    name: Unit, geometry, and golden tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:coverage
+      - run: pnpm test:deployment
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage
+          path: packages/*/coverage
+          if-no-files-found: ignore
+          retention-days: 14
+
+  build:
+    name: Build all packages and applications
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Verify deployable asset paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Eq '(src|href)="\./assets/' apps/game/dist/index.html
+          grep -Eq '(src|href)="\./assets/' apps/terrain-lab/dist/index.html
+          ! grep -Eq '(src|href)="/assets/' apps/game/dist/index.html
+          ! grep -Eq '(src|href)="/assets/' apps/terrain-lab/dist/index.html
+      - run: pnpm compose:vercel
+      - name: Verify Vercel Build Output API
+        shell: bash
+        run: |
+          set -euo pipefail
+          node -e "const fs=require('node:fs'); const config=JSON.parse(fs.readFileSync('.vercel/output/config.json','utf8')); if(config.version!==3) process.exit(1)"
+          test -f .vercel/output/static/index.html
+          test -f .vercel/output/static/terrain-lab/index.html
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-app-builds
+          path: |
+            apps/game/dist
+            apps/terrain-lab/dist
+          if-no-files-found: error
+          retention-days: 14
+
+  browser:
+    name: Chromium smoke, interaction, and visual evidence
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build:browser
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:browser:only
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-evidence
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: warn
+          retention-days: 14

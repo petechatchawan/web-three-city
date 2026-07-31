@@ -1,6 +1,10 @@
 import { createHash } from 'node:crypto';
 import type { Locator, Page } from '@playwright/test';
-import { OrthographicCameraRig, type CameraState, type ViewportInsets } from '../../packages/camera-input/src/index.js';
+import {
+  OrthographicCameraRig,
+  type CameraState,
+  type ViewportInsets,
+} from '../../packages/camera-input/src/index.js';
 import {
   CELL_TRIANGLES,
   selectTerrainDiagonal,

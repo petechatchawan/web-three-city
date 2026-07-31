@@ -1,4 +1,4 @@
-import { dispatchGameToolCancel, bindGameToolEvents } from './game-tool-events.js';
+import { bindGameToolEvents, dispatchGameToolCancel } from './game-tool-events.js';
 import { messageForGameReason } from './game-reason-catalog.js';
 
 function requireElement<T extends Element>(root: ParentNode, selector: string): T {
@@ -9,6 +9,10 @@ function requireElement<T extends Element>(root: ParentNode, selector: string): 
 
 function recoveryStatus(value: string): boolean {
   return /failed|context lost|unavailable/i.test(value);
+}
+
+function assertNever(value: never): never {
+  throw new Error(`game-tool-hud:unknown-event:${JSON.stringify(value)}`);
 }
 
 export function bindGameToolHud(
@@ -65,57 +69,78 @@ export function bindGameToolHud(
   bindGameToolEvents(
     canvas,
     (detail) => {
-      if (detail.type === 'terraform-state') {
-        const state = detail.state;
-        interactionActive = state.strokeActive;
-        terraformMetrics.hidden = false;
-        roadMetrics.hidden = true;
-        terraformAccepted.textContent = String(state.acceptedAnchors.length);
-        terraformSupport.textContent = String(state.acceptedPlan?.supportCells.length ?? 0);
-        terraformTarget.textContent =
-          state.flattenTargetLevel === null ? '—' : String(state.flattenTargetLevel);
-        if (state.currentStamp.kind === 'rejected') {
-          contextState.textContent = 'Rejected';
-          contextMessage.textContent = messageForGameReason(state.currentStamp.reason);
-        } else if (state.currentStamp.kind === 'no-change') {
-          contextState.textContent = 'No change';
-          contextMessage.textContent = messageForGameReason('terraform:no-change');
-        } else if (state.currentStamp.kind === 'accepted') {
-          contextState.textContent = 'Valid preview';
-          contextMessage.textContent = 'Release to apply the accepted terrain change';
-        } else if (state.strokeActive) {
-          contextState.textContent = 'Previewing';
+      switch (detail.type) {
+        case 'terraform-state': {
+          const state = detail.state;
+          interactionActive = state.strokeActive;
+          terraformMetrics.hidden = false;
+          roadMetrics.hidden = true;
+          terraformAccepted.textContent = String(state.acceptedAnchors.length);
+          terraformSupport.textContent = String(state.acceptedPlan?.supportCells.length ?? 0);
+          terraformTarget.textContent =
+            state.flattenTargetLevel === null ? '—' : String(state.flattenTargetLevel);
+          if (state.currentStamp.kind === 'rejected') {
+            contextState.textContent = 'Rejected';
+            contextMessage.textContent = messageForGameReason(state.currentStamp.reason);
+          } else if (state.currentStamp.kind === 'no-change') {
+            contextState.textContent = 'No change';
+            contextMessage.textContent = messageForGameReason('terraform:no-change');
+          } else if (state.currentStamp.kind === 'accepted') {
+            contextState.textContent = 'Valid preview';
+            contextMessage.textContent = 'Release to apply the accepted terrain change';
+          } else if (state.strokeActive) {
+            contextState.textContent = 'Previewing';
+          }
+          break;
         }
-      } else if (detail.type === 'road-state') {
-        interactionActive = detail.state.strokeActive;
-        terraformMetrics.hidden = true;
-        roadMetrics.hidden = false;
-        roadRequested.textContent = String(detail.state.previewCellCount);
-        roadEffective.textContent = String(
-          detail.state.previewValid === true ? detail.state.previewCellCount : 0,
-        );
-        contextState.textContent =
-          detail.state.previewValid === true
-            ? 'Valid preview'
-            : detail.state.previewValid === false
-              ? 'Rejected'
-              : 'Tool ready';
-        if (detail.reason !== null) {
+        case 'road-state':
+          interactionActive = detail.state.strokeActive;
+          terraformMetrics.hidden = true;
+          roadMetrics.hidden = false;
+          roadRequested.textContent = String(detail.state.previewCellCount);
+          roadEffective.textContent = String(
+            detail.state.previewValid === true ? detail.state.previewCellCount : 0,
+          );
+          contextState.textContent =
+            detail.state.previewValid === true
+              ? 'Valid preview'
+              : detail.state.previewValid === false
+                ? 'Rejected'
+                : 'Tool ready';
+          if (detail.reason !== null) {
+            contextMessage.textContent = messageForGameReason(detail.reason);
+          } else if (detail.state.strokeActive) {
+            contextMessage.textContent = 'Release to apply the Road command';
+          }
+          break;
+        case 'reason':
+          interactionActive = false;
+          contextState.textContent = detail.reason.endsWith(':no-change') ? 'No change' : 'Rejected';
           contextMessage.textContent = messageForGameReason(detail.reason);
-        } else if (detail.state.strokeActive) {
-          contextMessage.textContent = 'Release to apply the Road command';
+          if (detail.reason === 'terraform:road-occupied') {
+            setCompatibilityStatus('Terraform blocked by road');
+          } else if (detail.reason === 'terraform:no-change') {
+            setCompatibilityStatus('Terraform unchanged');
+          } else if (detail.reason.startsWith('terraform:')) {
+            setCompatibilityStatus('Terraform rejected');
+          }
+          break;
+        case 'transaction-state': {
+          interactionActive = false;
+          hideMetrics();
+          setMutationBlocked(true);
+          const domain = detail.domain === 'terraform' ? 'Terrain' : 'Road';
+          if (detail.state === 'committing') {
+            contextState.textContent = 'Applying change';
+            contextMessage.textContent = `Applying ${domain} change…`;
+          } else {
+            contextState.textContent = 'Undoing';
+            contextMessage.textContent = `Restoring previous ${domain} state…`;
+          }
+          break;
         }
-      } else {
-        interactionActive = false;
-        contextState.textContent = detail.reason.endsWith(':no-change') ? 'No change' : 'Rejected';
-        contextMessage.textContent = messageForGameReason(detail.reason);
-        if (detail.reason === 'terraform:road-occupied') {
-          setCompatibilityStatus('Terraform blocked by road');
-        } else if (detail.reason === 'terraform:no-change') {
-          setCompatibilityStatus('Terraform unchanged');
-        } else if (detail.reason.startsWith('terraform:')) {
-          setCompatibilityStatus('Terraform rejected');
-        }
+        default:
+          assertNever(detail);
       }
     },
     signal,

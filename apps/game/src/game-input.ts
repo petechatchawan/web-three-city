@@ -36,7 +36,12 @@ import {
 import {
   bindGameToolCancel,
   dispatchGameToolEvent,
+  dispatchGameTransactionState,
 } from './game-tool-events.js';
+import {
+  roadPlanTransaction,
+  terraformReleaseTransaction,
+} from './game-transaction-presentation.js';
 import {
   createRoadStrokeController,
   type RoadInputState,
@@ -258,11 +263,19 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
           return;
         }
         const finalPlan = roadController.end(pointerId, cell);
+        const transaction = roadPlanTransaction(finalPlan);
+        if (transaction !== null) {
+          dispatchGameTransactionState(options.canvas, transaction.state, transaction.domain);
+        }
         if (finalPlan !== null) options.onRoadPlan(finalPlan);
         return;
       }
       if (!isTerraformToolMode(mode)) return;
       const release = terraformSession.end(pointerId, cell);
+      const transaction = terraformReleaseTransaction(release);
+      if (transaction !== null) {
+        dispatchGameTransactionState(options.canvas, transaction.state, transaction.domain);
+      }
       if (options.onTerraformRelease !== undefined) {
         options.onTerraformRelease(release);
       } else {

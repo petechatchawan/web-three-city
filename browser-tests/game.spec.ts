@@ -162,18 +162,7 @@ test('exposes Terraform and Road tools with mode-aware brush controls', async ({
   for (const name of ['Raise', 'Lower', 'Flatten', 'Build Road', 'Bulldoze Road']) {
     await expect(page.getByRole('button', { name })).toHaveAttribute('aria-pressed', 'false');
   }
-  await expect(page.getByRole('button', { name: 'Brush 1 × 1' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
-  await expect(page.getByRole('button', { name: 'Brush 3 × 3' })).toHaveAttribute(
-    'aria-pressed',
-    'false',
-  );
-  await expect(page.getByRole('button', { name: 'Brush 5 × 5' })).toHaveAttribute(
-    'aria-pressed',
-    'false',
-  );
+  await expect(page.getByTestId('terraform-brush-controls')).toBeHidden();
   await expect(page.getByRole('button', { name: 'Undo latest world change' })).toBeDisabled();
   await expect(page.getByTestId('active-tool')).toHaveText('Navigate');
 
@@ -187,4 +176,16 @@ test('exposes Terraform and Road tools with mode-aware brush controls', async ({
 
   await page.getByRole('button', { name: 'Raise' }).click();
   await expect(page.getByTestId('terraform-brush-controls')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Brush 1 × 1' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(page.getByRole('button', { name: 'Brush 3 × 3' })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
+  await expect(page.getByRole('button', { name: 'Brush 5 × 5' })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
 });

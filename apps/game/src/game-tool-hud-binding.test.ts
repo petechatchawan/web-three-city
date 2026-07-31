@@ -75,6 +75,55 @@ describe('bindGameToolHud', () => {
     );
   });
 
+  it('fences mutation controls while committing and restores them after completion', async () => {
+    const root = document.createElement('div');
+    const ui = renderGameUi(root);
+    const controller = new AbortController();
+    bindGameToolHud(root, ui.canvas, controller.signal);
+    ui.setUndoAvailable(true);
+
+    dispatchGameToolEvent(
+      ui.canvas,
+      Object.freeze({ type: 'transaction-state', state: 'committing', domain: 'terraform' }),
+    );
+
+    expect(ui.raiseButton.disabled).toBe(true);
+    expect(ui.roadBuildButton.disabled).toBe(true);
+    expect(ui.undoButton.disabled).toBe(true);
+    expect(root.querySelector('[data-testid="tool-context-state"]')?.textContent).toBe(
+      'Applying change',
+    );
+    expect(root.querySelector('[data-testid="tool-context-message"]')?.textContent).toBe(
+      'Applying Terrain change…',
+    );
+
+    ui.setStatus('Terraform applied');
+    ui.setUndoAvailable(true);
+    await flushMutationObserver();
+
+    expect(ui.raiseButton.disabled).toBe(false);
+    expect(ui.roadBuildButton.disabled).toBe(false);
+    expect(ui.undoButton.disabled).toBe(false);
+    expect(root.querySelector('[data-testid="tool-context-state"]')?.textContent).toBe('Ready');
+  });
+
+  it('renders an explicit Undo transaction state', () => {
+    const root = document.createElement('div');
+    const ui = renderGameUi(root);
+    const controller = new AbortController();
+    bindGameToolHud(root, ui.canvas, controller.signal);
+
+    dispatchGameToolEvent(
+      ui.canvas,
+      Object.freeze({ type: 'transaction-state', state: 'undoing', domain: 'road' }),
+    );
+
+    expect(root.querySelector('[data-testid="tool-context-state"]')?.textContent).toBe('Undoing');
+    expect(root.querySelector('[data-testid="tool-context-message"]')?.textContent).toBe(
+      'Restoring previous Road state…',
+    );
+  });
+
   it('mirrors completed and recovery status after a session ends', async () => {
     const root = document.createElement('div');
     const ui = renderGameUi(root);

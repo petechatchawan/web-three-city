@@ -2,6 +2,7 @@ import {
   createTerrainMap,
   planTerraformStroke,
   type TerrainSnapshot,
+  type TerraformPlan,
 } from '@web-three-city/terrain-core';
 import { deriveWaterSnapshot, type WaterSnapshot } from '@web-three-city/water-core';
 import type { WorldConfig } from '@web-three-city/world-core';
@@ -37,6 +38,28 @@ function waterFor(terrain: TerrainSnapshot): WaterSnapshot {
   return result.value;
 }
 
+function latticeIndex(x: number, z: number): number {
+  return z * (TEST_CONFIG.mapWidth + 1) + x;
+}
+
+function mixedTriangleShorelinePlan(terrain: TerrainSnapshot): TerraformPlan {
+  const basePlan = planTerraformStroke(
+    terrain,
+    { operation: 'raise', brushSize: 1, cells: [{ x: 1, z: 3 }] },
+    TEST_CONFIG,
+  );
+  const proposedHeightLevels = terrain.heightLevels.slice();
+  proposedHeightLevels[latticeIndex(1, 3)] = 2;
+  proposedHeightLevels[latticeIndex(2, 3)] = 2;
+  proposedHeightLevels[latticeIndex(1, 4)] = 2;
+  proposedHeightLevels[latticeIndex(2, 4)] = 1;
+  return Object.freeze({
+    ...basePlan,
+    affectedCells: Object.freeze([{ x: 1, z: 3 }]),
+    proposedHeightLevels,
+  });
+}
+
 describe('projectTerraformWater', () => {
   it('classifies newly exposed dry cells from the projected lattice', () => {
     const terrain = uniformTerrain(1);
@@ -51,7 +74,18 @@ describe('projectTerraformWater', () => {
 
     expect(summary.newlyDryCells).toContainEqual({ x: 1, z: 3 });
     expect(summary.projectedDryCells).toContainEqual({ x: 1, z: 3 });
-    expect(summary.projectedShorelineCells.length).toBeGreaterThan(0);
+  });
+
+  it('classifies one ocean-connected projected triangle as shoreline', () => {
+    const terrain = uniformTerrain(1);
+    const water = waterFor(terrain);
+    const plan = mixedTriangleShorelinePlan(terrain);
+
+    const summary = projectTerraformWater(terrain, water, plan, TEST_CONFIG);
+
+    expect(summary.projectedShorelineCells).toContainEqual({ x: 1, z: 3 });
+    expect(summary.projectedWetCells).not.toContainEqual({ x: 1, z: 3 });
+    expect(summary.projectedDryCells).not.toContainEqual({ x: 1, z: 3 });
   });
 
   it('classifies newly wet cells after lowering south-edge terrain', () => {

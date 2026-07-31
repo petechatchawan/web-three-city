@@ -66,6 +66,7 @@ function dispatchTransaction(
 }
 
 expandGameSecondaryControls(root);
+window.dispatchEvent(new Event('resize'));
 bindGameToolHud(root, canvas, bindings.signal);
 closeToolButton.addEventListener('click', () => navigateButton.click(), {
   signal: bindings.signal,

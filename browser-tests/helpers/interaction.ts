@@ -35,6 +35,13 @@ export interface TerrainCellScreenPoint {
   readonly y: number;
 }
 
+interface UsableCanvasBounds {
+  readonly left: number;
+  readonly top: number;
+  readonly right: number;
+  readonly bottom: number;
+}
+
 export async function readEvidence(page: Page): Promise<InteractionEvidence> {
   return page.evaluate(() => {
     const evidence = window.__WEB_THREE_CITY_INTERACTION__;
@@ -110,12 +117,32 @@ export function createDeterministicWaterGeometryEvidence(): DeterministicWaterGe
   });
 }
 
+async function usableCanvasBounds(page: Page): Promise<UsableCanvasBounds> {
+  const canvasBounds = await page.locator('#game-canvas').boundingBox();
+  if (canvasBounds === null) throw new Error('missing Game canvas bounds');
+  const panelBounds = await page.locator('.game-hud').boundingBox();
+  const mode = (await page.getByTestId('controls-mode').textContent())?.trim();
+
+  let left = canvasBounds.x + 2;
+  let top = canvasBounds.y + 2;
+  const right = canvasBounds.x + canvasBounds.width - 2;
+  const bottom = canvasBounds.y + canvasBounds.height - 2;
+
+  if (panelBounds !== null && mode === 'expanded') {
+    left = Math.max(left, panelBounds.x + panelBounds.width + 18);
+  } else if (panelBounds !== null && mode === 'compact') {
+    top = Math.max(top, panelBounds.y + panelBounds.height + 10);
+  }
+
+  if (left >= right || top >= bottom) throw new Error('terrain-cell:no-usable-canvas-region');
+  return Object.freeze({ left, top, right, bottom });
+}
+
 export async function clickTerrainCell(
   page: Page,
   target: Readonly<{ x: number; z: number }>,
 ): Promise<TerrainCellScreenPoint> {
-  const bounds = await page.locator('#game-canvas').boundingBox();
-  if (bounds === null) throw new Error('missing Game canvas bounds');
+  const usable = await usableCanvasBounds(page);
 
   interface SelectionSample {
     readonly screenX: number;
@@ -123,10 +150,8 @@ export async function clickTerrainCell(
     readonly cell: Readonly<{ x: number; z: number }>;
   }
 
-  const clampX = (x: number): number =>
-    Math.min(bounds.x + bounds.width - 2, Math.max(bounds.x + 2, x));
-  const clampY = (y: number): number =>
-    Math.min(bounds.y + bounds.height - 2, Math.max(bounds.y + 2, y));
+  const clampX = (x: number): number => Math.min(usable.right, Math.max(usable.left, x));
+  const clampY = (y: number): number => Math.min(usable.bottom, Math.max(usable.top, y));
   const selectNear = async (requestedX: number, requestedY: number): Promise<SelectionSample> => {
     const offsets: readonly Readonly<{ x: number; y: number }>[] = [
       { x: 0, y: 0 },
@@ -145,6 +170,11 @@ export async function clickTerrainCell(
     for (const offset of offsets) {
       const screenX = clampX(requestedX + offset.x);
       const screenY = clampY(requestedY + offset.y);
+      const hitsCanvas = await page.evaluate(
+        ({ x, y }) => document.elementFromPoint(x, y)?.id === 'game-canvas',
+        { x: screenX, y: screenY },
+      );
+      if (!hitsCanvas) continue;
       await page.mouse.click(screenX, screenY);
       const cell = (await readEvidence(page)).selectedCell;
       if (cell !== null) return { screenX, screenY, cell };
@@ -161,8 +191,8 @@ export async function clickTerrainCell(
     { x: -72, y: -72 },
   ] as const;
 
-  let screenX = bounds.x + bounds.width * 0.62;
-  let screenY = bounds.y + bounds.height * 0.58;
+  let screenX = usable.left + (usable.right - usable.left) * 0.55;
+  let screenY = usable.top + (usable.bottom - usable.top) * 0.58;
   for (let attempt = 0; attempt < 8; attempt += 1) {
     const current = await selectNear(screenX, screenY);
     if (current.cell.x === target.x && current.cell.z === target.z) {

@@ -16,10 +16,12 @@
     "provenance:check": "node tooling/check-provenance.mjs",
     "test": "pnpm -r --if-present test",
     "test:coverage": "pnpm -r --if-present test:coverage",
-    "test:deployment": "node --test tooling/compose-vercel-output.test.mjs tooling/bootstrap-vercel-project.test.mjs",
+    "test:deployment": "node --test tooling/compose-vercel-output.test.mjs tooling/bootstrap-vercel-project.test.mjs tooling/verification-scripts.test.mjs tooling/verify-clean-worktree.test.mjs",
     "test:browser": "pnpm build:browser && playwright test",
     "test:browser:only": "playwright test",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm provenance:check && pnpm test && pnpm test:deployment && pnpm build"
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm provenance:check && pnpm test && pnpm test:deployment && pnpm build",
+    "verify": "pnpm check",
+    "verify:full": "pnpm install --frozen-lockfile && pnpm verify && pnpm exec playwright install chromium && pnpm test:browser:only && node tooling/verify-clean-worktree.mjs"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",

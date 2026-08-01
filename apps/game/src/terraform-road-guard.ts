@@ -17,9 +17,28 @@ export type GuardedTerraformPlan = GuardedTerraformCandidate;
 const EMPTY_BLOCKED_ROAD_CELLS: readonly CellCoord[] = Object.freeze([]);
 
 function blockedRoadCellsFor(plan: TerraformPlan, roads: RoadSnapshot): readonly CellCoord[] {
+  const blocked = new Map<string, CellCoord>();
+  for (const vertex of plan.affectedVertices) {
+    for (const cell of [
+      { x: vertex.x - 1, z: vertex.z - 1 },
+      { x: vertex.x, z: vertex.z - 1 },
+      { x: vertex.x - 1, z: vertex.z },
+      { x: vertex.x, z: vertex.z },
+    ]) {
+      if (
+        cell.x < 0 ||
+        cell.z < 0 ||
+        cell.x >= roads.width ||
+        cell.z >= roads.height ||
+        !roadOccupiedAt(roads, cell)
+      ) {
+        continue;
+      }
+      blocked.set(`${cell.x}:${cell.z}`, cell);
+    }
+  }
   return Object.freeze(
-    plan.affectedCells
-      .filter((cell) => roadOccupiedAt(roads, cell))
+    [...blocked.values()]
       .map((cell) => Object.freeze({ x: cell.x, z: cell.z }))
       .sort((first, second) => first.z - second.z || first.x - second.x),
   );

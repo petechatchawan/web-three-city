@@ -357,9 +357,13 @@ test('WorldSaveV1 restores Roads and legacy Terrain saves migrate to empty Roads
 test('WebGL context restoration keeps committed Roads and clears Preview', async ({ page }) => {
   await openGame(page);
   const cells = findRoadLine(2);
-  await buildRoadTap(page, cells[0]!);
-  const previewPoint = await clickTerrainCell(page, cells[1]!);
+  const [committedPoint, previewPoint] = await locateCells(page, cells);
+  if (committedPoint === undefined || previewPoint === undefined) {
+    throw new Error('road-browser:missing-context-restore-points');
+  }
   await page.getByRole('button', { name: 'Build Road' }).click();
+  await page.mouse.click(committedPoint.x, committedPoint.y);
+  await expect(page.getByTestId('game-status')).toHaveText('Road built');
   await dispatchCanvasTouch(page, 'pointerdown', 1, previewPoint.x, previewPoint.y);
   expect((await readEvidence(page)).road.previewRootCount).toBe(1);
 

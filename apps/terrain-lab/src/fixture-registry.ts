@@ -342,11 +342,11 @@ function createRoadFixture(id: RoadFixtureId): TerrainFixture {
     wet ? 0 : 2,
   );
 
-  if (
-    id === 'road-ramp-north-up' ||
-    id === 'road-invalid-ramp-perpendicular' ||
-    id === 'road-invalid-ramp-junction'
-  ) {
+  if (id === 'road-invalid-ramp-perpendicular') {
+    applyNorthSouthRamp(levels, offsetCell(-1, 0), 3, 2);
+    applyNorthSouthRamp(levels, ROAD_CENTER, 3, 2);
+    applyNorthSouthRamp(levels, offsetCell(1, 0), 3, 2);
+  } else if (id === 'road-ramp-north-up' || id === 'road-invalid-ramp-junction') {
     applyNorthSouthRamp(levels, ROAD_CENTER, 3, 2);
   } else if (id === 'road-ramp-north-down') {
     applyNorthSouthRamp(levels, ROAD_CENTER, 2, 3);

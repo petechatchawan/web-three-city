@@ -61,6 +61,22 @@ describe('Terraform Road guard', () => {
     expect(corePlan.valid).toBe(true);
   });
 
+  it('rejects a Road cell that shares a changed Terrain vertex', () => {
+    const corePlan = planTerraformStroke(
+      terrain(),
+      { operation: 'raise', brushSize: 1, cells: [{ x: 8, z: 8 }] },
+      WORLD_CONFIG,
+    );
+    expect(corePlan.valid).toBe(true);
+    expect(corePlan.affectedCells).not.toContainEqual({ x: 9, z: 8 });
+
+    const guarded = guardTerraformPlanWithRoads(corePlan, roadsAt({ x: 9, z: 8 }));
+
+    expect(guarded.valid).toBe(false);
+    expect(guarded.invalidReason).toBe('terraform:road-occupied');
+    expect(guarded.blockedRoadCells).toEqual([{ x: 9, z: 8 }]);
+  });
+
   it('preserves valid plans without overlapping Roads', () => {
     const corePlan = planTerraformStroke(
       terrain(),

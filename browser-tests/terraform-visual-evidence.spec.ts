@@ -168,13 +168,13 @@ test('captures Terraform Foundation visual and timing evidence', async ({ page }
   });
   await page.mouse.up();
   await expect(page.getByTestId('game-status')).toHaveText('Terraform applied');
-  await page.getByRole('button', { name: 'Undo Terraform' }).click();
+  await page.getByRole('button', { name: 'Undo latest world change' }).click();
   await expect(page.getByTestId('game-status')).toHaveText('Terraform undone');
 
   await page.getByRole('button', { name: 'Navigate' }).click();
   const fiveCellPoint = await clickTerrainCell(page, validRaiseCell(BASE_TERRAIN, 5));
-  await page.getByRole('button', { name: 'Brush 5 × 5' }).click();
   await page.getByRole('button', { name: 'Raise' }).click();
+  await page.getByRole('button', { name: 'Brush 5 × 5' }).click();
   await page.mouse.move(fiveCellPoint.x, fiveCellPoint.y);
   await page.mouse.down();
   evidence = await readEvidence(page);
@@ -185,13 +185,13 @@ test('captures Terraform Foundation visual and timing evidence', async ({ page }
   });
   await page.mouse.up();
   await expect(page.getByTestId('game-status')).toHaveText('Terraform applied');
-  await page.getByRole('button', { name: 'Undo Terraform' }).click();
+  await page.getByRole('button', { name: 'Undo latest world change' }).click();
   await expect(page.getByTestId('game-status')).toHaveText('Terraform undone');
 
   await page.getByRole('button', { name: 'Navigate' }).click();
   const invalidPoint = await clickTerrainCell(page, flatCell());
-  await page.getByRole('button', { name: 'Brush 1 × 1' }).click();
   await page.getByRole('button', { name: 'Flatten' }).click();
+  await page.getByRole('button', { name: 'Brush 1 × 1' }).click();
   await page.mouse.move(invalidPoint.x, invalidPoint.y);
   await page.mouse.down();
   evidence = await readEvidence(page);
@@ -219,7 +219,7 @@ test('captures Terraform Foundation visual and timing evidence', async ({ page }
   });
 
   const undoStart = await page.evaluate(() => performance.now());
-  await page.getByRole('button', { name: 'Undo Terraform' }).click();
+  await page.getByRole('button', { name: 'Undo latest world change' }).click();
   await expect(page.getByTestId('game-status')).toHaveText('Terraform undone');
   const undoEnd = await page.evaluate(() => performance.now());
   const undone = await readEvidence(page);

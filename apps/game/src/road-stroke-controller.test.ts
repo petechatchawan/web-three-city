@@ -7,7 +7,7 @@ import {
   type RoadSnapshot,
 } from '@web-three-city/road-core';
 import type { TerrainCellSurfaceProfile } from '@web-three-city/terrain-core';
-import { WORLD_CONFIG } from '@web-three-city/world-core';
+import { WORLD_CONFIG, type CellCoord } from '@web-three-city/world-core';
 import { describe, expect, it, vi } from 'vitest';
 import { createRoadStrokeController } from './road-stroke-controller.js';
 
@@ -24,7 +24,7 @@ function environment(revision = 3): RoadPlacementEnvironment {
   return Object.freeze({
     terrainRevision: revision,
     waterSourceTerrainRevision: revision,
-    surfaceAt(cell): TerrainCellSurfaceProfile {
+    surfaceAt(cell: CellCoord): TerrainCellSurfaceProfile {
       return Object.freeze({ ...FLAT_SURFACE, cell: Object.freeze({ ...cell }) });
     },
     isDry: () => true,

@@ -11,7 +11,7 @@ import {
 } from '../packages/terrain-core/src/index.js';
 import { generateCoastalTerrain } from '../packages/terrain-generator/src/index.js';
 import { deriveWaterSnapshot, triangleIndexFor } from '../packages/water-core/src/index.js';
-import { WORLD_CONFIG } from '../packages/world-core/src/index.js';
+import { WORLD_CONFIG, type CellCoord } from '../packages/world-core/src/index.js';
 import {
   GAME_URL,
   clickTerrainCell,
@@ -33,10 +33,10 @@ const BASE_WATER = (() => {
 const BASE_ENVIRONMENT: RoadPlacementEnvironment = Object.freeze({
   terrainRevision: BASE_TERRAIN.revision,
   waterSourceTerrainRevision: BASE_WATER.sourceTerrainRevision,
-  surfaceAt(cell) {
+  surfaceAt(cell: CellCoord) {
     return terrainCellSurfaceProfile(BASE_TERRAIN, cell, WORLD_CONFIG);
   },
-  isDry(cell) {
+  isDry(cell: CellCoord) {
     const first = triangleIndexFor(cell.x, cell.z, 0, WORLD_CONFIG.mapWidth);
     const second = triangleIndexFor(cell.x, cell.z, 1, WORLD_CONFIG.mapWidth);
     return BASE_WATER.seaTriangleMask[first] === 0 && BASE_WATER.seaTriangleMask[second] === 0;

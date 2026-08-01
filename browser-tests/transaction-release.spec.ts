@@ -7,7 +7,7 @@ import {
 import { terrainCellSurfaceProfile } from '../packages/terrain-core/src/index.js';
 import { generateCoastalTerrain } from '../packages/terrain-generator/src/index.js';
 import { deriveWaterSnapshot, triangleIndexFor } from '../packages/water-core/src/index.js';
-import { WORLD_CONFIG } from '../packages/world-core/src/index.js';
+import { WORLD_CONFIG, type CellCoord } from '../packages/world-core/src/index.js';
 import { GAME_URL, clickTerrainCell, readEvidence } from './helpers/interaction.js';
 
 const TERRAIN = (() => {
@@ -23,10 +23,10 @@ const WATER = (() => {
 const ENVIRONMENT: RoadPlacementEnvironment = Object.freeze({
   terrainRevision: TERRAIN.revision,
   waterSourceTerrainRevision: WATER.sourceTerrainRevision,
-  surfaceAt(cell) {
+  surfaceAt(cell: CellCoord) {
     return terrainCellSurfaceProfile(TERRAIN, cell, WORLD_CONFIG);
   },
-  isDry(cell) {
+  isDry(cell: CellCoord) {
     const first = triangleIndexFor(cell.x, cell.z, 0, WORLD_CONFIG.mapWidth);
     const second = triangleIndexFor(cell.x, cell.z, 1, WORLD_CONFIG.mapWidth);
     return WATER.seaTriangleMask[first] === 0 && WATER.seaTriangleMask[second] === 0;

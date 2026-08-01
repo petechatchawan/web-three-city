@@ -47,6 +47,9 @@ importers:
       '@web-three-city/road-core':
         specifier: workspace:*
         version: link:../../packages/road-core
+      '@web-three-city/road-three':
+        specifier: workspace:*
+        version: link:../../packages/road-three
       '@web-three-city/terrain-core':
         specifier: workspace:*
         version: link:../../packages/terrain-core
@@ -78,6 +81,12 @@ importers:
       '@web-three-city/camera-input':
         specifier: workspace:*
         version: link:../../packages/camera-input
+      '@web-three-city/road-core':
+        specifier: workspace:*
+        version: link:../../packages/road-core
+      '@web-three-city/road-three':
+        specifier: workspace:*
+        version: link:../../packages/road-three
       '@web-three-city/shared-testkit':
         specifier: workspace:*
         version: link:../../packages/shared-testkit

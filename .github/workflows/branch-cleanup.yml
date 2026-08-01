@@ -1,0 +1,84 @@
+name: One-time branch cleanup
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/branch-cleanup.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: one-time-branch-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+
+      - name: Delete exact obsolete branch allowlist
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          branches=(
+            'agent/ci-gated-vercel-integration-safety'
+            'agent/lean-ci'
+            'agent/pages-preview-deployment-v0-1'
+            'agent/prototype-interaction-completion-v0-1'
+            'agent/road-network-foundation-v0-1'
+            'agent/terraform-foundation-v0-1'
+            'agent/vercel-ci-gated-deployments-v0-1'
+            'agent/water-shoreline-foundation-v0-1-docs'
+            'agent/water-shoreline-foundation-v0-1'
+            'agent/web-terrain-foundation-v0-1'
+            'chore/develop-release-flow'
+            'chore/develop-release-flow-backup'
+            'chore/develop-release-flow-backup-2'
+            'chore/develop-release-flow-backup-3'
+            'chore/develop-release-flow-safety'
+            'develop'
+            'docs/prototype-interaction-completion-v0-1'
+            'docs/road-network-foundation-v0-1'
+            'docs/web-terrain-foundation-v0-1'
+            'pages-state'
+            'safety/pre-develop-flow-20260731'
+          )
+
+          for branch in "${branches[@]}"; do
+            if git ls-remote --exit-code --heads origin "refs/heads/${branch}" >/dev/null 2>&1; then
+              echo "Deleting ${branch}"
+              git push origin --delete "${branch}"
+            else
+              echo "Already absent: ${branch}"
+            fi
+          done
+
+          mapfile -t remaining < <(
+            git ls-remote --heads origin |
+              awk '{ sub("refs/heads/", "", $2); print $2 }' |
+              sort
+          )
+
+          printf 'Remaining branches:\n%s\n' "${remaining[*]}"
+          if [[ "${#remaining[@]}" -ne 1 || "${remaining[0]}" != 'master' ]]; then
+            echo 'Unexpected branch remains after cleanup.'
+            exit 1
+          fi
+
+      - name: Remove temporary cleanup workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/branch-cleanup.yml
+          git commit -m 'chore: remove temporary branch cleanup workflow'
+          git push origin HEAD:master

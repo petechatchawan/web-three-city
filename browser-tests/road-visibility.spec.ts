@@ -8,11 +8,7 @@ import { terrainCellSurfaceProfile } from '../packages/terrain-core/src/index.js
 import { generateCoastalTerrain } from '../packages/terrain-generator/src/index.js';
 import { deriveWaterSnapshot, triangleIndexFor } from '../packages/water-core/src/index.js';
 import { WORLD_CONFIG, type CellCoord } from '../packages/world-core/src/index.js';
-import {
-  GAME_URL,
-  clickTerrainCell,
-  type TerrainCellScreenPoint,
-} from './helpers/interaction.js';
+import { GAME_URL, clickTerrainCell, type TerrainCellScreenPoint } from './helpers/interaction.js';
 
 const GAME_SEED = 1_464_156_977;
 const BASE_TERRAIN = (() => {
@@ -91,7 +87,9 @@ async function openGame(page: Page): Promise<void> {
   await expect(page.getByTestId('game-status')).toHaveText('Ready');
 }
 
-test('Road Preview and committed Road change visible pixels at the target cell', async ({ page }) => {
+test('Road Preview and committed Road change visible pixels at the target cell', async ({
+  page,
+}) => {
   await openGame(page);
   const cell = findVisibleRoadCell();
   const point = await clickTerrainCell(page, cell);

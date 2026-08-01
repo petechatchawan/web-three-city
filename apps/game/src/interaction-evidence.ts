@@ -7,6 +7,8 @@ import type { TerraformBrushSize, WorldToolMode } from '@web-three-city/terrain-
 import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
 import * as THREE from 'three';
 import type { GameInput, GameRenderViewport } from './game-input.js';
+import type { GameTerraformInvalidReason } from './terraform-road-guard.js';
+import type { TerraformCurrentStamp } from './terraform-stroke-session.js';
 
 export interface WaterInteractionEvidence {
   readonly sourceTerrainRevision: number;
@@ -27,7 +29,12 @@ export interface TerraformInteractionEvidence {
   readonly brushSize: TerraformBrushSize;
   readonly strokeActive: boolean;
   readonly previewValid: boolean | null;
+  readonly previewInvalidReason: GameTerraformInvalidReason | null;
   readonly previewCellCount: number;
+  readonly acceptedStampCount: number;
+  readonly supportCellCount: number;
+  readonly currentStampKind: TerraformCurrentStamp['kind'];
+  readonly flattenTargetLevel: number | null;
   readonly committedTerrainRevision: number;
   readonly waterSourceTerrainRevision: number;
   readonly undoAvailable: boolean;
@@ -35,6 +42,33 @@ export interface TerraformInteractionEvidence {
   readonly undoCount: number;
   readonly waterRebuildCount: number;
   readonly previewRootCount: number;
+  readonly previewCoreCount: number;
+  readonly previewSupportCount: number;
+  readonly previewRejectedCount: number;
+  readonly previewNoChangeCount: number;
+  readonly previewWaterCount: number;
+  readonly previewRejectedMarkerCount: number;
+}
+
+export interface RoadInteractionEvidence {
+  readonly mode: 'road-build' | 'road-bulldoze' | null;
+  readonly strokeActive: boolean;
+  readonly previewValid: boolean | null;
+  readonly previewCellCount: number;
+  readonly committedRoadRevision: number;
+  readonly occupiedCellCount: number;
+  readonly commitCount: number;
+  readonly bulldozeCount: number;
+  readonly undoCount: number;
+  readonly lastDirtyChunkCount: number;
+  readonly chunkRebuildCount: number;
+  readonly terrainRevision: number;
+  readonly waterSourceTerrainRevision: number;
+  readonly undoKind: 'terraform' | 'road' | null;
+  readonly estimatedGeometryBytes: number;
+  readonly committedRootCount: number;
+  readonly previewRootCount: number;
+  readonly invalidMarkerCount: number;
 }
 
 export interface InteractionEvidence {
@@ -46,12 +80,15 @@ export interface InteractionEvidence {
   readonly framingMarginRatio: number;
   readonly water: WaterInteractionEvidence;
   readonly terraform: TerraformInteractionEvidence;
+  readonly road: RoadInteractionEvidence;
   readonly sceneRootCounts: {
     readonly terrain: number;
     readonly water: number;
     readonly grid: number;
     readonly selection: number;
     readonly preview: number;
+    readonly roadCommitted: number;
+    readonly roadPreview: number;
   };
 }
 
@@ -65,7 +102,20 @@ export interface InteractionEvidenceSource {
   getSelectedCell(): CellCoord | null;
   getGridVisible(): boolean;
   getWaterEvidence(): Omit<WaterInteractionEvidence, 'waterRootCount'>;
-  getTerraformEvidence(): Omit<TerraformInteractionEvidence, 'previewRootCount'>;
+  getTerraformEvidence(): Omit<
+    TerraformInteractionEvidence,
+    | 'previewRootCount'
+    | 'previewCoreCount'
+    | 'previewSupportCount'
+    | 'previewRejectedCount'
+    | 'previewNoChangeCount'
+    | 'previewWaterCount'
+    | 'previewRejectedMarkerCount'
+  >;
+  getRoadEvidence(): Omit<
+    RoadInteractionEvidence,
+    'committedRootCount' | 'previewRootCount' | 'invalidMarkerCount'
+  >;
 }
 
 declare global {
@@ -112,6 +162,20 @@ function countRoots(scene: THREE.Scene, name: string): number {
   return scene.children.filter((child) => child.name === name).length;
 }
 
+function countNamedObjects(scene: THREE.Scene, name: string): number {
+  let count = 0;
+  scene.traverse((object) => {
+    if (object.name === name) count += 1;
+  });
+  return count;
+}
+
+function countRoadPreviewRoots(scene: THREE.Scene): number {
+  return (
+    countRoots(scene, 'road-preview-root-valid') + countRoots(scene, 'road-preview-root-invalid')
+  );
+}
+
 export function publishInteractionEvidence(source: InteractionEvidenceSource): void {
   const evidence: InteractionEvidence = {
     get camera(): CameraState {
@@ -138,9 +202,29 @@ export function publishInteractionEvidence(source: InteractionEvidenceSource): v
       };
     },
     get terraform(): TerraformInteractionEvidence {
+      const state = source.getTerraformEvidence();
       return {
-        ...source.getTerraformEvidence(),
+        ...state,
+        previewValid: state.currentStampKind === 'no-change' ? false : state.previewValid,
+        previewCellCount: Math.max(0, state.previewCellCount - state.supportCellCount),
         previewRootCount: countRoots(source.scene, 'terraform-preview-root'),
+        previewCoreCount: countNamedObjects(source.scene, 'terraform-preview-core'),
+        previewSupportCount: countNamedObjects(source.scene, 'terraform-preview-support'),
+        previewRejectedCount: countNamedObjects(source.scene, 'terraform-preview-rejected'),
+        previewNoChangeCount: countNamedObjects(source.scene, 'terraform-preview-no-change'),
+        previewWaterCount: countNamedObjects(source.scene, 'terraform-preview-water'),
+        previewRejectedMarkerCount: countNamedObjects(
+          source.scene,
+          'terraform-preview-rejected-marker',
+        ),
+      };
+    },
+    get road(): RoadInteractionEvidence {
+      return {
+        ...source.getRoadEvidence(),
+        committedRootCount: countRoots(source.scene, 'road-committed-root'),
+        previewRootCount: countRoadPreviewRoots(source.scene),
+        invalidMarkerCount: countNamedObjects(source.scene, 'road-preview-invalid-marker'),
       };
     },
     get sceneRootCounts() {
@@ -150,6 +234,8 @@ export function publishInteractionEvidence(source: InteractionEvidenceSource): v
         grid: countRoots(source.scene, 'terrain-grid-presentation-root'),
         selection: countRoots(source.scene, 'selected-cell-presentation-root'),
         preview: countRoots(source.scene, 'terraform-preview-root'),
+        roadCommitted: countRoots(source.scene, 'road-committed-root'),
+        roadPreview: countRoadPreviewRoots(source.scene),
       };
     },
   };

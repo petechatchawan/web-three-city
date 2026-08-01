@@ -13,7 +13,10 @@ export type TerraformInvalidReason =
   | 'terraform:cardinal-delta'
   | 'terraform:no-change'
   | 'terraform:invalid-cell'
-  | 'terraform:invalid-terrain';
+  | 'terraform:invalid-terrain'
+  | 'terraform:non-canonical-shape'
+  | 'terraform:propagation-blocked'
+  | 'terraform:propagation-limit';
 
 export interface TerraformStrokeInput {
   readonly operation: TerraformOperation;
@@ -26,7 +29,11 @@ export interface TerraformPlan {
   readonly operation: TerraformOperation;
   readonly brushSize: TerraformBrushSize;
   readonly baseTerrainRevision: number;
+  readonly coreCells: readonly CellCoord[];
+  readonly supportCells: readonly CellCoord[];
   readonly affectedCells: readonly CellCoord[];
+  readonly coreVertices: readonly GridVertexCoord[];
+  readonly supportVertices: readonly GridVertexCoord[];
   readonly affectedVertices: readonly GridVertexCoord[];
   readonly proposedHeightLevels: Uint8Array;
   readonly changedVertexCount: number;

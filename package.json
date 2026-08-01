@@ -3,20 +3,27 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.13.1",
-  "engines": { "node": ">=22.0.0" },
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "build": "pnpm -r --if-present build",
+    "build:browser": "pnpm --filter @web-three-city/terrain-lab build && pnpm --filter @web-three-city/game build",
     "bootstrap:vercel": "node tooling/bootstrap-vercel-project.mjs",
     "compose:vercel": "node tooling/compose-vercel-output.mjs",
-    "typecheck": "pnpm -r --if-present typecheck",
+    "typecheck": "pnpm -r --if-present typecheck && pnpm typecheck:browser",
+    "typecheck:browser": "tsc -p tsconfig.browser-tests.json --noEmit",
     "lint": "eslint .",
     "format:check": "prettier --check \"**/*.{ts,js,yml,yaml}\"",
     "provenance:check": "node tooling/check-provenance.mjs",
     "test": "pnpm -r --if-present test",
     "test:coverage": "pnpm -r --if-present test:coverage",
-    "test:deployment": "node --test tooling/compose-vercel-output.test.mjs tooling/bootstrap-vercel-project.test.mjs",
-    "test:browser": "playwright test",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm provenance:check && pnpm test && pnpm test:deployment && pnpm build"
+    "test:deployment": "node --test tooling/compose-vercel-output.test.mjs tooling/bootstrap-vercel-project.test.mjs tooling/verification-scripts.test.mjs tooling/verify-clean-worktree.test.mjs",
+    "test:browser": "pnpm build:browser && playwright test",
+    "test:browser:only": "playwright test",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm provenance:check && pnpm test && pnpm test:deployment && pnpm build",
+    "verify": "pnpm check",
+    "verify:full": "pnpm install --frozen-lockfile && pnpm verify && pnpm exec playwright install chromium && pnpm test:browser:only && node tooling/verify-clean-worktree.mjs"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",
@@ -28,6 +35,9 @@
     "typescript": "6.0.3",
     "typescript-eslint": "8.65.0",
     "vite": "8.1.5",
-    "vitest": "4.1.10"
+    "vitest": "4.1.10",
+    "@types/node": "26.1.1",
+    "@types/three": "0.185.0",
+    "three": "0.185.1"
   }
 }

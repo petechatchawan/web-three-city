@@ -184,7 +184,7 @@ test('Undo restores through a newer revision and updates Water once', async ({ p
   await page.mouse.click(point.x, point.y);
   await expect(page.getByTestId('game-status')).toHaveText('Terraform applied');
   const committed = await readEvidence(page);
-  await page.getByRole('button', { name: 'Undo Terraform' }).click();
+  await page.getByRole('button', { name: 'Undo latest world change' }).click();
   await expect(page.getByTestId('game-status')).toHaveText('Terraform undone');
   const undone = await readEvidence(page);
 
@@ -208,8 +208,8 @@ for (const [size, count] of [
   test(`previews brush ${size}x${size} with ${count} cells`, async ({ page }) => {
     await openGame(page);
     const point = await clickTerrainCell(page, findValidCenter(BASE_TERRAIN, 'raise', size));
-    await page.getByRole('button', { name: `Brush ${size} × ${size}` }).click();
     await page.getByRole('button', { name: 'Raise' }).click();
+    await page.getByRole('button', { name: `Brush ${size} × ${size}` }).click();
 
     await page.mouse.move(point.x, point.y);
     await page.mouse.down();
@@ -327,13 +327,13 @@ test('context loss cancels active Preview without committing', async ({ page }) 
 
 test('load clears Undo and idle Preview state', async ({ page }) => {
   await openGame(page);
-  await page.getByRole('button', { name: 'Save terrain' }).click();
+  await page.getByRole('button', { name: 'Save world' }).click();
   const point = await clickTerrainCell(page, findValidCenter(BASE_TERRAIN, 'raise', 1));
   await page.getByRole('button', { name: 'Raise' }).click();
   await page.mouse.click(point.x, point.y);
   expect((await readEvidence(page)).terraform.undoAvailable).toBe(true);
 
-  await page.getByRole('button', { name: 'Load terrain' }).click();
+  await page.getByRole('button', { name: 'Load world' }).click();
   await expect(page.getByTestId('game-status')).toHaveText('Loaded');
   const loaded = await readEvidence(page);
   expect(loaded.terraform.undoAvailable).toBe(false);

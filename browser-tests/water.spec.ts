@@ -10,7 +10,7 @@ import {
 } from './helpers/interaction.js';
 
 const READY_TIMEOUT = 15_000;
-const SAVE_KEY = 'web-three-city:terrain-save:v1';
+const SAVE_KEY = 'web-three-city:world-save:v1';
 
 async function openGame(page: import('@playwright/test').Page): Promise<void> {
   await page.goto(GAME_URL);
@@ -108,9 +108,9 @@ test('pan, zoom, yaw, pitch, and reset remain stable with Water', async ({ page 
 test('save and load reproduce deterministic Water state', async ({ page }) => {
   await openGame(page);
   const before = (await readEvidence(page)).water;
-  await page.getByRole('button', { name: 'Save terrain' }).click();
+  await page.getByRole('button', { name: 'Save world' }).click();
   expect(await page.evaluate((key) => localStorage.getItem(key), SAVE_KEY)).not.toBeNull();
-  await page.getByRole('button', { name: 'Load terrain' }).click();
+  await page.getByRole('button', { name: 'Load world' }).click();
   await expect(page.getByTestId('game-status')).toHaveText('Loaded');
   const after = (await readEvidence(page)).water;
 

@@ -1,15 +1,41 @@
 import { createHash } from 'node:crypto';
 import type { Locator, Page } from '@playwright/test';
+import {
+  OrthographicCameraRig,
+  type CameraState,
+  type ViewportInsets,
+} from '../../packages/camera-input/src/index.js';
+import {
+  CELL_TRIANGLES,
+  selectTerrainDiagonal,
+  type TerrainCorner,
+  type TerrainSnapshot,
+} from '../../packages/terrain-core/src/index.js';
 import { generateCoastalTerrain } from '../../packages/terrain-generator/src/index.js';
 import { deriveWaterSnapshot } from '../../packages/water-core/src/index.js';
 import { createCoreWaterPresentationSource } from '../../packages/water-three/src/index.js';
 import { WORLD_CONFIG } from '../../packages/world-core/src/index.js';
 import type { InteractionEvidence } from '../../apps/game/src/interaction-evidence.js';
+import * as THREE from 'three';
 
 export const GAME_URL = 'http://127.0.0.1:4174/';
 export const TERRAIN_LAB_URL = 'http://127.0.0.1:4173/';
 
 const GAME_SEED = 1_464_156_977;
+const GAME_TERRAIN = (() => {
+  const result = generateCoastalTerrain({ seed: GAME_SEED, config: WORLD_CONFIG });
+  if (!result.ok) throw new Error(`terrain-evidence:generation:${result.error.code}`);
+  return result.value;
+})();
+
+const CORNER_OFFSETS: Readonly<Record<TerrainCorner, Readonly<{ x: number; z: number }>>> =
+  Object.freeze({
+    nw: Object.freeze({ x: 0, z: 0 }),
+    ne: Object.freeze({ x: 1, z: 0 }),
+    sw: Object.freeze({ x: 0, z: 1 }),
+    se: Object.freeze({ x: 1, z: 1 }),
+  });
+
 export interface TerrainLabWaterEvidence {
   readonly fixture: string;
   readonly sourceTerrainRevision: number;
@@ -33,6 +59,18 @@ export interface DeterministicWaterGeometryEvidence {
 export interface TerrainCellScreenPoint {
   readonly x: number;
   readonly y: number;
+}
+
+interface GameCanvasLayout {
+  readonly canvasX: number;
+  readonly canvasY: number;
+  readonly width: number;
+  readonly height: number;
+  readonly insets: ViewportInsets;
+  readonly viewportLeft: number;
+  readonly viewportTop: number;
+  readonly viewportWidth: number;
+  readonly viewportHeight: number;
 }
 
 export async function readEvidence(page: Page): Promise<InteractionEvidence> {
@@ -60,13 +98,11 @@ function updateHash(
 }
 
 export function createDeterministicWaterGeometryEvidence(): DeterministicWaterGeometryEvidence {
-  const terrainResult = generateCoastalTerrain({ seed: GAME_SEED, config: WORLD_CONFIG });
-  if (!terrainResult.ok) throw new Error(`water-evidence:generation:${terrainResult.error.code}`);
-  const waterResult = deriveWaterSnapshot(terrainResult.value, WORLD_CONFIG);
+  const waterResult = deriveWaterSnapshot(GAME_TERRAIN, WORLD_CONFIG);
   if (!waterResult.ok) throw new Error(`water-evidence:derivation:${waterResult.error.code}`);
 
   const build = createCoreWaterPresentationSource(WORLD_CONFIG).buildAll(
-    terrainResult.value,
+    GAME_TERRAIN,
     waterResult.value,
   );
   const hash = createHash('sha256');
@@ -110,117 +146,142 @@ export function createDeterministicWaterGeometryEvidence(): DeterministicWaterGe
   });
 }
 
+async function readGameCanvasLayout(page: Page): Promise<GameCanvasLayout> {
+  const canvasBounds = await page.locator('#game-canvas').boundingBox();
+  if (canvasBounds === null) throw new Error('missing Game canvas bounds');
+  const panelBounds = await page.locator('.game-hud').boundingBox();
+  const mode = (await page.getByTestId('controls-mode').textContent())?.trim();
+  const width = Math.max(1, canvasBounds.width);
+  const height = Math.max(1, canvasBounds.height);
+
+  const insets: ViewportInsets =
+    panelBounds === null
+      ? Object.freeze({ top: 0, right: 0, bottom: 0, left: 0 })
+      : mode === 'compact'
+        ? Object.freeze({
+            top: Math.min(
+              height - 1,
+              Math.max(0, panelBounds.y + panelBounds.height - canvasBounds.y + 8),
+            ),
+            right: 0,
+            bottom: 0,
+            left: 0,
+          })
+        : Object.freeze({
+            top: 0,
+            right: 0,
+            bottom: 0,
+            left: Math.min(
+              width - 1,
+              Math.max(0, panelBounds.x + panelBounds.width - canvasBounds.x + 16),
+            ),
+          });
+
+  return Object.freeze({
+    canvasX: canvasBounds.x,
+    canvasY: canvasBounds.y,
+    width,
+    height,
+    insets,
+    viewportLeft: insets.left,
+    viewportTop: insets.top,
+    viewportWidth: width - insets.left - insets.right,
+    viewportHeight: height - insets.top - insets.bottom,
+  });
+}
+
+function latticeLevel(terrain: TerrainSnapshot, x: number, z: number): number {
+  return terrain.heightLevels[z * (terrain.width + 1) + x]!;
+}
+
+function terrainCellTriangleCentroids(
+  terrain: TerrainSnapshot,
+  cell: Readonly<{ x: number; z: number }>,
+): readonly THREE.Vector3[] {
+  if (
+    !Number.isInteger(cell.x) ||
+    !Number.isInteger(cell.z) ||
+    cell.x < 0 ||
+    cell.z < 0 ||
+    cell.x >= terrain.width ||
+    cell.z >= terrain.height
+  ) {
+    throw new RangeError(`terrain-cell:invalid-target:${cell.x}:${cell.z}`);
+  }
+
+  const corners = Object.freeze({
+    nw: latticeLevel(terrain, cell.x, cell.z),
+    ne: latticeLevel(terrain, cell.x + 1, cell.z),
+    sw: latticeLevel(terrain, cell.x, cell.z + 1),
+    se: latticeLevel(terrain, cell.x + 1, cell.z + 1),
+  });
+  const triangles = CELL_TRIANGLES[selectTerrainDiagonal(corners)];
+
+  return Object.freeze(
+    triangles.map((triangle) => {
+      const centroid = new THREE.Vector3();
+      for (const corner of triangle) {
+        const offset = CORNER_OFFSETS[corner];
+        centroid.add(
+          new THREE.Vector3(
+            (cell.x + offset.x - terrain.width / 2) * WORLD_CONFIG.cellSize,
+            corners[corner] * WORLD_CONFIG.heightStep,
+            (cell.z + offset.z - terrain.height / 2) * WORLD_CONFIG.cellSize,
+          ),
+        );
+      }
+      return centroid.multiplyScalar(1 / 3);
+    }),
+  );
+}
+
+function projectWorldPoint(
+  point: THREE.Vector3,
+  cameraState: CameraState,
+  layout: GameCanvasLayout,
+): TerrainCellScreenPoint {
+  const camera = new THREE.OrthographicCamera();
+  const rig = new OrthographicCameraRig(camera, WORLD_CONFIG);
+  rig.setViewport(layout.width, layout.height, layout.insets);
+  rig.setYawDegrees(cameraState.yawDegrees);
+  rig.setPitchDegrees(cameraState.pitchDegrees);
+  rig.focus(cameraState.targetX, cameraState.targetZ);
+  rig.setOrthographicSize(cameraState.orthographicSize);
+
+  const projected = point.clone().project(camera);
+  const x = layout.canvasX + layout.viewportLeft + ((projected.x + 1) / 2) * layout.viewportWidth;
+  const y =
+    layout.canvasY + layout.viewportTop + (1 - (projected.y + 1) / 2) * layout.viewportHeight;
+  if (!Number.isFinite(x) || !Number.isFinite(y)) {
+    throw new Error('terrain-cell:non-finite-projection');
+  }
+  return Object.freeze({ x, y });
+}
+
 export async function clickTerrainCell(
   page: Page,
   target: Readonly<{ x: number; z: number }>,
 ): Promise<TerrainCellScreenPoint> {
-  const bounds = await page.locator('#game-canvas').boundingBox();
-  if (bounds === null) throw new Error('missing Game canvas bounds');
+  const layout = await readGameCanvasLayout(page);
+  const cameraState = (await readEvidence(page)).camera;
+  let lastSelected: Readonly<{ x: number; z: number }> | null = null;
 
-  interface SelectionSample {
-    readonly screenX: number;
-    readonly screenY: number;
-    readonly cell: Readonly<{ x: number; z: number }>;
-  }
-
-  const clampX = (x: number): number =>
-    Math.min(bounds.x + bounds.width - 2, Math.max(bounds.x + 2, x));
-  const clampY = (y: number): number =>
-    Math.min(bounds.y + bounds.height - 2, Math.max(bounds.y + 2, y));
-  const selectNear = async (requestedX: number, requestedY: number): Promise<SelectionSample> => {
-    const offsets: readonly Readonly<{ x: number; y: number }>[] = [
-      { x: 0, y: 0 },
-      ...[8, 16, 24, 32, 48, 64].flatMap((radius) => [
-        { x: radius, y: 0 },
-        { x: -radius, y: 0 },
-        { x: 0, y: radius },
-        { x: 0, y: -radius },
-        { x: radius, y: radius },
-        { x: radius, y: -radius },
-        { x: -radius, y: radius },
-        { x: -radius, y: -radius },
-      ]),
-    ];
-
-    for (const offset of offsets) {
-      const screenX = clampX(requestedX + offset.x);
-      const screenY = clampY(requestedY + offset.y);
-      await page.mouse.click(screenX, screenY);
-      const cell = (await readEvidence(page)).selectedCell;
-      if (cell !== null) return { screenX, screenY, cell };
-    }
-    throw new Error(`terrain-cell:not-selected-near:${requestedX}:${requestedY}`);
-  };
-
-  const sampleDirections = [
-    { x: 96, y: 0 },
-    { x: -96, y: 0 },
-    { x: 0, y: -96 },
-    { x: 0, y: 96 },
-    { x: 72, y: -72 },
-    { x: -72, y: -72 },
-  ] as const;
-
-  let screenX = bounds.x + bounds.width * 0.62;
-  let screenY = bounds.y + bounds.height * 0.58;
-  for (let attempt = 0; attempt < 8; attempt += 1) {
-    const current = await selectNear(screenX, screenY);
-    if (current.cell.x === target.x && current.cell.z === target.z) {
-      return { x: current.screenX, y: current.screenY };
-    }
-
-    const candidates: SelectionSample[] = [];
-    for (const direction of sampleDirections) {
-      const sample = await selectNear(current.screenX + direction.x, current.screenY + direction.y);
-      if (sample.cell.x !== current.cell.x || sample.cell.z !== current.cell.z) {
-        candidates.push(sample);
-      }
-    }
-
-    let correction: Readonly<{ x: number; y: number }> | null = null;
-    for (
-      let firstIndex = 0;
-      firstIndex < candidates.length && correction === null;
-      firstIndex += 1
-    ) {
-      const first = candidates[firstIndex]!;
-      const firstCellX = first.cell.x - current.cell.x;
-      const firstCellZ = first.cell.z - current.cell.z;
-      for (let secondIndex = firstIndex + 1; secondIndex < candidates.length; secondIndex += 1) {
-        const second = candidates[secondIndex]!;
-        const secondCellX = second.cell.x - current.cell.x;
-        const secondCellZ = second.cell.z - current.cell.z;
-        const determinant = firstCellX * secondCellZ - secondCellX * firstCellZ;
-        if (Math.abs(determinant) < 1e-9) continue;
-
-        const targetCellX = target.x - current.cell.x;
-        const targetCellZ = target.z - current.cell.z;
-        const firstWeight = (targetCellX * secondCellZ - secondCellX * targetCellZ) / determinant;
-        const secondWeight = (firstCellX * targetCellZ - targetCellX * firstCellZ) / determinant;
-        correction = {
-          x:
-            firstWeight * (first.screenX - current.screenX) +
-            secondWeight * (second.screenX - current.screenX),
-          y:
-            firstWeight * (first.screenY - current.screenY) +
-            secondWeight * (second.screenY - current.screenY),
-        };
-        break;
-      }
-    }
-    if (correction === null) throw new Error('terrain-cell:singular-screen-map');
-
-    screenX = clampX(current.screenX + correction.x);
-    screenY = clampY(current.screenY + correction.y);
-  }
-
-  const selected = await selectNear(screenX, screenY);
-  if (selected.cell.x !== target.x || selected.cell.z !== target.z) {
-    throw new Error(
-      `terrain-cell:projection-mismatch:expected=${target.x},${target.z}:actual=${selected.cell.x},${selected.cell.z}`,
+  for (const centroid of terrainCellTriangleCentroids(GAME_TERRAIN, target)) {
+    const screen = projectWorldPoint(centroid, cameraState, layout);
+    const hitsCanvas = await page.evaluate(
+      ({ x, y }) => document.elementFromPoint(x, y)?.id === 'game-canvas',
+      screen,
     );
+    if (!hitsCanvas) continue;
+
+    await page.mouse.click(screen.x, screen.y);
+    lastSelected = (await readEvidence(page)).selectedCell;
+    if (lastSelected?.x === target.x && lastSelected.z === target.z) return screen;
   }
-  return { x: selected.screenX, y: selected.screenY };
+
+  throw new Error(
+    `terrain-cell:projection-mismatch:expected=${target.x},${target.z}:actual=${lastSelected?.x ?? 'none'},${lastSelected?.z ?? 'none'}`,
+  );
 }
 
 export async function dispatchTouchOn(

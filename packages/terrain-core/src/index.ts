@@ -13,6 +13,8 @@ export { classifyTerrainShape, normalizeTerrainCorners } from './shape-classifie
 export type { TerrainShape } from './shape-classifier.js';
 export { decodeTerrainSaveV1, encodeTerrainSaveV1 } from './serialization.js';
 export type { TerrainSaveError, TerrainSaveErrorCode, TerrainSaveV1 } from './serialization.js';
+export { terrainCellSurfaceProfile } from './terrain-cell-surface.js';
+export type { TerrainCellSurfaceProfile, TerrainSlopeAxis } from './terrain-cell-surface.js';
 export { createTerrainMap } from './terrain-map.js';
 export type { CreateTerrainMapInput, TerrainMap, TerrainSnapshot } from './terrain-map.js';
 export { expandTerraformBrushCells } from './terraform-brush.js';
@@ -30,6 +32,8 @@ export type {
   WorldToolMode,
 } from './terraform-contracts.js';
 export { commitTerraformPlan, planTerraformStroke } from './terraform-plan.js';
+export { propagateTerraformSupport } from './terraform-support.js';
+export type { TerraformSupportResult } from './terraform-support.js';
 export { TerraformUndoStore } from './terraform-undo-store.js';
 export { CELL_TRIANGLES, selectTerrainDiagonal } from './topology.js';
 export type { TerrainCorner, TerrainCorners, TerrainDiagonal } from './topology.js';

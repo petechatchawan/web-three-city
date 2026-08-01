@@ -1,60 +1,79 @@
-import type { TerraformPlan } from '@web-three-city/terrain-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
-import { TerraformPreviewPresentation } from '../src/index.js';
+import {
+  TerraformPreviewPresentation,
+  type ProjectedTerrainCell,
+  type TerraformPreviewSceneModel,
+} from '../src/index.js';
 
-function plan(cellCount: 1 | 2 = 1): TerraformPlan {
-  const cells =
-    cellCount === 1
-      ? [{ x: 10, z: 10 }]
-      : [
-          { x: 10, z: 10 },
-          { x: 11, z: 10 },
-        ];
+function projectedCell(x: number, z: number, level = 1): ProjectedTerrainCell {
+  return Object.freeze({
+    cell: Object.freeze({ x, z }),
+    corners: Object.freeze({ nw: level, ne: level, sw: level, se: level }),
+  });
+}
+
+function model(secondCore = false): TerraformPreviewSceneModel {
   return {
-    operation: 'raise',
-    brushSize: 1,
-    baseTerrainRevision: 1,
-    affectedCells: cells,
-    affectedVertices: [],
-    proposedHeightLevels: new Uint8Array(
-      (WORLD_CONFIG.mapWidth + 1) * (WORLD_CONFIG.mapHeight + 1),
-    ).fill(1),
-    changedVertexCount: 4,
-    dirtyRegion: {
-      minVertexX: 10,
-      minVertexZ: 10,
-      maxVertexX: 12,
-      maxVertexZ: 11,
-    },
-    valid: true,
-    invalidReason: null,
+    acceptedCoreCells: secondCore
+      ? [projectedCell(10, 10), projectedCell(11, 10)]
+      : [projectedCell(10, 10)],
+    propagatedSupportCells: [projectedCell(10, 11)],
+    rejectedStampCells: [projectedCell(12, 10, 2)],
+    noChangeCells: [projectedCell(12, 11)],
+    projectedWetCells: [{ x: 10, z: 12 }],
+    projectedDryCells: [],
+    projectedShorelineCells: [{ x: 11, z: 12 }],
   };
 }
 
 describe('TerraformPreviewPresentation', () => {
-  it('creates the locked root, mesh name, and render order', () => {
+  it('creates stable semantic layer and rejected-marker names', () => {
     const scene = new THREE.Scene();
     const preview = new TerraformPreviewPresentation(scene, WORLD_CONFIG);
-    preview.show(plan());
+    preview.show(model());
 
     expect(preview.object3d.name).toBe('terraform-preview-root');
-    const mesh = preview.object3d.getObjectByName('terraform-preview-surface');
-    expect(mesh).toBeInstanceOf(THREE.Mesh);
-    expect(mesh?.renderOrder).toBe(15);
+    expect(preview.object3d.getObjectByName('terraform-preview-core')).toBeInstanceOf(THREE.Mesh);
+    expect(preview.object3d.getObjectByName('terraform-preview-support')).toBeInstanceOf(
+      THREE.Mesh,
+    );
+    expect(preview.object3d.getObjectByName('terraform-preview-rejected')).toBeInstanceOf(
+      THREE.Mesh,
+    );
+    expect(preview.object3d.getObjectByName('terraform-preview-no-change')).toBeInstanceOf(
+      THREE.Mesh,
+    );
+    expect(preview.object3d.getObjectByName('terraform-preview-water')).toBeInstanceOf(THREE.Mesh);
+    expect(preview.object3d.getObjectByName('terraform-preview-rejected-marker')).toBeInstanceOf(
+      THREE.LineSegments,
+    );
     expect(scene.children.filter((node) => node.name === 'terraform-preview-root')).toHaveLength(1);
+  });
+
+  it('keeps depth testing enabled for preview surfaces and markers', () => {
+    const scene = new THREE.Scene();
+    const preview = new TerraformPreviewPresentation(scene, WORLD_CONFIG);
+    preview.show(model());
+
+    const core = preview.object3d.getObjectByName('terraform-preview-core') as THREE.Mesh;
+    const marker = preview.object3d.getObjectByName(
+      'terraform-preview-rejected-marker',
+    ) as THREE.LineSegments;
+    expect((core.material as THREE.MeshBasicMaterial).depthTest).toBe(true);
+    expect((marker.material as THREE.LineBasicMaterial).depthTest).toBe(true);
   });
 
   it('atomically replaces one root and disposes previous geometry', () => {
     const scene = new THREE.Scene();
     const preview = new TerraformPreviewPresentation(scene, WORLD_CONFIG);
-    preview.show(plan(1));
+    preview.show(model());
     const firstRoot = preview.object3d;
-    const firstMesh = firstRoot.getObjectByName('terraform-preview-surface') as THREE.Mesh;
+    const firstMesh = firstRoot.getObjectByName('terraform-preview-core') as THREE.Mesh;
     const dispose = vi.spyOn(firstMesh.geometry, 'dispose');
 
-    preview.show(plan(2));
+    preview.show(model(true));
 
     expect(preview.object3d).not.toBe(firstRoot);
     expect(dispose).toHaveBeenCalledOnce();
@@ -64,7 +83,7 @@ describe('TerraformPreviewPresentation', () => {
   it('clears and disposes idempotently', () => {
     const scene = new THREE.Scene();
     const preview = new TerraformPreviewPresentation(scene, WORLD_CONFIG);
-    preview.show(plan());
+    preview.show(model());
     preview.clear();
     preview.clear();
 
@@ -75,11 +94,11 @@ describe('TerraformPreviewPresentation', () => {
   it('disposes idempotently and rejects later use', () => {
     const scene = new THREE.Scene();
     const preview = new TerraformPreviewPresentation(scene, WORLD_CONFIG);
-    preview.show(plan());
+    preview.show(model());
     preview.dispose();
     preview.dispose();
 
     expect(scene.children).toHaveLength(0);
-    expect(() => preview.show(plan())).toThrowError('terraform-preview:disposed');
+    expect(() => preview.show(model())).toThrowError('terraform-preview:disposed');
   });
 });

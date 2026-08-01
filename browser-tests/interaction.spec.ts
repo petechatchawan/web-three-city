@@ -99,7 +99,7 @@ test('pointer cancellation cannot select', async ({ page }) => {
 test('a pointer starting on UI never moves the world', async ({ page }) => {
   await openGame(page);
   const before = (await readEvidence(page)).camera;
-  const saveButton = page.getByRole('button', { name: 'Save terrain' });
+  const saveButton = page.getByRole('button', { name: 'Save world' });
   const box = await saveButton.boundingBox();
   if (box === null) throw new Error('missing Save terrain bounds');
 
@@ -159,5 +159,7 @@ test('context restore preserves grid and selection with one root each', async ({
     grid: 1,
     selection: 1,
     preview: 0,
+    roadCommitted: 1,
+    roadPreview: 0,
   });
 });

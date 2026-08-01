@@ -1,4 +1,10 @@
 import { OrthographicCameraRig, pickTerrain } from '@web-three-city/camera-input';
+import { occupiedRoadCellCount } from '@web-three-city/road-core';
+import {
+  createCoreRoadPresentationSource,
+  RoadChunkPresentation,
+  RoadPreviewPresentation,
+} from '@web-three-city/road-three';
 import { allChunkCoords } from '@web-three-city/terrain-core';
 import {
   createCoreTerrainPresentationSource,
@@ -6,8 +12,8 @@ import {
   TerrainGridPresentation,
   TerrainPresentation,
 } from '@web-three-city/terrain-three';
-import { createCoreWaterPresentationSource, WaterPresentation } from '@web-three-city/water-three';
 import { deriveWaterSnapshot } from '@web-three-city/water-core';
+import { createCoreWaterPresentationSource, WaterPresentation } from '@web-three-city/water-three';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import * as THREE from 'three';
 import { resolveFixture } from './fixture-registry.js';
@@ -19,6 +25,22 @@ interface TerrainLabWaterEvidence {
   readonly enclosedWetTriangleCount: number;
   readonly shorelineSegmentCount: number;
   readonly waterRootCount: number;
+}
+
+export interface TerrainLabRoadEvidence {
+  readonly fixture: string;
+  readonly valid: boolean;
+  readonly invalidReason: string | null;
+  readonly roadRevision: number;
+  readonly occupiedCellCount: number;
+  readonly connectionMask: number;
+  readonly requestedCellCount: number;
+  readonly dirtyChunkCount: number;
+  readonly committedRootCount: number;
+  readonly previewRootCount: number;
+  readonly terrainRevision: number;
+  readonly waterSourceTerrainRevision: number;
+  readonly estimatedGeometryBytes: number;
 }
 
 interface TerrainLabEvidence {
@@ -35,6 +57,7 @@ declare global {
   interface Window {
     __WEB_THREE_CITY_EVIDENCE__?: TerrainLabEvidence;
     __WEB_THREE_CITY_WATER_EVIDENCE__?: TerrainLabWaterEvidence;
+    __WEB_THREE_CITY_ROAD_EVIDENCE__?: TerrainLabRoadEvidence;
   }
 }
 
@@ -42,6 +65,38 @@ function requireElement<T extends Element>(root: ParentNode, selector: string): 
   const element = root.querySelector<T>(selector);
   if (element === null) throw new Error(`terrain-lab:missing-element:${selector}`);
   return element;
+}
+
+function countRoots(scene: THREE.Scene, name: string): number {
+  return scene.children.filter((node) => node.name === name).length;
+}
+
+function countRoadPreviewRoots(scene: THREE.Scene): number {
+  return (
+    countRoots(scene, 'road-preview-root-valid') + countRoots(scene, 'road-preview-root-invalid')
+  );
+}
+
+function geometryAttributeByteLength(attribute: unknown): number {
+  if (attribute instanceof THREE.BufferAttribute) return attribute.array.byteLength;
+  if (attribute instanceof THREE.InterleavedBufferAttribute) {
+    return attribute.data.array.byteLength;
+  }
+  return 0;
+}
+
+function roadGeometryBytes(scene: THREE.Scene): number {
+  const root = scene.getObjectByName('road-committed-root');
+  if (root === undefined) return 0;
+  let bytes = 0;
+  root.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    for (const attribute of Object.values(object.geometry.attributes)) {
+      bytes += geometryAttributeByteLength(attribute);
+    }
+    if (object.geometry.index !== null) bytes += object.geometry.index.array.byteLength;
+  });
+  return bytes;
 }
 
 export function bootstrapTerrainLab(root: HTMLElement): void {
@@ -54,6 +109,7 @@ export function bootstrapTerrainLab(root: HTMLElement): void {
         <dl class="metrics">
           <div><dt>Status</dt><dd data-testid="terrain-status">Loading</dd></div>
           <div><dt>Water</dt><dd data-testid="water-status">Loading</dd></div>
+          <div><dt>Road</dt><dd data-testid="road-status">None</dd></div>
           <div><dt>Camera</dt><dd data-testid="camera-rotation">0°</dd></div>
           <div><dt>Selected</dt><dd data-testid="selected-cell">None</dd></div>
         </dl>
@@ -70,21 +126,27 @@ export function bootstrapTerrainLab(root: HTMLElement): void {
   const fixtureName = requireElement<HTMLElement>(root, '[data-testid="fixture-name"]');
   const status = requireElement<HTMLElement>(root, '[data-testid="terrain-status"]');
   const waterStatus = requireElement<HTMLElement>(root, '[data-testid="water-status"]');
+  const roadStatus = requireElement<HTMLElement>(root, '[data-testid="road-status"]');
   const rotation = requireElement<HTMLElement>(root, '[data-testid="camera-rotation"]');
   const selected = requireElement<HTMLElement>(root, '[data-testid="selected-cell"]');
   const capability = detectWebGL2(canvas);
   if (!capability.supported) {
     status.textContent = 'WebGL2 unavailable';
     waterStatus.textContent = 'Unavailable';
+    roadStatus.textContent = 'Unavailable';
     return;
   }
 
   const parameters = new URLSearchParams(window.location.search);
   const generationStart = performance.now();
   const fixture = resolveFixture(parameters.get('fixture'), parameters.get('shape'));
-  const waterResult = deriveWaterSnapshot(fixture.snapshot, WORLD_CONFIG);
-  if (!waterResult.ok)
+  const waterResult =
+    fixture.water === undefined
+      ? deriveWaterSnapshot(fixture.snapshot, WORLD_CONFIG)
+      : { ok: true as const, value: fixture.water };
+  if (!waterResult.ok) {
     throw new Error(`terrain-lab:water-derivation-failed:${waterResult.error.code}`);
+  }
   const waterSnapshot = waterResult.value;
   const generationMs = performance.now() - generationStart;
   fixtureName.textContent = fixture.name;
@@ -119,6 +181,22 @@ export function bootstrapTerrainLab(root: HTMLElement): void {
     WORLD_CONFIG,
   );
   water.load(fixture.snapshot, waterSnapshot);
+
+  let roadPresentation: RoadChunkPresentation | null = null;
+  let roadPreview: RoadPreviewPresentation | null = null;
+  if (fixture.road !== undefined) {
+    const roadSource = createCoreRoadPresentationSource(WORLD_CONFIG);
+    roadPresentation = new RoadChunkPresentation(scene, roadSource, WORLD_CONFIG);
+    roadPreview = new RoadPreviewPresentation(scene, roadSource, WORLD_CONFIG);
+    roadPresentation.loadAll(fixture.road.roads, fixture.road.environment);
+    if (!fixture.road.valid) {
+      roadPreview.show(fixture.road.plan, fixture.road.environment);
+    }
+    roadStatus.textContent = fixture.road.valid
+      ? `Valid · mask ${fixture.road.connectionMask}`
+      : `Invalid · ${fixture.road.invalidReason ?? 'unknown'}`;
+    selected.textContent = `${fixture.road.focusCell.x}, ${fixture.road.focusCell.z}`;
+  }
   const presentationMs = performance.now() - presentationStart;
 
   const grid = new TerrainGridPresentation(scene, WORLD_CONFIG);
@@ -185,8 +263,28 @@ export function bootstrapTerrainLab(root: HTMLElement): void {
     seaTriangleCount: waterSnapshot.seaTriangleCount,
     enclosedWetTriangleCount: waterSnapshot.enclosedWetTriangleCount,
     shorelineSegmentCount: waterSnapshot.shorelineSegmentCount,
-    waterRootCount: scene.children.filter((node) => node.name === 'water-presentation-root').length,
+    waterRootCount: countRoots(scene, 'water-presentation-root'),
   };
+
+  if (fixture.road !== undefined) {
+    window.__WEB_THREE_CITY_ROAD_EVIDENCE__ = {
+      fixture: fixture.id,
+      valid: fixture.road.valid,
+      invalidReason: fixture.road.invalidReason,
+      roadRevision: fixture.road.roads.revision,
+      occupiedCellCount: occupiedRoadCellCount(fixture.road.roads),
+      connectionMask: fixture.road.connectionMask,
+      requestedCellCount: fixture.road.plan.requestedCells.length,
+      dirtyChunkCount: fixture.road.plan.dirtyChunks.length,
+      committedRootCount: countRoots(scene, 'road-committed-root'),
+      previewRootCount: countRoadPreviewRoots(scene),
+      terrainRevision: fixture.snapshot.revision,
+      waterSourceTerrainRevision: waterSnapshot.sourceTerrainRevision,
+      estimatedGeometryBytes: roadGeometryBytes(scene),
+    };
+  } else {
+    delete window.__WEB_THREE_CITY_ROAD_EVIDENCE__;
+  }
 
   window.__WEB_THREE_CITY_EVIDENCE__ = {
     fixture: fixture.name,
@@ -203,8 +301,11 @@ export function bootstrapTerrainLab(root: HTMLElement): void {
   window.addEventListener('pagehide', () => {
     window.cancelAnimationFrame(animationFrame);
     grid.dispose();
+    roadPreview?.dispose();
+    roadPresentation?.dispose();
     water.dispose();
     presentation.dispose();
     renderer.dispose();
+    delete window.__WEB_THREE_CITY_ROAD_EVIDENCE__;
   });
 }

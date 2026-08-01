@@ -14,6 +14,12 @@ importers:
       '@playwright/test':
         specifier: 1.61.1
         version: 1.61.1
+      '@types/node':
+        specifier: 26.1.1
+        version: 26.1.1
+      '@types/three':
+        specifier: 0.185.0
+        version: 0.185.0
       '@vitest/coverage-v8':
         specifier: 4.1.10
         version: 4.1.10(vitest@4.1.10)
@@ -26,6 +32,9 @@ importers:
       prettier:
         specifier: 3.9.6
         version: 3.9.6
+      three:
+        specifier: 0.185.1
+        version: 0.185.1
       typescript:
         specifier: 6.0.3
         version: 6.0.3
@@ -44,6 +53,12 @@ importers:
       '@web-three-city/camera-input':
         specifier: workspace:*
         version: link:../../packages/camera-input
+      '@web-three-city/road-core':
+        specifier: workspace:*
+        version: link:../../packages/road-core
+      '@web-three-city/road-three':
+        specifier: workspace:*
+        version: link:../../packages/road-three
       '@web-three-city/terrain-core':
         specifier: workspace:*
         version: link:../../packages/terrain-core
@@ -75,6 +90,12 @@ importers:
       '@web-three-city/camera-input':
         specifier: workspace:*
         version: link:../../packages/camera-input
+      '@web-three-city/road-core':
+        specifier: workspace:*
+        version: link:../../packages/road-core
+      '@web-three-city/road-three':
+        specifier: workspace:*
+        version: link:../../packages/road-three
       '@web-three-city/shared-testkit':
         specifier: workspace:*
         version: link:../../packages/shared-testkit
@@ -106,6 +127,34 @@ importers:
 
   packages/camera-input:
     dependencies:
+      '@web-three-city/world-core':
+        specifier: workspace:*
+        version: link:../world-core
+      three:
+        specifier: 0.185.1
+        version: 0.185.1
+    devDependencies:
+      '@types/three':
+        specifier: 0.185.0
+        version: 0.185.0
+
+  packages/road-core:
+    dependencies:
+      '@web-three-city/terrain-core':
+        specifier: workspace:*
+        version: link:../terrain-core
+      '@web-three-city/world-core':
+        specifier: workspace:*
+        version: link:../world-core
+
+  packages/road-three:
+    dependencies:
+      '@web-three-city/road-core':
+        specifier: workspace:*
+        version: link:../road-core
+      '@web-three-city/terrain-core':
+        specifier: workspace:*
+        version: link:../terrain-core
       '@web-three-city/world-core':
         specifier: workspace:*
         version: link:../world-core

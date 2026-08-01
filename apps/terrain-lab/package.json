@@ -5,6 +5,8 @@
   "type": "module",
   "dependencies": {
     "@web-three-city/camera-input": "workspace:*",
+    "@web-three-city/road-core": "workspace:*",
+    "@web-three-city/road-three": "workspace:*",
     "@web-three-city/shared-testkit": "workspace:*",
     "@web-three-city/terrain-core": "workspace:*",
     "@web-three-city/terrain-generator": "workspace:*",

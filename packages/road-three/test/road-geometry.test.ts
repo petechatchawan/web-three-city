@@ -184,9 +184,7 @@ describe('road geometry', () => {
     const east = buildRoadCellMesh(view({ x: 5, z: 4 }, ROAD_WEST), WORLD_CONFIG);
     const boundaryX = (5 - WORLD_CONFIG.mapWidth / 2) * WORLD_CONFIG.cellSize;
 
-    expect(boundaryVertices(west, 'x', boundaryX)).toEqual(
-      boundaryVertices(east, 'x', boundaryX),
-    );
+    expect(boundaryVertices(west, 'x', boundaryX)).toEqual(boundaryVertices(east, 'x', boundaryX));
   });
 
   it('aligns exact shared-edge ports for Flat-to-Ramp transitions', () => {
@@ -197,9 +195,7 @@ describe('road geometry', () => {
     );
     const boundaryZ = (5 - WORLD_CONFIG.mapHeight / 2) * WORLD_CONFIG.cellSize;
 
-    expect(boundaryVertices(flat, 'z', boundaryZ)).toEqual(
-      boundaryVertices(ramp, 'z', boundaryZ),
-    );
+    expect(boundaryVertices(flat, 'z', boundaryZ)).toEqual(boundaryVertices(ramp, 'z', boundaryZ));
   });
 
   it('merges meshes with deterministic index offsets', () => {

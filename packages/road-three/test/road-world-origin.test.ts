@@ -1,7 +1,4 @@
-import {
-  BASIC_ROAD_DEFINITION,
-  type RoadCellView,
-} from '@web-three-city/road-core';
+import { BASIC_ROAD_DEFINITION, type RoadCellView } from '@web-three-city/road-core';
 import type { TerrainCellSurfaceProfile } from '@web-three-city/terrain-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { describe, expect, it } from 'vitest';
@@ -17,7 +14,6 @@ function flatRoadCell(x: number, z: number): RoadCellView {
     maximumLevel: 2,
     slopeAxis: null,
   });
-
   return Object.freeze({
     cell: Object.freeze({ x, z }),
     definition: BASIC_ROAD_DEFINITION,
@@ -28,9 +24,7 @@ function flatRoadCell(x: number, z: number): RoadCellView {
 
 function axisValues(positions: Float32Array, offset: 0 | 2): readonly number[] {
   const values: number[] = [];
-  for (let index = offset; index < positions.length; index += 3) {
-    values.push(positions[index]!);
-  }
+  for (let index = offset; index < positions.length; index += 3) values.push(positions[index]!);
   return Object.freeze(values);
 }
 
@@ -40,10 +34,7 @@ describe('Road world origin', () => {
       x: WORLD_CONFIG.mapWidth / 2,
       z: WORLD_CONFIG.mapHeight / 2,
     };
-    const mesh = buildRoadCellMesh(
-      flatRoadCell(centerCell.x, centerCell.z),
-      WORLD_CONFIG,
-    );
+    const mesh = buildRoadCellMesh(flatRoadCell(centerCell.x, centerCell.z), WORLD_CONFIG);
     const xs = axisValues(mesh.positions, 0);
     const zs = axisValues(mesh.positions, 2);
 

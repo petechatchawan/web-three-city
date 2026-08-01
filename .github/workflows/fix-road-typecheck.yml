@@ -15,7 +15,7 @@ jobs:
   fix:
     if: github.event.pull_request.number == 11
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
@@ -29,37 +29,101 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Apply CellCoord annotation
+      - name: Apply browser type contracts
         shell: bash
         run: |
           python - <<'PY'
+          import json
           from pathlib import Path
 
-          path = Path('apps/game/src/road-stroke-controller.test.ts')
-          text = path.read_text()
-          edits = [
-              (
-                  "import { WORLD_CONFIG } from '@web-three-city/world-core';",
-                  "import { WORLD_CONFIG, type CellCoord } from '@web-three-city/world-core';",
-              ),
-              (
-                  "    surfaceAt(cell): TerrainCellSurfaceProfile {",
-                  "    surfaceAt(cell: CellCoord): TerrainCellSurfaceProfile {",
-              ),
-          ]
-          for old, new in edits:
+          def ensure_replace(path: Path, old: str, new: str) -> None:
+              text = path.read_text()
+              if new in text:
+                  return
               if old not in text:
-                  raise SystemExit(f'Expected text not found: {old!r}')
-              text = text.replace(old, new, 1)
-          path.write_text(text)
+                  raise SystemExit(f'Expected text not found in {path}: {old!r}')
+              path.write_text(text.replace(old, new, 1))
+
+          package_path = Path('package.json')
+          package = json.loads(package_path.read_text())
+          dev_dependencies = package['devDependencies']
+          dev_dependencies['@types/node'] = '26.1.1'
+          dev_dependencies['@types/three'] = '0.185.0'
+          dev_dependencies['three'] = '0.185.1'
+          package_path.write_text(json.dumps(package, indent=2) + '\n')
+
+          tsconfig_path = Path('tsconfig.browser-tests.json')
+          tsconfig = json.loads(tsconfig_path.read_text())
+          tsconfig['compilerOptions']['types'] = ['node']
+          tsconfig_path.write_text(json.dumps(tsconfig, indent=2) + '\n')
+
+          ensure_replace(
+              Path('apps/game/src/road-stroke-controller.test.ts'),
+              "import { WORLD_CONFIG } from '@web-three-city/world-core';",
+              "import { WORLD_CONFIG, type CellCoord } from '@web-three-city/world-core';",
+          )
+          ensure_replace(
+              Path('apps/game/src/road-stroke-controller.test.ts'),
+              '    surfaceAt(cell): TerrainCellSurfaceProfile {',
+              '    surfaceAt(cell: CellCoord): TerrainCellSurfaceProfile {',
+          )
+
+          for filename in [
+              'browser-tests/interaction-conformance.spec.ts',
+              'browser-tests/road.spec.ts',
+              'browser-tests/transaction-release.spec.ts',
+          ]:
+              path = Path(filename)
+              ensure_replace(
+                  path,
+                  "import { WORLD_CONFIG } from '../packages/world-core/src/index.js';",
+                  "import { WORLD_CONFIG, type CellCoord } from '../packages/world-core/src/index.js';",
+              )
+              ensure_replace(
+                  path,
+                  '  surfaceAt(cell) {',
+                  '  surfaceAt(cell: CellCoord) {',
+              )
+              ensure_replace(
+                  path,
+                  '  isDry(cell) {',
+                  '  isDry(cell: CellCoord) {',
+              )
+
+          globals_path = Path('browser-tests/terrain-lab-globals.d.ts')
+          globals_path.write_text("import '../apps/terrain-lab/src/bootstrap.js';\n")
           PY
-      - run: pnpm exec prettier --write apps/game/src/road-stroke-controller.test.ts
+      - run: pnpm install --lockfile-only --no-frozen-lockfile
+      - run: pnpm install --frozen-lockfile
+      - run: >-
+          pnpm exec prettier --write
+          package.json
+          tsconfig.browser-tests.json
+          apps/game/src/road-stroke-controller.test.ts
+          browser-tests/interaction-conformance.spec.ts
+          browser-tests/road.spec.ts
+          browser-tests/transaction-release.spec.ts
+          browser-tests/terrain-lab-globals.d.ts
       - run: pnpm typecheck
-      - name: Commit typecheck fix
+      - name: Commit browser type contracts
         shell: bash
         run: |
-          changed="$(git diff --name-only)"
-          if [[ "$changed" != "apps/game/src/road-stroke-controller.test.ts" ]]; then
+          if git diff --quiet; then
+            echo "Browser type contracts are already current."
+            exit 0
+          fi
+
+          changed="$(git diff --name-only | sort)"
+          expected="$(printf '%s\n' \
+            apps/game/src/road-stroke-controller.test.ts \
+            browser-tests/interaction-conformance.spec.ts \
+            browser-tests/road.spec.ts \
+            browser-tests/terrain-lab-globals.d.ts \
+            browser-tests/transaction-release.spec.ts \
+            package.json \
+            pnpm-lock.yaml \
+            tsconfig.browser-tests.json | sort)"
+          if [[ "$changed" != "$expected" ]]; then
             echo "Unexpected changed files:"
             printf '%s\n' "$changed"
             exit 1
@@ -67,6 +131,14 @@ jobs:
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add apps/game/src/road-stroke-controller.test.ts
-          git commit -m "fix: type road placement test cell"
+          git add \
+            apps/game/src/road-stroke-controller.test.ts \
+            browser-tests/interaction-conformance.spec.ts \
+            browser-tests/road.spec.ts \
+            browser-tests/terrain-lab-globals.d.ts \
+            browser-tests/transaction-release.spec.ts \
+            package.json \
+            pnpm-lock.yaml \
+            tsconfig.browser-tests.json
+          git commit -m "fix: complete browser test type contracts"
           git push origin "HEAD:${{ github.event.pull_request.head.ref }}"

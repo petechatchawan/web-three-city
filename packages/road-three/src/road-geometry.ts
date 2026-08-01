@@ -24,9 +24,17 @@ interface MutableRoadMesh {
 
 const ROAD_COLOR = Object.freeze({ r: 0.24, g: 0.26, b: 0.29 });
 
+function gridXToWorld(gridX: number, config: WorldConfig): number {
+  return (gridX - config.mapWidth / 2) * config.cellSize;
+}
+
+function gridZToWorld(gridZ: number, config: WorldConfig): number {
+  return (gridZ - config.mapHeight / 2) * config.cellSize;
+}
+
 function levelAt(view: RoadCellView, worldX: number, worldZ: number, config: WorldConfig): number {
-  const cellMinX = view.cell.x * config.cellSize;
-  const cellMinZ = view.cell.z * config.cellSize;
+  const cellMinX = gridXToWorld(view.cell.x, config);
+  const cellMinZ = gridZToWorld(view.cell.z, config);
   const u = (worldX - cellMinX) / config.cellSize;
   const v = (worldZ - cellMinZ) / config.cellSize;
   const { nw, ne, sw, se } = view.surface.corners;
@@ -89,8 +97,8 @@ function appendRectangle(
 }
 
 function roadRectangles(view: RoadCellView, config: WorldConfig): readonly RoadRectangle[] {
-  const cellMinX = view.cell.x * config.cellSize;
-  const cellMinZ = view.cell.z * config.cellSize;
+  const cellMinX = gridXToWorld(view.cell.x, config);
+  const cellMinZ = gridZToWorld(view.cell.z, config);
   const cellMaxX = cellMinX + config.cellSize;
   const cellMaxZ = cellMinZ + config.cellSize;
   const width = Math.min(Math.max(view.definition.width, 0), config.cellSize);

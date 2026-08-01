@@ -99,10 +99,7 @@ export class RoadPreviewPresentation {
           );
           markerGeometry.computeBoundingBox();
           markerGeometry.computeBoundingSphere();
-          const marker = new THREE.LineSegments(
-            markerGeometry,
-            this.#materials.invalidMarker,
-          );
+          const marker = new THREE.LineSegments(markerGeometry, this.#materials.invalidMarker);
           marker.name = 'road-preview-invalid-marker';
           staged.add(marker);
         }

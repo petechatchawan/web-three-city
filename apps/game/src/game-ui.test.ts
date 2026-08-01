@@ -73,11 +73,11 @@ describe('renderGameUi', () => {
     renderGameUi(root);
 
     expect(root.querySelector('[aria-label="Undo latest world change"]')).not.toBeNull();
-    expect([...root.querySelectorAll('button')].some((button) => button.textContent === 'Save world')).toBe(
-      true,
-    );
-    expect([...root.querySelectorAll('button')].some((button) => button.textContent === 'Load world')).toBe(
-      true,
-    );
+    expect(
+      [...root.querySelectorAll('button')].some((button) => button.textContent === 'Save world'),
+    ).toBe(true);
+    expect(
+      [...root.querySelectorAll('button')].some((button) => button.textContent === 'Load world'),
+    ).toBe(true);
   });
 });

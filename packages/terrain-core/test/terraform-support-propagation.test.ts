@@ -14,10 +14,7 @@ const TEST_CONFIG: WorldConfig = Object.freeze({
   dioramaBaseY: -1,
 });
 
-function terrainFromLevels(
-  config: WorldConfig,
-  levelAt: (x: number, z: number) => number,
-) {
+function terrainFromLevels(config: WorldConfig, levelAt: (x: number, z: number) => number) {
   const levels = new Uint8Array((config.mapWidth + 1) * (config.mapHeight + 1));
   for (let z = 0; z <= config.mapHeight; z += 1) {
     for (let x = 0; x <= config.mapWidth; x += 1) {

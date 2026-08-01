@@ -14,11 +14,7 @@ export interface RoadInvalidMarkerData {
   readonly segmentCount: number;
 }
 
-function levelAt(
-  surface: TerrainCellSurfaceProfile,
-  u: number,
-  v: number,
-): number {
+function levelAt(surface: TerrainCellSurfaceProfile, u: number, v: number): number {
   const { nw, ne, sw, se } = surface.corners;
   return nw * (1 - u) * (1 - v) + ne * u * (1 - v) + sw * (1 - u) * v + se * u * v;
 }

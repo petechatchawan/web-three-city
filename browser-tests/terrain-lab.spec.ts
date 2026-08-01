@@ -70,7 +70,9 @@ test('keeps the enclosed basin dry and connects the open channel', async ({ page
   expect(connected?.enclosedWetTriangleCount).toBe(0);
 });
 
-test('registers every Road fixture exactly once and keeps legacy fixtures available', async ({ page }) => {
+test('registers every Road fixture exactly once and keeps legacy fixtures available', async ({
+  page,
+}) => {
   expect(ROAD_FIXTURE_IDS).toHaveLength(24);
   expect(new Set(ROAD_FIXTURE_IDS).size).toBe(ROAD_FIXTURE_IDS.length);
 

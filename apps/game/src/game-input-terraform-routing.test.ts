@@ -12,11 +12,7 @@ describe('routeTerraformRelease', () => {
     const commit = vi.fn<(plan: TerraformPlan) => void>();
     const reject = vi.fn();
 
-    routeTerraformRelease(
-      { kind: 'rejected', reason: 'terraform:road-occupied' },
-      commit,
-      reject,
-    );
+    routeTerraformRelease({ kind: 'rejected', reason: 'terraform:road-occupied' }, commit, reject);
     routeTerraformRelease({ kind: 'no-change' }, commit, reject);
 
     expect(commit).not.toHaveBeenCalled();

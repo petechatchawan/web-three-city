@@ -339,11 +339,15 @@ function cellsForRoadFixture(id: RoadFixtureId): readonly CellCoord[] {
 
 function createRoadFixture(id: RoadFixtureId): TerrainFixture {
   const wet = id === 'road-invalid-wet';
-  const levels = new Uint8Array(
-    (WORLD_CONFIG.mapWidth + 1) * (WORLD_CONFIG.mapHeight + 1),
-  ).fill(wet ? 0 : 2);
+  const levels = new Uint8Array((WORLD_CONFIG.mapWidth + 1) * (WORLD_CONFIG.mapHeight + 1)).fill(
+    wet ? 0 : 2,
+  );
 
-  if (id === 'road-ramp-north-up' || id === 'road-invalid-ramp-perpendicular' || id === 'road-invalid-ramp-junction') {
+  if (
+    id === 'road-ramp-north-up' ||
+    id === 'road-invalid-ramp-perpendicular' ||
+    id === 'road-invalid-ramp-junction'
+  ) {
     applyNorthSouthRamp(levels, ROAD_CENTER, 3, 2);
   } else if (id === 'road-ramp-north-down') {
     applyNorthSouthRamp(levels, ROAD_CENTER, 2, 3);

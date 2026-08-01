@@ -27,10 +27,7 @@ export function bindGameKeyboardShortcuts(
   const brushOrder: readonly TerraformBrushSize[] = [1, 3, 5];
   const selectRelativeBrush = (offset: -1 | 1): void => {
     const currentIndex = Math.max(0, brushOrder.indexOf(actions.getBrush()));
-    const nextIndex = Math.min(
-      brushOrder.length - 1,
-      Math.max(0, currentIndex + offset),
-    );
+    const nextIndex = Math.min(brushOrder.length - 1, Math.max(0, currentIndex + offset));
     actions.selectBrush(brushOrder[nextIndex]!);
   };
 

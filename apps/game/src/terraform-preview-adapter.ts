@@ -104,7 +104,9 @@ export function createTerraformPreviewSceneModel(
   if (acceptedPlan !== null) {
     const sourceWaterResult = deriveWaterSnapshot(sourceTerrain, config);
     if (!sourceWaterResult.ok) {
-      throw new Error(`terraform-preview-adapter:water-derivation-failed:${sourceWaterResult.error.code}`);
+      throw new Error(
+        `terraform-preview-adapter:water-derivation-failed:${sourceWaterResult.error.code}`,
+      );
     }
     const water = projectTerraformWater(
       sourceTerrain,

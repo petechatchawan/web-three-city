@@ -115,7 +115,9 @@ export function bindGameToolHud(
           break;
         case 'reason':
           interactionActive = false;
-          contextState.textContent = detail.reason.endsWith(':no-change') ? 'No change' : 'Rejected';
+          contextState.textContent = detail.reason.endsWith(':no-change')
+            ? 'No change'
+            : 'Rejected';
           contextMessage.textContent = messageForGameReason(detail.reason);
           if (detail.reason === 'terraform:road-occupied') {
             setCompatibilityStatus('Terraform blocked by road');

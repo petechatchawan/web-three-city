@@ -208,8 +208,7 @@ export function createTerraformStrokeSession(
       pointerId = nextPointerId;
       operation = nextOperation;
       brushSize = nextBrushSize;
-      flattenTargetLevel =
-        nextOperation === 'flatten' ? (nextFlattenTargetLevel ?? null) : null;
+      flattenTargetLevel = nextOperation === 'flatten' ? (nextFlattenTargetLevel ?? null) : null;
       capturedTerrain = options.getTerrainSnapshot();
       capturedRoads = options.getRoadSnapshot();
       lastSampledAnchor = null;

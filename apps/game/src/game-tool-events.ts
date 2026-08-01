@@ -32,10 +32,7 @@ export function dispatchGameTransactionState(
   state: GameTransactionState,
   domain: GameTransactionDomain,
 ): void {
-  dispatchGameToolEvent(
-    target,
-    Object.freeze({ type: 'transaction-state', state, domain }),
-  );
+  dispatchGameToolEvent(target, Object.freeze({ type: 'transaction-state', state, domain }));
 }
 
 export function bindGameToolEvents(

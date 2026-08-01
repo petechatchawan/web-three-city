@@ -2,10 +2,7 @@
 
 import type { TerraformBrushSize } from '@web-three-city/terrain-core';
 import { describe, expect, it, vi } from 'vitest';
-import {
-  bindGameKeyboardShortcuts,
-  type GameKeyboardActions,
-} from './game-keyboard-shortcuts.js';
+import { bindGameKeyboardShortcuts, type GameKeyboardActions } from './game-keyboard-shortcuts.js';
 
 function fakeActions(initialBrush: TerraformBrushSize = 1): GameKeyboardActions {
   let brush = initialBrush;

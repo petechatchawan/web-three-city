@@ -8,9 +8,7 @@ describe('expandGameSecondaryControls', () => {
   it('opens persistence and camera controls for immediate application access', () => {
     const root = document.createElement('div');
     renderGameUi(root);
-    const details = root.querySelector<HTMLDetailsElement>(
-      '[data-testid="secondary-controls"]',
-    );
+    const details = root.querySelector<HTMLDetailsElement>('[data-testid="secondary-controls"]');
     expect(details?.open).toBe(false);
 
     const expanded = expandGameSecondaryControls(root);

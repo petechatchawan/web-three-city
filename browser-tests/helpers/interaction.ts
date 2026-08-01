@@ -28,14 +28,13 @@ const GAME_TERRAIN = (() => {
   return result.value;
 })();
 
-const CORNER_OFFSETS: Readonly<
-  Record<TerrainCorner, Readonly<{ x: number; z: number }>>
-> = Object.freeze({
-  nw: Object.freeze({ x: 0, z: 0 }),
-  ne: Object.freeze({ x: 1, z: 0 }),
-  sw: Object.freeze({ x: 0, z: 1 }),
-  se: Object.freeze({ x: 1, z: 1 }),
-});
+const CORNER_OFFSETS: Readonly<Record<TerrainCorner, Readonly<{ x: number; z: number }>>> =
+  Object.freeze({
+    nw: Object.freeze({ x: 0, z: 0 }),
+    ne: Object.freeze({ x: 1, z: 0 }),
+    sw: Object.freeze({ x: 0, z: 1 }),
+    se: Object.freeze({ x: 1, z: 1 }),
+  });
 
 export interface TerrainLabWaterEvidence {
   readonly fixture: string;
@@ -252,9 +251,7 @@ function projectWorldPoint(
   const projected = point.clone().project(camera);
   const x = layout.canvasX + layout.viewportLeft + ((projected.x + 1) / 2) * layout.viewportWidth;
   const y =
-    layout.canvasY +
-    layout.viewportTop +
-    (1 - (projected.y + 1) / 2) * layout.viewportHeight;
+    layout.canvasY + layout.viewportTop + (1 - (projected.y + 1) / 2) * layout.viewportHeight;
   if (!Number.isFinite(x) || !Number.isFinite(y)) {
     throw new Error('terrain-cell:non-finite-projection');
   }

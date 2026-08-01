@@ -155,10 +155,7 @@ function frozenDirtyChunks(chunks: Iterable<ChunkCoord>): readonly ChunkCoord[] 
   );
 }
 
-function roadDirtyChunksBetween(
-  before: RoadSnapshot,
-  after: RoadSnapshot,
-): readonly ChunkCoord[] {
+function roadDirtyChunksBetween(before: RoadSnapshot, after: RoadSnapshot): readonly ChunkCoord[] {
   const beforeCodes = before.definitionCodes;
   const afterCodes = after.definitionCodes;
   const chunks: ChunkCoord[] = [];
@@ -416,12 +413,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
 
     const before = roadsSnapshot;
     try {
-      const committed = commitRoadMutation(
-        roadsSnapshot,
-        plan,
-        roadEnvironment,
-        WORLD_CONFIG,
-      );
+      const committed = commitRoadMutation(roadsSnapshot, plan, roadEnvironment, WORLD_CONFIG);
       roadPresentation.rebuildDirty(
         committed.snapshot,
         roadEnvironment,
@@ -538,8 +530,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     () => {
       input.clearActiveSession();
       const saved =
-        localStorage.getItem(WORLD_SAVE_KEY) ??
-        localStorage.getItem(LEGACY_TERRAIN_SAVE_KEY);
+        localStorage.getItem(WORLD_SAVE_KEY) ?? localStorage.getItem(LEGACY_TERRAIN_SAVE_KEY);
       if (saved === null) {
         ui.setStatus('No save');
         return;
@@ -583,11 +574,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
   ui.raiseButton.addEventListener('click', () => setToolMode('raise'), listenerOptions);
   ui.lowerButton.addEventListener('click', () => setToolMode('lower'), listenerOptions);
   ui.flattenButton.addEventListener('click', () => setToolMode('flatten'), listenerOptions);
-  ui.roadBuildButton.addEventListener(
-    'click',
-    () => setToolMode('road-build'),
-    listenerOptions,
-  );
+  ui.roadBuildButton.addEventListener('click', () => setToolMode('road-build'), listenerOptions);
   ui.roadBulldozeButton.addEventListener(
     'click',
     () => setToolMode('road-bulldoze'),

@@ -74,16 +74,17 @@ function findAcceptedThenRoadBlockedLine(): Readonly<{
       const start = { x: road.x + offset, z: road.z };
       const traversed = rasterizeTerraformCellLine(start, road);
       if (traversed.length < 2) continue;
-      const prefixesValid = traversed.slice(0, -1).every((_, index) =>
-        planTerraformStroke(
-          BASE_TERRAIN,
-          {
-            operation: 'raise',
-            brushSize: 1,
-            cells: traversed.slice(0, index + 1),
-          },
-          WORLD_CONFIG,
-        ).valid,
+      const prefixesValid = traversed.slice(0, -1).every(
+        (_, index) =>
+          planTerraformStroke(
+            BASE_TERRAIN,
+            {
+              operation: 'raise',
+              brushSize: 1,
+              cells: traversed.slice(0, index + 1),
+            },
+            WORLD_CONFIG,
+          ).valid,
       );
       const complete = planTerraformStroke(
         BASE_TERRAIN,
@@ -238,7 +239,8 @@ test('responsive compatibility keeps primary tools reachable without horizontal 
   await expect(page.getByTestId('tool-context')).toBeVisible();
   const layout = await page.evaluate(() => ({
     horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
-    panelHeight: document.querySelector<HTMLElement>('.game-hud')?.getBoundingClientRect().height ?? 0,
+    panelHeight:
+      document.querySelector<HTMLElement>('.game-hud')?.getBoundingClientRect().height ?? 0,
   }));
   expect(layout.horizontalOverflow).toBe(false);
   expect(layout.panelHeight).toBeLessThan(844 * 0.6);

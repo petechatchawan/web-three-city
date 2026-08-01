@@ -185,9 +185,18 @@ export function renderGameUi(root: HTMLElement): GameUi {
   const contextMessage = requireElement<HTMLElement>(root, '[data-testid="tool-context-message"]');
   const terraformMetrics = requireElement<HTMLElement>(root, '.terraform-context-metrics');
   const roadMetrics = requireElement<HTMLElement>(root, '.road-context-metrics');
-  const terraformAccepted = requireElement<HTMLElement>(root, '[data-testid="terraform-accepted-count"]');
-  const terraformSupport = requireElement<HTMLElement>(root, '[data-testid="terraform-support-count"]');
-  const terraformTarget = requireElement<HTMLElement>(root, '[data-testid="terraform-flatten-target"]');
+  const terraformAccepted = requireElement<HTMLElement>(
+    root,
+    '[data-testid="terraform-accepted-count"]',
+  );
+  const terraformSupport = requireElement<HTMLElement>(
+    root,
+    '[data-testid="terraform-support-count"]',
+  );
+  const terraformTarget = requireElement<HTMLElement>(
+    root,
+    '[data-testid="terraform-flatten-target"]',
+  );
   const roadRequested = requireElement<HTMLElement>(root, '[data-testid="road-requested-count"]');
   const roadEffective = requireElement<HTMLElement>(root, '[data-testid="road-effective-count"]');
   const controlsMode = requireElement<HTMLElement>(root, '[data-testid="controls-mode"]');
@@ -203,13 +212,19 @@ export function renderGameUi(root: HTMLElement): GameUi {
   const raiseButton = requireElement<HTMLButtonElement>(root, '[data-action="tool-raise"]');
   const lowerButton = requireElement<HTMLButtonElement>(root, '[data-action="tool-lower"]');
   const flattenButton = requireElement<HTMLButtonElement>(root, '[data-action="tool-flatten"]');
-  const roadBuildButton = requireElement<HTMLButtonElement>(root, '[data-action="tool-road-build"]');
+  const roadBuildButton = requireElement<HTMLButtonElement>(
+    root,
+    '[data-action="tool-road-build"]',
+  );
   const roadBulldozeButton = requireElement<HTMLButtonElement>(
     root,
     '[data-action="tool-road-bulldoze"]',
   );
   const closeToolButton = requireElement<HTMLButtonElement>(root, '[data-action="tool-close"]');
-  const brushControls = requireElement<HTMLElement>(root, '[data-testid="terraform-brush-controls"]');
+  const brushControls = requireElement<HTMLElement>(
+    root,
+    '[data-testid="terraform-brush-controls"]',
+  );
   const brush1Button = requireElement<HTMLButtonElement>(root, '[data-action="brush-1"]');
   const brush3Button = requireElement<HTMLButtonElement>(root, '[data-action="brush-3"]');
   const brush5Button = requireElement<HTMLButtonElement>(root, '[data-action="brush-5"]');

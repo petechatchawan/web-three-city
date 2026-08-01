@@ -14,9 +14,7 @@ function projectedCell(x: number, z: number, level = 1): ProjectedTerrainCell {
   });
 }
 
-function model(
-  overrides: Partial<TerraformPreviewSceneModel> = {},
-): TerraformPreviewSceneModel {
+function model(overrides: Partial<TerraformPreviewSceneModel> = {}): TerraformPreviewSceneModel {
   return {
     acceptedCoreCells: [],
     propagatedSupportCells: [],
@@ -95,10 +93,7 @@ describe('buildTerraformPreviewMesh', () => {
 
   it('rejects an out-of-bounds projected cell', () => {
     expect(() =>
-      buildTerraformPreviewMesh(
-        model({ acceptedCoreCells: [projectedCell(-1, 0)] }),
-        WORLD_CONFIG,
-      ),
+      buildTerraformPreviewMesh(model({ acceptedCoreCells: [projectedCell(-1, 0)] }), WORLD_CONFIG),
     ).toThrowError('terraform-preview:invalid-cell');
   });
 });

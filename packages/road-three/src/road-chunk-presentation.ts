@@ -1,7 +1,4 @@
-import type {
-  RoadPlacementEnvironment,
-  RoadSnapshot,
-} from '@web-three-city/road-core';
+import type { RoadPlacementEnvironment, RoadSnapshot } from '@web-three-city/road-core';
 import { allChunkCoords, type ChunkCoord } from '@web-three-city/terrain-core';
 import type { WorldConfig } from '@web-three-city/world-core';
 import * as THREE from 'three';

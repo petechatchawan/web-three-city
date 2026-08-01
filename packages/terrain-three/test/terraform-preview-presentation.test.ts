@@ -36,9 +36,15 @@ describe('TerraformPreviewPresentation', () => {
 
     expect(preview.object3d.name).toBe('terraform-preview-root');
     expect(preview.object3d.getObjectByName('terraform-preview-core')).toBeInstanceOf(THREE.Mesh);
-    expect(preview.object3d.getObjectByName('terraform-preview-support')).toBeInstanceOf(THREE.Mesh);
-    expect(preview.object3d.getObjectByName('terraform-preview-rejected')).toBeInstanceOf(THREE.Mesh);
-    expect(preview.object3d.getObjectByName('terraform-preview-no-change')).toBeInstanceOf(THREE.Mesh);
+    expect(preview.object3d.getObjectByName('terraform-preview-support')).toBeInstanceOf(
+      THREE.Mesh,
+    );
+    expect(preview.object3d.getObjectByName('terraform-preview-rejected')).toBeInstanceOf(
+      THREE.Mesh,
+    );
+    expect(preview.object3d.getObjectByName('terraform-preview-no-change')).toBeInstanceOf(
+      THREE.Mesh,
+    );
     expect(preview.object3d.getObjectByName('terraform-preview-water')).toBeInstanceOf(THREE.Mesh);
     expect(preview.object3d.getObjectByName('terraform-preview-rejected-marker')).toBeInstanceOf(
       THREE.LineSegments,

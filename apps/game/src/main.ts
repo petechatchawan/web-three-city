@@ -2,10 +2,7 @@ import './style.css';
 import type { TerraformBrushSize } from '@web-three-city/terrain-core';
 import { bootstrapGame } from './game-bootstrap.js';
 import { bindGameKeyboardShortcuts } from './game-keyboard-shortcuts.js';
-import {
-  dispatchGameToolCancel,
-  dispatchGameTransactionState,
-} from './game-tool-events.js';
+import { dispatchGameToolCancel, dispatchGameTransactionState } from './game-tool-events.js';
 import { bindGameToolHud } from './game-tool-hud-binding.js';
 import type { GameToolMode } from './game-tool-mode.js';
 import { expandGameSecondaryControls } from './game-secondary-controls.js';

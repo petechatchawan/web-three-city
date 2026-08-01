@@ -205,7 +205,9 @@ for (const [fixture, reason] of [
   });
 }
 
-test('desktop drag previews and commits one Road transaction without touching Water', async ({ page }) => {
+test('desktop drag previews and commits one Road transaction without touching Water', async ({
+  page,
+}) => {
   await openGame(page);
   const cells = findRoadLine();
   const points = await locateCells(page, [cells[0]!, cells.at(-1)!]);
@@ -263,7 +265,9 @@ test('Bulldoze updates topology and tagged Undo restores the Road only', async (
   expect(undone.water.sourceTerrainRevision).toBe(built.water.sourceTerrainRevision);
 });
 
-test('second touch cancels Road Preview and transfers to camera gesture ownership', async ({ page }) => {
+test('second touch cancels Road Preview and transfers to camera gesture ownership', async ({
+  page,
+}) => {
   await openGame(page);
   const cell = findRoadLine(1)[0]!;
   const point = await clickTerrainCell(page, cell);
@@ -287,7 +291,9 @@ test('second touch cancels Road Preview and transfers to camera gesture ownershi
   expect((await readEvidence(page)).activePointerCount).toBe(0);
 });
 
-test('Terraform touching one Road cell invalidates Preview and rejects the whole transaction', async ({ page }) => {
+test('Terraform touching one Road cell invalidates Preview and rejects the whole transaction', async ({
+  page,
+}) => {
   await openGame(page);
   const cell = findRoadAndRaiseCell();
   await buildRoadTap(page, cell);
@@ -306,16 +312,16 @@ test('Terraform touching one Road cell invalidates Preview and rejects the whole
   await expect(page.getByTestId('game-status')).toHaveText('Terraform blocked by road');
   const after = await readEvidence(page);
   expect(after.terraform.previewRootCount).toBe(0);
-  expect(after.terraform.committedTerrainRevision).toBe(
-    before.terraform.committedTerrainRevision,
-  );
+  expect(after.terraform.committedTerrainRevision).toBe(before.terraform.committedTerrainRevision);
   expect(after.terraform.waterRebuildCount).toBe(before.terraform.waterRebuildCount);
   expect(after.road.committedRoadRevision).toBe(before.road.committedRoadRevision);
   expect(after.road.occupiedCellCount).toBe(before.road.occupiedCellCount);
   expect(after.road.undoKind).toBe('road');
 });
 
-test('WorldSaveV1 restores Roads and legacy Terrain saves migrate to empty Roads', async ({ page }) => {
+test('WorldSaveV1 restores Roads and legacy Terrain saves migrate to empty Roads', async ({
+  page,
+}) => {
   await openGame(page);
   const cell = findRoadLine(1)[0]!;
   await buildRoadTap(page, cell);

@@ -72,9 +72,7 @@ describe('RoadPreviewPresentation', () => {
     const invalidMarker = preview.root?.getObjectByName(
       'road-preview-invalid-marker',
     ) as THREE.LineSegments;
-    expect((invalidMesh.material as THREE.Material).name).toBe(
-      'road-material-preview-invalid',
-    );
+    expect((invalidMesh.material as THREE.Material).name).toBe('road-material-preview-invalid');
     expect(invalidMarker).toBeInstanceOf(THREE.LineSegments);
     expect((invalidMarker.material as THREE.Material).name).toBe(
       'road-material-preview-invalid-marker',

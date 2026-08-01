@@ -1,9 +1,6 @@
 import type { RoadMutationPlan } from '@web-three-city/road-core';
 import type { InteractionEvidence } from './interaction-evidence.js';
-import type {
-  GameTransactionDomain,
-  GameTransactionState,
-} from './game-tool-events.js';
+import type { GameTransactionDomain, GameTransactionState } from './game-tool-events.js';
 import type { TerraformStrokeRelease } from './terraform-stroke-session.js';
 
 export interface GameTransactionAnnouncement {

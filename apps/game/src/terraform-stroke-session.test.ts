@@ -43,10 +43,7 @@ function roadsAt(...cells: readonly CellCoord[]): RoadSnapshot {
   );
 }
 
-function createSession(
-  terrain = flatTerrain(),
-  roads = createEmptyRoadSnapshot(WORLD_CONFIG),
-) {
+function createSession(terrain = flatTerrain(), roads = createEmptyRoadSnapshot(WORLD_CONFIG)) {
   const onState = vi.fn();
   return {
     terrain,

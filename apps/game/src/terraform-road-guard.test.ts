@@ -67,10 +67,7 @@ describe('Terraform Road guard', () => {
       { operation: 'raise', brushSize: 1, cells: [{ x: 8, z: 8 }] },
       WORLD_CONFIG,
     );
-    const guarded = guardTerraformPlanWithRoads(
-      corePlan,
-      createEmptyRoadSnapshot(WORLD_CONFIG),
-    );
+    const guarded = guardTerraformPlanWithRoads(corePlan, createEmptyRoadSnapshot(WORLD_CONFIG));
 
     expect(guarded).toMatchObject({ valid: true, invalidReason: null });
     expect(guarded.blockedRoadCells).toEqual([]);

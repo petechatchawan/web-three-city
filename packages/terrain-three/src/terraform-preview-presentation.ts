@@ -147,10 +147,7 @@ export class TerraformPreviewPresentation {
       addLayer(data.rejected, 'terraform-preview-rejected', this.#surfaceMaterial);
       addLayer(data.noChange, 'terraform-preview-no-change', this.#surfaceMaterial);
       addLayer(data.water, 'terraform-preview-water', this.#waterMaterial);
-      const markerGeometry = createRejectedMarkerGeometry(
-        model.rejectedStampCells,
-        this.#config,
-      );
+      const markerGeometry = createRejectedMarkerGeometry(model.rejectedStampCells, this.#config);
       if (markerGeometry !== null) {
         const marker = new THREE.LineSegments(markerGeometry, this.#rejectedMarkerMaterial);
         marker.name = 'terraform-preview-rejected-marker';

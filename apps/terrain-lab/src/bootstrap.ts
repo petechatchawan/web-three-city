@@ -73,8 +73,7 @@ function countRoots(scene: THREE.Scene, name: string): number {
 
 function countRoadPreviewRoots(scene: THREE.Scene): number {
   return (
-    countRoots(scene, 'road-preview-root-valid') +
-    countRoots(scene, 'road-preview-root-invalid')
+    countRoots(scene, 'road-preview-root-valid') + countRoots(scene, 'road-preview-root-invalid')
   );
 }
 

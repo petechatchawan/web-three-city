@@ -28,11 +28,7 @@ import type {
 } from '@web-three-city/terrain-three';
 import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
 import * as THREE from 'three';
-import {
-  isRoadToolMode,
-  isTerraformToolMode,
-  type GameToolMode,
-} from './game-tool-mode.js';
+import { isRoadToolMode, isTerraformToolMode, type GameToolMode } from './game-tool-mode.js';
 import {
   bindGameToolCancel,
   dispatchGameToolEvent,
@@ -42,10 +38,7 @@ import {
   roadPlanTransaction,
   terraformReleaseTransaction,
 } from './game-transaction-presentation.js';
-import {
-  createRoadStrokeController,
-  type RoadInputState,
-} from './road-stroke-controller.js';
+import { createRoadStrokeController, type RoadInputState } from './road-stroke-controller.js';
 import { createTerraformPreviewSceneModel } from './terraform-preview-adapter.js';
 import type { GameTerraformInvalidReason } from './terraform-road-guard.js';
 import {
@@ -104,9 +97,7 @@ export interface CreateGameInputOptions {
   readonly onTerraformCommit: (plan: TerraformPlan) => void;
   readonly onTerraformRelease?: (release: TerraformStrokeRelease) => void;
   readonly onTerraformState?: (state: TerraformStrokeSessionState) => void;
-  readonly onTerraformReject?: (
-    reason: GameTerraformInvalidReason | 'terraform:no-change',
-  ) => void;
+  readonly onTerraformReject?: (reason: GameTerraformInvalidReason | 'terraform:no-change') => void;
   readonly onRoadPlan: (plan: RoadMutationPlan) => void;
   readonly onReset: () => void;
 }
@@ -176,16 +167,9 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
     getRoadSnapshot: options.getRoadSnapshot,
     onState(state): void {
       options.preview.show(
-        createTerraformPreviewSceneModel(
-          state,
-          options.getTerrainSnapshot(),
-          options.config,
-        ),
+        createTerraformPreviewSceneModel(state, options.getTerrainSnapshot(), options.config),
       );
-      dispatchGameToolEvent(
-        options.canvas,
-        Object.freeze({ type: 'terraform-state', state }),
-      );
+      dispatchGameToolEvent(options.canvas, Object.freeze({ type: 'terraform-state', state }));
       options.onTerraformState?.(state);
     },
   });
@@ -214,13 +198,8 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
     },
   });
 
-  const rejectTerraform = (
-    reason: GameTerraformInvalidReason | 'terraform:no-change',
-  ): void => {
-    dispatchGameToolEvent(
-      options.canvas,
-      Object.freeze({ type: 'reason', reason }),
-    );
+  const rejectTerraform = (reason: GameTerraformInvalidReason | 'terraform:no-change'): void => {
+    dispatchGameToolEvent(options.canvas, Object.freeze({ type: 'reason', reason }));
     options.onTerraformReject?.(reason);
   };
 

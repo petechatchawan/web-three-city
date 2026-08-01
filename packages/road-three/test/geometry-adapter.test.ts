@@ -36,22 +36,10 @@ describe('Road geometry adapter', () => {
       { ...validData(), positions: new Float32Array([0, Number.NaN, 0]) },
       'road-three:invalid-normals',
     ],
-    [
-      { ...validData(), normals: new Float32Array([0, 1, 0]) },
-      'road-three:invalid-normals',
-    ],
-    [
-      { ...validData(), colors: new Float32Array([1, 1, 1]) },
-      'road-three:invalid-colors',
-    ],
-    [
-      { ...validData(), indices: new Uint32Array([0, 1]) },
-      'road-three:invalid-indices',
-    ],
-    [
-      { ...validData(), indices: new Uint32Array([0, 1, 3]) },
-      'road-three:index-out-of-range',
-    ],
+    [{ ...validData(), normals: new Float32Array([0, 1, 0]) }, 'road-three:invalid-normals'],
+    [{ ...validData(), colors: new Float32Array([1, 1, 1]) }, 'road-three:invalid-colors'],
+    [{ ...validData(), indices: new Uint32Array([0, 1]) }, 'road-three:invalid-indices'],
+    [{ ...validData(), indices: new Uint32Array([0, 1, 3]) }, 'road-three:index-out-of-range'],
   ])('rejects malformed mesh data', (data, message) => {
     expect(() => createRoadGeometry(data)).toThrow(message);
   });

@@ -1,8 +1,4 @@
-import {
-  type CellCoord,
-  type GridVertexCoord,
-  type WorldConfig,
-} from '@web-three-city/world-core';
+import { type CellCoord, type GridVertexCoord, type WorldConfig } from '@web-three-city/world-core';
 import type { TerrainDirtyRegion } from './dirty-region.js';
 import { createTerrainMap, type TerrainSnapshot } from './terrain-map.js';
 import { expandTerraformBrushCells } from './terraform-brush.js';

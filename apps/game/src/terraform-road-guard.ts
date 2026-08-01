@@ -1,13 +1,8 @@
 import { roadOccupiedAt, type RoadSnapshot } from '@web-three-city/road-core';
-import type {
-  TerraformInvalidReason,
-  TerraformPlan,
-} from '@web-three-city/terrain-core';
+import type { TerraformInvalidReason, TerraformPlan } from '@web-three-city/terrain-core';
 import type { CellCoord } from '@web-three-city/world-core';
 
-export type GameTerraformInvalidReason =
-  | TerraformInvalidReason
-  | 'terraform:road-occupied';
+export type GameTerraformInvalidReason = TerraformInvalidReason | 'terraform:road-occupied';
 
 export interface GuardedTerraformCandidate {
   readonly corePlan: TerraformPlan;
@@ -21,10 +16,7 @@ export type GuardedTerraformPlan = GuardedTerraformCandidate;
 
 const EMPTY_BLOCKED_ROAD_CELLS: readonly CellCoord[] = Object.freeze([]);
 
-function blockedRoadCellsFor(
-  plan: TerraformPlan,
-  roads: RoadSnapshot,
-): readonly CellCoord[] {
+function blockedRoadCellsFor(plan: TerraformPlan, roads: RoadSnapshot): readonly CellCoord[] {
   return Object.freeze(
     plan.affectedCells
       .filter((cell) => roadOccupiedAt(roads, cell))

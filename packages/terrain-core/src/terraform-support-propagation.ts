@@ -106,19 +106,12 @@ function minimumChebyshev(
 ): number {
   let result = Number.POSITIVE_INFINITY;
   for (const core of coreVertices) {
-    result = Math.min(
-      result,
-      Math.max(Math.abs(vertex.x - core.x), Math.abs(vertex.z - core.z)),
-    );
+    result = Math.min(result, Math.max(Math.abs(vertex.x - core.x), Math.abs(vertex.z - core.z)));
   }
   return result;
 }
 
-function cornersAt(
-  levels: Uint8Array,
-  cell: CellCoord,
-  config: WorldConfig,
-): TerrainCorners {
+function cornersAt(levels: Uint8Array, cell: CellCoord, config: WorldConfig): TerrainCorners {
   return {
     nw: levels[vertexIndex({ x: cell.x, z: cell.z }, config)]!,
     ne: levels[vertexIndex({ x: cell.x + 1, z: cell.z }, config)]!,
@@ -283,7 +276,11 @@ export function propagateTerraformSupport(
           input.operation,
           input.flattenTargetLevel,
         );
-        if (!Number.isInteger(next) || next < config.minHeightLevel || next > config.maxHeightLevel) {
+        if (
+          !Number.isInteger(next) ||
+          next < config.minHeightLevel ||
+          next > config.maxHeightLevel
+        ) {
           return 'terraform:height-range';
         }
         if (Math.abs(currentLevel - next) >= Math.abs(currentLevel - neighborLevel)) {

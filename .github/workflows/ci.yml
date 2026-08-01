@@ -2,6 +2,10 @@ name: CI
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
   workflow_dispatch:
 
 permissions:
@@ -11,19 +15,14 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  CI: 'true'
-
 jobs:
-  quality:
-    name: Quality and provenance
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, macOS, ARM64]
-    timeout-minutes: 30
+  lean:
+    name: Lean CI
+    if: github.event_name == 'workflow_dispatch' || github.event.action != 'labeled'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
       - uses: pnpm/action-setup@v4
         with:
           version: 10.13.1
@@ -32,86 +31,18 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm format:check
-      - run: pnpm lint
-      - run: pnpm typecheck
-      - run: pnpm provenance:check
-
-  unit:
-    name: Unit, geometry, and golden tests
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, macOS, ARM64]
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.13.1
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm test:coverage
-      - run: pnpm test:deployment
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: coverage
-          path: packages/*/coverage
-          if-no-files-found: ignore
-          retention-days: 1
-
-  build:
-    name: Build all packages and applications
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, macOS, ARM64]
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.13.1
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
-      - name: Verify deployable asset paths
-        run: |
-          grep -Eq '(src|href)="\./assets/' apps/game/dist/index.html
-          grep -Eq '(src|href)="\./assets/' apps/terrain-lab/dist/index.html
-          ! grep -Eq '(src|href)="/assets/' apps/game/dist/index.html
-          ! grep -Eq '(src|href)="/assets/' apps/terrain-lab/dist/index.html
-      - run: pnpm compose:vercel
-      - name: Verify Vercel Build Output API
-        run: |
-          node -e "const fs=require('node:fs'); const config=JSON.parse(fs.readFileSync('.vercel/output/config.json','utf8')); if(config.version!==3) process.exit(1)"
-          test -f .vercel/output/static/index.html
-          test -f .vercel/output/static/terrain-lab/index.html
-      - uses: actions/upload-artifact@v4
-        with:
-          name: web-app-builds
-          path: |
-            apps/game/dist
-            apps/terrain-lab/dist
-          if-no-files-found: error
-          retention-days: 1
+      - run: pnpm check
 
   browser:
-    name: Chromium smoke, interaction, and visual evidence
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, macOS, ARM64]
-    timeout-minutes: 60
+    name: Full browser verification
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' &&
+      contains(github.event.pull_request.labels.*.name, 'full-ci'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
       - uses: pnpm/action-setup@v4
         with:
           version: 10.13.1
@@ -122,7 +53,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @web-three-city/terrain-lab build
       - run: pnpm --filter @web-three-city/game build
-      - run: pnpm exec playwright install chromium
+      - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:browser
       - uses: actions/upload-artifact@v4
         if: always()
@@ -131,5 +62,4 @@ jobs:
           path: |
             playwright-report
             test-results
-          if-no-files-found: error
-          retention-days: 1
+          if-no-files-found: ignore

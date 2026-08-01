@@ -1,0 +1,230 @@
+name: Fix Road Browser Regressions
+
+on:
+  pull_request:
+    types: [synchronize]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fix-road-browser-regressions-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  fix:
+    if: github.event.pull_request.number == 11
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Apply focused browser regression fixes
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path_name: str, old: str, new: str) -> None:
+              path = Path(path_name)
+              text = path.read_text()
+              if new in text:
+                  return
+              if old not in text:
+                  raise SystemExit(f'Expected text not found in {path_name}: {old!r}')
+              path.write_text(text.replace(old, new, 1))
+
+          replace_once(
+              'apps/game/src/terraform-road-guard.ts',
+              """function blockedRoadCellsFor(plan: TerraformPlan, roads: RoadSnapshot): readonly CellCoord[] {
+            return Object.freeze(
+              plan.affectedCells
+                .filter((cell) => roadOccupiedAt(roads, cell))
+                .map((cell) => Object.freeze({ x: cell.x, z: cell.z }))
+                .sort((first, second) => first.z - second.z || first.x - second.x),
+            );
+          }
+          """,
+              """function blockedRoadCellsFor(plan: TerraformPlan, roads: RoadSnapshot): readonly CellCoord[] {
+            const blocked = new Map<string, CellCoord>();
+            for (const vertex of plan.affectedVertices) {
+              for (const cell of [
+                { x: vertex.x - 1, z: vertex.z - 1 },
+                { x: vertex.x, z: vertex.z - 1 },
+                { x: vertex.x - 1, z: vertex.z },
+                { x: vertex.x, z: vertex.z },
+              ]) {
+                if (
+                  cell.x < 0 ||
+                  cell.z < 0 ||
+                  cell.x >= roads.width ||
+                  cell.z >= roads.height ||
+                  !roadOccupiedAt(roads, cell)
+                ) {
+                  continue;
+                }
+                blocked.set(`${cell.x}:${cell.z}`, cell);
+              }
+            }
+            return Object.freeze(
+              [...blocked.values()]
+                .map((cell) => Object.freeze({ x: cell.x, z: cell.z }))
+                .sort((first, second) => first.z - second.z || first.x - second.x),
+            );
+          }
+          """,
+          )
+
+          replace_once(
+              'apps/game/src/terraform-road-guard.test.ts',
+              """  it('preserves valid plans without overlapping Roads', () => {
+          """,
+              """  it('rejects a Road cell that shares a changed Terrain vertex', () => {
+            const corePlan = planTerraformStroke(
+              terrain(),
+              { operation: 'raise', brushSize: 1, cells: [{ x: 8, z: 8 }] },
+              WORLD_CONFIG,
+            );
+            expect(corePlan.valid).toBe(true);
+            expect(corePlan.affectedCells).not.toContainEqual({ x: 9, z: 8 });
+
+            const guarded = guardTerraformPlanWithRoads(corePlan, roadsAt({ x: 9, z: 8 }));
+
+            expect(guarded.valid).toBe(false);
+            expect(guarded.invalidReason).toBe('terraform:road-occupied');
+            expect(guarded.blockedRoadCells).toEqual([{ x: 9, z: 8 }]);
+          });
+
+            it('preserves valid plans without overlapping Roads', () => {
+          """,
+          )
+
+          replace_once(
+              'apps/terrain-lab/src/fixture-registry.ts',
+              """  if (
+            id === 'road-ramp-north-up' ||
+            id === 'road-invalid-ramp-perpendicular' ||
+            id === 'road-invalid-ramp-junction'
+          ) {
+            applyNorthSouthRamp(levels, ROAD_CENTER, 3, 2);
+          } else if (id === 'road-ramp-north-down') {
+          """,
+              """  if (id === 'road-invalid-ramp-perpendicular') {
+            applyNorthSouthRamp(levels, offsetCell(-1, 0), 3, 2);
+            applyNorthSouthRamp(levels, ROAD_CENTER, 3, 2);
+            applyNorthSouthRamp(levels, offsetCell(1, 0), 3, 2);
+          } else if (id === 'road-ramp-north-up' || id === 'road-invalid-ramp-junction') {
+            applyNorthSouthRamp(levels, ROAD_CENTER, 3, 2);
+          } else if (id === 'road-ramp-north-down') {
+          """,
+          )
+
+          replace_once(
+              'browser-tests/interaction.spec.ts',
+              "const saveButton = page.getByRole('button', { name: 'Save terrain' });",
+              "const saveButton = page.getByRole('button', { name: 'Save world' });",
+          )
+          replace_once(
+              'browser-tests/interaction.spec.ts',
+              """    preview: 0,
+            });
+          """,
+              """    preview: 0,
+              roadCommitted: 1,
+              roadPreview: 0,
+            });
+          """,
+          )
+
+          replace_once(
+              'browser-tests/water.spec.ts',
+              "const SAVE_KEY = 'web-three-city:terrain-save:v1';",
+              "const SAVE_KEY = 'web-three-city:world-save:v1';",
+          )
+          replace_once(
+              'browser-tests/water.spec.ts',
+              "page.getByRole('button', { name: 'Save terrain' })",
+              "page.getByRole('button', { name: 'Save world' })",
+          )
+          replace_once(
+              'browser-tests/water.spec.ts',
+              "page.getByRole('button', { name: 'Load terrain' })",
+              "page.getByRole('button', { name: 'Load world' })",
+          )
+
+          replace_once(
+              'browser-tests/terraform-visual-evidence.spec.ts',
+              "page.getByRole('button', { name: 'Undo Terraform' })",
+              "page.getByRole('button', { name: 'Undo latest world change' })",
+          )
+
+          replace_once(
+              'browser-tests/road.spec.ts',
+              """  const cells = findRoadLine(2);
+            await buildRoadTap(page, cells[0]!);
+            const previewPoint = await clickTerrainCell(page, cells[1]!);
+            await page.getByRole('button', { name: 'Build Road' }).click();
+          """,
+              """  const cells = findRoadLine(2);
+            const [committedPoint, previewPoint] = await locateCells(page, cells);
+            await page.getByRole('button', { name: 'Build Road' }).click();
+            await page.mouse.click(committedPoint!.x, committedPoint!.y);
+            await expect(page.getByTestId('game-status')).toHaveText('Road built');
+          """,
+          )
+          PY
+      - run: >-
+          pnpm exec prettier --write
+          apps/game/src/terraform-road-guard.ts
+          apps/game/src/terraform-road-guard.test.ts
+          apps/terrain-lab/src/fixture-registry.ts
+          browser-tests/interaction.spec.ts
+          browser-tests/water.spec.ts
+          browser-tests/terraform-visual-evidence.spec.ts
+          browser-tests/road.spec.ts
+      - run: pnpm check
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Run seven previously failing browser scenarios
+        run: >-
+          pnpm exec playwright test
+          --grep "accepted Terraform preview survives|a pointer starting on UI never moves|context restore preserves grid|renders invalid road-invalid-ramp-perpendicular Preview|WebGL context restoration keeps committed Roads|captures Terraform Foundation visual and timing evidence|save and load reproduce deterministic Water state"
+      - name: Commit verified fixes
+        shell: bash
+        run: |
+          changed="$(git diff --name-only | sort)"
+          expected="$(printf '%s\n' \
+            apps/game/src/terraform-road-guard.test.ts \
+            apps/game/src/terraform-road-guard.ts \
+            apps/terrain-lab/src/fixture-registry.ts \
+            browser-tests/interaction.spec.ts \
+            browser-tests/road.spec.ts \
+            browser-tests/terraform-visual-evidence.spec.ts \
+            browser-tests/water.spec.ts | sort)"
+          if [[ "$changed" != "$expected" ]]; then
+            echo "Unexpected changed files:"
+            printf '%s\n' "$changed"
+            exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            apps/game/src/terraform-road-guard.test.ts \
+            apps/game/src/terraform-road-guard.ts \
+            apps/terrain-lab/src/fixture-registry.ts \
+            browser-tests/interaction.spec.ts \
+            browser-tests/road.spec.ts \
+            browser-tests/terraform-visual-evidence.spec.ts \
+            browser-tests/water.spec.ts
+          git commit -m "fix: close Road browser acceptance regressions"
+          git push origin "HEAD:${{ github.event.pull_request.head.ref }}"

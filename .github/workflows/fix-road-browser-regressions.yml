@@ -45,6 +45,15 @@ jobs:
                   raise SystemExit(f'Expected text not found in {path_name}: {old!r}')
               path.write_text(text.replace(old, new, 1))
 
+          def replace_all(path_name: str, old: str, new: str) -> None:
+              path = Path(path_name)
+              text = path.read_text()
+              if old not in text and new in text:
+                  return
+              if old not in text:
+                  raise SystemExit(f'Expected text not found in {path_name}: {old!r}')
+              path.write_text(text.replace(old, new))
+
           def replace_pattern(path_name: str, pattern: str, replacement: str) -> None:
               path = Path(path_name)
               text = path.read_text()
@@ -146,10 +155,24 @@ jobs:
               "page.getByRole('button', { name: 'Load world' })",
           )
 
-          replace_once(
+          replace_all(
               'browser-tests/terraform-visual-evidence.spec.ts',
               "page.getByRole('button', { name: 'Undo Terraform' })",
               "page.getByRole('button', { name: 'Undo latest world change' })",
+          )
+          replace_once(
+              'browser-tests/terraform-visual-evidence.spec.ts',
+              """  await page.getByRole('button', { name: 'Brush 5 × 5' }).click();
+            await page.getByRole('button', { name: 'Raise' }).click();""",
+              """  await page.getByRole('button', { name: 'Raise' }).click();
+            await page.getByRole('button', { name: 'Brush 5 × 5' }).click();""",
+          )
+          replace_once(
+              'browser-tests/terraform-visual-evidence.spec.ts',
+              """  await page.getByRole('button', { name: 'Brush 1 × 1' }).click();
+            await page.getByRole('button', { name: 'Flatten' }).click();""",
+              """  await page.getByRole('button', { name: 'Flatten' }).click();
+            await page.getByRole('button', { name: 'Brush 1 × 1' }).click();""",
           )
 
           replace_pattern(

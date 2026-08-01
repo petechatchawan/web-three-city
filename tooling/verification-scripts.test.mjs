@@ -1,10 +1,9 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { URL } from 'node:url';
 import test from 'node:test';
 
-const packageJson = JSON.parse(
-  await readFile(new URL('../package.json', import.meta.url), 'utf8'),
-);
+const packageJson = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
 
 const expectedFull =
   'pnpm install --frozen-lockfile && pnpm verify && pnpm exec playwright install chromium && pnpm test:browser:only && node tooling/verify-clean-worktree.mjs';

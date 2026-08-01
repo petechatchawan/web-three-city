@@ -8,7 +8,6 @@ import {
   encodeTerrainSaveV1,
   planTerraformStroke,
   terrainCellSurfaceProfile,
-  type TerrainSnapshot,
 } from '../packages/terrain-core/src/index.js';
 import { generateCoastalTerrain } from '../packages/terrain-generator/src/index.js';
 import { deriveWaterSnapshot, triangleIndexFor } from '../packages/water-core/src/index.js';

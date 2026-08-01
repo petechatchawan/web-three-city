@@ -1,5 +1,4 @@
 import {
-  BASIC_ROAD_CODE,
   commitRoadMutation,
   createEmptyRoadSnapshot,
   planRoadMutation,

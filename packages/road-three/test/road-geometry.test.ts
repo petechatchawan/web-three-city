@@ -65,6 +65,22 @@ function geometryHash(mesh: RoadMeshData): string {
   return hash.digest('hex');
 }
 
+function cellWorldBounds(cell: CellCoord): Readonly<{
+  minX: number;
+  maxX: number;
+  minZ: number;
+  maxZ: number;
+}> {
+  const minX = (cell.x - WORLD_CONFIG.mapWidth / 2) * WORLD_CONFIG.cellSize;
+  const minZ = (cell.z - WORLD_CONFIG.mapHeight / 2) * WORLD_CONFIG.cellSize;
+  return Object.freeze({
+    minX,
+    maxX: minX + WORLD_CONFIG.cellSize,
+    minZ,
+    maxZ: minZ + WORLD_CONFIG.cellSize,
+  });
+}
+
 function expectValidMesh(mesh: RoadMeshData, cell: CellCoord): void {
   expect(mesh.positions.length % 3).toBe(0);
   expect(mesh.normals).toHaveLength(mesh.positions.length);
@@ -82,11 +98,12 @@ function expectValidMesh(mesh: RoadMeshData, cell: CellCoord): void {
   );
   const vertexCount = mesh.positions.length / 3;
   expect([...mesh.indices].every((index) => index >= 0 && index < vertexCount)).toBe(true);
+  const bounds = cellWorldBounds(cell);
   for (let index = 0; index < mesh.positions.length; index += 3) {
-    expect(mesh.positions[index]).toBeGreaterThanOrEqual(cell.x * WORLD_CONFIG.cellSize);
-    expect(mesh.positions[index]).toBeLessThanOrEqual((cell.x + 1) * WORLD_CONFIG.cellSize);
-    expect(mesh.positions[index + 2]).toBeGreaterThanOrEqual(cell.z * WORLD_CONFIG.cellSize);
-    expect(mesh.positions[index + 2]).toBeLessThanOrEqual((cell.z + 1) * WORLD_CONFIG.cellSize);
+    expect(mesh.positions[index]).toBeGreaterThanOrEqual(bounds.minX);
+    expect(mesh.positions[index]).toBeLessThanOrEqual(bounds.maxX);
+    expect(mesh.positions[index + 2]).toBeGreaterThanOrEqual(bounds.minZ);
+    expect(mesh.positions[index + 2]).toBeLessThanOrEqual(bounds.maxZ);
   }
 }
 
@@ -105,48 +122,48 @@ function boundaryVertices(mesh: RoadMeshData, axis: 'x' | 'z', value: number): r
 }
 
 const GOLDENS = [
-  ['isolated', 0, 'flat', '788b8f383afad66a054c1cf21037afefe72e9677c229d94a55054cdd487d80cf'],
+  ['isolated', 0, 'flat', 'b44a68f52ff50bd95e11a02d4d1658a6dc818edf38e43c4b647c3e64b94977b6'],
   [
     'end-north',
     ROAD_NORTH,
     'flat',
-    '00254c8385de39920406630539713682899b7216165e643e378be00a909cbe58',
+    '06ac03eb4450848f8d41af5d959ce17ecf0c957e37543a0c1d4f1a7f35421669',
   ],
   [
     'straight-ns',
     ROAD_NORTH | ROAD_SOUTH,
     'flat',
-    '829c16766212f4304071b998a7d4d8cdd37fb6663b5932a7f6dca37c4951b1ce',
+    '0d91801306a40dcc74333608a5f5034a90b122aa9fba86372207209b24b121c2',
   ],
   [
     'corner-ne',
     ROAD_NORTH | ROAD_EAST,
     'flat',
-    'a59c9aea790e83bc3d6796c01cbbeb053d8714dc44fc29aa8de82b2551e60e4e',
+    '97bf1b210be1cb960fbeb7943d2338fb68ebc71b7bc7c985a1269a170cecb5a3',
   ],
   [
     't-nes',
     ROAD_NORTH | ROAD_EAST | ROAD_SOUTH,
     'flat',
-    '711dd942411f94f5b34e2ce42658b8efb62986766867c635b7bd745a8792a57d',
+    '66672bbf993b0389d24212c711529d9e969fada8285101ad0cd56d3ab272975b',
   ],
   [
     'four-way',
     ROAD_NORTH | ROAD_EAST | ROAD_SOUTH | ROAD_WEST,
     'flat',
-    '5a2cdaa1c090f0f290c19d5004c8810ab3389ba5e69be96752b0f76e124b471d',
+    'bf1179b40dbfefae6391c9c3deb456dbabaa5e6543a26fbfdd833c56c4b97378',
   ],
   [
     'ramp-ns',
     ROAD_NORTH | ROAD_SOUTH,
     'ramp-north',
-    '111f6fb1b75c8d17b32009d56ccbb1ba2715862b508026851fa800b58a8bfd8d',
+    'c0b1acdbe03d3c5933b5565151b2c294331aac12c7367ff1d2794b39df912912',
   ],
   [
     'ramp-ew',
     ROAD_EAST | ROAD_WEST,
     'ramp-east',
-    '00fb94cfd7acdd2006a40dc4ec078b1968aeff366533145b7140374eb5126663',
+    '28c2a551a23b7dd8cdf7406323b9430c40e469e54cd8acb5a2b539877675e986',
   ],
 ] as const;
 
@@ -165,8 +182,9 @@ describe('road geometry', () => {
   it('aligns exact shared-edge ports for Flat neighbors', () => {
     const west = buildRoadCellMesh(view({ x: 4, z: 4 }, ROAD_EAST), WORLD_CONFIG);
     const east = buildRoadCellMesh(view({ x: 5, z: 4 }, ROAD_WEST), WORLD_CONFIG);
+    const boundaryX = (5 - WORLD_CONFIG.mapWidth / 2) * WORLD_CONFIG.cellSize;
 
-    expect(boundaryVertices(west, 'x', 5)).toEqual(boundaryVertices(east, 'x', 5));
+    expect(boundaryVertices(west, 'x', boundaryX)).toEqual(boundaryVertices(east, 'x', boundaryX));
   });
 
   it('aligns exact shared-edge ports for Flat-to-Ramp transitions', () => {
@@ -175,8 +193,9 @@ describe('road geometry', () => {
       view({ x: 4, z: 5 }, ROAD_NORTH | ROAD_SOUTH, 'ramp-north'),
       WORLD_CONFIG,
     );
+    const boundaryZ = (5 - WORLD_CONFIG.mapHeight / 2) * WORLD_CONFIG.cellSize;
 
-    expect(boundaryVertices(flat, 'z', 5)).toEqual(boundaryVertices(ramp, 'z', 5));
+    expect(boundaryVertices(flat, 'z', boundaryZ)).toEqual(boundaryVertices(ramp, 'z', boundaryZ));
   });
 
   it('merges meshes with deterministic index offsets', () => {

@@ -53,6 +53,10 @@ function environment(ramp = false): RoadPlacementEnvironment {
   });
 }
 
+function axisValues(positions: Float32Array, offset: 0 | 2): readonly number[] {
+  return Object.freeze([...positions].filter((_, index) => index % 3 === offset));
+}
+
 describe('buildRoadInvalidMarker', () => {
   it('builds two crossed line segments for every requested invalid cell', () => {
     const data = buildRoadInvalidMarker(
@@ -75,6 +79,17 @@ describe('buildRoadInvalidMarker', () => {
 
     expect(new Set(yValues.map((value) => value.toFixed(5))).size).toBeGreaterThan(1);
     expect(Math.min(...yValues)).toBeGreaterThan(TEST_CONFIG.heightStep);
+  });
+
+  it('places the center Terrain cell marker around the centered world origin', () => {
+    const data = buildRoadInvalidMarker(plan([{ x: 4, z: 4 }]), environment(), TEST_CONFIG);
+    const xs = axisValues(data.positions, 0);
+    const zs = axisValues(data.positions, 2);
+
+    expect(Math.min(...xs)).toBeGreaterThanOrEqual(0);
+    expect(Math.max(...xs)).toBeLessThanOrEqual(TEST_CONFIG.cellSize);
+    expect(Math.min(...zs)).toBeGreaterThanOrEqual(0);
+    expect(Math.max(...zs)).toBeLessThanOrEqual(TEST_CONFIG.cellSize);
   });
 
   it('returns an empty marker for a valid Road plan', () => {

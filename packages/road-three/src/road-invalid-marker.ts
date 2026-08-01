@@ -27,9 +27,9 @@ function positionAt(
   config: WorldConfig,
 ): readonly [number, number, number] {
   return Object.freeze([
-    (cell.x + u) * config.cellSize,
+    (cell.x + u - config.mapWidth / 2) * config.cellSize,
     levelAt(surface, u, v) * config.heightStep + MARKER_OFFSET,
-    (cell.z + v) * config.cellSize,
+    (cell.z + v - config.mapHeight / 2) * config.cellSize,
   ]);
 }
 

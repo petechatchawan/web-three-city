@@ -157,8 +157,11 @@ jobs:
               r"  const cells = findRoadLine\(2\);\s*await buildRoadTap\(page, cells\[0\]!\);\s*const previewPoint = await clickTerrainCell\(page, cells\[1\]!\);\s*await page\.getByRole\('button', \{ name: 'Build Road' \}\)\.click\(\);",
               """  const cells = findRoadLine(2);
             const [committedPoint, previewPoint] = await locateCells(page, cells);
+            if (committedPoint === undefined || previewPoint === undefined) {
+              throw new Error('road-browser:missing-context-restore-points');
+            }
             await page.getByRole('button', { name: 'Build Road' }).click();
-            await page.mouse.click(committedPoint!.x, committedPoint!.y);
+            await page.mouse.click(committedPoint.x, committedPoint.y);
             await expect(page.getByTestId('game-status')).toHaveText('Road built');""",
           )
           PY

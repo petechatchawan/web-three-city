@@ -27,11 +27,11 @@ describe('ZoneChunkPresentation', () => {
     const presentation = new ZoneChunkPresentation(scene, source, WORLD_CONFIG);
     presentation.loadAll(createEmptyZoneSnapshot(WORLD_CONFIG));
 
-    expect(scene.getObjectByName('zone-committed-root')).not.toBeNull();
+    expect(scene.getObjectByName('zone-committed-root')).toBeDefined();
     expect(presentation.chunkCount).toBe(64);
     expect(presentation.getChunkObject({ x: 0, z: 0 }).name).toBe('zone-chunk:0:0');
     presentation.dispose();
-    expect(scene.getObjectByName('zone-committed-root')).toBeNull();
+    expect(scene.getObjectByName('zone-committed-root')).toBeUndefined();
   });
 
   it('preserves the previous committed chunk when replacement staging fails', () => {

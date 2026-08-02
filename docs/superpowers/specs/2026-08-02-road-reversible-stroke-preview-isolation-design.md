@@ -1,6 +1,6 @@
 # Road Reversible Stroke and Preview Isolation — Design Specification
 
-**Status:** Proposed for owner review  
+**Status:** Implemented; exact-head verification pending  
 **Date:** 2026-08-02  
 **Repository baseline:** `master@73045e40af2618eaf01d07ed2c55cdb70f1f6f32`  
 **Scope:** Correct Road Build/Bulldoze stroke editing and Preview rendering without changing authoritative Road persistence, connectivity, save/load, Undo, or Terrain policy.

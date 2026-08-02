@@ -1,10 +1,6 @@
 import type { TerrainCellSurfaceProfile } from '@web-three-city/terrain-core';
 import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
-import type {
-  ZoneRoadAccess,
-  ZoneRoadAccessEnvironment,
-  ZoneRoadDirection,
-} from './contracts.js';
+import type { ZoneRoadAccess, ZoneRoadAccessEnvironment, ZoneRoadDirection } from './contracts.js';
 
 interface DirectionStep {
   readonly direction: ZoneRoadDirection;

@@ -9,6 +9,7 @@ on:
       - 'apps/game/src/road-stroke-controller.test.ts'
       - 'packages/road-three/src/road-preview-presentation.ts'
       - 'packages/road-three/test/road-preview-presentation.test.ts'
+      - 'browser-tests/road-reversible-stroke.spec.ts'
       - '.github/workflows/road-stroke-tdd.yml'
   workflow_dispatch:
 
@@ -22,7 +23,7 @@ concurrency:
 jobs:
   focused:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
         with:
@@ -35,75 +36,6 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Apply deterministic Game Preview wiring
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          game_input = Path('apps/game/src/game-input.ts')
-          text = game_input.read_text()
-          marker = 'export function createGameInput(options: CreateGameInputOptions): GameInput {'
-          helper = '''export type RoadPreviewPort = Pick<RoadPreviewPresentation, 'clear' | 'show'>;
-
-          export function routeRoadPreview(
-            roadPreview: RoadPreviewPort,
-            baseRoads: RoadSnapshot | null,
-            plan: RoadMutationPlan | null,
-            environment: RoadPlacementEnvironment | null,
-          ): void {
-            if (baseRoads === null || plan === null || environment === null) {
-              roadPreview.clear();
-              return;
-            }
-            roadPreview.show(baseRoads, plan, environment);
-          }
-
-          '''
-          if 'export function routeRoadPreview(' not in text:
-            if marker not in text:
-              raise SystemExit('createGameInput marker missing')
-            text = text.replace(marker, helper + marker, 1)
-
-          old = '''    onPreview(plan, environment): void {
-                if (plan === null || environment === null) options.roadPreview.clear();
-                else options.roadPreview.show(plan, environment);
-          '''
-          new = '''    onPreview(baseRoads, plan, environment): void {
-                routeRoadPreview(options.roadPreview, baseRoads, plan, environment);
-          '''
-          if old in text:
-            text = text.replace(old, new, 1)
-          elif new not in text:
-            raise SystemExit('Road Preview callback block missing')
-          game_input.write_text(text)
-
-          controller_test = Path('apps/game/src/road-stroke-controller.test.ts')
-          text = controller_test.read_text()
-          text = text.replace(
-            'onPreview: (plan) => previews.push(plan),',
-            'onPreview: (_baseRoads, plan) => previews.push(plan),',
-          )
-          text = text.replace(
-            'onPreview: (plan) => {',
-            'onPreview: (_baseRoads, plan) => {',
-          )
-          text = text.replace(
-            '''        (
-                    plan: RoadMutationPlan | null,
-                    environment: RoadPlacementEnvironment | null,
-                  ) => void''',
-            '''        (
-                    _baseRoads: RoadSnapshot | null,
-                    plan: RoadMutationPlan | null,
-                    environment: RoadPlacementEnvironment | null,
-                  ) => void''',
-          )
-          text = text.replace(
-            'toHaveBeenLastCalledWith(null, null);',
-            'toHaveBeenLastCalledWith(null, null, null);',
-          )
-          controller_test.write_text(text)
-          PY
       - name: Format focused implementation
         run: >-
           pnpm exec prettier --write
@@ -113,6 +45,7 @@ jobs:
           apps/game/src/road-stroke-controller.test.ts
           packages/road-three/src/road-preview-presentation.ts
           packages/road-three/test/road-preview-presentation.test.ts
+          browser-tests/road-reversible-stroke.spec.ts
           .github/workflows/road-stroke-tdd.yml
       - name: Focused unit verification
         run: >-
@@ -122,7 +55,23 @@ jobs:
           packages/road-three/test/road-preview-presentation.test.ts
       - run: pnpm --filter @web-three-city/game typecheck
       - run: pnpm --filter @web-three-city/road-three typecheck
-      - name: Commit verified changes
+      - run: pnpm build:browser
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Focused Chromium verification
+        run: >-
+          pnpm exec playwright test
+          browser-tests/road-reversible-stroke.spec.ts
+          --project=chromium
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: road-reversible-stroke-evidence
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore
+      - name: Commit verified formatting
+        if: success()
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
@@ -133,7 +82,8 @@ jobs:
             apps/game/src/road-stroke-controller.test.ts \
             packages/road-three/src/road-preview-presentation.ts \
             packages/road-three/test/road-preview-presentation.test.ts \
+            browser-tests/road-reversible-stroke.spec.ts \
             .github/workflows/road-stroke-tdd.yml
           git diff --cached --quiet && exit 0
-          git commit -m 'refactor: wire captured Road state to Preview'
+          git commit -m 'test: verify reversible Road interaction in Chromium'
           git push origin HEAD:fix/road-reversible-stroke-preview-isolation

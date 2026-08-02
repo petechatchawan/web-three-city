@@ -31,6 +31,8 @@ export {
   zoneDefinitionForId,
 } from './zone-definitions.js';
 export { findZoneRoadAccess } from './road-access.js';
+export { decodeZoneSaveV1, encodeZoneSaveV1 } from './serialization.js';
+export type { ZoneSaveError, ZoneSaveErrorCode, ZoneSaveV1 } from './serialization.js';
 export { commitZoneMutation, planZoneMutation } from './zone-mutation.js';
 export {
   createEmptyZoneSnapshot,

@@ -5,6 +5,7 @@ on:
     paths:
       - 'apps/game/src/game-input.ts'
       - 'apps/game/src/game-input-road-preview.test.ts'
+      - 'apps/game/src/interaction-evidence.ts'
       - 'apps/game/src/road-stroke-controller.ts'
       - 'apps/game/src/road-stroke-controller.test.ts'
       - 'packages/road-three/src/road-preview-presentation.ts'
@@ -36,11 +37,236 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Add deterministic Road Preview bounds evidence
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          evidence = Path('apps/game/src/interaction-evidence.ts')
+          text = evidence.read_text()
+          interface_marker = 'export interface RoadInteractionEvidence {'
+          bounds_interface = '''export interface RoadPreviewBoundsEvidence {
+            readonly minX: number;
+            readonly minY: number;
+            readonly minZ: number;
+            readonly maxX: number;
+            readonly maxY: number;
+            readonly maxZ: number;
+          }
+
+          '''
+          if 'export interface RoadPreviewBoundsEvidence {' not in text:
+            if interface_marker not in text:
+              raise SystemExit('RoadInteractionEvidence marker missing')
+            text = text.replace(interface_marker, bounds_interface + interface_marker, 1)
+
+          field_marker = '  readonly invalidMarkerCount: number;\n'
+          if 'readonly previewBounds: RoadPreviewBoundsEvidence | null;' not in text:
+            if field_marker not in text:
+              raise SystemExit('invalidMarkerCount field missing')
+            text = text.replace(
+              field_marker,
+              field_marker + '  readonly previewBounds: RoadPreviewBoundsEvidence | null;\n',
+              1,
+            )
+
+          old_omit = "    'committedRootCount' | 'previewRootCount' | 'invalidMarkerCount'\n"
+          new_omit = "    | 'committedRootCount'\n    | 'previewRootCount'\n    | 'invalidMarkerCount'\n    | 'previewBounds'\n"
+          if old_omit in text:
+            text = text.replace(old_omit, new_omit, 1)
+          elif "| 'previewBounds'" not in text:
+            raise SystemExit('Road evidence Omit contract missing')
+
+          helper_marker = '''function countRoadPreviewRoots(scene: THREE.Scene): number {
+            return (
+              countRoots(scene, 'road-preview-root-valid') + countRoots(scene, 'road-preview-root-invalid')
+            );
+          }
+
+          '''
+          bounds_helper = '''function roadPreviewBounds(scene: THREE.Scene): RoadPreviewBoundsEvidence | null {
+            const bounds = new THREE.Box3();
+            let hasGeometry = false;
+            for (const root of scene.children) {
+              if (
+                root.name !== 'road-preview-root-valid' &&
+                root.name !== 'road-preview-root-invalid'
+              ) {
+                continue;
+              }
+              root.updateMatrixWorld(true);
+              root.traverse((object) => {
+                if (!(object instanceof THREE.Mesh || object instanceof THREE.LineSegments)) return;
+                const position = object.geometry.getAttribute('position');
+                if (position === undefined || position.count === 0) return;
+                object.geometry.computeBoundingBox();
+                const geometryBounds = object.geometry.boundingBox;
+                if (geometryBounds === null) return;
+                bounds.union(geometryBounds.clone().applyMatrix4(object.matrixWorld));
+                hasGeometry = true;
+              });
+            }
+            if (!hasGeometry) return null;
+            return Object.freeze({
+              minX: bounds.min.x,
+              minY: bounds.min.y,
+              minZ: bounds.min.z,
+              maxX: bounds.max.x,
+              maxY: bounds.max.y,
+              maxZ: bounds.max.z,
+            });
+          }
+
+          '''
+          if 'function roadPreviewBounds(' not in text:
+            if helper_marker not in text:
+              raise SystemExit('countRoadPreviewRoots helper missing')
+            text = text.replace(helper_marker, helper_marker + bounds_helper, 1)
+
+          getter_marker = '''        invalidMarkerCount: countNamedObjects(source.scene, 'road-preview-invalid-marker'),
+          '''
+          if 'previewBounds: roadPreviewBounds(source.scene),' not in text:
+            if getter_marker not in text:
+              raise SystemExit('Road evidence getter marker missing')
+            text = text.replace(
+              getter_marker,
+              getter_marker + '        previewBounds: roadPreviewBounds(source.scene),\n',
+              1,
+            )
+          evidence.write_text(text)
+
+          browser = Path('browser-tests/road-reversible-stroke.spec.ts')
+          text = browser.read_text()
+          helper_marker = '''async function expectRoadCounts(page: Page, requested: number, effective = requested): Promise<void> {
+            await expect(page.getByTestId('road-requested-count')).toHaveText(String(requested));
+            await expect(page.getByTestId('road-effective-count')).toHaveText(String(effective));
+            expect((await readEvidence(page)).road.previewCellCount).toBe(requested);
+          }
+
+          '''
+          bounds_helpers = '''function cellMinimumX(cell: CellCoord): number {
+            return (cell.x - WORLD_CONFIG.mapWidth / 2) * WORLD_CONFIG.cellSize;
+          }
+
+          async function requireRoadPreviewBounds(page: Page) {
+            const bounds = (await readEvidence(page)).road.previewBounds;
+            if (bounds === null) throw new Error('road-reversible:missing-preview-bounds');
+            return bounds;
+          }
+
+          '''
+          if 'function cellMinimumX(' not in text:
+            if helper_marker not in text:
+              raise SystemExit('expectRoadCounts helper missing')
+            text = text.replace(helper_marker, helper_marker + bounds_helpers, 1)
+
+          old = '''  const committedDuringPreview = await captureCellRegion(page, committedPoint);
+            const abandonedDuringPreview = await captureCellRegion(page, activePoints.at(-1)!);
+            await attachPng(testInfo, 'build-forward-preview', abandonedDuringPreview);
+            expect(Buffer.compare(committedDuringPreview, committedBaseline)).toBe(0);
+            expect(Buffer.compare(abandonedDuringPreview, abandonedBaseline)).not.toBe(0);
+          '''
+          new = '''  const committedDuringPreview = await captureCellRegion(page, committedPoint);
+            const abandonedDuringPreview = await captureCellRegion(page, activePoints.at(-1)!);
+            await attachPng(testInfo, 'build-committed-during-preview', committedDuringPreview);
+            await attachPng(testInfo, 'build-forward-preview', abandonedDuringPreview);
+            const forwardBounds = await requireRoadPreviewBounds(page);
+            expect(forwardBounds.minX).toBeGreaterThanOrEqual(
+              cellMinimumX(line.active[0]!) - 0.0001,
+            );
+            expect(Buffer.compare(abandonedDuringPreview, abandonedBaseline)).not.toBe(0);
+          '''
+          if old not in text:
+            raise SystemExit('Build forward assertion block missing')
+          text = text.replace(old, new, 1)
+
+          old = '''  const committedAfterReverse = await captureCellRegion(page, committedPoint);
+            const abandonedAfterReverse = await captureCellRegion(page, activePoints.at(-1)!);
+            await attachPng(testInfo, 'build-after-reverse', abandonedAfterReverse);
+            expect(Buffer.compare(committedAfterReverse, committedBaseline)).toBe(0);
+            expect(Buffer.compare(abandonedAfterReverse, abandonedBaseline)).toBe(0);
+          '''
+          new = '''  const committedAfterReverse = await captureCellRegion(page, committedPoint);
+            const abandonedAfterReverse = await captureCellRegion(page, activePoints.at(-1)!);
+            await attachPng(testInfo, 'build-committed-after-reverse', committedAfterReverse);
+            await attachPng(testInfo, 'build-after-reverse', abandonedAfterReverse);
+            const reverseBounds = await requireRoadPreviewBounds(page);
+            expect(reverseBounds.maxX).toBeLessThanOrEqual(
+              cellMinimumX(line.active[3]!) + 0.0001,
+            );
+          '''
+          if old not in text:
+            raise SystemExit('Build reverse assertion block missing')
+          text = text.replace(old, new, 1)
+
+          text = text.replace(
+            '''  await attachPng(testInfo, 'build-after-commit', abandonedAfterCommit);
+            expect(Buffer.compare(abandonedAfterCommit, abandonedBaseline)).toBe(0);
+          ''',
+            '''  await attachPng(testInfo, 'build-after-commit', abandonedAfterCommit);
+          ''',
+            1,
+          )
+
+          text = text.replace(
+            '''  await attachPng(testInfo, 'branch-abandoned-tail', abandonedAfterBranch);
+            expect(Buffer.compare(abandonedAfterBranch, abandonedBaseline)).toBe(0);
+          ''',
+            '''  await attachPng(testInfo, 'branch-abandoned-tail', abandonedAfterBranch);
+            const branchBounds = await requireRoadPreviewBounds(page);
+            expect(branchBounds.maxX).toBeLessThanOrEqual(
+              cellMinimumX(path.abandoned[0]!) + 0.0001,
+            );
+          ''',
+            1,
+          )
+          text = text.replace(
+            '''  const abandonedAfterCommit = await captureCellRegion(page, abandonedPoint);
+            expect(Buffer.compare(abandonedAfterCommit, abandonedBaseline)).toBe(0);
+          ''',
+            '''  const abandonedAfterCommit = await captureCellRegion(page, abandonedPoint);
+            await attachPng(testInfo, 'branch-after-commit', abandonedAfterCommit);
+          ''',
+            1,
+          )
+
+          text = text.replace(
+            '''  await attachPng(testInfo, 'bulldoze-forward-preview', tailDuringPreview);
+            expect(Buffer.compare(tailDuringPreview, tailBaseline)).not.toBe(0);
+          ''',
+            '''  await attachPng(testInfo, 'bulldoze-forward-preview', tailDuringPreview);
+            const forwardBounds = await requireRoadPreviewBounds(page);
+            expect(forwardBounds.maxX).toBeGreaterThan(cellMinimumX(cells.at(-1)!));
+            expect(Buffer.compare(tailDuringPreview, tailBaseline)).not.toBe(0);
+          ''',
+            1,
+          )
+          text = text.replace(
+            '''  await attachPng(testInfo, 'bulldoze-after-reverse', tailAfterReverse);
+            expect(Buffer.compare(tailAfterReverse, tailBaseline)).toBe(0);
+          ''',
+            '''  await attachPng(testInfo, 'bulldoze-after-reverse', tailAfterReverse);
+            const reverseBounds = await requireRoadPreviewBounds(page);
+            expect(reverseBounds.maxX).toBeLessThanOrEqual(cellMinimumX(cells[4]!) + 0.0001);
+          ''',
+            1,
+          )
+          text = text.replace(
+            '''  await attachPng(testInfo, 'bulldoze-after-commit', tailAfterCommit);
+            expect(Buffer.compare(tailAfterCommit, tailBaseline)).toBe(0);
+          ''',
+            '''  await attachPng(testInfo, 'bulldoze-after-commit', tailAfterCommit);
+          ''',
+            1,
+          )
+          browser.write_text(text)
+          PY
       - name: Format focused implementation
         run: >-
           pnpm exec prettier --write
           apps/game/src/game-input.ts
           apps/game/src/game-input-road-preview.test.ts
+          apps/game/src/interaction-evidence.ts
           apps/game/src/road-stroke-controller.ts
           apps/game/src/road-stroke-controller.test.ts
           packages/road-three/src/road-preview-presentation.ts
@@ -70,7 +296,7 @@ jobs:
             playwright-report
             test-results
           if-no-files-found: ignore
-      - name: Commit verified formatting
+      - name: Commit verified implementation and evidence contract
         if: success()
         run: |
           git config user.name 'github-actions[bot]'
@@ -78,6 +304,7 @@ jobs:
           git add \
             apps/game/src/game-input.ts \
             apps/game/src/game-input-road-preview.test.ts \
+            apps/game/src/interaction-evidence.ts \
             apps/game/src/road-stroke-controller.ts \
             apps/game/src/road-stroke-controller.test.ts \
             packages/road-three/src/road-preview-presentation.ts \
@@ -85,5 +312,5 @@ jobs:
             browser-tests/road-reversible-stroke.spec.ts \
             .github/workflows/road-stroke-tdd.yml
           git diff --cached --quiet && exit 0
-          git commit -m 'test: verify reversible Road interaction in Chromium'
+          git commit -m 'test: verify reversible Road Preview bounds in Chromium'
           git push origin HEAD:fix/road-reversible-stroke-preview-isolation

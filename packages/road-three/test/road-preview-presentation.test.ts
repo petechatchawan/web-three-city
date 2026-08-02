@@ -44,6 +44,12 @@ function triangle() {
 
 function plan(valid: boolean): RoadMutationPlan {
   const cell = Object.freeze({ x: 1, z: 1 });
+  const proposedDefinitionCodes = new Uint8Array(
+    WORLD_CONFIG.mapWidth * WORLD_CONFIG.mapHeight,
+  );
+  if (valid) {
+    proposedDefinitionCodes[cell.z * WORLD_CONFIG.mapWidth + cell.x] = BASIC_ROAD_CODE;
+  }
   return Object.freeze({
     operation: 'build',
     baseRoadRevision: 0,
@@ -53,7 +59,7 @@ function plan(valid: boolean): RoadMutationPlan {
     addedCells: valid ? Object.freeze([cell]) : Object.freeze([]),
     removedCells: Object.freeze([]),
     topologyChangedCells: valid ? Object.freeze([cell]) : Object.freeze([]),
-    proposedDefinitionCodes: new Uint8Array(WORLD_CONFIG.mapWidth * WORLD_CONFIG.mapHeight),
+    proposedDefinitionCodes,
     dirtyChunks: valid ? Object.freeze([{ x: 0, z: 0 }]) : Object.freeze([]),
     valid,
     invalidReason: valid ? null : 'road:wet-cell',

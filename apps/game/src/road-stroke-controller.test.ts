@@ -127,7 +127,13 @@ describe('RoadStrokeController', () => {
   });
 
   it('cancels only the active pointer and cancelAll clears Preview for second-touch takeover', () => {
-    const onPreview = vi.fn<(plan: RoadMutationPlan | null) => void>();
+    const onPreview =
+      vi.fn<
+        (
+          plan: RoadMutationPlan | null,
+          environment: RoadPlacementEnvironment | null,
+        ) => void
+      >();
     const controller = createRoadStrokeController({
       config: WORLD_CONFIG,
       getMode: () => 'road-bulldoze',
@@ -147,7 +153,7 @@ describe('RoadStrokeController', () => {
       previewValid: null,
       previewCellCount: 0,
     });
-    expect(onPreview).toHaveBeenLastCalledWith(null);
+    expect(onPreview).toHaveBeenLastCalledWith(null, null);
     expect(controller.end(1, { x: 8, z: 8 })).toBeNull();
   });
 

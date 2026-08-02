@@ -31,9 +31,11 @@ function environment(revision = 3): RoadPlacementEnvironment {
   });
 }
 
-function snapshotWithRoad(cell: Readonly<{ x: number; z: number }>): RoadSnapshot {
+function snapshotWithRoads(cells: readonly CellCoord[]): RoadSnapshot {
   const codes = new Uint8Array(WORLD_CONFIG.mapWidth * WORLD_CONFIG.mapHeight);
-  codes[cell.z * WORLD_CONFIG.mapWidth + cell.x] = BASIC_ROAD_CODE;
+  for (const cell of cells) {
+    codes[cell.z * WORLD_CONFIG.mapWidth + cell.x] = BASIC_ROAD_CODE;
+  }
   return createRoadSnapshot(
     {
       width: WORLD_CONFIG.mapWidth,
@@ -43,6 +45,10 @@ function snapshotWithRoad(cell: Readonly<{ x: number; z: number }>): RoadSnapsho
     },
     WORLD_CONFIG,
   );
+}
+
+function snapshotWithRoad(cell: CellCoord): RoadSnapshot {
+  return snapshotWithRoads([cell]);
 }
 
 describe('RoadStrokeController', () => {
@@ -104,6 +110,119 @@ describe('RoadStrokeController', () => {
     ]);
     expect(controller.getState().previewCellCount).toBe(2);
     expect(controller.end(1, { x: 2, z: 1 })?.requestedCells).toEqual([
+      { x: 1, z: 1 },
+      { x: 2, z: 1 },
+    ]);
+  });
+
+  it('branches from the retained tail after reversing', () => {
+    const controller = createRoadStrokeController({
+      config: WORLD_CONFIG,
+      getMode: () => 'road-build',
+      getRoadSnapshot: () => createEmptyRoadSnapshot(WORLD_CONFIG),
+      getEnvironment: () => environment(),
+      onPreview: () => undefined,
+    });
+
+    controller.begin(1, { x: 1, z: 1 });
+    controller.move(1, { x: 4, z: 1 });
+    controller.move(1, { x: 2, z: 1 });
+    controller.move(1, { x: 2, z: 3 });
+
+    expect(controller.end(1, { x: 2, z: 3 })?.requestedCells).toEqual([
+      { x: 1, z: 1 },
+      { x: 2, z: 1 },
+      { x: 2, z: 2 },
+      { x: 2, z: 3 },
+    ]);
+  });
+
+  it('pops every traversed tail cell during one fast reverse sample', () => {
+    const controller = createRoadStrokeController({
+      config: WORLD_CONFIG,
+      getMode: () => 'road-build',
+      getRoadSnapshot: () => createEmptyRoadSnapshot(WORLD_CONFIG),
+      getEnvironment: () => environment(),
+      onPreview: () => undefined,
+    });
+
+    controller.begin(1, { x: 1, z: 1 });
+    controller.move(1, { x: 7, z: 1 });
+    controller.move(1, { x: 2, z: 1 });
+
+    expect(controller.end(1, { x: 2, z: 1 })?.requestedCells).toEqual([
+      { x: 1, z: 1 },
+      { x: 2, z: 1 },
+    ]);
+  });
+
+  it('does not replan for repeated samples on the current tail cell', () => {
+    const onPreview = vi.fn();
+    const controller = createRoadStrokeController({
+      config: WORLD_CONFIG,
+      getMode: () => 'road-build',
+      getRoadSnapshot: () => createEmptyRoadSnapshot(WORLD_CONFIG),
+      getEnvironment: () => environment(),
+      onPreview,
+    });
+
+    controller.begin(1, { x: 3, z: 3 });
+    controller.move(1, { x: 3, z: 3 });
+    controller.move(1, { x: 3, z: 3 });
+    controller.move(1, { x: 3, z: 3 });
+
+    expect(onPreview).toHaveBeenCalledTimes(1);
+    expect(controller.getState().previewCellCount).toBe(1);
+  });
+
+  it('keeps older path cells when a loop revisits and reverses from a non-tail cell', () => {
+    const controller = createRoadStrokeController({
+      config: WORLD_CONFIG,
+      getMode: () => 'road-build',
+      getRoadSnapshot: () => createEmptyRoadSnapshot(WORLD_CONFIG),
+      getEnvironment: () => environment(),
+      onPreview: () => undefined,
+    });
+
+    controller.begin(1, { x: 1, z: 1 });
+    controller.move(1, { x: 3, z: 1 });
+    controller.move(1, { x: 3, z: 3 });
+    controller.move(1, { x: 1, z: 3 });
+    controller.move(1, { x: 1, z: 1 });
+    controller.move(1, { x: 1, z: 3 });
+
+    expect(controller.end(1, { x: 1, z: 3 })?.requestedCells).toEqual([
+      { x: 1, z: 1 },
+      { x: 2, z: 1 },
+      { x: 3, z: 1 },
+      { x: 1, z: 2 },
+      { x: 3, z: 2 },
+      { x: 1, z: 3 },
+      { x: 2, z: 3 },
+      { x: 3, z: 3 },
+    ]);
+  });
+
+  it('uses the same reversible trace for Bulldoze', () => {
+    const roads = snapshotWithRoads([
+      { x: 1, z: 1 },
+      { x: 2, z: 1 },
+      { x: 3, z: 1 },
+      { x: 4, z: 1 },
+    ]);
+    const controller = createRoadStrokeController({
+      config: WORLD_CONFIG,
+      getMode: () => 'road-bulldoze',
+      getRoadSnapshot: () => roads,
+      getEnvironment: () => environment(),
+      onPreview: () => undefined,
+    });
+
+    controller.begin(1, { x: 1, z: 1 });
+    controller.move(1, { x: 4, z: 1 });
+    controller.move(1, { x: 2, z: 1 });
+
+    expect(controller.end(1, { x: 2, z: 1 })?.removedCells).toEqual([
       { x: 1, z: 1 },
       { x: 2, z: 1 },
     ]);

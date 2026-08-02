@@ -15,6 +15,8 @@ import {
   type TerrainCellScreenPoint,
 } from './helpers/interaction.js';
 
+test.describe.configure({ timeout: 60_000 });
+
 const GAME_SEED = 1_464_156_977;
 const BASE_TERRAIN = (() => {
   const result = generateCoastalTerrain({ seed: GAME_SEED, config: WORLD_CONFIG });

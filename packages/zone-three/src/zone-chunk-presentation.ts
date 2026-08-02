@@ -1,8 +1,4 @@
-import {
-  allChunkCoords,
-  chunkCellBounds,
-  type ChunkCoord,
-} from '@web-three-city/terrain-core';
+import { allChunkCoords, chunkCellBounds, type ChunkCoord } from '@web-three-city/terrain-core';
 import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
 import { zoneOccupiedAt, type ZoneSnapshot } from '@web-three-city/zone-core';
 import * as THREE from 'three';

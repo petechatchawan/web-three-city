@@ -24,7 +24,10 @@ function disposeRoot(root: THREE.Group): void {
   root.clear();
 }
 
-function previewMaterial(plan: ZoneMutationPlan, materials: ZoneMaterials): THREE.MeshBasicMaterial {
+function previewMaterial(
+  plan: ZoneMutationPlan,
+  materials: ZoneMaterials,
+): THREE.MeshBasicMaterial {
   if (plan.operation === 'paint') {
     return plan.valid ? materials.paintValidPreview : materials.paintInvalidPreview;
   }

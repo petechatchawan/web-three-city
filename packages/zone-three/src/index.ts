@@ -9,8 +9,4 @@ export type { ZonePresentationSource } from './zone-chunk-presentation.js';
 export { buildZoneOverlayMesh } from './zone-overlay-geometry.js';
 export type { ZoneSurfaceAt } from './zone-overlay-geometry.js';
 export { ZonePreviewPresentation } from './zone-preview-presentation.js';
-export type {
-  ZoneMeshBounds,
-  ZoneMeshData,
-  ZoneMeshGroup,
-} from './zone-mesh-data.js';
+export type { ZoneMeshBounds, ZoneMeshData, ZoneMeshGroup } from './zone-mesh-data.js';

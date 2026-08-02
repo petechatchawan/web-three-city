@@ -30,6 +30,7 @@ export interface CreateRoadStrokeControllerOptions {
   readonly getRoadSnapshot: () => RoadSnapshot;
   readonly getEnvironment: () => RoadPlacementEnvironment;
   readonly onPreview: (
+    baseRoads: RoadSnapshot | null,
     plan: RoadMutationPlan | null,
     environment: RoadPlacementEnvironment | null,
   ) => void;
@@ -40,8 +41,8 @@ interface RoadStrokeSession {
   readonly mode: RoadToolMode;
   readonly roads: RoadSnapshot;
   readonly environment: RoadPlacementEnvironment;
-  readonly cells: Map<string, CellCoord>;
-  lastCell: CellCoord | null;
+  readonly trace: CellCoord[];
+  lastCell: CellCoord;
   plan: RoadMutationPlan | null;
 }
 
@@ -57,6 +58,18 @@ function copyCell(cell: CellCoord): CellCoord {
   return { x: cell.x, z: cell.z };
 }
 
+function sameCell(first: CellCoord, second: CellCoord): boolean {
+  return first.x === second.x && first.z === second.z;
+}
+
+function activeCells(trace: readonly CellCoord[]): readonly CellCoord[] {
+  const unique = new Map<string, CellCoord>();
+  for (const cell of trace) {
+    if (!unique.has(cellKey(cell))) unique.set(cellKey(cell), copyCell(cell));
+  }
+  return [...unique.values()];
+}
+
 export function createRoadStrokeController(
   options: CreateRoadStrokeControllerOptions,
 ): RoadStrokeController {
@@ -65,36 +78,47 @@ export function createRoadStrokeController(
   const clear = (): void => {
     if (session === null) return;
     session = null;
-    options.onPreview(null, null);
+    options.onPreview(null, null, null);
   };
 
   const replan = (): void => {
-    if (session === null || session.cells.size === 0) return;
+    if (session === null || session.trace.length === 0) return;
     session.plan = planRoadMutation(
       session.roads,
       {
         operation: operationForMode(session.mode),
         definitionId: 'basic-road',
-        cells: [...session.cells.values()],
+        cells: activeCells(session.trace),
       },
       session.environment,
       options.config,
     );
-    options.onPreview(session.plan, session.environment);
+    options.onPreview(session.roads, session.plan, session.environment);
   };
 
-  const addCell = (cell: CellCoord): void => {
+  const processTraceCell = (cell: CellCoord): boolean => {
+    if (session === null) return false;
+    const tail = session.trace.at(-1);
+    if (tail !== undefined && sameCell(tail, cell)) return false;
+
+    const previous = session.trace.at(-2);
+    if (previous !== undefined && sameCell(previous, cell)) {
+      session.trace.pop();
+      return true;
+    }
+
+    session.trace.push(copyCell(cell));
+    return true;
+  };
+
+  const updateTrace = (cell: CellCoord): void => {
     if (session === null) return;
-    const previousSize = session.cells.size;
-    if (session.lastCell === null) {
-      session.cells.set(cellKey(cell), copyCell(cell));
-    } else {
-      for (const traversed of rasterizeTerraformCellLine(session.lastCell, cell)) {
-        session.cells.set(cellKey(traversed), copyCell(traversed));
-      }
+    let changed = false;
+    for (const traversed of rasterizeTerraformCellLine(session.lastCell, cell)) {
+      changed = processTraceCell(traversed) || changed;
     }
     session.lastCell = copyCell(cell);
-    if (session.cells.size !== previousSize || session.plan === null) replan();
+    if (changed || session.plan === null) replan();
   };
 
   return {
@@ -106,20 +130,20 @@ export function createRoadStrokeController(
         mode,
         roads: options.getRoadSnapshot(),
         environment: options.getEnvironment(),
-        cells: new Map<string, CellCoord>(),
-        lastCell: null,
+        trace: [copyCell(cell)],
+        lastCell: copyCell(cell),
         plan: null,
       };
-      addCell(cell);
+      replan();
       return true;
     },
     move(pointerId: number, cell: CellCoord): void {
       if (session?.pointerId !== pointerId) return;
-      addCell(cell);
+      updateTrace(cell);
     },
     end(pointerId: number, cell: CellCoord): RoadMutationPlan | null {
       if (session?.pointerId !== pointerId) return null;
-      addCell(cell);
+      updateTrace(cell);
       const finalPlan = session.plan;
       clear();
       return finalPlan;

@@ -1,11 +1,12 @@
 import {
   BASIC_ROAD_DEFINITION,
   createRoadSnapshot,
+  roadCellViewAt,
   type RoadCellView,
   type RoadMutationPlan,
   type RoadPlacementEnvironment,
+  type RoadSnapshot,
 } from '@web-three-city/road-core';
-import { chunkForCell, type ChunkCoord } from '@web-three-city/terrain-core';
 import type { WorldConfig } from '@web-three-city/world-core';
 import * as THREE from 'three';
 import { createRoadGeometry } from './geometry-adapter.js';
@@ -13,14 +14,6 @@ import { createRoadMaterials } from './material-factory.js';
 import { buildRoadCellMesh, mergeRoadCellMeshes } from './road-geometry.js';
 import { buildRoadInvalidMarker } from './road-invalid-marker.js';
 import type { RoadPresentationSource } from './road-chunk-presentation.js';
-
-function sortedChunks(chunks: readonly ChunkCoord[]): readonly ChunkCoord[] {
-  const unique = new Map<string, ChunkCoord>();
-  for (const chunk of chunks) unique.set(`${chunk.x}:${chunk.z}`, chunk);
-  return Object.freeze(
-    [...unique.values()].sort((first, second) => first.z - second.z || first.x - second.x),
-  );
-}
 
 function disposeRoot(root: THREE.Group): void {
   root.traverse((object) => {
@@ -33,19 +26,21 @@ function disposeRoot(root: THREE.Group): void {
 
 export class RoadPreviewPresentation {
   readonly #scene: THREE.Scene;
-  readonly #source: RoadPresentationSource;
   readonly #config: WorldConfig;
   readonly #materials = createRoadMaterials();
   #root: THREE.Group | null = null;
   #disposed = false;
 
-  constructor(scene: THREE.Scene, source: RoadPresentationSource, config: WorldConfig) {
+  constructor(scene: THREE.Scene, _source: RoadPresentationSource, config: WorldConfig) {
     this.#scene = scene;
-    this.#source = source;
     this.#config = config;
   }
 
-  show(plan: RoadMutationPlan, environment: RoadPlacementEnvironment): void {
+  show(
+    baseRoads: RoadSnapshot,
+    plan: RoadMutationPlan,
+    environment: RoadPlacementEnvironment,
+  ): void {
     this.#assertUsable();
     const staged = new THREE.Group();
     staged.name = plan.valid ? 'road-preview-root-valid' : 'road-preview-root-invalid';
@@ -53,25 +48,29 @@ export class RoadPreviewPresentation {
 
     try {
       if (plan.valid) {
-        const snapshot = createRoadSnapshot(
-          {
-            width: this.#config.mapWidth,
-            height: this.#config.mapHeight,
-            revision: plan.baseRoadRevision,
-            definitionCodes: plan.proposedDefinitionCodes,
-          },
-          this.#config,
+        const sourceSnapshot =
+          plan.operation === 'build'
+            ? createRoadSnapshot(
+                {
+                  width: this.#config.mapWidth,
+                  height: this.#config.mapHeight,
+                  revision: plan.baseRoadRevision,
+                  definitionCodes: plan.proposedDefinitionCodes,
+                },
+                this.#config,
+              )
+            : baseRoads;
+        const cells = plan.operation === 'build' ? plan.addedCells : plan.removedCells;
+        const views: RoadCellView[] = [];
+        for (const cell of cells) {
+          const view = roadCellViewAt(sourceSnapshot, cell, environment, this.#config);
+          if (view !== null) views.push(view);
+        }
+        const data = mergeRoadCellMeshes(
+          views.map((view) => buildRoadCellMesh(view, this.#config)),
         );
-        const chunks = sortedChunks(
-          plan.dirtyChunks.length > 0
-            ? plan.dirtyChunks
-            : plan.requestedCells.map((cell) => chunkForCell(cell, this.#config)),
-        );
-        for (const chunk of chunks) {
-          const data = this.#source.buildChunk(snapshot, environment, chunk);
-          if (data.positions.length > 0) {
-            staged.add(new THREE.Mesh(createRoadGeometry(data), material));
-          }
+        if (data.positions.length > 0) {
+          staged.add(new THREE.Mesh(createRoadGeometry(data), material));
         }
       } else {
         const views: RoadCellView[] = plan.requestedCells.map((cell) =>

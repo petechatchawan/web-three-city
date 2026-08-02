@@ -1,10 +1,18 @@
-import type { RoadMutationPlan, RoadPlacementEnvironment } from '@web-three-city/road-core';
+import {
+  BASIC_ROAD_CODE,
+  createRoadSnapshot,
+  planRoadMutation,
+  type RoadMutationPlan,
+  type RoadPlacementEnvironment,
+  type RoadSnapshot,
+} from '@web-three-city/road-core';
 import type { TerrainCellSurfaceProfile } from '@web-three-city/terrain-core';
 import { WORLD_CONFIG, type CellCoord } from '@web-three-city/world-core';
 import * as THREE from 'three';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   RoadPreviewPresentation,
+  createCoreRoadPresentationSource,
   createRoadMeshData,
   type RoadPresentationSource,
 } from '../src/index.js';
@@ -34,8 +42,32 @@ function triangle() {
   });
 }
 
+function snapshotWithRoads(cells: readonly CellCoord[]): RoadSnapshot {
+  const codes = new Uint8Array(WORLD_CONFIG.mapWidth * WORLD_CONFIG.mapHeight);
+  for (const cell of cells) {
+    codes[cell.z * WORLD_CONFIG.mapWidth + cell.x] = BASIC_ROAD_CODE;
+  }
+  return createRoadSnapshot(
+    {
+      width: WORLD_CONFIG.mapWidth,
+      height: WORLD_CONFIG.mapHeight,
+      revision: 0,
+      definitionCodes: codes,
+    },
+    WORLD_CONFIG,
+  );
+}
+
+function emptySnapshot(): RoadSnapshot {
+  return snapshotWithRoads([]);
+}
+
 function plan(valid: boolean): RoadMutationPlan {
   const cell = Object.freeze({ x: 1, z: 1 });
+  const proposedDefinitionCodes = new Uint8Array(WORLD_CONFIG.mapWidth * WORLD_CONFIG.mapHeight);
+  if (valid) {
+    proposedDefinitionCodes[cell.z * WORLD_CONFIG.mapWidth + cell.x] = BASIC_ROAD_CODE;
+  }
   return Object.freeze({
     operation: 'build',
     baseRoadRevision: 0,
@@ -45,11 +77,19 @@ function plan(valid: boolean): RoadMutationPlan {
     addedCells: valid ? Object.freeze([cell]) : Object.freeze([]),
     removedCells: Object.freeze([]),
     topologyChangedCells: valid ? Object.freeze([cell]) : Object.freeze([]),
-    proposedDefinitionCodes: new Uint8Array(WORLD_CONFIG.mapWidth * WORLD_CONFIG.mapHeight),
+    proposedDefinitionCodes,
     dirtyChunks: valid ? Object.freeze([{ x: 0, z: 0 }]) : Object.freeze([]),
     valid,
     invalidReason: valid ? null : 'road:wet-cell',
   });
+}
+
+function meshBounds(preview: RoadPreviewPresentation): THREE.Box3 {
+  const mesh = preview.root?.children[0] as THREE.Mesh;
+  mesh.geometry.computeBoundingBox();
+  const bounds = mesh.geometry.boundingBox;
+  expect(bounds).not.toBeNull();
+  return bounds!;
 }
 
 describe('RoadPreviewPresentation', () => {
@@ -60,13 +100,14 @@ describe('RoadPreviewPresentation', () => {
     scene.add(committed);
     const source: RoadPresentationSource = { buildChunk: () => triangle() };
     const preview = new RoadPreviewPresentation(scene, source, WORLD_CONFIG);
+    const base = emptySnapshot();
 
-    preview.show(plan(true), environment);
+    preview.show(base, plan(true), environment);
     expect(preview.root?.name).toBe('road-preview-root-valid');
     const validMesh = preview.root?.children[0] as THREE.Mesh;
     expect((validMesh.material as THREE.Material).name).toBe('road-material-preview-valid');
 
-    preview.show(plan(false), environment);
+    preview.show(base, plan(false), environment);
     expect(preview.root?.name).toBe('road-preview-root-invalid');
     const invalidMesh = preview.root?.getObjectByName('road-preview-invalid-surface') as THREE.Mesh;
     const invalidMarker = preview.root?.getObjectByName(
@@ -85,6 +126,107 @@ describe('RoadPreviewPresentation', () => {
     expect(scene.getObjectByName('committed-sentinel')).toBe(committed);
 
     preview.dispose();
-    expect(() => preview.show(plan(true), environment)).toThrow('road-preview:disposed');
+    expect(() => preview.show(base, plan(true), environment)).toThrow('road-preview:disposed');
+  });
+
+  it('renders valid Build Preview only for cells added by the active stroke', () => {
+    const scene = new THREE.Scene();
+    const source = createCoreRoadPresentationSource(WORLD_CONFIG);
+    const preview = new RoadPreviewPresentation(scene, source, WORLD_CONFIG);
+    const base = snapshotWithRoads([{ x: 10, z: 10 }]);
+    const buildPlan = planRoadMutation(
+      base,
+      {
+        operation: 'build',
+        definitionId: 'basic-road',
+        cells: [{ x: 11, z: 10 }],
+      },
+      environment,
+      WORLD_CONFIG,
+    );
+
+    expect(buildPlan.valid).toBe(true);
+    preview.show(base, buildPlan, environment);
+
+    const bounds = meshBounds(preview);
+    const addedCellMinimumX = (11 - WORLD_CONFIG.mapWidth / 2) * WORLD_CONFIG.cellSize;
+    expect(bounds.min.x).toBeGreaterThanOrEqual(addedCellMinimumX - 0.0001);
+    preview.dispose();
+  });
+
+  it('renders valid Bulldoze Preview only for cells removed by the active stroke', () => {
+    const scene = new THREE.Scene();
+    const source = createCoreRoadPresentationSource(WORLD_CONFIG);
+    const preview = new RoadPreviewPresentation(scene, source, WORLD_CONFIG);
+    const base = snapshotWithRoads([
+      { x: 10, z: 10 },
+      { x: 11, z: 10 },
+      { x: 12, z: 10 },
+    ]);
+    const bulldozePlan = planRoadMutation(
+      base,
+      {
+        operation: 'bulldoze',
+        definitionId: 'basic-road',
+        cells: [{ x: 11, z: 10 }],
+      },
+      environment,
+      WORLD_CONFIG,
+    );
+
+    expect(bulldozePlan.valid).toBe(true);
+    preview.show(base, bulldozePlan, environment);
+
+    const bounds = meshBounds(preview);
+    const removedCellMinimumX = (11 - WORLD_CONFIG.mapWidth / 2) * WORLD_CONFIG.cellSize;
+    const removedCellMaximumX = removedCellMinimumX + WORLD_CONFIG.cellSize;
+    expect(bounds.min.x).toBeGreaterThanOrEqual(removedCellMinimumX - 0.0001);
+    expect(bounds.max.x).toBeLessThanOrEqual(removedCellMaximumX + 0.0001);
+    preview.dispose();
+  });
+
+  it('atomically replaces a longer Preview with a backtracked shorter Preview', () => {
+    const scene = new THREE.Scene();
+    const source = createCoreRoadPresentationSource(WORLD_CONFIG);
+    const preview = new RoadPreviewPresentation(scene, source, WORLD_CONFIG);
+    const base = snapshotWithRoads([{ x: 10, z: 10 }]);
+    const longPlan = planRoadMutation(
+      base,
+      {
+        operation: 'build',
+        definitionId: 'basic-road',
+        cells: [
+          { x: 11, z: 10 },
+          { x: 12, z: 10 },
+        ],
+      },
+      environment,
+      WORLD_CONFIG,
+    );
+    const shortPlan = planRoadMutation(
+      base,
+      {
+        operation: 'build',
+        definitionId: 'basic-road',
+        cells: [{ x: 11, z: 10 }],
+      },
+      environment,
+      WORLD_CONFIG,
+    );
+
+    preview.show(base, longPlan, environment);
+    const previousRoot = preview.root!;
+    const previousGeometry = (previousRoot.children[0] as THREE.Mesh).geometry;
+    const disposed = vi.fn();
+    previousGeometry.addEventListener('dispose', disposed);
+
+    preview.show(base, shortPlan, environment);
+
+    expect(scene.children).not.toContain(previousRoot);
+    expect(disposed).toHaveBeenCalledTimes(1);
+    const bounds = meshBounds(preview);
+    const shortCellMaximumX = (12 - WORLD_CONFIG.mapWidth / 2) * WORLD_CONFIG.cellSize;
+    expect(bounds.max.x).toBeLessThanOrEqual(shortCellMaximumX + 0.0001);
+    preview.dispose();
   });
 });

@@ -120,6 +120,21 @@ export function routeTerraformRelease(
   }
 }
 
+export type RoadPreviewPort = Pick<RoadPreviewPresentation, 'clear' | 'show'>;
+
+export function routeRoadPreview(
+  roadPreview: RoadPreviewPort,
+  baseRoads: RoadSnapshot | null,
+  plan: RoadMutationPlan | null,
+  environment: RoadPlacementEnvironment | null,
+): void {
+  if (baseRoads === null || plan === null || environment === null) {
+    roadPreview.clear();
+    return;
+  }
+  roadPreview.show(baseRoads, plan, environment);
+}
+
 export function createGameInput(options: CreateGameInputOptions): GameInput {
   const raycaster = new THREE.Raycaster();
   let terrainObjects: readonly THREE.Object3D[] = [];
@@ -179,9 +194,8 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
     getMode: () => (isRoadToolMode(mode) ? mode : null),
     getRoadSnapshot: options.getRoadSnapshot,
     getEnvironment: options.getRoadEnvironment,
-    onPreview(plan, environment): void {
-      if (plan === null || environment === null) options.roadPreview.clear();
-      else options.roadPreview.show(plan, environment);
+    onPreview(baseRoads, plan, environment): void {
+      routeRoadPreview(options.roadPreview, baseRoads, plan, environment);
       dispatchGameToolEvent(
         options.canvas,
         Object.freeze({

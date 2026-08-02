@@ -50,6 +50,15 @@ export interface TerraformInteractionEvidence {
   readonly previewRejectedMarkerCount: number;
 }
 
+export interface RoadPreviewBoundsEvidence {
+  readonly minX: number;
+  readonly minY: number;
+  readonly minZ: number;
+  readonly maxX: number;
+  readonly maxY: number;
+  readonly maxZ: number;
+}
+
 export interface RoadInteractionEvidence {
   readonly mode: 'road-build' | 'road-bulldoze' | null;
   readonly strokeActive: boolean;
@@ -69,6 +78,7 @@ export interface RoadInteractionEvidence {
   readonly committedRootCount: number;
   readonly previewRootCount: number;
   readonly invalidMarkerCount: number;
+  readonly previewBounds: RoadPreviewBoundsEvidence | null;
 }
 
 export interface InteractionEvidence {
@@ -114,7 +124,7 @@ export interface InteractionEvidenceSource {
   >;
   getRoadEvidence(): Omit<
     RoadInteractionEvidence,
-    'committedRootCount' | 'previewRootCount' | 'invalidMarkerCount'
+    'committedRootCount' | 'previewRootCount' | 'invalidMarkerCount' | 'previewBounds'
   >;
 }
 
@@ -176,6 +186,36 @@ function countRoadPreviewRoots(scene: THREE.Scene): number {
   );
 }
 
+function roadPreviewBounds(scene: THREE.Scene): RoadPreviewBoundsEvidence | null {
+  const bounds = new THREE.Box3();
+  let hasGeometry = false;
+  for (const root of scene.children) {
+    if (root.name !== 'road-preview-root-valid' && root.name !== 'road-preview-root-invalid') {
+      continue;
+    }
+    root.updateMatrixWorld(true);
+    root.traverse((object) => {
+      if (!(object instanceof THREE.Mesh || object instanceof THREE.LineSegments)) return;
+      const position = object.geometry.getAttribute('position');
+      if (position === undefined || position.count === 0) return;
+      object.geometry.computeBoundingBox();
+      const geometryBounds = object.geometry.boundingBox;
+      if (geometryBounds === null) return;
+      bounds.union(geometryBounds.clone().applyMatrix4(object.matrixWorld));
+      hasGeometry = true;
+    });
+  }
+  if (!hasGeometry) return null;
+  return Object.freeze({
+    minX: bounds.min.x,
+    minY: bounds.min.y,
+    minZ: bounds.min.z,
+    maxX: bounds.max.x,
+    maxY: bounds.max.y,
+    maxZ: bounds.max.z,
+  });
+}
+
 export function publishInteractionEvidence(source: InteractionEvidenceSource): void {
   const evidence: InteractionEvidence = {
     get camera(): CameraState {
@@ -225,6 +265,7 @@ export function publishInteractionEvidence(source: InteractionEvidenceSource): v
         committedRootCount: countRoots(source.scene, 'road-committed-root'),
         previewRootCount: countRoadPreviewRoots(source.scene),
         invalidMarkerCount: countNamedObjects(source.scene, 'road-preview-invalid-marker'),
+        previewBounds: roadPreviewBounds(source.scene),
       };
     },
     get sceneRootCounts() {

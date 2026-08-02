@@ -82,7 +82,7 @@ describe('RoadStrokeController', () => {
     });
   });
 
-  it('uses deterministic supercover drag cells, deduplicates them, and replans the final state', () => {
+  it('removes the active tail when the pointer reverses over the same path', () => {
     const previews: RoadMutationPlan[] = [];
     const controller = createRoadStrokeController({
       config: WORLD_CONFIG,
@@ -97,17 +97,16 @@ describe('RoadStrokeController', () => {
     controller.begin(1, { x: 1, z: 1 });
     controller.move(1, { x: 4, z: 1 });
     controller.move(1, { x: 2, z: 1 });
-    const finalPlan = controller.end(1, { x: 4, z: 1 });
 
-    expect(finalPlan?.requestedCells).toEqual([
+    expect(previews.at(-1)?.requestedCells).toEqual([
       { x: 1, z: 1 },
       { x: 2, z: 1 },
-      { x: 3, z: 1 },
-      { x: 4, z: 1 },
     ]);
-    expect(finalPlan?.addedCells).toHaveLength(4);
-    expect(previews.length).toBeGreaterThanOrEqual(2);
-    expect(previews.at(-1)?.requestedCells).toEqual(finalPlan?.requestedCells);
+    expect(controller.getState().previewCellCount).toBe(2);
+    expect(controller.end(1, { x: 2, z: 1 })?.requestedCells).toEqual([
+      { x: 1, z: 1 },
+      { x: 2, z: 1 },
+    ]);
   });
 
   it('returns an invalid no-op plan without mutating the captured snapshot', () => {

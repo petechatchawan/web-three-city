@@ -253,7 +253,6 @@ test('reverse then perpendicular movement branches from the retained Road tail',
   await page.getByRole('button', { name: 'Build Road' }).click();
   await page.mouse.move(forwardPoints[0]!.x, forwardPoints[0]!.y);
   await settleRendering(page);
-  const abandonedBaseline = await captureCellRegion(page, abandonedPoint);
 
   await page.mouse.down();
   await page.mouse.move(forwardPoints.at(-1)!.x, forwardPoints.at(-1)!.y, { steps: 8 });

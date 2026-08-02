@@ -3,8 +3,12 @@ name: Road Stroke TDD
 on:
   pull_request:
     paths:
+      - 'apps/game/src/game-input.ts'
+      - 'apps/game/src/game-input-road-preview.test.ts'
       - 'apps/game/src/road-stroke-controller.ts'
       - 'apps/game/src/road-stroke-controller.test.ts'
+      - 'packages/road-three/src/road-preview-presentation.ts'
+      - 'packages/road-three/test/road-preview-presentation.test.ts'
       - '.github/workflows/road-stroke-tdd.yml'
   workflow_dispatch:
 
@@ -29,4 +33,8 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec vitest run apps/game/src/road-stroke-controller.test.ts
+      - run: >-
+          pnpm exec vitest run
+          apps/game/src/road-stroke-controller.test.ts
+          apps/game/src/game-input-road-preview.test.ts
+          packages/road-three/test/road-preview-presentation.test.ts

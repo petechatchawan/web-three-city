@@ -24,12 +24,13 @@ function overlayMaterial(color: number, opacity: number): THREE.MeshBasicMateria
 }
 
 export function createZoneMaterials(): ZoneMaterials {
+  const committed: ZoneMaterials['committed'] = Object.freeze([
+    overlayMaterial(0x55c878, 0.48),
+    overlayMaterial(0x4d8fe8, 0.48),
+    overlayMaterial(0xe4c34f, 0.48),
+  ]);
   return Object.freeze({
-    committed: Object.freeze([
-      overlayMaterial(0x55c878, 0.48),
-      overlayMaterial(0x4d8fe8, 0.48),
-      overlayMaterial(0xe4c34f, 0.48),
-    ]),
+    committed,
     paintValidPreview: overlayMaterial(0x64e58d, 0.7),
     paintInvalidPreview: overlayMaterial(0xef5b5b, 0.65),
     removeValidPreview: overlayMaterial(0xe98655, 0.65),

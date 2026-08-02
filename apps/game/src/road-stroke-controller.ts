@@ -4,9 +4,12 @@ import {
   type RoadPlacementEnvironment,
   type RoadSnapshot,
 } from '@web-three-city/road-core';
-import { rasterizeTerraformCellLine } from '@web-three-city/terrain-core';
 import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
 import type { RoadToolMode } from './game-tool-mode.js';
+import {
+  createReversibleCellTrace,
+  type ReversibleCellTrace,
+} from './reversible-cell-trace.js';
 
 export interface RoadInputState {
   readonly mode: RoadToolMode | null;
@@ -41,33 +44,12 @@ interface RoadStrokeSession {
   readonly mode: RoadToolMode;
   readonly roads: RoadSnapshot;
   readonly environment: RoadPlacementEnvironment;
-  readonly trace: CellCoord[];
-  lastCell: CellCoord;
+  readonly trace: ReversibleCellTrace;
   plan: RoadMutationPlan | null;
-}
-
-function cellKey(cell: CellCoord): string {
-  return `${cell.x}:${cell.z}`;
 }
 
 function operationForMode(mode: RoadToolMode): 'build' | 'bulldoze' {
   return mode === 'road-build' ? 'build' : 'bulldoze';
-}
-
-function copyCell(cell: CellCoord): CellCoord {
-  return { x: cell.x, z: cell.z };
-}
-
-function sameCell(first: CellCoord, second: CellCoord): boolean {
-  return first.x === second.x && first.z === second.z;
-}
-
-function activeCells(trace: readonly CellCoord[]): readonly CellCoord[] {
-  const unique = new Map<string, CellCoord>();
-  for (const cell of trace) {
-    if (!unique.has(cellKey(cell))) unique.set(cellKey(cell), copyCell(cell));
-  }
-  return [...unique.values()];
 }
 
 export function createRoadStrokeController(
@@ -82,13 +64,13 @@ export function createRoadStrokeController(
   };
 
   const replan = (): void => {
-    if (session === null || session.trace.length === 0) return;
+    if (session === null) return;
     session.plan = planRoadMutation(
       session.roads,
       {
         operation: operationForMode(session.mode),
         definitionId: 'basic-road',
-        cells: activeCells(session.trace),
+        cells: session.trace.cells(),
       },
       session.environment,
       options.config,
@@ -96,29 +78,9 @@ export function createRoadStrokeController(
     options.onPreview(session.roads, session.plan, session.environment);
   };
 
-  const processTraceCell = (cell: CellCoord): boolean => {
-    if (session === null) return false;
-    const tail = session.trace.at(-1);
-    if (tail !== undefined && sameCell(tail, cell)) return false;
-
-    const previous = session.trace.at(-2);
-    if (previous !== undefined && sameCell(previous, cell)) {
-      session.trace.pop();
-      return true;
-    }
-
-    session.trace.push(copyCell(cell));
-    return true;
-  };
-
   const updateTrace = (cell: CellCoord): void => {
     if (session === null) return;
-    let changed = false;
-    for (const traversed of rasterizeTerraformCellLine(session.lastCell, cell)) {
-      changed = processTraceCell(traversed) || changed;
-    }
-    session.lastCell = copyCell(cell);
-    if (changed || session.plan === null) replan();
+    if (session.trace.extendTo(cell) || session.plan === null) replan();
   };
 
   return {
@@ -130,8 +92,7 @@ export function createRoadStrokeController(
         mode,
         roads: options.getRoadSnapshot(),
         environment: options.getEnvironment(),
-        trace: [copyCell(cell)],
-        lastCell: copyCell(cell),
+        trace: createReversibleCellTrace(cell),
         plan: null,
       };
       replan();

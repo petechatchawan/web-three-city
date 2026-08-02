@@ -1,6 +1,7 @@
 import {
   BASIC_ROAD_DEFINITION,
   createRoadSnapshot,
+  roadCellViewAt,
   type RoadCellView,
   type RoadMutationPlan,
   type RoadPlacementEnvironment,
@@ -62,15 +63,29 @@ export class RoadPreviewPresentation {
           },
           this.#config,
         );
-        const chunks = sortedChunks(
-          plan.dirtyChunks.length > 0
-            ? plan.dirtyChunks
-            : plan.requestedCells.map((cell) => chunkForCell(cell, this.#config)),
-        );
-        for (const chunk of chunks) {
-          const data = this.#source.buildChunk(snapshot, environment, chunk);
+        if (plan.operation === 'build') {
+          const views: RoadCellView[] = [];
+          for (const cell of plan.addedCells) {
+            const view = roadCellViewAt(snapshot, cell, environment, this.#config);
+            if (view !== null) views.push(view);
+          }
+          const data = mergeRoadCellMeshes(
+            views.map((view) => buildRoadCellMesh(view, this.#config)),
+          );
           if (data.positions.length > 0) {
             staged.add(new THREE.Mesh(createRoadGeometry(data), material));
+          }
+        } else {
+          const chunks = sortedChunks(
+            plan.dirtyChunks.length > 0
+              ? plan.dirtyChunks
+              : plan.requestedCells.map((cell) => chunkForCell(cell, this.#config)),
+          );
+          for (const chunk of chunks) {
+            const data = this.#source.buildChunk(snapshot, environment, chunk);
+            if (data.positions.length > 0) {
+              staged.add(new THREE.Mesh(createRoadGeometry(data), material));
+            }
           }
         }
       } else {

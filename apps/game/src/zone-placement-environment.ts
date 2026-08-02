@@ -79,8 +79,7 @@ export function createZonePlacementEnvironment(
     }
   }
 
-  let environment!: ZonePlacementEnvironment;
-  environment = Object.freeze({
+  const environment: ZonePlacementEnvironment = Object.freeze({
     terrainRevision: terrainSnapshot.revision,
     waterSourceTerrainRevision: water.sourceTerrainRevision,
     roadRevision: roadSnapshot.revision,

@@ -4,9 +4,7 @@ import type { CellCoord } from '@web-three-city/world-core';
 import { zoneOccupiedAt, type ZoneSnapshot } from '@web-three-city/zone-core';
 
 export type GameTerraformInvalidReason =
-  | TerraformInvalidReason
-  | 'terraform:road-occupied'
-  | 'terraform:zone-occupied';
+  TerraformInvalidReason | 'terraform:road-occupied' | 'terraform:zone-occupied';
 
 export interface GuardedTerraformCandidate {
   readonly corePlan: TerraformPlan;
@@ -35,13 +33,7 @@ function blockedCellsFor(
       { x: vertex.x - 1, z: vertex.z },
       { x: vertex.x, z: vertex.z },
     ]) {
-      if (
-        cell.x < 0 ||
-        cell.z < 0 ||
-        cell.x >= width ||
-        cell.z >= height ||
-        !occupiedAt(cell)
-      ) {
+      if (cell.x < 0 || cell.z < 0 || cell.x >= width || cell.z >= height || !occupiedAt(cell)) {
         continue;
       }
       blocked.set(`${cell.x}:${cell.z}`, cell);

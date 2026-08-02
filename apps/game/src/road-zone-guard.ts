@@ -7,19 +7,14 @@ import {
 import type { TerrainSnapshot } from '@web-three-city/terrain-core';
 import type { WaterSnapshot } from '@web-three-city/water-core';
 import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
-import {
-  zoneOccupiedAt,
-  type ZoneSnapshot,
-} from '@web-three-city/zone-core';
+import { zoneOccupiedAt, type ZoneSnapshot } from '@web-three-city/zone-core';
 import {
   createZonePlacementEnvironment,
   type ZoneWorldOccupancy,
 } from './zone-placement-environment.js';
 
 export type GameRoadInvalidReason =
-  | RoadInvalidReason
-  | 'road:zone-occupied'
-  | 'road:zone-access-lost';
+  RoadInvalidReason | 'road:zone-occupied' | 'road:zone-access-lost';
 
 export interface GuardedRoadCandidate {
   readonly corePlan: RoadMutationPlan;

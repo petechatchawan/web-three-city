@@ -1,22 +1,12 @@
-import {
-  createRoadSnapshot,
-  roadOccupiedAt,
-  type RoadSnapshot,
-} from '@web-three-city/road-core';
+import { createRoadSnapshot, roadOccupiedAt, type RoadSnapshot } from '@web-three-city/road-core';
 import {
   createTerrainMap,
   terrainCellSurfaceProfile,
   type TerrainSnapshot,
 } from '@web-three-city/terrain-core';
-import {
-  triangleIndexFor,
-  type WaterSnapshot,
-} from '@web-three-city/water-core';
+import { triangleIndexFor, type WaterSnapshot } from '@web-three-city/water-core';
 import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
-import {
-  findZoneRoadAccess,
-  type ZonePlacementEnvironment,
-} from '@web-three-city/zone-core';
+import { findZoneRoadAccess, type ZonePlacementEnvironment } from '@web-three-city/zone-core';
 
 export interface ZoneWorldOccupancy {
   readonly revision: number;

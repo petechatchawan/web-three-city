@@ -89,10 +89,7 @@ export function createEmptyZoneSnapshot(config: WorldConfig): ZoneSnapshot {
   );
 }
 
-export function zoneDefinitionCodeAt(
-  snapshot: ZoneSnapshot,
-  cell: CellCoord,
-): ZoneDefinitionCode {
+export function zoneDefinitionCodeAt(snapshot: ZoneSnapshot, cell: CellCoord): ZoneDefinitionCode {
   if (!validCell(snapshot, cell)) {
     throw new RangeError('zone-snapshot:invalid-cell');
   }

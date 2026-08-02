@@ -88,6 +88,17 @@ jobs:
             'onPreview: (_baseRoads, plan) => {',
           )
           text = text.replace(
+            '''        (
+                    plan: RoadMutationPlan | null,
+                    environment: RoadPlacementEnvironment | null,
+                  ) => void''',
+            '''        (
+                    _baseRoads: RoadSnapshot | null,
+                    plan: RoadMutationPlan | null,
+                    environment: RoadPlacementEnvironment | null,
+                  ) => void''',
+          )
+          text = text.replace(
             'toHaveBeenLastCalledWith(null, null);',
             'toHaveBeenLastCalledWith(null, null, null);',
           )

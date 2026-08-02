@@ -1,0 +1,49 @@
+name: Operation-aware interaction implementation v3
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - .github/operation-aware-v3-trigger
+
+permissions:
+  contents: write
+
+concurrency:
+  group: operation-aware-interaction-master
+  cancel-in-progress: true
+
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Execute TDD implementation
+        run: bash .github/scripts/operation-aware-v3.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: operation-aware-interaction-evidence-v3
+          path: |
+            tdd-red.log
+            focused-vitest.log
+            repository-check.log
+            focused-browser.log
+            full-browser.log
+            final-head.txt
+            playwright-report
+            test-results
+          if-no-files-found: ignore

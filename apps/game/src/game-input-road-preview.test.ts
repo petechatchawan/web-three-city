@@ -63,4 +63,18 @@ describe('routeRoadPreview', () => {
     expect(roadPreview.clear).toHaveBeenCalledOnce();
     expect(roadPreview.show).not.toHaveBeenCalled();
   });
+
+  it('clears Preview when any captured transaction component is missing', () => {
+    const baseRoads = createEmptyRoadSnapshot(WORLD_CONFIG);
+    const world = environment();
+    const roadPreview = {
+      clear: vi.fn(),
+      show: vi.fn(),
+    };
+
+    routeRoadPreview(roadPreview, baseRoads, null, world);
+
+    expect(roadPreview.clear).toHaveBeenCalledOnce();
+    expect(roadPreview.show).not.toHaveBeenCalled();
+  });
 });

@@ -41,7 +41,7 @@ describe('ReversibleCellTrace', () => {
     expect(trace.cells()).toEqual([{ x: 3, z: 3 }]);
   });
 
-  it('preserves older visited cells when loops revisit a non-tail location', () => {
+  it('preserves first-visit order when loops revisit a non-tail location', () => {
     const trace = createReversibleCellTrace({ x: 1, z: 1 });
     trace.extendTo({ x: 3, z: 1 });
     trace.extendTo({ x: 3, z: 3 });
@@ -54,9 +54,9 @@ describe('ReversibleCellTrace', () => {
       { x: 2, z: 1 },
       { x: 3, z: 1 },
       { x: 3, z: 2 },
-      { x: 1, z: 3 },
-      { x: 2, z: 3 },
       { x: 3, z: 3 },
+      { x: 2, z: 3 },
+      { x: 1, z: 3 },
     ]);
   });
 });

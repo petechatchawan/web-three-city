@@ -45,10 +45,7 @@ function roadsAt(...cells: readonly CellCoord[]) {
   );
 }
 
-function occupancy(
-  revision = 11,
-  blocked: readonly CellCoord[] = [],
-): ZoneWorldOccupancy {
+function occupancy(revision = 11, blocked: readonly CellCoord[] = []): ZoneWorldOccupancy {
   const keys = new Set(blocked.map((cell) => `${cell.x}:${cell.z}`));
   return Object.freeze({
     revision,

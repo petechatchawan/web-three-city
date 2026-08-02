@@ -7,10 +7,7 @@ import {
 import { createTerrainMap } from '@web-three-city/terrain-core';
 import { deriveWaterSnapshot } from '@web-three-city/water-core';
 import { WORLD_CONFIG, type CellCoord } from '@web-three-city/world-core';
-import {
-  RESIDENTIAL_ZONE_CODE,
-  createZoneSnapshot,
-} from '@web-three-city/zone-core';
+import { RESIDENTIAL_ZONE_CODE, createZoneSnapshot } from '@web-three-city/zone-core';
 import { describe, expect, it } from 'vitest';
 import { createRoadPlacementEnvironment } from './road-placement-environment.js';
 import { guardRoadPlanWithZones } from './road-zone-guard.js';

@@ -61,7 +61,7 @@ describe('RoadStrokeController', () => {
       getMode: () => 'road-build',
       getRoadSnapshot: () => roads,
       getEnvironment: () => world,
-      onPreview: (plan) => previews.push(plan),
+      onPreview: (_baseRoads, plan) => previews.push(plan),
     });
 
     expect(controller.begin(11, { x: 4, z: 7 })).toBe(true);
@@ -95,7 +95,7 @@ describe('RoadStrokeController', () => {
       getMode: () => 'road-build',
       getRoadSnapshot: () => createEmptyRoadSnapshot(WORLD_CONFIG),
       getEnvironment: () => environment(),
-      onPreview: (plan) => {
+      onPreview: (_baseRoads, plan) => {
         if (plan !== null) previews.push(plan);
       },
     });
@@ -248,6 +248,7 @@ describe('RoadStrokeController', () => {
     const onPreview =
       vi.fn<
         (
+          _baseRoads: RoadSnapshot | null,
           plan: RoadMutationPlan | null,
           environment: RoadPlacementEnvironment | null,
         ) => void
@@ -271,7 +272,7 @@ describe('RoadStrokeController', () => {
       previewValid: null,
       previewCellCount: 0,
     });
-    expect(onPreview).toHaveBeenLastCalledWith(null, null);
+    expect(onPreview).toHaveBeenLastCalledWith(null, null, null);
     expect(controller.end(1, { x: 8, z: 8 })).toBeNull();
   });
 

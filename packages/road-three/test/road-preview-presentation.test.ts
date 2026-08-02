@@ -64,9 +64,7 @@ function emptySnapshot(): RoadSnapshot {
 
 function plan(valid: boolean): RoadMutationPlan {
   const cell = Object.freeze({ x: 1, z: 1 });
-  const proposedDefinitionCodes = new Uint8Array(
-    WORLD_CONFIG.mapWidth * WORLD_CONFIG.mapHeight,
-  );
+  const proposedDefinitionCodes = new Uint8Array(WORLD_CONFIG.mapWidth * WORLD_CONFIG.mapHeight);
   if (valid) {
     proposedDefinitionCodes[cell.z * WORLD_CONFIG.mapWidth + cell.x] = BASIC_ROAD_CODE;
   }

@@ -28,7 +28,12 @@ import type {
 } from '@web-three-city/terrain-three';
 import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
 import * as THREE from 'three';
-import { isRoadToolMode, isTerraformToolMode, type GameToolMode } from './game-tool-mode.js';
+import {
+  isRoadToolMode,
+  isTerraformToolMode,
+  isZoneToolMode,
+  type GameToolMode,
+} from './game-tool-mode.js';
 import {
   bindGameToolCancel,
   dispatchGameToolEvent,
@@ -321,7 +326,11 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
         value !== 'lower' &&
         value !== 'flatten' &&
         value !== 'road-build' &&
-        value !== 'road-bulldoze'
+        value !== 'road-bulldoze' &&
+        value !== 'zone-residential' &&
+        value !== 'zone-commercial' &&
+        value !== 'zone-industrial' &&
+        value !== 'zone-remove'
       ) {
         throw new RangeError('game-input:invalid-tool-mode');
       }
@@ -356,7 +365,7 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
           ? state.currentStamp.preview.corePlan.affectedCells.length
           : (state.acceptedPlan?.affectedCells.length ?? 0);
       return {
-        mode: isRoadToolMode(mode) ? 'navigate' : mode,
+        mode: isRoadToolMode(mode) || isZoneToolMode(mode) ? 'navigate' : mode,
         brushSize,
         strokeActive: state.strokeActive,
         previewValid,

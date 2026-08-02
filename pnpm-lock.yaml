@@ -246,6 +246,15 @@ importers:
 
   packages/world-core: {}
 
+  packages/zone-core:
+    dependencies:
+      '@web-three-city/terrain-core':
+        specifier: workspace:*
+        version: link:../terrain-core
+      '@web-three-city/world-core':
+        specifier: workspace:*
+        version: link:../world-core
+
 packages:
 
   '@babel/helper-string-parser@7.29.7':

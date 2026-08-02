@@ -190,7 +190,7 @@ export function bootstrapTerrainLab(root: HTMLElement): void {
     roadPreview = new RoadPreviewPresentation(scene, roadSource, WORLD_CONFIG);
     roadPresentation.loadAll(fixture.road.roads, fixture.road.environment);
     if (!fixture.road.valid) {
-      roadPreview.show(fixture.road.plan, fixture.road.environment);
+      roadPreview.show(fixture.road.roads, fixture.road.plan, fixture.road.environment);
     }
     roadStatus.textContent = fixture.road.valid
       ? `Valid · mask ${fixture.road.connectionMask}`

@@ -6,10 +6,7 @@ import {
 } from '@web-three-city/road-core';
 import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
 import type { RoadToolMode } from './game-tool-mode.js';
-import {
-  createReversibleCellTrace,
-  type ReversibleCellTrace,
-} from './reversible-cell-trace.js';
+import { createReversibleCellTrace, type ReversibleCellTrace } from './reversible-cell-trace.js';
 
 export interface RoadInputState {
   readonly mode: RoadToolMode | null;

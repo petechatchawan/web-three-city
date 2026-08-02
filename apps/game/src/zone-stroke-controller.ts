@@ -7,10 +7,7 @@ import {
 } from '@web-three-city/zone-core';
 import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
 import type { ZoneToolMode } from './game-tool-mode.js';
-import {
-  createReversibleCellTrace,
-  type ReversibleCellTrace,
-} from './reversible-cell-trace.js';
+import { createReversibleCellTrace, type ReversibleCellTrace } from './reversible-cell-trace.js';
 
 export interface ZoneInputState {
   readonly mode: ZoneToolMode | null;

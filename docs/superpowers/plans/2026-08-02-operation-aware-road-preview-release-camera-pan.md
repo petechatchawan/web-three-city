@@ -8,6 +8,8 @@
 
 **Tech Stack:** TypeScript 6, Three.js 0.185.1, Vitest 4, Playwright 1.61, Vite 8, pnpm 10.13.1.
 
+**Execution Status:** Authorized for direct implementation on `master`; TDD runner started on 2026-08-02.
+
 ## Global Constraints
 
 - Work directly on `master` as authorized by the owner.

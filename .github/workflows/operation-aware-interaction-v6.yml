@@ -1,0 +1,127 @@
+name: Operation-aware interaction implementation v6
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - .github/operation-aware-v6-trigger
+
+permissions:
+  contents: write
+
+concurrency:
+  group: operation-aware-interaction-master
+  cancel-in-progress: true
+
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Patch execution script for final accepted contracts
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          path = Path('.github/scripts/operation-aware-v3.sh')
+          text = path.read_text()
+
+          material_needle = "        next_text = next_text.replace('road-material-preview-invalid', 'road-material-preview-build-invalid')\n"
+          material_replacement = material_needle + "        next_text = next_text.replace('.validPreview', '.buildValidPreview')\n        next_text = next_text.replace('.invalidPreview', '.buildInvalidPreview')\n"
+          if text.count(material_needle) != 1:
+              raise SystemExit(f'expected one material insertion point, found {text.count(material_needle)}')
+          text = text.replace(material_needle, material_replacement, 1)
+
+          release_patch = r'''python <<'PY_RELEASE'
+          from pathlib import Path
+
+          path = Path('browser-tests/transaction-release.spec.ts')
+          text = path.read_text()
+          replacements = [
+              (
+                  "Road pointer capture released outside the map cancels without commit or transaction fence",
+                  "Road pointer capture released outside the map commits the latest valid plan once",
+              ),
+              (
+                  "expect(after.road.commitCount).toBe(before.road.commitCount);",
+                  "expect(after.road.commitCount).toBe(before.road.commitCount + 1);",
+              ),
+              (
+                  "expect(after.road.committedRoadRevision).toBe(before.road.committedRoadRevision);",
+                  "expect(after.road.committedRoadRevision).toBe(before.road.committedRoadRevision + 1);\n  expect(after.road.occupiedCellCount).toBe(before.road.occupiedCellCount + 1);\n  await expect(page.getByTestId('game-status')).toHaveText('Road built');",
+              ),
+          ]
+          for old, new in replacements:
+              if text.count(old) != 1:
+                  raise SystemExit(f'expected one transaction release match for {old!r}, found {text.count(old)}')
+              text = text.replace(old, new, 1)
+          path.write_text(text)
+          PY_RELEASE
+
+          '''
+          cleanup_needle = "rm -f \\\n"
+          if text.count(cleanup_needle) != 1:
+              raise SystemExit(f'expected one cleanup insertion point, found {text.count(cleanup_needle)}')
+          text = text.replace(cleanup_needle, release_patch + cleanup_needle, 1)
+
+          workflow_needle = "  .github/workflows/operation-aware-interaction-v3.yml \\\n"
+          workflow_replacement = workflow_needle + "  .github/workflows/operation-aware-interaction-v4.yml \\\n  .github/workflows/operation-aware-interaction-v5.yml \\\n  .github/workflows/operation-aware-interaction-v6.yml \\\n"
+          if text.count(workflow_needle) != 1:
+              raise SystemExit(f'expected one workflow cleanup point, found {text.count(workflow_needle)}')
+          text = text.replace(workflow_needle, workflow_replacement, 1)
+
+          trigger_needle = "  .github/operation-aware-v3-trigger \\\n"
+          trigger_replacement = trigger_needle + "  .github/operation-aware-v4-trigger \\\n  .github/operation-aware-v5-trigger \\\n  .github/operation-aware-v6-trigger \\\n"
+          if text.count(trigger_needle) != 1:
+              raise SystemExit(f'expected one trigger cleanup point, found {text.count(trigger_needle)}')
+          text = text.replace(trigger_needle, trigger_replacement, 1)
+
+          prettier_needle = "  browser-tests/road-operation-aware-interaction.spec.ts\n"
+          prettier_replacement = prettier_needle + "  browser-tests/transaction-release.spec.ts\n"
+          if text.count(prettier_needle) != 1:
+              raise SystemExit(f'expected one prettier insertion point, found {text.count(prettier_needle)}')
+          text = text.replace(prettier_needle, prettier_replacement, 1)
+
+          audit_needle = "test ! -e .github/workflows/operation-aware-interaction-v3.yml\n"
+          audit_replacement = audit_needle + "test ! -e .github/workflows/operation-aware-interaction-v4.yml\ntest ! -e .github/workflows/operation-aware-interaction-v5.yml\ntest ! -e .github/workflows/operation-aware-interaction-v6.yml\n"
+          if text.count(audit_needle) != 1:
+              raise SystemExit(f'expected one workflow audit point, found {text.count(audit_needle)}')
+          text = text.replace(audit_needle, audit_replacement, 1)
+
+          trigger_audit_needle = "test ! -e .github/operation-aware-v3-trigger\n"
+          trigger_audit_replacement = trigger_audit_needle + "test ! -e .github/operation-aware-v4-trigger\ntest ! -e .github/operation-aware-v5-trigger\ntest ! -e .github/operation-aware-v6-trigger\n"
+          if text.count(trigger_audit_needle) != 1:
+              raise SystemExit(f'expected one trigger audit point, found {text.count(trigger_audit_needle)}')
+          text = text.replace(trigger_audit_needle, trigger_audit_replacement, 1)
+
+          path.write_text(text)
+          PY
+      - name: Execute TDD implementation
+        run: bash .github/scripts/operation-aware-v3.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: operation-aware-interaction-evidence-v6
+          path: |
+            tdd-red.log
+            focused-vitest.log
+            repository-check.log
+            focused-browser.log
+            full-browser.log
+            final-head.txt
+            playwright-report
+            test-results
+          if-no-files-found: ignore

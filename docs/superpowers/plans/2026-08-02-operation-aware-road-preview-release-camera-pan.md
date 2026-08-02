@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript 6, Three.js 0.185.1, Vitest 4, Playwright 1.61, Vite 8, pnpm 10.13.1.
 
-**Execution Status:** Authorized for direct implementation on `master`; TDD runner started on 2026-08-02.
+**Execution Status:** Complete and verified on `master@a6601ca6fc27ef66b62f0d793fb7bc2a4ea39255`.
 
 ## Global Constraints
 
@@ -33,11 +33,11 @@
 - Produces: `RoadMaterials.buildValidPreview`, `buildInvalidPreview`, `bulldozeValidPreview`, `bulldozeInvalidPreview`, `invalidMarker`, and `bulldozeMarker`.
 - Consumes: `RoadMutationPlan.operation` and `RoadMutationPlan.valid`.
 
-- [ ] **Step 1: Write failing material-selection tests**
+- [x] **Step 1: Write failing material-selection tests**
 
 Add tests that construct valid Build, valid Bulldoze, invalid Build, and invalid Bulldoze plans and assert distinct material names on the Preview mesh. Assert that valid Bulldoze also creates a named `road-preview-bulldoze-marker` object.
 
-- [ ] **Step 2: Run the focused test and verify RED**
+- [x] **Step 2: Run the focused test and verify RED**
 
 Run:
 
@@ -47,7 +47,7 @@ pnpm --filter @web-three-city/road-three test -- road-preview-presentation.test.
 
 Expected: FAIL because valid Build and Bulldoze both use `road-material-preview-valid`, and no Bulldoze marker exists.
 
-- [ ] **Step 3: Implement operation-aware materials**
+- [x] **Step 3: Implement operation-aware materials**
 
 Create four Preview mesh materials with these names:
 
@@ -60,11 +60,11 @@ road-material-preview-bulldoze-invalid
 
 Use green for valid Build, red for invalid Build, orange-red for valid Bulldoze, and dark red for invalid Bulldoze. Keep all Preview materials transparent with `depthWrite: false`.
 
-- [ ] **Step 4: Add Bulldoze marker geometry**
+- [x] **Step 4: Add Bulldoze marker geometry**
 
 For valid Bulldoze, add a line marker named `road-preview-bulldoze-marker` over each removed cell using the active footprint. The marker must sit above the Road surface enough to avoid z-fighting and use `bulldozeMarker`.
 
-- [ ] **Step 5: Run focused tests and commit**
+- [x] **Step 5: Run focused tests and commit**
 
 Run:
 
@@ -94,11 +94,11 @@ git commit -m "fix: distinguish Road operation previews"
 - Changes: `RoadStrokeController.end(pointerId: number, cell: CellCoord | null): RoadMutationPlan | null`.
 - Produces: release-with-null finalizes `session.plan` without extending the trace.
 
-- [ ] **Step 1: Write controller RED tests**
+- [x] **Step 1: Write controller RED tests**
 
 Add one test where a valid Build session begins and moves across cells, then calls `end(pointerId, null)`. Assert the returned plan is valid and contains the latest requested cells. Add an invalid/no-change counterpart asserting the invalid plan and reason are preserved.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run:
 
@@ -108,15 +108,15 @@ pnpm exec vitest run apps/game/test/road-stroke-controller.test.ts
 
 Expected: TypeScript/test failure because `end()` does not accept `null`.
 
-- [ ] **Step 3: Implement optional release cell**
+- [x] **Step 3: Implement optional release cell**
 
 Change `end()` so it updates the trace only when `cell !== null`, then captures `session.plan`, clears Preview state, and returns the captured plan.
 
-- [ ] **Step 4: Change GameInput release routing**
+- [x] **Step 4: Change GameInput release routing**
 
 When Road pointer-up cannot pick Terrain, call `roadController.end(pointerId, null)` instead of `roadController.cancel(pointerId)`. Continue routing valid plans to commit and invalid plans to status/reject handling. Leave Terraform behavior unchanged.
 
-- [ ] **Step 5: Verify controller and composition tests**
+- [x] **Step 5: Verify controller and composition tests**
 
 Run:
 
@@ -144,11 +144,11 @@ git commit -m "fix: finalize Road strokes outside Terrain"
 - Consumes: Road mode, `previewValid`, `strokeActive`, and invalid reason from existing `road-state` events.
 - Produces exact labels: `Valid build`, `Invalid build`, `Valid bulldoze`, `Invalid bulldoze`.
 
-- [ ] **Step 1: Add RED label tests**
+- [x] **Step 1: Add RED label tests**
 
 Dispatch Road state events for all four operation/validity combinations and assert the exact label and release/rejection detail.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run:
 
@@ -158,11 +158,11 @@ pnpm exec vitest run apps/game/test/game-tool-hud-binding.test.ts
 
 Expected: FAIL because the HUD currently uses generic `Valid preview` / invalid wording.
 
-- [ ] **Step 3: Implement operation-aware copy**
+- [x] **Step 3: Implement operation-aware copy**
 
 Map `road-build` and `road-bulldoze` separately. Preserve counts and existing invalid reason text.
 
-- [ ] **Step 4: Verify and commit**
+- [x] **Step 4: Verify and commit**
 
 Run:
 
@@ -190,11 +190,11 @@ git commit -m "fix: expose Road operation Preview state"
 - Preserves: `panScreen(delta: { x: number; y: number }): void`.
 - Uses: camera world orientation through a camera accessor supplied by `OrthographicCameraRig`, or a rig method that returns projected right/up XZ basis vectors.
 
-- [ ] **Step 1: Replace quadrant-sign tests with projected-motion RED tests**
+- [x] **Step 1: Replace quadrant-sign tests with projected-motion RED tests**
 
 For yaw values 45°, 90°, 135°, 180°, 225°, 270°, 315°, and 17°, project a fixed world anchor to screen before and after `panScreen({x: 20, y: 0})`. Assert screen X increases and screen Y stays approximately stable. Repeat for `{x: 0, y: -20}` and assert screen Y decreases.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Run:
 
@@ -204,11 +204,11 @@ pnpm --filter @web-three-city/camera-input test -- camera-interaction-controller
 
 Expected: FAIL at rotated quadrants under the current manual sine/cosine formula.
 
-- [ ] **Step 3: Implement camera-derived basis**
+- [x] **Step 3: Implement camera-derived basis**
 
 Expose a rig method returning normalized horizontal screen right and up vectors projected onto XZ. Compute world delta as the screen delta multiplied by that basis and world-units-per-pixel, with signs chosen so content follows the pointer. Ignore degenerate/non-finite basis values.
 
-- [ ] **Step 4: Verify camera package**
+- [x] **Step 4: Verify camera package**
 
 Run:
 
@@ -238,7 +238,7 @@ git commit -m "fix: keep camera pan screen-relative after rotation"
 - Consumes existing Road HUD/evidence and canvas helpers.
 - Produces screenshots and assertions for Build, Bulldoze, invalid Preview, outside-Terrain release, and rotated pan.
 
-- [ ] **Step 1: Add Road browser scenarios**
+- [x] **Step 1: Add Road browser scenarios**
 
 Add scenarios that:
 
@@ -246,11 +246,11 @@ Add scenarios that:
 2. show red invalid Build Preview and assert release does not mutate Road count;
 3. create a Road, show orange-red Bulldoze Preview plus marker, release, and assert the Road count decreases.
 
-- [ ] **Step 2: Add camera browser scenario**
+- [x] **Step 2: Add camera browser scenario**
 
 Rotate through all four quarter-turn orientations. At each orientation, record a selected Terrain anchor's screen position, perform a rightward pan gesture, and assert the anchor moves right. Repeat with upward pan and assert the anchor moves up.
 
-- [ ] **Step 3: Run focused Chromium**
+- [x] **Step 3: Run focused Chromium**
 
 Run:
 
@@ -261,7 +261,7 @@ pnpm exec playwright test browser-tests/road-operation-aware-interaction.spec.ts
 
 Expected: PASS with screenshots attached for each Preview state.
 
-- [ ] **Step 4: Commit browser coverage**
+- [x] **Step 4: Commit browser coverage**
 
 ```bash
 git add browser-tests apps/game/src/interaction-evidence.ts
@@ -277,7 +277,7 @@ git commit -m "test: cover Road release and rotated camera pan"
 **Interfaces:**
 - Produces exact-head verification evidence on `master`.
 
-- [ ] **Step 1: Run repository verification**
+- [x] **Step 1: Run repository verification**
 
 ```bash
 pnpm install --frozen-lockfile
@@ -286,7 +286,7 @@ pnpm check
 
 Expected: PASS.
 
-- [ ] **Step 2: Run full browser verification**
+- [x] **Step 2: Run full browser verification**
 
 ```bash
 pnpm test:browser
@@ -294,7 +294,7 @@ pnpm test:browser
 
 Expected: all Chromium/WebGL tests PASS.
 
-- [ ] **Step 3: Audit final tree**
+- [x] **Step 3: Audit final tree**
 
 ```bash
 git status --short
@@ -304,13 +304,29 @@ find .github/workflows -maxdepth 1 -type f -print
 
 Expected: clean tree, no whitespace errors, and only canonical workflows.
 
-- [ ] **Step 4: Record evidence**
+- [x] **Step 4: Record evidence**
 
 Update the design/plan status with exact master SHA, test counts, workflow run IDs, artifact digest, and visual review result.
 
-- [ ] **Step 5: Final commit**
+- [x] **Step 5: Final commit**
 
 ```bash
 git add docs/superpowers/specs docs/superpowers/plans
 git commit -m "docs: close operation-aware interaction verification"
 ```
+
+---
+
+## Final Verification Record
+
+**Verdict:** COMPLETE
+
+- Exact implementation tree: `a6601ca6fc27ef66b62f0d793fb7bc2a4ea39255`.
+- Verification workflow run: `30741559482`.
+- Artifact: `8831627313` (`sha256:e539930b91c16b1855984a0560e2d838bdc9d4bf54747dde38407ff3875f6e0e`).
+- Focused Vitest: 29/29 passed.
+- Full repository gate: `pnpm check` passed, including 297 unit tests and all workspace builds.
+- Focused Chromium: 2/2 passed.
+- Full Chromium/WebGL: 103/103 passed in 14.7 minutes.
+- Temporary workflows, triggers, and runner scripts: removed from the final tree.
+- Vercel deployment policy: manual-only (`git.deploymentEnabled: false`).

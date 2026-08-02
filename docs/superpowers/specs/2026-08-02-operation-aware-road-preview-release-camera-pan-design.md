@@ -1,6 +1,6 @@
 # Operation-Aware Road Preview, Release Reliability, and Camera Pan Design
 
-**Status:** Approved
+**Status:** Implemented and verified
 **Baseline:** `master@9f676de293d863360944284b2d23a9265c65cbf4`
 **Scope:** Road Build/Bulldoze feedback, pointer release semantics, and screen-relative camera pan.
 
@@ -117,3 +117,16 @@ The basis is derived from the camera orientation projected onto the XZ plane, ra
 - redesigning pointer ownership;
 - changing Terraform release semantics;
 - replacing the existing Road transaction or save/undo architecture.
+
+## Closure Evidence
+
+- Implementation commit: `master@a6601ca6fc27ef66b62f0d793fb7bc2a4ea39255`.
+- GitHub Actions run: `30741559482` (`implement` job passed).
+- Evidence artifact: `8831627313` with digest `sha256:e539930b91c16b1855984a0560e2d838bdc9d4bf54747dde38407ff3875f6e0e`.
+- TDD RED reproduced all four missing contracts before production changes.
+- Focused Vitest: 6 files, 29/29 tests passed.
+- Repository verification: formatting, ESLint, TypeScript, provenance, 297 unit tests, deployment tests, and all workspace builds passed through `pnpm check`.
+- Focused Chromium acceptance: 2/2 tests passed.
+- Full Chromium/WebGL acceptance: 103/103 tests passed, including operation-specific Road Preview, release outside Terrain, rotated camera pan, desktop/mobile evidence, Terraform, Water, save/load, Undo, and context restoration.
+- Final implementation tree removed every temporary operation-aware workflow, trigger, and execution script.
+- Automated Vercel Git deployments are disabled; releases remain manual-only.

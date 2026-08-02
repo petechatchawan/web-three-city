@@ -116,6 +116,6 @@ describe('ZonePreviewPresentation', () => {
     expect(scene.getObjectByName('zone-preview-remove-valid-surface')).toBeInstanceOf(THREE.Mesh);
     presentation.clear();
     expect(presentation.root).toBeNull();
-    expect(scene.getObjectByName('zone-preview-root-valid')).toBeNull();
+    expect(scene.getObjectByName('zone-preview-root-valid')).toBeUndefined();
   });
 });

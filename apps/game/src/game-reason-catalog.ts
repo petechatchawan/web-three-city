@@ -3,9 +3,7 @@ import type { GameRoadInvalidReason } from './road-zone-guard.js';
 import type { GameTerraformInvalidReason } from './terraform-occupancy-guard.js';
 
 export type GameOperationReason =
-  | GameTerraformInvalidReason
-  | GameRoadInvalidReason
-  | ZoneInvalidReason;
+  GameTerraformInvalidReason | GameRoadInvalidReason | ZoneInvalidReason;
 
 const GAME_REASON_MESSAGES = {
   'terraform:height-range': 'This terrain cannot move farther in that direction',

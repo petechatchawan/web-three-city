@@ -91,7 +91,7 @@ describe('TerraformStrokeSession', () => {
     expect(state.acceptedPlan?.valid).toBe(true);
   });
 
-  it('accepts later valid stamps after a rejected stamp', () => {
+  it('accepts later valid stamps beyond the Road shared-vertex guard', () => {
     const { session } = createSession(flatTerrain(), roadsAt({ x: 3, z: 2 }));
 
     session.begin(1, 'raise', 1, { x: 1, z: 2 });
@@ -100,8 +100,6 @@ describe('TerraformStrokeSession', () => {
 
     expect(session.getState().acceptedAnchors).toEqual([
       { x: 1, z: 2 },
-      { x: 2, z: 2 },
-      { x: 4, z: 2 },
       { x: 5, z: 2 },
     ]);
     expect(session.getState().currentStamp).toMatchObject({
@@ -125,7 +123,7 @@ describe('TerraformStrokeSession', () => {
     ]);
   });
 
-  it('commits the last accepted candidate when the current stamp is rejected', () => {
+  it('commits the last accepted candidate before the Road shared-vertex guard', () => {
     const { session } = createSession(flatTerrain(), roadsAt({ x: 4, z: 2 }));
 
     session.begin(1, 'raise', 1, { x: 1, z: 2 });
@@ -135,7 +133,6 @@ describe('TerraformStrokeSession', () => {
     expect(plan.coreCells).toEqual([
       { x: 1, z: 2 },
       { x: 2, z: 2 },
-      { x: 3, z: 2 },
     ]);
   });
 

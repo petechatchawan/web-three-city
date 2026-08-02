@@ -1,5 +1,6 @@
 import { bindGameToolEvents, dispatchGameToolCancel } from './game-tool-events.js';
 import { messageForGameReason } from './game-reason-catalog.js';
+import type { ZoneToolMode } from './game-tool-mode.js';
 
 function requireElement<T extends Element>(root: ParentNode, selector: string): T {
   const element = root.querySelector<T>(selector);
@@ -24,6 +25,15 @@ export function roadPreviewStateLabel(
   return `${previewValid ? 'Valid' : 'Invalid'} ${operation}`;
 }
 
+export function zonePreviewStateLabel(
+  mode: ZoneToolMode | null,
+  previewValid: boolean | null,
+): string {
+  if (previewValid === null) return 'Tool ready';
+  const operation = mode === 'zone-remove' ? 'removal' : 'paint';
+  return `${previewValid ? 'Valid' : 'Invalid'} ${operation}`;
+}
+
 export function bindGameToolHud(
   root: ParentNode,
   canvas: HTMLCanvasElement,
@@ -33,6 +43,7 @@ export function bindGameToolHud(
   const contextMessage = requireElement<HTMLElement>(root, '[data-testid="tool-context-message"]');
   const terraformMetrics = requireElement<HTMLElement>(root, '.terraform-context-metrics');
   const roadMetrics = requireElement<HTMLElement>(root, '.road-context-metrics');
+  const zoneMetrics = requireElement<HTMLElement>(root, '.zone-context-metrics');
   const terraformAccepted = requireElement<HTMLElement>(
     root,
     '[data-testid="terraform-accepted-count"]',
@@ -47,6 +58,9 @@ export function bindGameToolHud(
   );
   const roadRequested = requireElement<HTMLElement>(root, '[data-testid="road-requested-count"]');
   const roadEffective = requireElement<HTMLElement>(root, '[data-testid="road-effective-count"]');
+  const zoneRequested = requireElement<HTMLElement>(root, '[data-testid="zone-requested-count"]');
+  const zoneEffective = requireElement<HTMLElement>(root, '[data-testid="zone-effective-count"]');
+  const zoneInvalid = requireElement<HTMLElement>(root, '[data-testid="zone-invalid-count"]');
   const status = requireElement<HTMLElement>(root, '[data-testid="game-status"]');
   const navigateButton = requireElement<HTMLButtonElement>(root, '[data-action="tool-navigate"]');
   const mutationButtons = [
@@ -55,6 +69,10 @@ export function bindGameToolHud(
     '[data-action="tool-flatten"]',
     '[data-action="tool-road-build"]',
     '[data-action="tool-road-bulldoze"]',
+    '[data-action="tool-zone-residential"]',
+    '[data-action="tool-zone-commercial"]',
+    '[data-action="tool-zone-industrial"]',
+    '[data-action="tool-zone-remove"]',
   ].map((selector) => requireElement<HTMLButtonElement>(root, selector));
   const undoButton = requireElement<HTMLButtonElement>(root, '[data-action="undo"]');
   let interactionActive = false;
@@ -63,6 +81,7 @@ export function bindGameToolHud(
   const hideMetrics = (): void => {
     terraformMetrics.hidden = true;
     roadMetrics.hidden = true;
+    zoneMetrics.hidden = true;
   };
 
   const setCompatibilityStatus = (value: string): void => {
@@ -84,6 +103,7 @@ export function bindGameToolHud(
           interactionActive = state.strokeActive;
           terraformMetrics.hidden = false;
           roadMetrics.hidden = true;
+          zoneMetrics.hidden = true;
           terraformAccepted.textContent = String(state.acceptedAnchors.length);
           terraformSupport.textContent = String(state.acceptedPlan?.supportCells.length ?? 0);
           terraformTarget.textContent =
@@ -106,6 +126,7 @@ export function bindGameToolHud(
           interactionActive = detail.state.strokeActive;
           terraformMetrics.hidden = true;
           roadMetrics.hidden = false;
+          zoneMetrics.hidden = true;
           roadRequested.textContent = String(detail.state.previewCellCount);
           roadEffective.textContent = String(
             detail.state.previewValid === true ? detail.state.previewCellCount : 0,
@@ -123,6 +144,27 @@ export function bindGameToolHud(
                 : 'Release to build the highlighted Road cells';
           }
           break;
+        case 'zone-state':
+          interactionActive = detail.state.strokeActive;
+          terraformMetrics.hidden = true;
+          roadMetrics.hidden = true;
+          zoneMetrics.hidden = false;
+          zoneRequested.textContent = String(detail.state.previewCellCount);
+          zoneEffective.textContent = String(detail.effectiveCellCount);
+          zoneInvalid.textContent = String(detail.invalidCellCount);
+          contextState.textContent = zonePreviewStateLabel(
+            detail.state.mode,
+            detail.state.previewValid,
+          );
+          if (detail.reason !== null) {
+            contextMessage.textContent = messageForGameReason(detail.reason);
+          } else if (detail.state.strokeActive) {
+            contextMessage.textContent =
+              detail.state.mode === 'zone-remove'
+                ? 'Release to remove the highlighted Zone cells'
+                : 'Release to paint the highlighted Zone cells';
+          }
+          break;
         case 'reason':
           interactionActive = false;
           contextState.textContent = detail.reason.endsWith(':no-change')
@@ -131,6 +173,8 @@ export function bindGameToolHud(
           contextMessage.textContent = messageForGameReason(detail.reason);
           if (detail.reason === 'terraform:road-occupied') {
             setCompatibilityStatus('Terraform blocked by road');
+          } else if (detail.reason === 'terraform:zone-occupied') {
+            setCompatibilityStatus('Terraform blocked by zone');
           } else if (detail.reason === 'terraform:no-change') {
             setCompatibilityStatus('Terraform unchanged');
           } else if (detail.reason.startsWith('terraform:')) {
@@ -141,7 +185,8 @@ export function bindGameToolHud(
           interactionActive = false;
           hideMetrics();
           setMutationBlocked(true);
-          const domain = detail.domain === 'terraform' ? 'Terrain' : 'Road';
+          const domain =
+            detail.domain === 'terraform' ? 'Terrain' : detail.domain === 'road' ? 'Road' : 'Zone';
           if (detail.state === 'committing') {
             contextState.textContent = 'Applying change';
             contextMessage.textContent = `Applying ${domain} change…`;

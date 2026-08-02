@@ -77,6 +77,12 @@ importers:
       '@web-three-city/world-core':
         specifier: workspace:*
         version: link:../../packages/world-core
+      '@web-three-city/zone-core':
+        specifier: workspace:*
+        version: link:../../packages/zone-core
+      '@web-three-city/zone-three':
+        specifier: workspace:*
+        version: link:../../packages/zone-three
       three:
         specifier: 0.185.1
         version: 0.185.1

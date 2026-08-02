@@ -67,11 +67,7 @@ describe('Zone Road access', () => {
 
   it('rejects Road beyond depth three', () => {
     expect(
-      findZoneRoadAccess(
-        { x: 8, z: 8 },
-        environment({ roads: [{ x: 8, z: 4 }] }),
-        WORLD_CONFIG,
-      ),
+      findZoneRoadAccess({ x: 8, z: 8 }, environment({ roads: [{ x: 8, z: 4 }] }), WORLD_CONFIG),
     ).toBeNull();
   });
 
@@ -111,7 +107,11 @@ describe('Zone Road access', () => {
     const middle = { x: 8, z: 7 };
 
     expect(
-      findZoneRoadAccess(candidate, environment({ roads: [road], blocked: [middle] }), WORLD_CONFIG),
+      findZoneRoadAccess(
+        candidate,
+        environment({ roads: [road], blocked: [middle] }),
+        WORLD_CONFIG,
+      ),
     ).toBeNull();
     expect(
       findZoneRoadAccess(candidate, environment({ roads: [road], wet: [middle] }), WORLD_CONFIG),

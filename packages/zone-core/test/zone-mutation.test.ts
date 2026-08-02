@@ -52,17 +52,19 @@ function access(cell: CellCoord): ZoneRoadAccess {
   });
 }
 
-function environment(input: {
-  readonly wet?: readonly CellCoord[];
-  readonly roads?: readonly CellCoord[];
-  readonly blocked?: readonly CellCoord[];
-  readonly inaccessible?: readonly CellCoord[];
-  readonly ramps?: readonly CellCoord[];
-  readonly terrainRevision?: number;
-  readonly waterSourceTerrainRevision?: number;
-  readonly roadRevision?: number;
-  readonly occupancyRevision?: number;
-} = {}): ZonePlacementEnvironment {
+function environment(
+  input: {
+    readonly wet?: readonly CellCoord[];
+    readonly roads?: readonly CellCoord[];
+    readonly blocked?: readonly CellCoord[];
+    readonly inaccessible?: readonly CellCoord[];
+    readonly ramps?: readonly CellCoord[];
+    readonly terrainRevision?: number;
+    readonly waterSourceTerrainRevision?: number;
+    readonly roadRevision?: number;
+    readonly occupancyRevision?: number;
+  } = {},
+): ZonePlacementEnvironment {
   const wet = new Set((input.wet ?? []).map(key));
   const roads = new Set((input.roads ?? []).map(key));
   const blocked = new Set((input.blocked ?? []).map(key));
@@ -266,12 +268,7 @@ describe('Zone mutation planning', () => {
       commitZoneMutation(zones, plan, environment({ terrainRevision: 6 }), WORLD_CONFIG),
     ).toThrow('zone:stale-terrain-plan');
     expect(() =>
-      commitZoneMutation(
-        zones,
-        plan,
-        environment({ waterSourceTerrainRevision: 6 }),
-        WORLD_CONFIG,
-      ),
+      commitZoneMutation(zones, plan, environment({ waterSourceTerrainRevision: 6 }), WORLD_CONFIG),
     ).toThrow('zone:stale-water-plan');
     expect(() =>
       commitZoneMutation(zones, plan, environment({ roadRevision: 4 }), WORLD_CONFIG),

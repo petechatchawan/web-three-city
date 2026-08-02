@@ -255,6 +255,25 @@ importers:
         specifier: workspace:*
         version: link:../world-core
 
+  packages/zone-three:
+    dependencies:
+      '@web-three-city/terrain-core':
+        specifier: workspace:*
+        version: link:../terrain-core
+      '@web-three-city/world-core':
+        specifier: workspace:*
+        version: link:../world-core
+      '@web-three-city/zone-core':
+        specifier: workspace:*
+        version: link:../zone-core
+      three:
+        specifier: 0.185.1
+        version: 0.185.1
+    devDependencies:
+      '@types/three':
+        specifier: 0.185.0
+        version: 0.185.0
+
 packages:
 
   '@babel/helper-string-parser@7.29.7':

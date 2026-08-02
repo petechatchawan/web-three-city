@@ -115,8 +115,8 @@ export class RoadChunkPresentation {
     this.#chunks.clear();
     this.#root.clear();
     this.#materials.committed.dispose();
-    this.#materials.validPreview.dispose();
-    this.#materials.invalidPreview.dispose();
+    this.#materials.buildValidPreview.dispose();
+    this.#materials.buildInvalidPreview.dispose();
     this.#materials.invalidMarker.dispose();
   }
 

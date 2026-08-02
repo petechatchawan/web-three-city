@@ -15,6 +15,15 @@ function assertNever(value: never): never {
   throw new Error(`game-tool-hud:unknown-event:${JSON.stringify(value)}`);
 }
 
+export function roadPreviewStateLabel(
+  mode: 'road-build' | 'road-bulldoze' | null,
+  previewValid: boolean | null,
+): string {
+  if (previewValid === null) return 'Tool ready';
+  const operation = mode === 'road-bulldoze' ? 'bulldoze' : 'build';
+  return `${previewValid ? 'Valid' : 'Invalid'} ${operation}`;
+}
+
 export function bindGameToolHud(
   root: ParentNode,
   canvas: HTMLCanvasElement,
@@ -101,16 +110,17 @@ export function bindGameToolHud(
           roadEffective.textContent = String(
             detail.state.previewValid === true ? detail.state.previewCellCount : 0,
           );
-          contextState.textContent =
-            detail.state.previewValid === true
-              ? 'Valid preview'
-              : detail.state.previewValid === false
-                ? 'Rejected'
-                : 'Tool ready';
+          contextState.textContent = roadPreviewStateLabel(
+            detail.state.mode,
+            detail.state.previewValid,
+          );
           if (detail.reason !== null) {
             contextMessage.textContent = messageForGameReason(detail.reason);
           } else if (detail.state.strokeActive) {
-            contextMessage.textContent = 'Release to apply the Road command';
+            contextMessage.textContent =
+              detail.state.mode === 'road-bulldoze'
+                ? 'Release to remove the highlighted Road cells'
+                : 'Release to build the highlighted Road cells';
           }
           break;
         case 'reason':

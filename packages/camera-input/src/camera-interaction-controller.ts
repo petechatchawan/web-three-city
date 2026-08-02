@@ -34,9 +34,11 @@ export class CameraInteractionController {
     if (!Number.isFinite(delta.x) || !Number.isFinite(delta.y)) return;
     const worldUnitsPerPixel =
       (2 * this.#rig.state.orthographicSize) / this.#rig.usableViewportHeight;
-    const yaw = (this.#rig.state.yawDegrees * Math.PI) / 180;
-    const deltaX = (-delta.x * Math.sin(yaw) - delta.y * Math.cos(yaw)) * worldUnitsPerPixel;
-    const deltaZ = (delta.x * Math.cos(yaw) - delta.y * Math.sin(yaw)) * worldUnitsPerPixel;
+    const basis = this.#rig.screenBasisXZ();
+    if (basis === null) return;
+    const deltaX = (-delta.x * basis.rightX + delta.y * basis.upX) * worldUnitsPerPixel;
+    const deltaZ = (-delta.x * basis.rightZ + delta.y * basis.upZ) * worldUnitsPerPixel;
+    if (!Number.isFinite(deltaX) || !Number.isFinite(deltaZ)) return;
     this.#rig.panWorld(deltaX, deltaZ);
   }
 

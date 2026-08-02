@@ -251,10 +251,6 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
       const result = pick(point);
       const cell = result === null ? null : { x: result.cellX, z: result.cellZ };
       if (isRoadToolMode(mode)) {
-        if (cell === null) {
-          roadController.cancel(pointerId);
-          return;
-        }
         const finalPlan = roadController.end(pointerId, cell);
         const transaction = roadPlanTransaction(finalPlan);
         if (transaction !== null) {

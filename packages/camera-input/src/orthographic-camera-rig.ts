@@ -19,6 +19,13 @@ export interface CameraMapConfig {
   readonly cellSize: number;
 }
 
+export interface CameraScreenBasisXZ {
+  readonly rightX: number;
+  readonly rightZ: number;
+  readonly upX: number;
+  readonly upZ: number;
+}
+
 interface LegacyCameraState {
   readonly yawQuarterTurns: 0 | 1 | 2 | 3;
   readonly zoom: number;
@@ -172,6 +179,30 @@ export class OrthographicCameraRig {
       yawQuarterTurns: (((quarterTurns % 4) + 4) % 4) as 0 | 1 | 2 | 3,
       zoom: this.#legacyBaseOrthographicSize / this.#state.orthographicSize,
     };
+  }
+
+  screenBasisXZ(): CameraScreenBasisXZ | null {
+    this.#camera.updateMatrixWorld(true);
+    const elements = this.#camera.matrixWorld.elements;
+    const rightX = elements[0]!;
+    const rightZ = elements[2]!;
+    const upX = elements[4]!;
+    const upZ = elements[6]!;
+    const rightLength = Math.hypot(rightX, rightZ);
+    const upLength = Math.hypot(upX, upZ);
+    if (
+      !Number.isFinite(rightLength) ||
+      !Number.isFinite(upLength) ||
+      rightLength <= 1e-8 ||
+      upLength <= 1e-8
+    )
+      return null;
+    return Object.freeze({
+      rightX: rightX / rightLength,
+      rightZ: rightZ / rightLength,
+      upX: upX / upLength,
+      upZ: upZ / upLength,
+    });
   }
 
   get fittedOrthographicSize(): number {

@@ -52,9 +52,9 @@ describe('CameraInteractionController', () => {
 
   it.each([
     [45, -1, 1],
-    [135, -1, -1],
+    [135, 1, 1],
     [225, 1, -1],
-    [315, 1, 1],
+    [315, -1, -1],
   ] as const)('maps rightward drag relative to yaw %s', (yaw, xSign, zSign) => {
     rig.setYawDegrees(yaw);
     controller.panScreen({ x: 20, y: 0 });

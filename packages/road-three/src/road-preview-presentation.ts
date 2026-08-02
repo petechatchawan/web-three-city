@@ -10,18 +10,28 @@ import {
 import type { WorldConfig } from '@web-three-city/world-core';
 import * as THREE from 'three';
 import { createRoadGeometry } from './geometry-adapter.js';
-import { createRoadMaterials } from './material-factory.js';
+import { createRoadMaterials, type RoadMaterials } from './material-factory.js';
+import { buildRoadBulldozeMarker } from './road-bulldoze-marker.js';
 import { buildRoadCellMesh, mergeRoadCellMeshes } from './road-geometry.js';
 import { buildRoadInvalidMarker } from './road-invalid-marker.js';
 import type { RoadPresentationSource } from './road-chunk-presentation.js';
 
 function disposeRoot(root: THREE.Group): void {
   root.traverse((object) => {
-    if (object instanceof THREE.Mesh || object instanceof THREE.LineSegments) {
+    if (object instanceof THREE.Mesh || object instanceof THREE.LineSegments)
       object.geometry.dispose();
-    }
   });
   root.clear();
+}
+
+function materialForPlan(
+  plan: RoadMutationPlan,
+  materials: RoadMaterials,
+): THREE.MeshStandardMaterial {
+  if (plan.operation === 'build') {
+    return plan.valid ? materials.buildValidPreview : materials.buildInvalidPreview;
+  }
+  return plan.valid ? materials.bulldozeValidPreview : materials.bulldozeInvalidPreview;
 }
 
 export class RoadPreviewPresentation {
@@ -44,8 +54,7 @@ export class RoadPreviewPresentation {
     this.#assertUsable();
     const staged = new THREE.Group();
     staged.name = plan.valid ? 'road-preview-root-valid' : 'road-preview-root-invalid';
-    const material = plan.valid ? this.#materials.validPreview : this.#materials.invalidPreview;
-
+    const material = materialForPlan(plan, this.#materials);
     try {
       if (plan.valid) {
         const sourceSnapshot =
@@ -70,7 +79,21 @@ export class RoadPreviewPresentation {
           views.map((view) => buildRoadCellMesh(view, this.#config)),
         );
         if (data.positions.length > 0) {
-          staged.add(new THREE.Mesh(createRoadGeometry(data), material));
+          const mesh = new THREE.Mesh(createRoadGeometry(data), material);
+          mesh.name = `road-preview-${plan.operation}-valid-surface`;
+          staged.add(mesh);
+        }
+        if (plan.operation === 'bulldoze') {
+          const markerData = buildRoadBulldozeMarker(plan, environment, this.#config);
+          if (markerData.segmentCount > 0) {
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute('position', new THREE.BufferAttribute(markerData.positions, 3));
+            geometry.computeBoundingBox();
+            geometry.computeBoundingSphere();
+            const marker = new THREE.LineSegments(geometry, this.#materials.bulldozeMarker);
+            marker.name = 'road-preview-bulldoze-marker';
+            staged.add(marker);
+          }
         }
       } else {
         const views: RoadCellView[] = plan.requestedCells.map((cell) =>
@@ -91,14 +114,11 @@ export class RoadPreviewPresentation {
         }
         const markerData = buildRoadInvalidMarker(plan, environment, this.#config);
         if (markerData.segmentCount > 0) {
-          const markerGeometry = new THREE.BufferGeometry();
-          markerGeometry.setAttribute(
-            'position',
-            new THREE.BufferAttribute(markerData.positions, 3),
-          );
-          markerGeometry.computeBoundingBox();
-          markerGeometry.computeBoundingSphere();
-          const marker = new THREE.LineSegments(markerGeometry, this.#materials.invalidMarker);
+          const geometry = new THREE.BufferGeometry();
+          geometry.setAttribute('position', new THREE.BufferAttribute(markerData.positions, 3));
+          geometry.computeBoundingBox();
+          geometry.computeBoundingSphere();
+          const marker = new THREE.LineSegments(geometry, this.#materials.invalidMarker);
           marker.name = 'road-preview-invalid-marker';
           staged.add(marker);
         }
@@ -107,7 +127,6 @@ export class RoadPreviewPresentation {
       disposeRoot(staged);
       throw error;
     }
-
     const previous = this.#root;
     this.#scene.add(staged);
     this.#root = staged;
@@ -137,9 +156,12 @@ export class RoadPreviewPresentation {
       this.#root = null;
     }
     this.#materials.committed.dispose();
-    this.#materials.validPreview.dispose();
-    this.#materials.invalidPreview.dispose();
+    this.#materials.buildValidPreview.dispose();
+    this.#materials.buildInvalidPreview.dispose();
+    this.#materials.bulldozeValidPreview.dispose();
+    this.#materials.bulldozeInvalidPreview.dispose();
     this.#materials.invalidMarker.dispose();
+    this.#materials.bulldozeMarker.dispose();
     this.#disposed = true;
   }
 

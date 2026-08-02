@@ -43,6 +43,6 @@ export type {
   TwoFingerGestureFrame,
 } from './gesture-controller.js';
 export { OrthographicCameraRig } from './orthographic-camera-rig.js';
-export type { CameraMapConfig } from './orthographic-camera-rig.js';
+export type { CameraMapConfig, CameraScreenBasisXZ } from './orthographic-camera-rig.js';
 export { pickTerrain, terrainPickFromWorldPoint } from './terrain-picker.js';
 export type { PickTerrainInput, TerrainPickResult } from './terrain-picker.js';

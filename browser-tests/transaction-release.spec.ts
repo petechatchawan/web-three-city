@@ -56,7 +56,7 @@ async function openGame(page: Page): Promise<void> {
   await expect(page.getByTestId('game-status')).toHaveText('Ready');
 }
 
-test('Road pointer capture released outside the map cancels without commit or transaction fence', async ({
+test('Road pointer capture released outside the map commits the latest valid plan once', async ({
   page,
 }) => {
   await openGame(page);
@@ -73,8 +73,10 @@ test('Road pointer capture released outside the map cancels without commit or tr
 
   const after = await readEvidence(page);
   expect(after.road.previewRootCount).toBe(0);
-  expect(after.road.commitCount).toBe(before.road.commitCount);
-  expect(after.road.committedRoadRevision).toBe(before.road.committedRoadRevision);
+  expect(after.road.commitCount).toBe(before.road.commitCount + 1);
+  expect(after.road.committedRoadRevision).toBe(before.road.committedRoadRevision + 1);
+  expect(after.road.occupiedCellCount).toBe(before.road.occupiedCellCount + 1);
+  await expect(page.getByTestId('game-status')).toHaveText('Road built');
   await expect(page.getByRole('button', { name: 'Build Road' })).toBeEnabled();
   await expect(page.getByTestId('tool-context-state')).not.toHaveText('Applying change');
 });

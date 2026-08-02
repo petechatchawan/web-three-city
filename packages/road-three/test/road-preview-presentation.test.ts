@@ -105,7 +105,7 @@ describe('RoadPreviewPresentation', () => {
     preview.show(base, plan(true), environment);
     expect(preview.root?.name).toBe('road-preview-root-valid');
     const validMesh = preview.root?.children[0] as THREE.Mesh;
-    expect((validMesh.material as THREE.Material).name).toBe('road-material-preview-valid');
+    expect((validMesh.material as THREE.Material).name).toBe('road-material-preview-build-valid');
 
     preview.show(base, plan(false), environment);
     expect(preview.root?.name).toBe('road-preview-root-invalid');
@@ -113,10 +113,12 @@ describe('RoadPreviewPresentation', () => {
     const invalidMarker = preview.root?.getObjectByName(
       'road-preview-invalid-marker',
     ) as THREE.LineSegments;
-    expect((invalidMesh.material as THREE.Material).name).toBe('road-material-preview-invalid');
+    expect((invalidMesh.material as THREE.Material).name).toBe(
+      'road-material-preview-build-invalid',
+    );
     expect(invalidMarker).toBeInstanceOf(THREE.LineSegments);
     expect((invalidMarker.material as THREE.Material).name).toBe(
-      'road-material-preview-invalid-marker',
+      'road-material-preview-build-invalid-marker',
     );
     expect((invalidMarker.material as THREE.LineBasicMaterial).depthTest).toBe(true);
     expect(scene.getObjectByName('committed-sentinel')).toBe(committed);

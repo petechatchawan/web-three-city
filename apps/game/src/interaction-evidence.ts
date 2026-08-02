@@ -78,6 +78,7 @@ export interface RoadInteractionEvidence {
   readonly committedRootCount: number;
   readonly previewRootCount: number;
   readonly invalidMarkerCount: number;
+  readonly bulldozeMarkerCount: number;
   readonly previewBounds: RoadPreviewBoundsEvidence | null;
 }
 
@@ -124,7 +125,11 @@ export interface InteractionEvidenceSource {
   >;
   getRoadEvidence(): Omit<
     RoadInteractionEvidence,
-    'committedRootCount' | 'previewRootCount' | 'invalidMarkerCount' | 'previewBounds'
+    | 'committedRootCount'
+    | 'previewRootCount'
+    | 'invalidMarkerCount'
+    | 'bulldozeMarkerCount'
+    | 'previewBounds'
   >;
 }
 
@@ -265,6 +270,7 @@ export function publishInteractionEvidence(source: InteractionEvidenceSource): v
         committedRootCount: countRoots(source.scene, 'road-committed-root'),
         previewRootCount: countRoadPreviewRoots(source.scene),
         invalidMarkerCount: countNamedObjects(source.scene, 'road-preview-invalid-marker'),
+        bulldozeMarkerCount: countNamedObjects(source.scene, 'road-preview-bulldoze-marker'),
         previewBounds: roadPreviewBounds(source.scene),
       };
     },

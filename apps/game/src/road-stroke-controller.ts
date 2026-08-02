@@ -18,7 +18,7 @@ export interface RoadInputState {
 export interface RoadStrokeController {
   begin(pointerId: number, cell: CellCoord): boolean;
   move(pointerId: number, cell: CellCoord): void;
-  end(pointerId: number, cell: CellCoord): RoadMutationPlan | null;
+  end(pointerId: number, cell: CellCoord | null): RoadMutationPlan | null;
   cancel(pointerId: number): void;
   cancelAll(): void;
   getState(): RoadInputState;
@@ -141,9 +141,9 @@ export function createRoadStrokeController(
       if (session?.pointerId !== pointerId) return;
       updateTrace(cell);
     },
-    end(pointerId: number, cell: CellCoord): RoadMutationPlan | null {
+    end(pointerId: number, cell: CellCoord | null): RoadMutationPlan | null {
       if (session?.pointerId !== pointerId) return null;
-      updateTrace(cell);
+      if (cell !== null) updateTrace(cell);
       const finalPlan = session.plan;
       clear();
       return finalPlan;

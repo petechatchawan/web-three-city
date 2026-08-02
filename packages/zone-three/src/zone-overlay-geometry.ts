@@ -81,20 +81,7 @@ export function buildZoneOverlayMesh(
     }
 
     const vertexOffset = positions.length / 3;
-    positions.push(
-      minX,
-      y,
-      minZ,
-      maxX,
-      y,
-      minZ,
-      minX,
-      y,
-      maxZ,
-      maxX,
-      y,
-      maxZ,
-    );
+    positions.push(minX, y, minZ, maxX, y, minZ, minX, y, maxZ, maxX, y, maxZ);
     const indexStart = indices.length;
     indices.push(
       vertexOffset,
@@ -104,9 +91,7 @@ export function buildZoneOverlayMesh(
       vertexOffset + 2,
       vertexOffset + 3,
     );
-    groups.push(
-      Object.freeze({ start: indexStart, count: 6, materialIndex: Number(code) - 1 }),
-    );
+    groups.push(Object.freeze({ start: indexStart, count: 6, materialIndex: Number(code) - 1 }));
     bounds = extendBounds(bounds, minX, maxX, y, minZ, maxZ);
     cellCount += 1;
   }

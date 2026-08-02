@@ -1,10 +1,18 @@
-import type { RoadMutationPlan, RoadPlacementEnvironment } from '@web-three-city/road-core';
+import {
+  BASIC_ROAD_CODE,
+  createRoadSnapshot,
+  planRoadMutation,
+  type RoadMutationPlan,
+  type RoadPlacementEnvironment,
+  type RoadSnapshot,
+} from '@web-three-city/road-core';
 import type { TerrainCellSurfaceProfile } from '@web-three-city/terrain-core';
 import { WORLD_CONFIG, type CellCoord } from '@web-three-city/world-core';
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import {
   RoadPreviewPresentation,
+  createCoreRoadPresentationSource,
   createRoadMeshData,
   type RoadPresentationSource,
 } from '../src/index.js';
@@ -52,6 +60,22 @@ function plan(valid: boolean): RoadMutationPlan {
   });
 }
 
+function snapshotWithRoads(cells: readonly CellCoord[]): RoadSnapshot {
+  const codes = new Uint8Array(WORLD_CONFIG.mapWidth * WORLD_CONFIG.mapHeight);
+  for (const cell of cells) {
+    codes[cell.z * WORLD_CONFIG.mapWidth + cell.x] = BASIC_ROAD_CODE;
+  }
+  return createRoadSnapshot(
+    {
+      width: WORLD_CONFIG.mapWidth,
+      height: WORLD_CONFIG.mapHeight,
+      revision: 0,
+      definitionCodes: codes,
+    },
+    WORLD_CONFIG,
+  );
+}
+
 describe('RoadPreviewPresentation', () => {
   it('uses separate valid and invalid roots with a non-color invalid marker', () => {
     const scene = new THREE.Scene();
@@ -86,5 +110,34 @@ describe('RoadPreviewPresentation', () => {
 
     preview.dispose();
     expect(() => preview.show(plan(true), environment)).toThrow('road-preview:disposed');
+  });
+
+  it('renders valid Build Preview only for cells added by the active stroke', () => {
+    const scene = new THREE.Scene();
+    const source = createCoreRoadPresentationSource(WORLD_CONFIG);
+    const preview = new RoadPreviewPresentation(scene, source, WORLD_CONFIG);
+    const base = snapshotWithRoads([{ x: 10, z: 10 }]);
+    const buildPlan = planRoadMutation(
+      base,
+      {
+        operation: 'build',
+        definitionId: 'basic-road',
+        cells: [{ x: 11, z: 10 }],
+      },
+      environment,
+      WORLD_CONFIG,
+    );
+
+    expect(buildPlan.valid).toBe(true);
+    preview.show(buildPlan, environment);
+
+    const mesh = preview.root?.children[0] as THREE.Mesh;
+    mesh.geometry.computeBoundingBox();
+    const bounds = mesh.geometry.boundingBox;
+    const addedCellMinimumX = (11 - WORLD_CONFIG.mapWidth / 2) * WORLD_CONFIG.cellSize;
+
+    expect(bounds).not.toBeNull();
+    expect(bounds!.min.x).toBeGreaterThanOrEqual(addedCellMinimumX - 0.0001);
+    preview.dispose();
   });
 });

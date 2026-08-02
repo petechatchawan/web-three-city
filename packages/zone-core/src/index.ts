@@ -3,13 +3,25 @@ export {
   EMPTY_ZONE_CODE,
   INDUSTRIAL_ZONE_CODE,
   RESIDENTIAL_ZONE_CODE,
+  ZoneContractError,
 } from './contracts.js';
 export type {
+  ZoneContractErrorCode,
   ZoneCounts,
   ZoneDefinition,
   ZoneDefinitionCode,
   ZoneDefinitionId,
+  ZoneInvalidCell,
+  ZoneInvalidReason,
+  ZoneMutationPlan,
+  ZoneMutationReceipt,
+  ZoneOperation,
+  ZonePlacementEnvironment,
+  ZoneRoadAccess,
+  ZoneRoadAccessEnvironment,
+  ZoneRoadDirection,
   ZoneSnapshot,
+  ZoneStrokeInput,
 } from './contracts.js';
 export {
   COMMERCIAL_ZONE_DEFINITION,
@@ -18,6 +30,8 @@ export {
   zoneDefinitionForCode,
   zoneDefinitionForId,
 } from './zone-definitions.js';
+export { findZoneRoadAccess } from './road-access.js';
+export { commitZoneMutation, planZoneMutation } from './zone-mutation.js';
 export {
   createEmptyZoneSnapshot,
   createZoneSnapshot,

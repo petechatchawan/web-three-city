@@ -12,7 +12,9 @@ export function isRoadToolMode(mode: GameToolMode): mode is RoadToolMode {
   return mode === 'road-build' || mode === 'road-bulldoze';
 }
 
-export function isZoneToolMode(mode: GameToolMode | ZoneToolMode): mode is ZoneToolMode {
+export function isZoneToolMode(
+  mode: GameToolMode | ZoneToolMode,
+): mode is ZoneToolMode {
   return (
     mode === 'zone-residential' ||
     mode === 'zone-commercial' ||

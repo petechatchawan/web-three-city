@@ -13,6 +13,8 @@
     "@web-three-city/water-core": "workspace:*",
     "@web-three-city/water-three": "workspace:*",
     "@web-three-city/world-core": "workspace:*",
+    "@web-three-city/zone-core": "workspace:*",
+    "@web-three-city/zone-three": "workspace:*",
     "three": "0.185.1"
   },
   "devDependencies": {
@@ -21,6 +23,8 @@
   "scripts": {
     "build": "vite build",
     "preview": "vite preview",
+    "test": "vitest run --passWithNoTests",
+    "test:coverage": "vitest run --coverage --passWithNoTests",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   }
 }

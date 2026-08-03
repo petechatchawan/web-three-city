@@ -86,7 +86,12 @@ export interface RoadInteractionEvidence {
 }
 
 export interface ZoneInteractionEvidence {
-  readonly mode: 'zone-residential' | 'zone-commercial' | 'zone-industrial' | 'zone-remove' | null;
+  readonly mode:
+    | 'zone-residential'
+    | 'zone-commercial'
+    | 'zone-industrial'
+    | 'zone-remove'
+    | null;
   readonly strokeActive: boolean;
   readonly previewValid: boolean | null;
   readonly previewInvalidReason: ZoneInvalidReason | null;
@@ -116,6 +121,7 @@ export interface BuildingInteractionEvidence {
   readonly committedBuildingRevision: number;
   readonly count: number;
   readonly occupiedCellCount: number;
+  readonly definitionIds: readonly string[];
   readonly commitCount: number;
   readonly bulldozeCount: number;
   readonly undoCount: number;
@@ -301,7 +307,9 @@ export function publishInteractionEvidence(source: InteractionEvidenceSource): v
     get allWorldCornersInsideUsableViewport(): boolean {
       return allCornersInside(source.camera, source.config, source.getViewport());
     },
-    framingMarginRatio: CAMERA_DEFAULTS.framingMarginRatio,
+    get framingMarginRatio(): number {
+      return CAMERA_DEFAULTS.framingMarginRatio;
+    },
     get water(): WaterInteractionEvidence {
       return {
         ...source.getWaterEvidence(),
@@ -309,11 +317,8 @@ export function publishInteractionEvidence(source: InteractionEvidenceSource): v
       };
     },
     get terraform(): TerraformInteractionEvidence {
-      const state = source.getTerraformEvidence();
       return {
-        ...state,
-        previewValid: state.currentStampKind === 'no-change' ? false : state.previewValid,
-        previewCellCount: Math.max(0, state.previewCellCount - state.supportCellCount),
+        ...source.getTerraformEvidence(),
         previewRootCount: countRoots(source.scene, 'terraform-preview-root'),
         previewCoreCount: countNamedObjects(source.scene, 'terraform-preview-core'),
         previewSupportCount: countNamedObjects(source.scene, 'terraform-preview-support'),
@@ -361,8 +366,8 @@ export function publishInteractionEvidence(source: InteractionEvidenceSource): v
       return {
         terrain: countRoots(source.scene, 'terrain-presentation-root'),
         water: countRoots(source.scene, 'water-presentation-root'),
-        grid: countRoots(source.scene, 'terrain-grid-presentation-root'),
-        selection: countRoots(source.scene, 'selected-cell-presentation-root'),
+        grid: countRoots(source.scene, 'terrain-grid-root'),
+        selection: countRoots(source.scene, 'selected-cell-root'),
         preview: countRoots(source.scene, 'terraform-preview-root'),
         roadCommitted: countRoots(source.scene, 'road-committed-root'),
         roadPreview: countRoadPreviewRoots(source.scene),
@@ -372,5 +377,9 @@ export function publishInteractionEvidence(source: InteractionEvidenceSource): v
       };
     },
   };
-  window.__WEB_THREE_CITY_INTERACTION__ = evidence;
+  Object.defineProperty(window, '__WEB_THREE_CITY_INTERACTION__', {
+    configurable: true,
+    enumerable: false,
+    get: () => evidence,
+  });
 }

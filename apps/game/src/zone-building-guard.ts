@@ -12,11 +12,36 @@ export interface GuardedZoneCandidate {
   readonly blockedBuildingCells: readonly CellCoord[];
 }
 
+function blockedBuildingCells(
+  plan: ZoneMutationPlan,
+  buildings: BuildingSnapshot,
+): readonly CellCoord[] {
+  const unique = new Map<string, CellCoord>();
+  for (const cell of plan.requestedCells) {
+    if (buildingOccupiedAt(buildings, cell)) unique.set(`${cell.x}:${cell.z}`, cell);
+  }
+  return Object.freeze(
+    [...unique.values()]
+      .map((cell) => Object.freeze({ x: cell.x, z: cell.z }))
+      .sort((first, second) => first.z - second.z || first.x - second.x),
+  );
+}
+
 export function guardZonePlanWithBuildings(
   plan: ZoneMutationPlan,
   buildings: BuildingSnapshot,
 ): GuardedZoneCandidate {
-  if (!plan.valid)
+  const blocked = blockedBuildingCells(plan, buildings);
+  if (blocked.length > 0) {
+    return Object.freeze({
+      corePlan: plan,
+      previewPlan: plan.valid ? Object.freeze({ ...plan, valid: false }) : plan,
+      valid: false,
+      invalidReason: 'zone:building-occupied',
+      blockedBuildingCells: blocked,
+    });
+  }
+  if (!plan.valid) {
     return Object.freeze({
       corePlan: plan,
       previewPlan: plan,
@@ -24,19 +49,7 @@ export function guardZonePlanWithBuildings(
       invalidReason: plan.invalidReason,
       blockedBuildingCells: Object.freeze([]),
     });
-  const blocked = Object.freeze(
-    plan.changedCells
-      .filter((cell) => buildingOccupiedAt(buildings, cell))
-      .map((cell) => Object.freeze({ ...cell })),
-  );
-  if (blocked.length > 0)
-    return Object.freeze({
-      corePlan: plan,
-      previewPlan: Object.freeze({ ...plan, valid: false }),
-      valid: false,
-      invalidReason: 'zone:building-occupied',
-      blockedBuildingCells: blocked,
-    });
+  }
   return Object.freeze({
     corePlan: plan,
     previewPlan: plan,

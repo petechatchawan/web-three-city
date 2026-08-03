@@ -175,6 +175,8 @@ export function bindGameToolHud(
           contextMessage.textContent = messageForGameReason(detail.reason);
           if (detail.reason === 'terraform:road-occupied') {
             setCompatibilityStatus('Terraform blocked by road');
+          } else if (detail.reason === 'terraform:building-occupied') {
+            setCompatibilityStatus('Terraform blocked by building');
           } else if (detail.reason === 'terraform:zone-occupied') {
             setCompatibilityStatus('Terraform blocked by zone');
           } else if (detail.reason === 'terraform:no-change') {

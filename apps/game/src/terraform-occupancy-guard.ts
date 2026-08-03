@@ -51,6 +51,31 @@ export function guardTerraformPlanWithOccupancy(
   roads: RoadSnapshot,
   zones: ZoneSnapshot,
 ): GuardedTerraformCandidate {
+  const blockedRoadCells = blockedCellsFor(plan, roads.width, roads.height, (cell) =>
+    roadOccupiedAt(roads, cell),
+  );
+  const blockedZoneCells = blockedCellsFor(plan, zones.width, zones.height, (cell) =>
+    zoneOccupiedAt(zones, cell),
+  );
+  const occupancyReason: GameTerraformInvalidReason | null =
+    blockedRoadCells.length > 0
+      ? 'terraform:road-occupied'
+      : blockedZoneCells.length > 0
+        ? 'terraform:zone-occupied'
+        : null;
+
+  if (occupancyReason !== null) {
+    const previewPlan = plan.valid ? Object.freeze({ ...plan, valid: false }) : plan;
+    return Object.freeze({
+      corePlan: plan,
+      previewPlan,
+      valid: false,
+      invalidReason: occupancyReason,
+      blockedRoadCells,
+      blockedZoneCells,
+    });
+  }
+
   if (!plan.valid) {
     return Object.freeze({
       corePlan: plan,
@@ -62,37 +87,12 @@ export function guardTerraformPlanWithOccupancy(
     });
   }
 
-  const blockedRoadCells = blockedCellsFor(plan, roads.width, roads.height, (cell) =>
-    roadOccupiedAt(roads, cell),
-  );
-  const blockedZoneCells = blockedCellsFor(plan, zones.width, zones.height, (cell) =>
-    zoneOccupiedAt(zones, cell),
-  );
-  const invalidReason: GameTerraformInvalidReason | null =
-    blockedRoadCells.length > 0
-      ? 'terraform:road-occupied'
-      : blockedZoneCells.length > 0
-        ? 'terraform:zone-occupied'
-        : null;
-
-  if (invalidReason === null) {
-    return Object.freeze({
-      corePlan: plan,
-      previewPlan: plan,
-      valid: true,
-      invalidReason: null,
-      blockedRoadCells: EMPTY_CELLS,
-      blockedZoneCells: EMPTY_CELLS,
-    });
-  }
-
-  const previewPlan: TerraformPlan = Object.freeze({ ...plan, valid: false });
   return Object.freeze({
     corePlan: plan,
-    previewPlan,
-    valid: false,
-    invalidReason,
-    blockedRoadCells,
-    blockedZoneCells,
+    previewPlan: plan,
+    valid: true,
+    invalidReason: null,
+    blockedRoadCells: EMPTY_CELLS,
+    blockedZoneCells: EMPTY_CELLS,
   });
 }

@@ -98,7 +98,7 @@ describe('Terraform occupancy guard', () => {
     expect(guarded.blockedZoneCells).toEqual([{ x: 9, z: 8 }]);
   });
 
-  it('preserves valid and Terrain-owned invalid plans unchanged', () => {
+  it('preserves valid and unblocked Terrain-owned invalid plans unchanged', () => {
     const validPlan = planTerraformStroke(
       terrain(),
       { operation: 'raise', brushSize: 1, cells: [{ x: 8, z: 8 }] },
@@ -124,12 +124,35 @@ describe('Terraform occupancy guard', () => {
     );
     const invalid = guardTerraformPlanWithOccupancy(
       invalidPlan,
-      roadsAt({ x: 8, z: 8 }),
-      zonesAt({ x: 8, z: 8 }),
+      createEmptyRoadSnapshot(WORLD_CONFIG),
+      createEmptyZoneSnapshot(WORLD_CONFIG),
     );
     expect(invalid.invalidReason).toBe(invalidPlan.invalidReason);
     expect(invalid.blockedRoadCells).toEqual([]);
     expect(invalid.blockedZoneCells).toEqual([]);
     expect(invalid.previewPlan).toBe(invalidPlan);
+  });
+
+  it('reports Zone occupancy before a generic Terrain-owned invalid reason', () => {
+    const invalidPlan = planTerraformStroke(
+      terrain(),
+      { operation: 'flatten', brushSize: 1, cells: [{ x: 8, z: 8 }], flattenTargetLevel: 2 },
+      WORLD_CONFIG,
+    );
+    expect(invalidPlan.valid).toBe(false);
+    expect(invalidPlan.affectedVertices.length).toBeGreaterThan(0);
+
+    const guarded = guardTerraformPlanWithOccupancy(
+      invalidPlan,
+      createEmptyRoadSnapshot(WORLD_CONFIG),
+      zonesAt({ x: 8, z: 8 }),
+    );
+
+    expect(guarded.valid).toBe(false);
+    expect(guarded.invalidReason).toBe('terraform:zone-occupied');
+    expect(guarded.blockedRoadCells).toEqual([]);
+    expect(guarded.blockedZoneCells).toEqual([{ x: 8, z: 8 }]);
+    expect(guarded.corePlan).toBe(invalidPlan);
+    expect(guarded.previewPlan.valid).toBe(false);
   });
 });

@@ -229,9 +229,9 @@ test('rejects depth four and preserves Zone invariants across Road and Terraform
   page,
 }) => {
   await openGame(page);
-  const points = await locate(page, [FIXTURE.road, FIXTURE.depth[0], FIXTURE.depth[3]]);
+  const points = await locate(page, [FIXTURE.road, FIXTURE.depth[2], FIXTURE.depth[3]]);
   await buildFixtureRoad(page, points);
-  await paint(page, points, 'Residential', FIXTURE.depth[0]);
+  await paint(page, points, 'Residential', FIXTURE.depth[2]);
   const committed = await readEvidence(page);
 
   await page.getByRole('button', { name: 'Residential', exact: true }).click();
@@ -246,7 +246,7 @@ test('rejects depth four and preserves Zone invariants across Road and Terraform
   expect(evidence.zone.previewRootCount).toBe(0);
   expect(evidence.zone.committedZoneRevision).toBe(committed.zone.committedZoneRevision);
 
-  const zonePoint = at(points, FIXTURE.depth[0]);
+  const zonePoint = at(points, FIXTURE.depth[2]);
   await page.getByRole('button', { name: 'Build Road' }).click();
   await page.mouse.click(zonePoint.x, zonePoint.y);
   await expect(page.getByTestId('game-status')).toHaveText('Road blocked by zone');

@@ -189,7 +189,7 @@ test('exposes Terraform, Road, and Zone tools with mode-aware brush controls', a
   await expect(page.getByTestId('terraform-brush-controls')).toBeHidden();
 
   await page.getByRole('button', { name: 'Residential' }).click();
-  await expect(page.getByTestId('active-tool')).toHaveText('Residential');
+  await expect(page.getByTestId('active-tool')).toHaveText('Residential Zone');
   await expect(page.getByTestId('terraform-brush-controls')).toBeHidden();
 
   await page.getByRole('button', { name: 'Raise' }).click();

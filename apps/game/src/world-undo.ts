@@ -1,10 +1,12 @@
 import { createRoadSnapshot, type RoadSnapshot } from '@web-three-city/road-core';
 import { createTerrainMap, type TerrainSnapshot } from '@web-three-city/terrain-core';
+import { createZoneSnapshot, type ZoneSnapshot } from '@web-three-city/zone-core';
 import type { WorldConfig } from '@web-three-city/world-core';
 
 export type WorldUndoEntry =
   | Readonly<{ readonly kind: 'terraform'; readonly terrain: TerrainSnapshot }>
-  | Readonly<{ readonly kind: 'road'; readonly roads: RoadSnapshot }>;
+  | Readonly<{ readonly kind: 'road'; readonly roads: RoadSnapshot }>
+  | Readonly<{ readonly kind: 'zone'; readonly zones: ZoneSnapshot }>;
 
 function copyTerrain(
   snapshot: TerrainSnapshot,
@@ -37,22 +39,54 @@ function copyRoads(
   );
 }
 
+function copyZones(
+  snapshot: ZoneSnapshot,
+  config: WorldConfig,
+  revision = snapshot.revision,
+): ZoneSnapshot {
+  return createZoneSnapshot(
+    {
+      width: snapshot.width,
+      height: snapshot.height,
+      revision,
+      definitionCodes: snapshot.definitionCodes,
+    },
+    config,
+  );
+}
+
 function copyEntry(entry: WorldUndoEntry, config: WorldConfig): WorldUndoEntry {
-  return entry.kind === 'terraform'
-    ? Object.freeze({ kind: 'terraform' as const, terrain: copyTerrain(entry.terrain, config) })
-    : Object.freeze({ kind: 'road' as const, roads: copyRoads(entry.roads, config) });
+  switch (entry.kind) {
+    case 'terraform':
+      return Object.freeze({
+        kind: 'terraform' as const,
+        terrain: copyTerrain(entry.terrain, config),
+      });
+    case 'road':
+      return Object.freeze({ kind: 'road' as const, roads: copyRoads(entry.roads, config) });
+    case 'zone':
+      return Object.freeze({ kind: 'zone' as const, zones: copyZones(entry.zones, config) });
+  }
 }
 
 function restoredEntry(entry: WorldUndoEntry, config: WorldConfig): WorldUndoEntry {
-  return entry.kind === 'terraform'
-    ? Object.freeze({
+  switch (entry.kind) {
+    case 'terraform':
+      return Object.freeze({
         kind: 'terraform' as const,
         terrain: copyTerrain(entry.terrain, config, entry.terrain.revision + 2),
-      })
-    : Object.freeze({
+      });
+    case 'road':
+      return Object.freeze({
         kind: 'road' as const,
         roads: copyRoads(entry.roads, config, entry.roads.revision + 2),
       });
+    case 'zone':
+      return Object.freeze({
+        kind: 'zone' as const,
+        zones: copyZones(entry.zones, config, entry.zones.revision + 2),
+      });
+  }
 }
 
 export class WorldUndoStore {

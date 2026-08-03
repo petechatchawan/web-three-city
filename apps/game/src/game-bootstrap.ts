@@ -3,7 +3,6 @@ import {
   commitRoadMutation,
   createEmptyRoadSnapshot,
   occupiedRoadCellCount,
-  roadOccupiedAt,
   type RoadMutationPlan,
   type RoadPlacementEnvironment,
   type RoadSnapshot,
@@ -16,6 +15,7 @@ import {
 import {
   chunkForCell,
   commitTerraformPlan,
+  terrainCellSurfaceProfile,
   type ChunkCoord,
   type TerrainSnapshot,
   type TerraformBrushSize,
@@ -37,6 +37,19 @@ import {
   type WaterPresentationBuild,
   type WaterPresentationSource,
 } from '@web-three-city/water-three';
+import {
+  commitZoneMutation,
+  createEmptyZoneSnapshot,
+  zoneCounts,
+  type ZoneMutationPlan,
+  type ZonePlacementEnvironment,
+  type ZoneSnapshot,
+} from '@web-three-city/zone-core';
+import {
+  createCoreZonePresentationSource,
+  ZoneChunkPresentation,
+  ZonePreviewPresentation,
+} from '@web-three-city/zone-three';
 import { WORLD_CONFIG, type CellCoord } from '@web-three-city/world-core';
 import * as THREE from 'three';
 import { createGameInput, type GameRenderViewport } from './game-input.js';
@@ -45,12 +58,19 @@ import {
   publishInteractionEvidence,
   type WaterInteractionEvidence,
 } from './interaction-evidence.js';
+import { guardRoadPlanWithZones, type GameRoadInvalidReason } from './road-zone-guard.js';
 import { createRoadPlacementEnvironment } from './road-placement-environment.js';
-import { decodeWorldSave, encodeWorldSaveV1, type DecodedWorldState } from './world-save.js';
+import { guardTerraformPlanWithOccupancy } from './terraform-occupancy-guard.js';
+import {
+  createZonePlacementEnvironment,
+  type ZoneWorldOccupancy,
+} from './zone-placement-environment.js';
+import { decodeWorldSave, encodeWorldSaveV2, type DecodedWorldState } from './world-save.js';
 import { WorldUndoStore, type WorldUndoEntry } from './world-undo.js';
 import { renderGameUi, type GameViewportLayout, type QualityLevel } from './game-ui.js';
 
-const WORLD_SAVE_KEY = 'web-three-city:world-save:v1';
+const WORLD_SAVE_KEY = 'web-three-city:world-save:v2';
+const LEGACY_WORLD_SAVE_KEY = 'web-three-city:world-save:v1';
 const LEGACY_TERRAIN_SAVE_KEY = 'web-three-city:terrain-save:v1';
 const CURATED_SEED = 1464156977;
 const WORLD_BOUNDS = Object.freeze({
@@ -73,6 +93,8 @@ interface RuntimeWorldState {
   readonly water: WaterSnapshot;
   readonly roads: RoadSnapshot;
   readonly roadEnvironment: RoadPlacementEnvironment;
+  readonly zones: ZoneSnapshot;
+  readonly zoneEnvironment: ZonePlacementEnvironment;
 }
 
 function toRenderViewport(layout: GameViewportLayout): GameRenderViewport {
@@ -135,13 +157,30 @@ function requireWater(snapshot: TerrainSnapshot): WaterSnapshot {
   return result.value;
 }
 
-function stageTerrainWorld(terrain: TerrainSnapshot, roads: RoadSnapshot): RuntimeWorldState {
+const EMPTY_WORLD_OCCUPANCY: ZoneWorldOccupancy = Object.freeze({
+  revision: 0,
+  isBlocked: () => false,
+});
+
+function stageTerrainWorld(
+  terrain: TerrainSnapshot,
+  roads: RoadSnapshot,
+  zones: ZoneSnapshot,
+): RuntimeWorldState {
   const water = requireWater(terrain);
   return Object.freeze({
     terrain,
     water,
     roads,
     roadEnvironment: createRoadPlacementEnvironment(terrain, water, WORLD_CONFIG),
+    zones,
+    zoneEnvironment: createZonePlacementEnvironment(
+      terrain,
+      water,
+      roads,
+      EMPTY_WORLD_OCCUPANCY,
+      WORLD_CONFIG,
+    ),
   });
 }
 
@@ -184,6 +223,21 @@ function roadDirtyChunksBetween(before: RoadSnapshot, after: RoadSnapshot): read
   return frozenDirtyChunks(chunks);
 }
 
+function zoneDirtyChunksBetween(before: ZoneSnapshot, after: ZoneSnapshot): readonly ChunkCoord[] {
+  const beforeCodes = before.definitionCodes;
+  const afterCodes = after.definitionCodes;
+  const chunks: ChunkCoord[] = [];
+  for (let z = 0; z < WORLD_CONFIG.mapHeight; z += 1) {
+    for (let x = 0; x < WORLD_CONFIG.mapWidth; x += 1) {
+      const index = z * WORLD_CONFIG.mapWidth + x;
+      if (beforeCodes[index] !== afterCodes[index]) {
+        chunks.push(chunkForCell({ x, z }, WORLD_CONFIG));
+      }
+    }
+  }
+  return frozenDirtyChunks(chunks);
+}
+
 function geometryAttributeByteLength(attribute: unknown): number {
   if (attribute instanceof THREE.BufferAttribute) return attribute.array.byteLength;
   if (attribute instanceof THREE.InterleavedBufferAttribute) {
@@ -206,13 +260,29 @@ function roadGeometryBytes(scene: THREE.Scene): number {
   return bytes;
 }
 
-function statusForRoadPlan(plan: RoadMutationPlan): string {
+function statusForRoadPlan(
+  plan: RoadMutationPlan,
+  reason: GameRoadInvalidReason | null = plan.invalidReason,
+): string {
   if (plan.valid) return plan.operation === 'build' ? 'Road built' : 'Road bulldozed';
-  if (plan.invalidReason === 'road:wet-cell') return 'Road blocked by water';
-  if (plan.invalidReason === 'road:invalid-ramp-topology') return 'Road rejected on ramp';
-  if (plan.invalidReason === 'road:unsupported-terrain') return 'Road terrain unsupported';
-  if (plan.invalidReason === 'road:no-change') return 'Road unchanged';
+  if (reason === 'road:zone-occupied') return 'Road blocked by zone';
+  if (reason === 'road:zone-access-lost') return 'Road required by zone';
+  if (reason === 'road:wet-cell') return 'Road blocked by water';
+  if (reason === 'road:invalid-ramp-topology') return 'Road rejected on ramp';
+  if (reason === 'road:unsupported-terrain') return 'Road terrain unsupported';
+  if (reason === 'road:no-change') return 'Road unchanged';
   return 'Road rejected';
+}
+
+function statusForZonePlan(plan: ZoneMutationPlan): string {
+  if (plan.valid) return plan.operation === 'paint' ? 'Zone painted' : 'Zone removed';
+  if (plan.invalidReason === 'zone:road-access-required') return 'Zone needs road access';
+  if (plan.invalidReason === 'zone:wet-cell') return 'Zone blocked by water';
+  if (plan.invalidReason === 'zone:unsupported-terrain') return 'Zone requires flat terrain';
+  if (plan.invalidReason === 'zone:road-occupied') return 'Zone overlaps road';
+  if (plan.invalidReason === 'zone:zone-conflict') return 'Remove existing zone first';
+  if (plan.invalidReason === 'zone:no-change') return 'Zone unchanged';
+  return 'Zone rejected';
 }
 
 export function bootstrapGame(root: HTMLElement): GameRuntime {
@@ -229,7 +299,15 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
   let snapshot = generated.value;
   let waterSnapshot = requireWater(snapshot);
   let roadsSnapshot = createEmptyRoadSnapshot(WORLD_CONFIG);
+  let zonesSnapshot = createEmptyZoneSnapshot(WORLD_CONFIG);
   let roadEnvironment = createRoadPlacementEnvironment(snapshot, waterSnapshot, WORLD_CONFIG);
+  let zoneEnvironment = createZonePlacementEnvironment(
+    snapshot,
+    waterSnapshot,
+    roadsSnapshot,
+    EMPTY_WORLD_OCCUPANCY,
+    WORLD_CONFIG,
+  );
   let waterDerivationDurationMs = performance.now() - initialWaterDerivationStart;
   let waterPresentationDurationMs = 0;
   let waterBuildMetrics: WaterBuildMetrics = {
@@ -252,6 +330,12 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
   let roadUndoCount = 0;
   let roadLastDirtyChunkCount = 0;
   let roadChunkRebuildCount = 0;
+  let zoneCommitCount = 0;
+  let zoneRemoveCount = 0;
+  let zoneUndoCount = 0;
+  let zoneLastDirtyChunkCount = 0;
+  let zoneChunkRebuildCount = 0;
+  let zoneInvalidReason: ZoneMutationPlan['invalidReason'] = null;
   let renderViewport: GameRenderViewport = {
     left: 0,
     top: 0,
@@ -296,6 +380,17 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
   const roadSource = createCoreRoadPresentationSource(WORLD_CONFIG);
   const roadPresentation = new RoadChunkPresentation(scene, roadSource, WORLD_CONFIG);
   const roadPreview = new RoadPreviewPresentation(scene, roadSource, WORLD_CONFIG);
+  let zoneSurfaceSnapshot = snapshot;
+  const zoneSource = createCoreZonePresentationSource(
+    (cell) => terrainCellSurfaceProfile(zoneSurfaceSnapshot, cell, WORLD_CONFIG),
+    WORLD_CONFIG,
+  );
+  const zonePresentation = new ZoneChunkPresentation(scene, zoneSource, WORLD_CONFIG);
+  const zonePreview = new ZonePreviewPresentation(
+    scene,
+    (cell) => terrainCellSurfaceProfile(zoneSurfaceSnapshot, cell, WORLD_CONFIG),
+    WORLD_CONFIG,
+  );
 
   terrain.load(snapshot);
   const initialWaterPresentationStart = performance.now();
@@ -303,6 +398,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
   waterPresentationDurationMs = performance.now() - initialWaterPresentationStart;
   waterBuildMetrics = stagedWaterBuildMetrics;
   roadPresentation.loadAll(roadsSnapshot, roadEnvironment);
+  zonePresentation.loadAll(zonesSnapshot);
 
   const grid = new TerrainGridPresentation(scene, WORLD_CONFIG);
   grid.setVisible(false);
@@ -329,6 +425,8 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
       water: waterSnapshot,
       roads: roadsSnapshot,
       roadEnvironment,
+      zones: zonesSnapshot,
+      zoneEnvironment,
     };
     replacingWorld = true;
     try {
@@ -338,6 +436,8 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
       const nextWaterPresentationDurationMs = performance.now() - presentationStart;
       grid.load(nextWorld.terrain);
       roadPresentation.loadAll(nextWorld.roads, nextWorld.roadEnvironment);
+      zoneSurfaceSnapshot = nextWorld.terrain;
+      zonePresentation.loadAll(nextWorld.zones);
       rebuildSelection(selection, nextWorld.terrain, selectedCell);
       inputRef.current?.refreshTerrainObjects();
 
@@ -345,6 +445,9 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
       waterSnapshot = nextWorld.water;
       roadsSnapshot = nextWorld.roads;
       roadEnvironment = nextWorld.roadEnvironment;
+      zonesSnapshot = nextWorld.zones;
+      zoneEnvironment = nextWorld.zoneEnvironment;
+      ui.setZoneCounts(zoneCounts(zonesSnapshot));
       waterPresentationDurationMs = nextWaterPresentationDurationMs;
       waterBuildMetrics = stagedWaterBuildMetrics;
       ui.setStatus(successStatus);
@@ -355,6 +458,8 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
         water.load(previousWorld.terrain, previousWorld.water);
         grid.load(previousWorld.terrain);
         roadPresentation.loadAll(previousWorld.roads, previousWorld.roadEnvironment);
+        zoneSurfaceSnapshot = previousWorld.terrain;
+        zonePresentation.loadAll(previousWorld.zones);
         rebuildSelection(selection, previousWorld.terrain, selectedCell);
         inputRef.current?.refreshTerrainObjects();
         waterBuildMetrics = stagedWaterBuildMetrics;
@@ -372,7 +477,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     const derivationStart = performance.now();
     let nextWorld: RuntimeWorldState;
     try {
-      nextWorld = stageTerrainWorld(nextSnapshot, roadsSnapshot);
+      nextWorld = stageTerrainWorld(nextSnapshot, roadsSnapshot, zonesSnapshot);
     } catch {
       ui.setStatus('World update failed');
       return false;
@@ -384,8 +489,15 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
   };
 
   const applyTerraformPlan = (plan: TerraformPlan): void => {
-    if (plan.affectedCells.some((cell) => roadOccupiedAt(roadsSnapshot, cell))) {
-      ui.setStatus('Terraform blocked by road');
+    const candidate = guardTerraformPlanWithOccupancy(plan, roadsSnapshot, zonesSnapshot);
+    if (!candidate.valid) {
+      ui.setStatus(
+        candidate.invalidReason === 'terraform:zone-occupied'
+          ? 'Terraform blocked by zone'
+          : candidate.invalidReason === 'terraform:road-occupied'
+            ? 'Terraform blocked by road'
+            : 'Terraform rejected',
+      );
       ui.setUndoAvailable(undoStore.available);
       return;
     }
@@ -404,30 +516,82 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     ui.setUndoAvailable(undoStore.available);
   };
 
-  const applyRoadPlan = (plan: RoadMutationPlan): void => {
-    if (!plan.valid) {
-      ui.setStatus(statusForRoadPlan(plan));
+  const applyRoadPlan = (
+    plan: RoadMutationPlan,
+    routedReason: GameRoadInvalidReason | null = null,
+  ): void => {
+    const candidate = guardRoadPlanWithZones(
+      plan,
+      roadsSnapshot,
+      zonesSnapshot,
+      snapshot,
+      waterSnapshot,
+      EMPTY_WORLD_OCCUPANCY,
+      WORLD_CONFIG,
+    );
+    const reason = routedReason ?? candidate.invalidReason;
+    if (!candidate.valid) {
+      ui.setStatus(statusForRoadPlan(candidate.previewPlan, reason));
       ui.setUndoAvailable(undoStore.available);
       return;
     }
 
     const before = roadsSnapshot;
     try {
-      const committed = commitRoadMutation(roadsSnapshot, plan, roadEnvironment, WORLD_CONFIG);
+      const committed = commitRoadMutation(
+        roadsSnapshot,
+        candidate.corePlan,
+        roadEnvironment,
+        WORLD_CONFIG,
+      );
       roadPresentation.rebuildDirty(
         committed.snapshot,
         roadEnvironment,
         committed.receipt.dirtyChunks,
       );
       roadsSnapshot = committed.snapshot;
+      zoneEnvironment = createZonePlacementEnvironment(
+        snapshot,
+        waterSnapshot,
+        roadsSnapshot,
+        EMPTY_WORLD_OCCUPANCY,
+        WORLD_CONFIG,
+      );
       undoStore.replace({ kind: 'road', roads: before });
       roadLastDirtyChunkCount = committed.receipt.dirtyChunks.length;
       roadChunkRebuildCount += committed.receipt.dirtyChunks.length;
       if (committed.receipt.addedCellCount > 0) roadCommitCount += 1;
       if (committed.receipt.removedCellCount > 0) roadBulldozeCount += 1;
-      ui.setStatus(statusForRoadPlan(plan));
+      ui.setStatus(statusForRoadPlan(candidate.corePlan));
     } catch {
       ui.setStatus('Road update failed');
+    }
+    ui.setUndoAvailable(undoStore.available);
+  };
+
+  const applyZonePlan = (plan: ZoneMutationPlan): void => {
+    zoneInvalidReason = plan.invalidReason;
+    if (!plan.valid) {
+      ui.setStatus(statusForZonePlan(plan));
+      ui.setUndoAvailable(undoStore.available);
+      return;
+    }
+
+    const before = zonesSnapshot;
+    try {
+      const committed = commitZoneMutation(zonesSnapshot, plan, zoneEnvironment, WORLD_CONFIG);
+      zonePresentation.rebuildDirty(committed.snapshot, committed.receipt.dirtyChunks);
+      zonesSnapshot = committed.snapshot;
+      undoStore.replace({ kind: 'zone', zones: before });
+      zoneLastDirtyChunkCount = committed.receipt.dirtyChunks.length;
+      zoneChunkRebuildCount += committed.receipt.dirtyChunks.length;
+      if (plan.operation === 'paint') zoneCommitCount += 1;
+      else zoneRemoveCount += 1;
+      zoneInvalidReason = null;
+      ui.setZoneCounts(zoneCounts(zonesSnapshot));
+      ui.setStatus(statusForZonePlan(plan));
+    } catch {
+      ui.setStatus('Zone update failed');
     }
     ui.setUndoAvailable(undoStore.available);
   };
@@ -448,13 +612,27 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     terrain,
     preview,
     roadPreview,
+    zonePreview,
     config: WORLD_CONFIG,
     getTerrainSnapshot: () => snapshot,
     getRoadSnapshot: () => roadsSnapshot,
     getRoadEnvironment: () => roadEnvironment,
+    getZoneSnapshot: () => zonesSnapshot,
+    getZoneEnvironment: () => zoneEnvironment,
+    guardRoadPlan: (plan, baseRoads) =>
+      guardRoadPlanWithZones(
+        plan,
+        baseRoads,
+        zonesSnapshot,
+        snapshot,
+        waterSnapshot,
+        EMPTY_WORLD_OCCUPANCY,
+        WORLD_CONFIG,
+      ),
     onSelection: setSelection,
     onTerraformCommit: applyTerraformPlan,
     onRoadPlan: applyRoadPlan,
+    onZonePlan: applyZonePlan,
     onReset: resetCamera,
   });
   inputRef.current = input;
@@ -519,7 +697,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
       input.clearActiveSession();
       localStorage.setItem(
         WORLD_SAVE_KEY,
-        JSON.stringify(encodeWorldSaveV1(snapshot, roadsSnapshot)),
+        JSON.stringify(encodeWorldSaveV2(snapshot, roadsSnapshot, zonesSnapshot)),
       );
       ui.setStatus('Saved');
     },
@@ -530,7 +708,9 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     () => {
       input.clearActiveSession();
       const saved =
-        localStorage.getItem(WORLD_SAVE_KEY) ?? localStorage.getItem(LEGACY_TERRAIN_SAVE_KEY);
+        localStorage.getItem(WORLD_SAVE_KEY) ??
+        localStorage.getItem(LEGACY_WORLD_SAVE_KEY) ??
+        localStorage.getItem(LEGACY_TERRAIN_SAVE_KEY);
       if (saved === null) {
         ui.setStatus('No save');
         return;
@@ -580,6 +760,22 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     () => setToolMode('road-bulldoze'),
     listenerOptions,
   );
+  ui.zoneResidentialButton.addEventListener(
+    'click',
+    () => setToolMode('zone-residential'),
+    listenerOptions,
+  );
+  ui.zoneCommercialButton.addEventListener(
+    'click',
+    () => setToolMode('zone-commercial'),
+    listenerOptions,
+  );
+  ui.zoneIndustrialButton.addEventListener(
+    'click',
+    () => setToolMode('zone-industrial'),
+    listenerOptions,
+  );
+  ui.zoneRemoveButton.addEventListener('click', () => setToolMode('zone-remove'), listenerOptions);
   ui.brush1Button.addEventListener('click', () => setBrushSize(1), listenerOptions);
   ui.brush3Button.addEventListener('click', () => setBrushSize(3), listenerOptions);
   ui.brush5Button.addEventListener('click', () => setBrushSize(5), listenerOptions);
@@ -597,11 +793,18 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
           terraformUndoCount += 1;
           terraformWaterRebuildCount += 1;
         }
-      } else {
+      } else if (entry.kind === 'road') {
         const dirtyChunks = roadDirtyChunksBetween(roadsSnapshot, entry.roads);
         try {
           roadPresentation.rebuildDirty(entry.roads, roadEnvironment, dirtyChunks);
           roadsSnapshot = entry.roads;
+          zoneEnvironment = createZonePlacementEnvironment(
+            snapshot,
+            waterSnapshot,
+            roadsSnapshot,
+            EMPTY_WORLD_OCCUPANCY,
+            WORLD_CONFIG,
+          );
           roadUndoCount += 1;
           roadLastDirtyChunkCount = dirtyChunks.length;
           roadChunkRebuildCount += dirtyChunks.length;
@@ -609,6 +812,21 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
           succeeded = true;
         } catch {
           ui.setStatus('Road undo failed');
+        }
+      } else {
+        const dirtyChunks = zoneDirtyChunksBetween(zonesSnapshot, entry.zones);
+        try {
+          zonePresentation.rebuildDirty(entry.zones, dirtyChunks);
+          zonesSnapshot = entry.zones;
+          zoneUndoCount += 1;
+          zoneLastDirtyChunkCount = dirtyChunks.length;
+          zoneChunkRebuildCount += dirtyChunks.length;
+          zoneInvalidReason = null;
+          ui.setZoneCounts(zoneCounts(zonesSnapshot));
+          ui.setStatus('Zone undone');
+          succeeded = true;
+        } catch {
+          ui.setStatus('Zone undo failed');
         }
       }
 
@@ -634,6 +852,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     () => {
       preview.clear();
       roadPreview.clear();
+      zonePreview.clear();
       terrain.load(snapshot);
       const presentationStart = performance.now();
       water.load(snapshot, waterSnapshot);
@@ -641,6 +860,8 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
       waterBuildMetrics = stagedWaterBuildMetrics;
       grid.load(snapshot);
       roadPresentation.loadAll(roadsSnapshot, roadEnvironment);
+      zoneSurfaceSnapshot = snapshot;
+      zonePresentation.loadAll(zonesSnapshot);
       rebuildSelection(selection, snapshot, selectedCell);
       input.refreshTerrainObjects();
       contextLost = false;
@@ -696,6 +917,24 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
         estimatedGeometryBytes: roadGeometryBytes(scene),
       };
     },
+    getZoneEvidence: () => {
+      const state = input.getZoneState();
+      return {
+        ...state,
+        committedZoneRevision: zonesSnapshot.revision,
+        counts: zoneCounts(zonesSnapshot),
+        commitCount: zoneCommitCount,
+        removeCount: zoneRemoveCount,
+        undoCount: zoneUndoCount,
+        lastDirtyChunkCount: zoneLastDirtyChunkCount,
+        chunkRebuildCount: zoneChunkRebuildCount,
+        terrainRevision: snapshot.revision,
+        waterSourceTerrainRevision: waterSnapshot.sourceTerrainRevision,
+        roadRevision: roadsSnapshot.revision,
+        undoKind: undoStore.kind,
+        invalidReason: state.previewInvalidReason ?? zoneInvalidReason,
+      };
+    },
   });
 
   const render = (): void => {
@@ -728,6 +967,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
   ui.setToolMode('navigate');
   ui.setBrushSize(1);
   ui.setUndoAvailable(false);
+  ui.setZoneCounts(zoneCounts(zonesSnapshot));
   ui.setStatus('Ready');
   render();
 
@@ -738,10 +978,12 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     window.cancelAnimationFrame(animationFrame);
     input.dispose();
     roadPreview.dispose();
+    zonePreview.dispose();
     preview.dispose();
     selection.dispose();
     grid.dispose();
     roadPresentation.dispose();
+    zonePresentation.dispose();
     water.dispose();
     terrain.dispose();
     renderer.dispose();

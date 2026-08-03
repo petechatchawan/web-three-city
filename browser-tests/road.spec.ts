@@ -21,7 +21,7 @@ import {
   type TerrainCellScreenPoint,
 } from './helpers/interaction.js';
 
-const WORLD_SAVE_KEY = 'web-three-city:world-save:v1';
+const WORLD_SAVE_KEY = 'web-three-city:world-save:v2';
 const LEGACY_SAVE_KEY = 'web-three-city:terrain-save:v1';
 const GAME_SEED = 1_464_156_977;
 const BASE_TERRAIN = (() => {

@@ -49,7 +49,11 @@ function currentBrush(): TerraformBrushSize {
 
 function cancelPreviewOrCloseTool(): void {
   const evidence = window.__WEB_THREE_CITY_INTERACTION__;
-  if (evidence?.terraform.strokeActive === true || evidence?.road.strokeActive === true) {
+  if (
+    evidence?.terraform.strokeActive === true ||
+    evidence?.road.strokeActive === true ||
+    evidence?.zone.strokeActive === true
+  ) {
     dispatchGameToolCancel(canvas);
   } else {
     navigateButton.click();

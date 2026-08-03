@@ -110,6 +110,36 @@ function primaryReason(reasons: readonly ZoneInvalidReason[]): ZoneInvalidReason
   return null;
 }
 
+export function zoneCellPolicyInvalidReason(
+  zones: ZoneSnapshot,
+  cell: CellCoord,
+  environment: ZonePlacementEnvironment,
+  config: WorldConfig,
+): ZoneInvalidReason | null {
+  if (!environmentIsValid(environment)) return 'zone:invalid-environment';
+  if (!validCell(cell, config)) return 'zone:invalid-cell';
+  try {
+    const validated = createZoneSnapshot(
+      {
+        width: zones.width,
+        height: zones.height,
+        revision: zones.revision,
+        definitionCodes: zones.definitionCodes,
+      },
+      config,
+    );
+    if (validated.definitionCodes[cellIndex(cell, config)] === EMPTY_ZONE_CODE) return null;
+  } catch {
+    return 'zone:invalid-state';
+  }
+  if (environment.isRoadOccupied(cell)) return 'zone:road-occupied';
+  if (environment.isBlockedByNonZoneOccupancy(cell)) return 'zone:occupied';
+  if (!environment.isDry(cell)) return 'zone:wet-cell';
+  if (environment.surfaceAt(cell).shape !== 'flat') return 'zone:unsupported-terrain';
+  if (environment.roadAccessAt(cell) === null) return 'zone:road-access-required';
+  return null;
+}
+
 function paintInvalidReason(
   zones: ZoneSnapshot,
   proposedCodes: Uint8Array,

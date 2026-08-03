@@ -164,6 +164,7 @@ describe('ZoneStrokeController', () => {
       mode: 'zone-industrial',
       strokeActive: false,
       previewValid: null,
+      previewInvalidReason: null,
       previewCellCount: 0,
     });
     expect(onPreview).toHaveBeenLastCalledWith(null, null, null);

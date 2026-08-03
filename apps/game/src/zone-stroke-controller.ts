@@ -13,6 +13,7 @@ export interface ZoneInputState {
   readonly mode: ZoneToolMode | null;
   readonly strokeActive: boolean;
   readonly previewValid: boolean | null;
+  readonly previewInvalidReason: ZoneMutationPlan['invalidReason'];
   readonly previewCellCount: number;
 }
 
@@ -129,6 +130,7 @@ export function createZoneStrokeController(
         mode,
         strokeActive: session !== null,
         previewValid: session?.plan?.valid ?? null,
+        previewInvalidReason: session?.plan?.invalidReason ?? null,
         previewCellCount: session?.plan?.requestedCells.length ?? 0,
       });
     },

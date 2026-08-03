@@ -23,6 +23,12 @@ import {
 } from '@web-three-city/terrain-core';
 import type { RoadPreviewPresentation } from '@web-three-city/road-three';
 import type {
+  ZoneMutationPlan,
+  ZonePlacementEnvironment,
+  ZoneSnapshot,
+} from '@web-three-city/zone-core';
+import type { ZonePreviewPresentation } from '@web-three-city/zone-three';
+import type {
   TerrainPresentation,
   TerraformPreviewPresentation,
 } from '@web-three-city/terrain-three';
@@ -42,15 +48,18 @@ import {
 import {
   roadPlanTransaction,
   terraformReleaseTransaction,
+  zonePlanTransaction,
 } from './game-transaction-presentation.js';
 import { createRoadStrokeController, type RoadInputState } from './road-stroke-controller.js';
 import { createTerraformPreviewSceneModel } from './terraform-preview-adapter.js';
-import type { GameTerraformInvalidReason } from './terraform-road-guard.js';
+import type { GuardedRoadCandidate, GameRoadInvalidReason } from './road-zone-guard.js';
+import type { GameTerraformInvalidReason } from './terraform-occupancy-guard.js';
 import {
   createTerraformStrokeSession,
   type TerraformStrokeRelease,
   type TerraformStrokeSessionState,
 } from './terraform-stroke-session.js';
+import { createZoneStrokeController, type ZoneInputState } from './zone-stroke-controller.js';
 
 export interface GameRenderViewport {
   readonly left: number;
@@ -83,6 +92,7 @@ export interface GameInput {
   setBrushSize(size: TerraformBrushSize): void;
   getTerraformState(): TerraformInputState;
   getRoadState(): RoadInputState;
+  getZoneState(): ZoneInputState;
   clearActiveSession(): void;
   dispose(): void;
 }
@@ -94,16 +104,24 @@ export interface CreateGameInputOptions {
   readonly terrain: TerrainPresentation;
   readonly preview: TerraformPreviewPresentation;
   readonly roadPreview: RoadPreviewPresentation;
+  readonly zonePreview: ZonePreviewPresentation;
   readonly config: WorldConfig;
   readonly getTerrainSnapshot: () => TerrainSnapshot;
   readonly getRoadSnapshot: () => RoadSnapshot;
   readonly getRoadEnvironment: () => RoadPlacementEnvironment;
+  readonly getZoneSnapshot: () => ZoneSnapshot;
+  readonly getZoneEnvironment: () => ZonePlacementEnvironment;
+  readonly guardRoadPlan?: (
+    plan: RoadMutationPlan,
+    baseRoads: RoadSnapshot,
+  ) => GuardedRoadCandidate;
   readonly onSelection: (cell: CellCoord | null) => void;
   readonly onTerraformCommit: (plan: TerraformPlan) => void;
   readonly onTerraformRelease?: (release: TerraformStrokeRelease) => void;
   readonly onTerraformState?: (state: TerraformStrokeSessionState) => void;
   readonly onTerraformReject?: (reason: GameTerraformInvalidReason | 'terraform:no-change') => void;
-  readonly onRoadPlan: (plan: RoadMutationPlan) => void;
+  readonly onRoadPlan: (plan: RoadMutationPlan, reason?: GameRoadInvalidReason | null) => void;
+  readonly onZonePlan: (plan: ZoneMutationPlan) => void;
   readonly onReset: () => void;
 }
 
@@ -126,6 +144,20 @@ export function routeTerraformRelease(
 }
 
 export type RoadPreviewPort = Pick<RoadPreviewPresentation, 'clear' | 'show'>;
+
+export type ZonePreviewPort = Pick<ZonePreviewPresentation, 'clear' | 'show'>;
+
+export function routeZonePreview(
+  zonePreview: ZonePreviewPort,
+  baseZones: ZoneSnapshot | null,
+  plan: ZoneMutationPlan | null,
+): void {
+  if (baseZones === null || plan === null) {
+    zonePreview.clear();
+    return;
+  }
+  zonePreview.show(baseZones, plan);
+}
 
 export function routeRoadPreview(
   roadPreview: RoadPreviewPort,
@@ -185,6 +217,7 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
     config: options.config,
     getTerrainSnapshot: options.getTerrainSnapshot,
     getRoadSnapshot: options.getRoadSnapshot,
+    getZoneSnapshot: options.getZoneSnapshot,
     onState(state): void {
       options.preview.show(
         createTerraformPreviewSceneModel(state, options.getTerrainSnapshot(), options.config),
@@ -194,24 +227,61 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
     },
   });
 
+  const guardRoad = (plan: RoadMutationPlan, baseRoads: RoadSnapshot): GuardedRoadCandidate =>
+    options.guardRoadPlan?.(plan, baseRoads) ??
+    Object.freeze({
+      corePlan: plan,
+      previewPlan: plan,
+      valid: plan.valid,
+      invalidReason: plan.invalidReason,
+      blockedZoneCells: Object.freeze([]),
+    });
+
   const roadController = createRoadStrokeController({
     config: options.config,
     getMode: () => (isRoadToolMode(mode) ? mode : null),
     getRoadSnapshot: options.getRoadSnapshot,
     getEnvironment: options.getRoadEnvironment,
     onPreview(baseRoads, plan, environment): void {
-      routeRoadPreview(options.roadPreview, baseRoads, plan, environment);
+      const candidate = baseRoads === null || plan === null ? null : guardRoad(plan, baseRoads);
+      routeRoadPreview(options.roadPreview, baseRoads, candidate?.previewPlan ?? null, environment);
       dispatchGameToolEvent(
         options.canvas,
         Object.freeze({
           type: 'road-state',
           state: Object.freeze({
             mode: isRoadToolMode(mode) ? mode : null,
+            strokeActive: candidate !== null,
+            previewValid: candidate?.valid ?? null,
+            previewCellCount: plan?.requestedCells.length ?? 0,
+          }),
+          reason: candidate?.invalidReason ?? null,
+        }),
+      );
+    },
+  });
+
+  const zoneController = createZoneStrokeController({
+    config: options.config,
+    getMode: () => (isZoneToolMode(mode) ? mode : null),
+    getZoneSnapshot: options.getZoneSnapshot,
+    getEnvironment: options.getZoneEnvironment,
+    onPreview(baseZones, plan): void {
+      routeZonePreview(options.zonePreview, baseZones, plan);
+      dispatchGameToolEvent(
+        options.canvas,
+        Object.freeze({
+          type: 'zone-state',
+          state: Object.freeze({
+            mode: isZoneToolMode(mode) ? mode : null,
             strokeActive: plan !== null,
             previewValid: plan?.valid ?? null,
+            previewInvalidReason: plan?.invalidReason ?? null,
             previewCellCount: plan?.requestedCells.length ?? 0,
           }),
           reason: plan?.invalidReason ?? null,
+          effectiveCellCount: plan?.changedCells.length ?? 0,
+          invalidCellCount: plan?.invalidCells.length ?? 0,
         }),
       );
     },
@@ -233,6 +303,7 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
       const cell = { x: result.cellX, z: result.cellZ };
 
       if (isRoadToolMode(mode)) return roadController.begin(pointerId, cell);
+      if (isZoneToolMode(mode)) return zoneController.begin(pointerId, cell);
       if (!isTerraformToolMode(mode)) return false;
 
       if (mode === 'flatten') {
@@ -250,6 +321,7 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
       if (result === null) return;
       const cell = { x: result.cellX, z: result.cellZ };
       if (isRoadToolMode(mode)) roadController.move(pointerId, cell);
+      else if (isZoneToolMode(mode)) zoneController.move(pointerId, cell);
       else if (isTerraformToolMode(mode)) terraformSession.move(pointerId, cell);
     },
     end(pointerId: number, point: ScreenPoint): void {
@@ -257,11 +329,24 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
       const cell = result === null ? null : { x: result.cellX, z: result.cellZ };
       if (isRoadToolMode(mode)) {
         const finalPlan = roadController.end(pointerId, cell);
-        const transaction = roadPlanTransaction(finalPlan);
+        const candidate =
+          finalPlan === null ? null : guardRoad(finalPlan, options.getRoadSnapshot());
+        const transaction = roadPlanTransaction(candidate?.previewPlan ?? null);
         if (transaction !== null) {
           dispatchGameTransactionState(options.canvas, transaction.state, transaction.domain);
         }
-        if (finalPlan !== null) options.onRoadPlan(finalPlan);
+        if (candidate !== null) {
+          options.onRoadPlan(candidate.previewPlan, candidate.invalidReason);
+        }
+        return;
+      }
+      if (isZoneToolMode(mode)) {
+        const finalPlan = zoneController.end(pointerId, cell);
+        const transaction = zonePlanTransaction(finalPlan);
+        if (transaction !== null) {
+          dispatchGameTransactionState(options.canvas, transaction.state, transaction.domain);
+        }
+        if (finalPlan !== null) options.onZonePlan(finalPlan);
         return;
       }
       if (!isTerraformToolMode(mode)) return;
@@ -278,10 +363,12 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
     },
     cancel(pointerId: number): void {
       roadController.cancel(pointerId);
+      zoneController.cancel(pointerId);
       terraformSession.cancel(pointerId);
     },
     cancelAll(): void {
       roadController.cancelAll();
+      zoneController.cancelAll();
       terraformSession.cancelAll();
     },
   };
@@ -380,6 +467,9 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
     getRoadState(): RoadInputState {
       return roadController.getState();
     },
+    getZoneState(): ZoneInputState {
+      return zoneController.getState();
+    },
     clearActiveSession(): void {
       clearAllSessions();
     },
@@ -388,6 +478,7 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
       binding?.dispose();
       binding = null;
       roadController.cancelAll();
+      zoneController.cancelAll();
       terraformSession.cancelAll();
       options.preview.clear();
       terrainObjects = [];

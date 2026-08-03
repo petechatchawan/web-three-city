@@ -1,4 +1,5 @@
 import type { RoadSnapshot } from '@web-three-city/road-core';
+import { createEmptyZoneSnapshot, type ZoneSnapshot } from '@web-three-city/zone-core';
 import {
   planTerraformStroke,
   rasterizeTerraformCellLine,
@@ -10,10 +11,10 @@ import {
 } from '@web-three-city/terrain-core';
 import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
 import {
-  guardTerraformPlanWithRoads,
+  guardTerraformPlanWithOccupancy,
   type GameTerraformInvalidReason,
   type GuardedTerraformCandidate,
-} from './terraform-road-guard.js';
+} from './terraform-occupancy-guard.js';
 
 export type TerraformCurrentStamp =
   | { readonly kind: 'none' }
@@ -65,6 +66,7 @@ export interface CreateTerraformStrokeSessionOptions {
   readonly config: WorldConfig;
   readonly getTerrainSnapshot: () => TerrainSnapshot;
   readonly getRoadSnapshot: () => RoadSnapshot;
+  readonly getZoneSnapshot?: () => ZoneSnapshot;
   readonly onState: (state: TerraformStrokeSessionState) => void;
 }
 
@@ -97,6 +99,7 @@ export function createTerraformStrokeSession(
   let flattenTargetLevel: number | null = null;
   let capturedTerrain: TerrainSnapshot | null = null;
   let capturedRoads: RoadSnapshot | null = null;
+  let capturedZones: ZoneSnapshot | null = null;
   let lastSampledAnchor: CellCoord | null = null;
   const visitedAnchors = new Set<string>();
   let acceptedAnchors: CellCoord[] = [];
@@ -122,6 +125,7 @@ export function createTerraformStrokeSession(
     flattenTargetLevel = null;
     capturedTerrain = null;
     capturedRoads = null;
+    capturedZones = null;
     lastSampledAnchor = null;
     visitedAnchors.clear();
     acceptedAnchors = [];
@@ -142,7 +146,13 @@ export function createTerraformStrokeSession(
   };
 
   const evaluateAnchor = (anchor: CellCoord): void => {
-    if (capturedTerrain === null || capturedRoads === null || operation === null) return;
+    if (
+      capturedTerrain === null ||
+      capturedRoads === null ||
+      capturedZones === null ||
+      operation === null
+    )
+      return;
     const key = cellKey(anchor);
     if (visitedAnchors.has(key)) return;
     visitedAnchors.add(key);
@@ -154,7 +164,7 @@ export function createTerraformStrokeSession(
       inputFor(tentativeAnchors),
       options.config,
     );
-    const guarded = guardTerraformPlanWithRoads(corePlan, capturedRoads);
+    const guarded = guardTerraformPlanWithOccupancy(corePlan, capturedRoads, capturedZones);
 
     if (guarded.valid) {
       if (acceptedPlan !== null && sameProjectedLattice(acceptedPlan, guarded.corePlan)) {
@@ -211,6 +221,7 @@ export function createTerraformStrokeSession(
       flattenTargetLevel = nextOperation === 'flatten' ? (nextFlattenTargetLevel ?? null) : null;
       capturedTerrain = options.getTerrainSnapshot();
       capturedRoads = options.getRoadSnapshot();
+      capturedZones = options.getZoneSnapshot?.() ?? createEmptyZoneSnapshot(options.config);
       lastSampledAnchor = null;
       visitedAnchors.clear();
       acceptedAnchors = [];

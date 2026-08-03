@@ -1,6 +1,6 @@
-import type { RoadInvalidReason } from '@web-three-city/road-core';
 import type { ZoneInvalidReason } from '@web-three-city/zone-core';
 import type { GameOperationReason } from './game-reason-catalog.js';
+import type { GameRoadInvalidReason } from './road-zone-guard.js';
 import type { RoadInputState } from './road-stroke-controller.js';
 import type { TerraformStrokeSessionState } from './terraform-stroke-session.js';
 import type { ZoneInputState } from './zone-stroke-controller.js';
@@ -16,7 +16,7 @@ export type GameToolEventDetail =
   | {
       readonly type: 'road-state';
       readonly state: RoadInputState;
-      readonly reason: RoadInvalidReason | null;
+      readonly reason: GameRoadInvalidReason | null;
     }
   | {
       readonly type: 'zone-state';

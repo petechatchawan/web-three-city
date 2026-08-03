@@ -1,0 +1,49 @@
+name: Building Frontage Authoring
+
+on:
+  pull_request:
+    branches: [master]
+    types: [synchronize]
+
+permissions:
+  contents: write
+
+jobs:
+  author:
+    if: github.head_ref == 'agent/building-content-occupancy-v0-1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/building-content-occupancy-v0-1
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install locked authoring dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Apply deterministic frontage orientation
+        run: python3 tooling/finalize_building_frontage_orientation.py
+      - name: Format authored files
+        run: >-
+          pnpm exec prettier --write
+          packages/building-core/src/building-mutation.ts
+          packages/building-core/src/building-footprint.ts
+          packages/building-core/test/building-footprint.test.ts
+          packages/building-core/test/building-mutation.test.ts
+      - name: Remove temporary authoring machinery
+        run: |
+          rm tooling/finalize_building_frontage_orientation.py
+          rm .github/workflows/building-frontage-authoring.yml
+      - name: Commit frontage orientation
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "feat: orient Buildings toward deterministic frontage"
+          git push origin HEAD:agent/building-content-occupancy-v0-1

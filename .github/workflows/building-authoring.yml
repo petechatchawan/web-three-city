@@ -3,7 +3,7 @@ name: Building Foundation Authoring
 on:
   pull_request:
     branches: [master]
-    types: [opened]
+    types: [synchronize]
 
 permissions:
   contents: write
@@ -25,6 +25,8 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+      - name: Repair literal authoring templates
+        run: python3 tooling/repair-building-authoring-scripts.py
       - name: Generate implementation and test specifications
         run: |
           node tooling/generate-building-foundation-part1.mjs
@@ -35,6 +37,7 @@ jobs:
       - name: Remove temporary authoring machinery and restore CI
         run: |
           git checkout origin/master -- .github/workflows/ci.yml
+          rm tooling/repair-building-authoring-scripts.py
           rm tooling/generate-building-foundation-part1.mjs
           rm tooling/generate-building-foundation-part2.mjs
           rm tooling/generate-building-foundation-part3.mjs

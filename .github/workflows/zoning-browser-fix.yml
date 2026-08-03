@@ -35,7 +35,7 @@ jobs:
           git apply tooling/zoning-browser-fix.patch
       - run: pnpm exec prettier --check browser-tests/game.spec.ts browser-tests/zoning.spec.ts
       - run: pnpm typecheck:browser
-      - run: pnpm --filter @web-three-city/game build
+      - run: pnpm build
       - run: pnpm exec playwright install chromium
       - name: Run focused failed browser tests
         run: >-

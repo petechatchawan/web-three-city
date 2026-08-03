@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest';
-import { createBuildingSnapshot } from '@web-three-city/building-core';
+import { createBuildingSnapshot, type BuildingInstance } from '@web-three-city/building-core';
 import type { WorldConfig } from '@web-three-city/world-core';
 import * as THREE from 'three';
+import { describe, expect, it } from 'vitest';
 import { BuildingPresentation } from '../src/index.js';
 
 const CONFIG: WorldConfig = Object.freeze({
@@ -16,48 +16,90 @@ const CONFIG: WorldConfig = Object.freeze({
   dioramaBaseY: -1.5,
 });
 
+const INSTANCES: readonly BuildingInstance[] = Object.freeze([
+  Object.freeze({
+    instanceId: 'cottage',
+    buildingDefinitionId: 'residential-cottage-1x1',
+    buildingDefinitionVersion: 1,
+    originCell: Object.freeze({ x: 0, z: 0 }),
+    rotationQuarterTurns: 0,
+  }),
+  Object.freeze({
+    instanceId: 'rowhouse',
+    buildingDefinitionId: 'residential-rowhouse-1x2',
+    buildingDefinitionVersion: 1,
+    originCell: Object.freeze({ x: 1, z: 0 }),
+    rotationQuarterTurns: 0,
+  }),
+  Object.freeze({
+    instanceId: 'shop',
+    buildingDefinitionId: 'commercial-shop-1x1',
+    buildingDefinitionVersion: 1,
+    originCell: Object.freeze({ x: 3, z: 0 }),
+    rotationQuarterTurns: 1,
+  }),
+  Object.freeze({
+    instanceId: 'office',
+    buildingDefinitionId: 'commercial-office-2x2',
+    buildingDefinitionVersion: 1,
+    originCell: Object.freeze({ x: 4, z: 0 }),
+    rotationQuarterTurns: 2,
+  }),
+  Object.freeze({
+    instanceId: 'workshop',
+    buildingDefinitionId: 'industrial-workshop-1x2',
+    buildingDefinitionVersion: 1,
+    originCell: Object.freeze({ x: 0, z: 3 }),
+    rotationQuarterTurns: 0,
+  }),
+  Object.freeze({
+    instanceId: 'warehouse',
+    buildingDefinitionId: 'industrial-warehouse-2x2',
+    buildingDefinitionVersion: 1,
+    originCell: Object.freeze({ x: 2, z: 3 }),
+    rotationQuarterTurns: 3,
+  }),
+]);
+
+const ENTRANCE_PART_NAMES = new Set([
+  'building-door',
+  'building-storefront',
+  'building-entrance',
+  'building-bay-door',
+]);
+
 describe('BuildingPresentation', () => {
-  it('derives one named prototype group per authoritative instance', () => {
+  it('derives one named, oriented prototype group per authoritative instance', () => {
     const scene = new THREE.Scene();
     const presentation = new BuildingPresentation(scene, () => 1, CONFIG);
-    const snapshot = createBuildingSnapshot(
-      {
-        revision: 1,
-        instances: [
-          Object.freeze({
-            instanceId: 'r',
-            buildingDefinitionId: 'residential-cottage-1x1',
-            buildingDefinitionVersion: 1,
-            originCell: Object.freeze({ x: 1, z: 1 }),
-            rotationQuarterTurns: 0,
-          }),
-          Object.freeze({
-            instanceId: 'c',
-            buildingDefinitionId: 'commercial-shop-1x1',
-            buildingDefinitionVersion: 1,
-            originCell: Object.freeze({ x: 3, z: 1 }),
-            rotationQuarterTurns: 1,
-          }),
-          Object.freeze({
-            instanceId: 'i',
-            buildingDefinitionId: 'industrial-workshop-1x2',
-            buildingDefinitionVersion: 1,
-            originCell: Object.freeze({ x: 5, z: 1 }),
-            rotationQuarterTurns: 0,
-          }),
-        ],
-      },
-      CONFIG,
-    );
+    const snapshot = createBuildingSnapshot({ revision: 1, instances: INSTANCES }, CONFIG);
+
     presentation.load(snapshot);
+
     expect(presentation.root.name).toBe('building-committed-root');
-    expect(presentation.root.children).toHaveLength(3);
+    expect(presentation.root.children).toHaveLength(6);
     expect(presentation.root.children.map((child) => child.userData.instanceId)).toEqual([
-      'r',
-      'c',
-      'i',
+      'cottage',
+      'office',
+      'rowhouse',
+      'shop',
+      'warehouse',
+      'workshop',
     ]);
-    expect(presentation.root.children[1]?.rotation.y).toBeCloseTo(-Math.PI / 2);
+    const shop = presentation.root.children.find((child) => child.userData.instanceId === 'shop');
+    const office = presentation.root.children.find((child) => child.userData.instanceId === 'office');
+    const warehouse = presentation.root.children.find(
+      (child) => child.userData.instanceId === 'warehouse',
+    );
+    expect(shop?.rotation.y).toBeCloseTo(-Math.PI / 2);
+    expect(office?.rotation.y).toBeCloseTo(-Math.PI);
+    expect(warehouse?.rotation.y).toBeCloseTo(-(3 * Math.PI) / 2);
+    expect(
+      presentation.root.children.every((child) =>
+        child.children.some((part) => ENTRANCE_PART_NAMES.has(part.name)),
+      ),
+    ).toBe(true);
+
     presentation.dispose();
     expect(scene.getObjectByName('building-committed-root')).toBeUndefined();
   });

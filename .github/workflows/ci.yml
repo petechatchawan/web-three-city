@@ -15,6 +15,7 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Zoning Foundation closure requires both jobs on the exact final PR head.
 jobs:
   lean:
     name: Lean CI

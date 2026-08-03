@@ -30,3 +30,9 @@ See [Web Terrain Foundation v0.1 Design](docs/superpowers/specs/2026-07-27-web-t
 - WebGL2 is the baseline; WebGPU is a later enhancement.
 - Mobile interaction and constrained devices are first-class targets.
 - The implementation does not copy source code or assets from `lo-th/3d.city` or Micropolis-derived projects.
+
+## License
+
+The source code in this repository is licensed under the [MIT License](LICENSE).
+
+Copyright (c) 2026 Pete Chatchawan.

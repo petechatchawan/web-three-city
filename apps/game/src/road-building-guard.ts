@@ -38,10 +38,6 @@ export function guardRoadPlanWithBuildings(
   zones: ZoneSnapshot,
   config: WorldConfig,
 ): GuardedRoadBuildingCandidate {
-  if (!candidate.valid && candidate.invalidReason !== 'road:zone-access-lost') {
-    return Object.freeze({ ...candidate, blockedBuildingCells: Object.freeze([]) });
-  }
-
   const overlaps = sorted(
     candidate.corePlan.addedCells.filter((cell) => buildingOccupiedAt(buildings, cell)),
   );
@@ -53,6 +49,10 @@ export function guardRoadPlanWithBuildings(
       invalidReason: 'road:building-occupied',
       blockedBuildingCells: overlaps,
     });
+  }
+
+  if (!candidate.valid && candidate.invalidReason !== 'road:zone-access-lost') {
+    return Object.freeze({ ...candidate, blockedBuildingCells: Object.freeze([]) });
   }
 
   if (candidate.corePlan.operation === 'bulldoze' && buildings.instances.length > 0) {

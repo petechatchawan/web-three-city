@@ -1,4 +1,5 @@
 import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
+import type { ZoneRoadDirection } from '@web-three-city/zone-core';
 import { buildingDefinitionForId } from './building-definitions.js';
 import type {
   BuildingDefinition,
@@ -11,6 +12,21 @@ export function isBuildingRotationQuarterTurns(
   value: number,
 ): value is BuildingRotationQuarterTurns {
   return value === 0 || value === 1 || value === 2 || value === 3;
+}
+
+export function buildingEntranceDirection(
+  rotationQuarterTurns: BuildingRotationQuarterTurns,
+): ZoneRoadDirection {
+  switch (rotationQuarterTurns) {
+    case 0:
+      return 'south';
+    case 1:
+      return 'west';
+    case 2:
+      return 'north';
+    case 3:
+      return 'east';
+  }
 }
 
 export function rotatedBuildingFootprint(

@@ -9,7 +9,7 @@ export const GAME_TOOL_EVENT = 'web-three-city:game-tool-presentation';
 export const GAME_TOOL_CANCEL_EVENT = 'web-three-city:cancel-tool-session';
 
 export type GameTransactionState = 'committing' | 'undoing';
-export type GameTransactionDomain = 'terraform' | 'road' | 'zone';
+export type GameTransactionDomain = 'terraform' | 'road' | 'zone' | 'building';
 
 export type GameToolEventDetail =
   | { readonly type: 'terraform-state'; readonly state: TerraformStrokeSessionState }

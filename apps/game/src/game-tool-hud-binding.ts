@@ -73,6 +73,8 @@ export function bindGameToolHud(
     '[data-action="tool-zone-commercial"]',
     '[data-action="tool-zone-industrial"]',
     '[data-action="tool-zone-remove"]',
+    '[data-action="tool-building-develop"]',
+    '[data-action="tool-building-bulldoze"]',
   ].map((selector) => requireElement<HTMLButtonElement>(root, selector));
   const undoButton = requireElement<HTMLButtonElement>(root, '[data-action="undo"]');
   let interactionActive = false;
@@ -185,8 +187,7 @@ export function bindGameToolHud(
           interactionActive = false;
           hideMetrics();
           setMutationBlocked(true);
-          const domain =
-            detail.domain === 'terraform' ? 'Terrain' : detail.domain === 'road' ? 'Road' : 'Zone';
+          const domain = detail.domain === 'terraform' ? 'Terrain' : detail.domain === 'road' ? 'Road' : detail.domain === 'zone' ? 'Zone' : 'Building';
           if (detail.state === 'committing') {
             contextState.textContent = 'Applying change';
             contextMessage.textContent = `Applying ${domain} change…`;

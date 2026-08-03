@@ -6,7 +6,7 @@ import type { RoadInputState } from './road-stroke-controller.js';
 import type { TerraformStrokeSessionState } from './terraform-stroke-session.js';
 import type { ZoneInputState } from './zone-stroke-controller.js';
 
-export type GameTransactionDomain = 'terraform' | 'road' | 'zone';
+export type GameTransactionDomain = 'terraform' | 'road' | 'zone' | 'building';
 
 export type GameToolInteractionState =
   | { readonly kind: 'idle' }

@@ -33,6 +33,8 @@ const toolActions: Readonly<Record<GameToolMode, string>> = Object.freeze({
   'zone-commercial': 'tool-zone-commercial',
   'zone-industrial': 'tool-zone-industrial',
   'zone-remove': 'tool-zone-remove',
+  'building-develop': 'tool-building-develop',
+  'building-bulldoze': 'tool-building-bulldoze',
 });
 const brushActions = Object.freeze({ 1: 'brush-1', 3: 'brush-3', 5: 'brush-5' });
 const navigateButton = requireButton('tool-navigate');
@@ -52,7 +54,8 @@ function cancelPreviewOrCloseTool(): void {
   if (
     evidence?.terraform.strokeActive === true ||
     evidence?.road.strokeActive === true ||
-    evidence?.zone.strokeActive === true
+    evidence?.zone.strokeActive === true ||
+    evidence?.building.strokeActive === true
   ) {
     dispatchGameToolCancel(canvas);
   } else {

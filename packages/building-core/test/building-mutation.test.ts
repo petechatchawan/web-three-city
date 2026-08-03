@@ -1,0 +1,102 @@
+import { describe, expect, it } from 'vitest';
+import type { TerrainCellSurfaceProfile } from '@web-three-city/terrain-core';
+import type { WorldConfig } from '@web-three-city/world-core';
+import {
+  BuildingContractError,
+  buildingAtCell,
+  commitBuildingMutation,
+  createEmptyBuildingSnapshot,
+  planBuildingBulldoze,
+  planBuildingDevelopment,
+  type BuildingDevelopmentEnvironment,
+} from '../src/index.js';
+
+const CONFIG: WorldConfig = Object.freeze({
+  mapWidth: 6,
+  mapHeight: 6,
+  chunkSize: 3,
+  cellSize: 1,
+  heightStep: 0.5,
+  minHeightLevel: 0,
+  maxHeightLevel: 4,
+  seaLevel: 1,
+  dioramaBaseY: -1.5,
+});
+const FLAT = Object.freeze({
+  cell: Object.freeze({ x: 0, z: 0 }),
+  corners: Object.freeze({ nw: 2, ne: 2, sw: 2, se: 2 }),
+  shape: 'flat',
+  minimumLevel: 2,
+  maximumLevel: 2,
+  slopeAxis: null,
+}) as TerrainCellSurfaceProfile;
+
+function environment(overrides: Partial<BuildingDevelopmentEnvironment> = {}): BuildingDevelopmentEnvironment {
+  return Object.freeze({
+    terrainRevision: 5,
+    waterSourceTerrainRevision: 5,
+    roadRevision: 2,
+    zoneRevision: 7,
+    surfaceAt: () => FLAT,
+    isDry: () => true,
+    isRoadOccupied: () => false,
+    zoneDefinitionIdAt(cell) {
+      return cell.x >= 1 && cell.x <= 2 && cell.z >= 1 && cell.z <= 2 ? 'commercial' : null;
+    },
+    roadAccessAt(cell) {
+      return cell.z === 1
+        ? Object.freeze({ direction: 'north', distance: 1, roadCell: Object.freeze({ x: cell.x, z: 0 }) })
+        : null;
+    },
+    ...overrides,
+  });
+}
+
+describe('building mutation', () => {
+  it('selects the highest-priority compatible footprint deterministically and commits atomically', () => {
+    const before = createEmptyBuildingSnapshot(CONFIG);
+    const plan = planBuildingDevelopment(before, environment(), CONFIG);
+    expect(plan.valid).toBe(true);
+    expect(plan.addedInstances).toHaveLength(1);
+    expect(plan.addedInstances[0]).toMatchObject({
+      instanceId: 'building:1:1',
+      buildingDefinitionId: 'commercial-office-2x2',
+      originCell: { x: 1, z: 1 },
+      rotationQuarterTurns: 0,
+    });
+    const committed = commitBuildingMutation(before, plan, environment(), CONFIG);
+    expect(committed.snapshot.revision).toBe(1);
+    expect(committed.receipt.addedCellCount).toBe(4);
+  });
+
+  it('bulldozes the whole instance selected by any occupied cell', () => {
+    const before = createEmptyBuildingSnapshot(CONFIG);
+    const developed = commitBuildingMutation(
+      before,
+      planBuildingDevelopment(before, environment(), CONFIG),
+      environment(),
+      CONFIG,
+    ).snapshot;
+    const plan = planBuildingBulldoze(developed, { x: 2, z: 2 }, environment(), CONFIG);
+    expect(plan.removedInstances[0]?.buildingDefinitionId).toBe('commercial-office-2x2');
+    const after = commitBuildingMutation(developed, plan, environment(), CONFIG).snapshot;
+    expect(buildingAtCell(after, { x: 1, z: 1 })).toBeNull();
+  });
+
+  it('fails closed for mixed Zones and stale source revisions', () => {
+    const before = createEmptyBuildingSnapshot(CONFIG);
+    const mixed = environment({
+      zoneDefinitionIdAt(cell) {
+        if (cell.x === 1 && cell.z === 1) return 'commercial';
+        if (cell.x === 2 && cell.z === 1) return 'residential';
+        return null;
+      },
+    });
+    expect(planBuildingDevelopment(before, mixed, CONFIG).valid).toBe(false);
+
+    const plan = planBuildingDevelopment(before, environment(), CONFIG);
+    expect(() =>
+      commitBuildingMutation(before, plan, environment({ roadRevision: 3 }), CONFIG),
+    ).toThrowError(new BuildingContractError('building:stale-road-plan'));
+  });
+});

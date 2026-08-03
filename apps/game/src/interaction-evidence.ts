@@ -3,6 +3,7 @@ import {
   type CameraState,
   type OrthographicCameraRig,
 } from '@web-three-city/camera-input';
+import type { BuildingInvalidReason } from '@web-three-city/building-core';
 import type { TerraformBrushSize, WorldToolMode } from '@web-three-city/terrain-core';
 import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
 import type { ZoneCounts, ZoneInvalidReason } from '@web-three-city/zone-core';
@@ -74,7 +75,7 @@ export interface RoadInteractionEvidence {
   readonly chunkRebuildCount: number;
   readonly terrainRevision: number;
   readonly waterSourceTerrainRevision: number;
-  readonly undoKind: 'terraform' | 'road' | 'zone' | null;
+  readonly undoKind: 'terraform' | 'road' | 'zone' | 'building' | null;
   readonly estimatedGeometryBytes: number;
   readonly committedRootCount: number;
   readonly previewRootCount: number;
@@ -99,12 +100,30 @@ export interface ZoneInteractionEvidence {
   readonly terrainRevision: number;
   readonly waterSourceTerrainRevision: number;
   readonly roadRevision: number;
-  readonly undoKind: 'terraform' | 'road' | 'zone' | null;
+  readonly undoKind: 'terraform' | 'road' | 'zone' | 'building' | null;
   readonly invalidReason: ZoneInvalidReason | null;
   readonly committedRootCount: number;
   readonly previewRootCount: number;
   readonly invalidMarkerCount: number;
   readonly previewBounds: RoadPreviewBoundsEvidence | null;
+}
+
+export interface BuildingInteractionEvidence {
+  readonly mode: 'building-develop' | 'building-bulldoze' | null;
+  readonly strokeActive: boolean;
+  readonly cell: CellCoord | null;
+  readonly committedBuildingRevision: number;
+  readonly count: number;
+  readonly occupiedCellCount: number;
+  readonly commitCount: number;
+  readonly bulldozeCount: number;
+  readonly undoCount: number;
+  readonly terrainRevision: number;
+  readonly roadRevision: number;
+  readonly zoneRevision: number;
+  readonly undoKind: 'terraform' | 'road' | 'zone' | 'building' | null;
+  readonly invalidReason: BuildingInvalidReason | null;
+  readonly committedRootCount: number;
 }
 
 export interface InteractionEvidence {
@@ -118,6 +137,7 @@ export interface InteractionEvidence {
   readonly terraform: TerraformInteractionEvidence;
   readonly road: RoadInteractionEvidence;
   readonly zone: ZoneInteractionEvidence;
+  readonly building: BuildingInteractionEvidence;
   readonly sceneRootCounts: {
     readonly terrain: number;
     readonly water: number;
@@ -128,6 +148,7 @@ export interface InteractionEvidence {
     readonly roadPreview: number;
     readonly zoneCommitted: number;
     readonly zonePreview: number;
+    readonly buildingCommitted: number;
   };
 }
 
@@ -151,6 +172,7 @@ export interface InteractionEvidenceSource {
     | 'previewWaterCount'
     | 'previewRejectedMarkerCount'
   >;
+  getBuildingEvidence(): Omit<BuildingInteractionEvidence, 'committedRootCount'>;
   getZoneEvidence(): Omit<
     ZoneInteractionEvidence,
     'committedRootCount' | 'previewRootCount' | 'invalidMarkerCount' | 'previewBounds'
@@ -316,6 +338,9 @@ export function publishInteractionEvidence(source: InteractionEvidenceSource): v
         ]),
       };
     },
+    get building(): BuildingInteractionEvidence {
+      return { ...source.getBuildingEvidence(), committedRootCount: countRoots(source.scene, 'building-committed-root') };
+    },
     get zone(): ZoneInteractionEvidence {
       return {
         ...source.getZoneEvidence(),
@@ -339,6 +364,7 @@ export function publishInteractionEvidence(source: InteractionEvidenceSource): v
         roadPreview: countRoadPreviewRoots(source.scene),
         zoneCommitted: countRoots(source.scene, 'zone-committed-root'),
         zonePreview: countZonePreviewRoots(source.scene),
+        buildingCommitted: countRoots(source.scene, 'building-committed-root'),
       };
     },
   };

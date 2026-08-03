@@ -16,7 +16,7 @@ export type GameRoadBuildingInvalidReason =
 
 export interface GuardedRoadBuildingCandidate extends Omit<GuardedRoadCandidate, 'invalidReason'> {
   readonly invalidReason: GameRoadBuildingInvalidReason | null;
-  readonly blockedBuildingCells: readonly CellCoord[];
+  readonly blockedBuildingCells?: readonly CellCoord[];
 }
 
 function sorted(cells: Iterable<CellCoord>): readonly CellCoord[] {

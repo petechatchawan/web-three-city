@@ -89,6 +89,26 @@ describe('building mutation', () => {
     expect(buildingAtCell(after, { x: 1, z: 1 })).toBeNull();
   });
 
+  it('discards every accepted lot when an environment accessor fails mid-scan', () => {
+    const before = createEmptyBuildingSnapshot(CONFIG);
+    const unstable = environment({
+      zoneDefinitionIdAt(cell) {
+        if (cell.z === 1 && cell.x === 3) throw new Error('environment unavailable');
+        return cell.x >= 1 && cell.x <= 2 && cell.z >= 1 && cell.z <= 2 ? 'commercial' : null;
+      },
+    });
+
+    const plan = planBuildingDevelopment(before, unstable, CONFIG);
+
+    expect(plan).toMatchObject({
+      valid: false,
+      invalidReason: 'building:invalid-environment',
+      proposedInstances: [],
+      addedInstances: [],
+      dirtyChunks: [],
+    });
+  });
+
   it('fails closed for mixed Zones and stale source revisions', () => {
     const before = createEmptyBuildingSnapshot(CONFIG);
     const mixed = environment({

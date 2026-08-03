@@ -208,6 +208,7 @@ export function planBuildingDevelopment(
   const reasons = new Set<BuildingInvalidReason>();
   const dirty: ChunkCoord[] = [];
   let zonedCellCount = 0;
+  let environmentFailed = false;
   let sequence = 0;
   const targetRevision = validated.revision + 1;
 
@@ -255,11 +256,13 @@ export function planBuildingDevelopment(
       }
     }
   } catch {
+    environmentFailed = true;
     reasons.add('building:invalid-environment');
   }
 
-  const invalidReason: BuildingInvalidReason | null =
-    added.length > 0
+  const invalidReason: BuildingInvalidReason | null = environmentFailed
+    ? 'building:invalid-environment'
+    : added.length > 0
       ? null
       : zonedCellCount === 0
         ? 'building:no-zoned-lot'
@@ -269,10 +272,10 @@ export function planBuildingDevelopment(
     environment,
     operation: 'develop',
     requestedCell: null,
-    proposedInstances: [...validated.instances, ...added],
-    addedInstances: added,
+    proposedInstances: environmentFailed ? validated.instances : [...validated.instances, ...added],
+    addedInstances: environmentFailed ? Object.freeze([]) : added,
     removedInstances: Object.freeze([]),
-    dirtyChunks: dirty,
+    dirtyChunks: environmentFailed ? Object.freeze([]) : dirty,
     invalidReason,
   });
 }

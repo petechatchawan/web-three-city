@@ -36,7 +36,8 @@ jobs:
           done
           cat tooling/zoning-completion.patch.gz.b64.* | base64 --decode | gzip --decompress > /tmp/zoning-completion.patch
           echo "107b6b5ab166cb88f8e086832cba60e2061e312c279fa7e996a4f1321b1ec583  /tmp/zoning-completion.patch" | sha256sum --check
-          git apply --index /tmp/zoning-completion.patch
+          git apply --index --exclude=.github/workflows/zoning-workspace-export.yml /tmp/zoning-completion.patch
+          rm -f .github/workflows/zoning-workspace-export.yml
           rm -f .github/workflows/zoning-completion-apply.yml
           rm -f tooling/zoning-completion.patch.gz.b64
           rm -f tooling/zoning-completion.patch.gz.b64.*

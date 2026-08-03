@@ -40,7 +40,7 @@ jobs:
       (github.event_name == 'pull_request' &&
       contains(github.event.pull_request.labels.*.name, 'full-ci'))
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -50,11 +50,7 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @web-three-city/terrain-lab build
-      - run: pnpm --filter @web-three-city/game build
-      - run: pnpm exec playwright install --with-deps chromium
-      - run: pnpm test:browser
+      - run: pnpm verify:full
       - uses: actions/upload-artifact@v4
         if: always()
         with:

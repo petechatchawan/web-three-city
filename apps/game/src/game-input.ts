@@ -145,7 +145,7 @@ export interface CreateGameInputOptions {
     plan: ZoneMutationPlan,
     reason?: import('./zone-building-guard.js').GameZoneInvalidReason | null,
   ) => void;
-  readonly onBuildingRequest: (mode: BuildingToolMode, cell: CellCoord) => void;
+  readonly onBuildingRequest?: (mode: BuildingToolMode, cell: CellCoord) => void;
   readonly onReset: () => void;
 }
 
@@ -407,7 +407,7 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
       }
       if (isBuildingToolMode(mode)) {
         const request = buildingController.end(pointerId, cell);
-        if (request !== null) options.onBuildingRequest(request.mode, request.cell);
+        if (request !== null) options.onBuildingRequest?.(request.mode, request.cell);
         return;
       }
       if (!isTerraformToolMode(mode)) return;

@@ -43,6 +43,7 @@ export function createBuildingPrototype(
     case 'rowhouse':
       addBox(group, [0.76, h * 0.82, 1.7], [0, h * 0.41, 0], bodyMaterial, 'building-body');
       addBox(group, [0.84, h * 0.12, 1.78], [0, h * 0.88, 0], materials.roof, 'building-roof');
+      addBox(group, [0.18, 0.34, 0.05], [0, 0.22, 0.875], materials.accent, 'building-door');
       break;
     case 'shop':
       addBox(group, [0.82, h * 0.7, 0.82], [0, h * 0.35, 0], bodyMaterial, 'building-body');
@@ -52,6 +53,7 @@ export function createBuildingPrototype(
       addBox(group, [1.65, h, 1.65], [0, h * 0.5, 0], bodyMaterial, 'building-body');
       for (const y of [0.45, 0.95, 1.45])
         addBox(group, [1.72, 0.06, 1.72], [0, y, 0], materials.accent, 'building-floor-band');
+      addBox(group, [0.36, 0.46, 0.05], [0, 0.28, 0.85], materials.accent, 'building-entrance');
       break;
     case 'workshop':
       addBox(group, [0.82, h * 0.75, 1.68], [0, h * 0.375, 0], bodyMaterial, 'building-body');

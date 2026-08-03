@@ -77,6 +77,12 @@ importers:
       '@web-three-city/world-core':
         specifier: workspace:*
         version: link:../../packages/world-core
+      '@web-three-city/zone-core':
+        specifier: workspace:*
+        version: link:../../packages/zone-core
+      '@web-three-city/zone-three':
+        specifier: workspace:*
+        version: link:../../packages/zone-three
       three:
         specifier: 0.185.1
         version: 0.185.1
@@ -245,6 +251,34 @@ importers:
         version: link:../shared-testkit
 
   packages/world-core: {}
+
+  packages/zone-core:
+    dependencies:
+      '@web-three-city/terrain-core':
+        specifier: workspace:*
+        version: link:../terrain-core
+      '@web-three-city/world-core':
+        specifier: workspace:*
+        version: link:../world-core
+
+  packages/zone-three:
+    dependencies:
+      '@web-three-city/terrain-core':
+        specifier: workspace:*
+        version: link:../terrain-core
+      '@web-three-city/world-core':
+        specifier: workspace:*
+        version: link:../world-core
+      '@web-three-city/zone-core':
+        specifier: workspace:*
+        version: link:../zone-core
+      three:
+        specifier: 0.185.1
+        version: 0.185.1
+    devDependencies:
+      '@types/three':
+        specifier: 0.185.0
+        version: 0.185.0
 
 packages:
 

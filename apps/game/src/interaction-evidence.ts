@@ -5,9 +5,10 @@ import {
 } from '@web-three-city/camera-input';
 import type { TerraformBrushSize, WorldToolMode } from '@web-three-city/terrain-core';
 import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
+import type { ZoneCounts, ZoneInvalidReason } from '@web-three-city/zone-core';
 import * as THREE from 'three';
 import type { GameInput, GameRenderViewport } from './game-input.js';
-import type { GameTerraformInvalidReason } from './terraform-road-guard.js';
+import type { GameTerraformInvalidReason } from './terraform-occupancy-guard.js';
 import type { TerraformCurrentStamp } from './terraform-stroke-session.js';
 
 export interface WaterInteractionEvidence {
@@ -73,12 +74,36 @@ export interface RoadInteractionEvidence {
   readonly chunkRebuildCount: number;
   readonly terrainRevision: number;
   readonly waterSourceTerrainRevision: number;
-  readonly undoKind: 'terraform' | 'road' | null;
+  readonly undoKind: 'terraform' | 'road' | 'zone' | null;
   readonly estimatedGeometryBytes: number;
   readonly committedRootCount: number;
   readonly previewRootCount: number;
   readonly invalidMarkerCount: number;
   readonly bulldozeMarkerCount: number;
+  readonly previewBounds: RoadPreviewBoundsEvidence | null;
+}
+
+export interface ZoneInteractionEvidence {
+  readonly mode: 'zone-residential' | 'zone-commercial' | 'zone-industrial' | 'zone-remove' | null;
+  readonly strokeActive: boolean;
+  readonly previewValid: boolean | null;
+  readonly previewInvalidReason: ZoneInvalidReason | null;
+  readonly previewCellCount: number;
+  readonly committedZoneRevision: number;
+  readonly counts: ZoneCounts;
+  readonly commitCount: number;
+  readonly removeCount: number;
+  readonly undoCount: number;
+  readonly lastDirtyChunkCount: number;
+  readonly chunkRebuildCount: number;
+  readonly terrainRevision: number;
+  readonly waterSourceTerrainRevision: number;
+  readonly roadRevision: number;
+  readonly undoKind: 'terraform' | 'road' | 'zone' | null;
+  readonly invalidReason: ZoneInvalidReason | null;
+  readonly committedRootCount: number;
+  readonly previewRootCount: number;
+  readonly invalidMarkerCount: number;
   readonly previewBounds: RoadPreviewBoundsEvidence | null;
 }
 
@@ -92,6 +117,7 @@ export interface InteractionEvidence {
   readonly water: WaterInteractionEvidence;
   readonly terraform: TerraformInteractionEvidence;
   readonly road: RoadInteractionEvidence;
+  readonly zone: ZoneInteractionEvidence;
   readonly sceneRootCounts: {
     readonly terrain: number;
     readonly water: number;
@@ -100,6 +126,8 @@ export interface InteractionEvidence {
     readonly preview: number;
     readonly roadCommitted: number;
     readonly roadPreview: number;
+    readonly zoneCommitted: number;
+    readonly zonePreview: number;
   };
 }
 
@@ -122,6 +150,10 @@ export interface InteractionEvidenceSource {
     | 'previewNoChangeCount'
     | 'previewWaterCount'
     | 'previewRejectedMarkerCount'
+  >;
+  getZoneEvidence(): Omit<
+    ZoneInteractionEvidence,
+    'committedRootCount' | 'previewRootCount' | 'invalidMarkerCount' | 'previewBounds'
   >;
   getRoadEvidence(): Omit<
     RoadInteractionEvidence,
@@ -191,13 +223,20 @@ function countRoadPreviewRoots(scene: THREE.Scene): number {
   );
 }
 
-function roadPreviewBounds(scene: THREE.Scene): RoadPreviewBoundsEvidence | null {
+function countZonePreviewRoots(scene: THREE.Scene): number {
+  return (
+    countRoots(scene, 'zone-preview-root-valid') + countRoots(scene, 'zone-preview-root-invalid')
+  );
+}
+
+function namedPreviewBounds(
+  scene: THREE.Scene,
+  rootNames: readonly string[],
+): RoadPreviewBoundsEvidence | null {
   const bounds = new THREE.Box3();
   let hasGeometry = false;
   for (const root of scene.children) {
-    if (root.name !== 'road-preview-root-valid' && root.name !== 'road-preview-root-invalid') {
-      continue;
-    }
+    if (!rootNames.includes(root.name)) continue;
     root.updateMatrixWorld(true);
     root.traverse((object) => {
       if (!(object instanceof THREE.Mesh || object instanceof THREE.LineSegments)) return;
@@ -271,7 +310,22 @@ export function publishInteractionEvidence(source: InteractionEvidenceSource): v
         previewRootCount: countRoadPreviewRoots(source.scene),
         invalidMarkerCount: countNamedObjects(source.scene, 'road-preview-invalid-marker'),
         bulldozeMarkerCount: countNamedObjects(source.scene, 'road-preview-bulldoze-marker'),
-        previewBounds: roadPreviewBounds(source.scene),
+        previewBounds: namedPreviewBounds(source.scene, [
+          'road-preview-root-valid',
+          'road-preview-root-invalid',
+        ]),
+      };
+    },
+    get zone(): ZoneInteractionEvidence {
+      return {
+        ...source.getZoneEvidence(),
+        committedRootCount: countRoots(source.scene, 'zone-committed-root'),
+        previewRootCount: countZonePreviewRoots(source.scene),
+        invalidMarkerCount: countNamedObjects(source.scene, 'zone-preview-invalid-marker'),
+        previewBounds: namedPreviewBounds(source.scene, [
+          'zone-preview-root-valid',
+          'zone-preview-root-invalid',
+        ]),
       };
     },
     get sceneRootCounts() {
@@ -283,6 +337,8 @@ export function publishInteractionEvidence(source: InteractionEvidenceSource): v
         preview: countRoots(source.scene, 'terraform-preview-root'),
         roadCommitted: countRoots(source.scene, 'road-committed-root'),
         roadPreview: countRoadPreviewRoots(source.scene),
+        zoneCommitted: countRoots(source.scene, 'zone-committed-root'),
+        zonePreview: countZonePreviewRoots(source.scene),
       };
     },
   };

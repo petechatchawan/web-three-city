@@ -76,6 +76,7 @@ describe('createTerraformPreviewSceneModel', () => {
           valid: false,
           invalidReason: 'terraform:road-occupied',
           blockedRoadCells: Object.freeze([{ x: 3, z: 1 }]),
+          blockedZoneCells: Object.freeze([]),
         }),
       }),
     });
@@ -140,6 +141,7 @@ describe('createTerraformPreviewSceneModel', () => {
           valid: false,
           invalidReason: 'terraform:no-change',
           blockedRoadCells: Object.freeze([]),
+          blockedZoneCells: Object.freeze([]),
         }),
       }),
     });

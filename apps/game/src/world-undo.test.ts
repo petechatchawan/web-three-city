@@ -4,11 +4,17 @@ import {
   createRoadSnapshot,
 } from '@web-three-city/road-core';
 import { createTerrainMap } from '@web-three-city/terrain-core';
+import {
+  RESIDENTIAL_ZONE_CODE,
+  createZoneSnapshot,
+  zoneDefinitionCodeAt,
+} from '@web-three-city/zone-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { describe, expect, it } from 'vitest';
 import { WorldUndoStore } from './world-undo.js';
 
 const LATTICE_LENGTH = (WORLD_CONFIG.mapWidth + 1) * (WORLD_CONFIG.mapHeight + 1);
+const CELL_COUNT = WORLD_CONFIG.mapWidth * WORLD_CONFIG.mapHeight;
 
 function terrain(revision: number, level = 2) {
   return createTerrainMap({
@@ -22,9 +28,23 @@ function terrain(revision: number, level = 2) {
 }
 
 function roads(revision: number, x: number, z: number) {
-  const codes = new Uint8Array(WORLD_CONFIG.mapWidth * WORLD_CONFIG.mapHeight);
+  const codes = new Uint8Array(CELL_COUNT);
   codes[z * WORLD_CONFIG.mapWidth + x] = BASIC_ROAD_CODE;
   return createRoadSnapshot(
+    {
+      width: WORLD_CONFIG.mapWidth,
+      height: WORLD_CONFIG.mapHeight,
+      revision,
+      definitionCodes: codes,
+    },
+    WORLD_CONFIG,
+  );
+}
+
+function zones(revision: number, x: number, z: number) {
+  const codes = new Uint8Array(CELL_COUNT);
+  codes[z * WORLD_CONFIG.mapWidth + x] = RESIDENTIAL_ZONE_CODE;
+  return createZoneSnapshot(
     {
       width: WORLD_CONFIG.mapWidth,
       height: WORLD_CONFIG.mapHeight,
@@ -45,7 +65,11 @@ describe('WorldUndoStore', () => {
     store.replace({ kind: 'road', roads: roads(4, 3, 3) });
     expect(store.available).toBe(true);
     expect(store.kind).toBe('road');
-    expect(store.consume()).toMatchObject({ kind: 'road', roads: { revision: 6 } });
+
+    store.replace({ kind: 'zone', zones: zones(6, 4, 5) });
+    expect(store.available).toBe(true);
+    expect(store.kind).toBe('zone');
+    expect(store.consume()).toMatchObject({ kind: 'zone', zones: { revision: 8 } });
     expect(store.available).toBe(false);
     expect(store.kind).toBeNull();
     expect(store.consume()).toBeNull();
@@ -79,6 +103,21 @@ describe('WorldUndoStore', () => {
     if (entry?.kind !== 'road') return;
     expect(entry.roads.revision).toBe(9);
     expect(entry.roads.definitionCodes[8 * WORLD_CONFIG.mapWidth + 6]).toBe(BASIC_ROAD_CODE);
+  });
+
+  it('defensively copies Zone bytes and restores through a newer revision', () => {
+    const original = zones(9, 6, 8);
+    const store = new WorldUndoStore(WORLD_CONFIG);
+    store.replace({ kind: 'zone', zones: original });
+
+    const exposed = original.definitionCodes;
+    exposed[8 * WORLD_CONFIG.mapWidth + 6] = 0;
+    const entry = store.consume();
+    expect(entry?.kind).toBe('zone');
+    if (entry?.kind !== 'zone') return;
+    expect(entry.zones.revision).toBe(11);
+    expect(zoneDefinitionCodeAt(entry.zones, { x: 6, z: 8 })).toBe(RESIDENTIAL_ZONE_CODE);
+    expect(Object.isFrozen(entry)).toBe(true);
   });
 
   it('clears the slot on load and leaves an existing entry untouched when no replacement occurs', () => {

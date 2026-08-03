@@ -1,8 +1,12 @@
-import type { RoadInvalidReason } from '@web-three-city/road-core';
 import type { TerraformBrushSize } from '@web-three-city/terrain-core';
+import type { ZoneInvalidReason } from '@web-three-city/zone-core';
+import type { GameOperationReason } from './game-reason-catalog.js';
 import type { GameToolMode } from './game-tool-mode.js';
 import type { RoadInputState } from './road-stroke-controller.js';
 import type { TerraformStrokeSessionState } from './terraform-stroke-session.js';
+import type { ZoneInputState } from './zone-stroke-controller.js';
+
+export type GameTransactionDomain = 'terraform' | 'road' | 'zone';
 
 export type GameToolInteractionState =
   | { readonly kind: 'idle' }
@@ -10,9 +14,16 @@ export type GameToolInteractionState =
   | {
       readonly kind: 'road';
       readonly state: RoadInputState;
-      readonly reason: RoadInvalidReason | null;
+      readonly reason: GameOperationReason | null;
     }
-  | { readonly kind: 'committing'; readonly domain: 'terraform' | 'road' }
+  | {
+      readonly kind: 'zone';
+      readonly state: ZoneInputState;
+      readonly reason: ZoneInvalidReason | null;
+      readonly effectiveCellCount: number;
+      readonly invalidCellCount: number;
+    }
+  | { readonly kind: 'committing'; readonly domain: GameTransactionDomain }
   | { readonly kind: 'undoing' }
   | { readonly kind: 'blocking-recovery'; readonly message: string };
 
@@ -32,11 +43,18 @@ export type GameToolPresentationAction =
   | {
       readonly type: 'road-state';
       readonly state: RoadInputState;
-      readonly reason: RoadInvalidReason | null;
+      readonly reason: GameOperationReason | null;
+    }
+  | {
+      readonly type: 'zone-state';
+      readonly state: ZoneInputState;
+      readonly reason: ZoneInvalidReason | null;
+      readonly effectiveCellCount: number;
+      readonly invalidCellCount: number;
     }
   | { readonly type: 'set-undo-available'; readonly available: boolean }
   | { readonly type: 'set-message'; readonly message: string | null }
-  | { readonly type: 'set-committing'; readonly domain: 'terraform' | 'road' }
+  | { readonly type: 'set-committing'; readonly domain: GameTransactionDomain }
   | { readonly type: 'set-undoing' }
   | { readonly type: 'set-blocking-recovery'; readonly message: string }
   | { readonly type: 'set-idle' };
@@ -94,6 +112,18 @@ export function reduceGameToolPresentation(
         ...state,
         mode: action.state.mode ?? state.mode,
         interaction: { kind: 'road', state: action.state, reason: action.reason },
+      });
+    case 'zone-state':
+      return frozenState({
+        ...state,
+        mode: action.state.mode ?? state.mode,
+        interaction: {
+          kind: 'zone',
+          state: action.state,
+          reason: action.reason,
+          effectiveCellCount: action.effectiveCellCount,
+          invalidCellCount: action.invalidCellCount,
+        },
       });
     case 'set-undo-available':
       return frozenState({ ...state, undoAvailable: action.available });

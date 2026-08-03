@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { GAME_URL, readEvidence } from './helpers/interaction.js';
 
-const SAVE_KEY = 'web-three-city:world-save:v1';
+const SAVE_KEY = 'web-three-city:world-save:v2';
 
 async function waitForReady(page: import('@playwright/test').Page): Promise<void> {
   await page.goto(GAME_URL);
@@ -79,7 +79,7 @@ test('changes quality and round-trips world save data', async ({ page }) => {
   expect(saved).not.toBeNull();
   expect(JSON.parse(saved ?? '{}')).toMatchObject({
     kind: 'world-save',
-    schemaVersion: 1,
+    schemaVersion: 2,
   });
 
   await page.getByLabel('Quality').selectOption('low');
@@ -105,6 +105,8 @@ test('recovers presentation state after WebGL context loss', async ({ page }) =>
   const evidence = await readEvidence(page);
   expect(evidence.sceneRootCounts.roadCommitted).toBe(1);
   expect(evidence.sceneRootCounts.roadPreview).toBe(0);
+  expect(evidence.sceneRootCounts.zoneCommitted).toBe(1);
+  expect(evidence.sceneRootCounts.zonePreview).toBe(0);
 });
 
 test('boots Coastal Water and Roads with one presentation root each', async ({ page }) => {
@@ -150,16 +152,28 @@ test('restores exactly one Water and Road root after context restoration', async
   expect(evidence.sceneRootCounts.water).toBe(1);
   expect(evidence.sceneRootCounts.roadCommitted).toBe(1);
   expect(evidence.sceneRootCounts.roadPreview).toBe(0);
+  expect(evidence.sceneRootCounts.zoneCommitted).toBe(1);
+  expect(evidence.sceneRootCounts.zonePreview).toBe(0);
 });
 
-test('exposes Terraform and Road tools with mode-aware brush controls', async ({ page }) => {
+test('exposes Terraform, Road, and Zone tools with mode-aware brush controls', async ({ page }) => {
   await waitForReady(page);
 
   await expect(page.getByRole('button', { name: 'Navigate' })).toHaveAttribute(
     'aria-pressed',
     'true',
   );
-  for (const name of ['Raise', 'Lower', 'Flatten', 'Build Road', 'Bulldoze Road']) {
+  for (const name of [
+    'Raise',
+    'Lower',
+    'Flatten',
+    'Build Road',
+    'Bulldoze Road',
+    'Residential',
+    'Commercial',
+    'Industrial',
+    'Remove Zone',
+  ]) {
     await expect(page.getByRole('button', { name })).toHaveAttribute('aria-pressed', 'false');
   }
   await expect(page.getByTestId('terraform-brush-controls')).toBeHidden();
@@ -172,6 +186,10 @@ test('exposes Terraform and Road tools with mode-aware brush controls', async ({
     'true',
   );
   await expect(page.getByTestId('active-tool')).toHaveText('Build Road');
+  await expect(page.getByTestId('terraform-brush-controls')).toBeHidden();
+
+  await page.getByRole('button', { name: 'Residential' }).click();
+  await expect(page.getByTestId('active-tool')).toHaveText('Residential Zone');
   await expect(page.getByTestId('terraform-brush-controls')).toBeHidden();
 
   await page.getByRole('button', { name: 'Raise' }).click();

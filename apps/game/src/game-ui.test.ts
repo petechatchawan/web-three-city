@@ -33,6 +33,7 @@ function terraformContextFixture(): GameToolPresentationState {
             valid: false,
             invalidReason: 'terraform:road-occupied',
             blockedRoadCells: Object.freeze([{ x: 2, z: 1 }]),
+            blockedZoneCells: Object.freeze([]),
           }),
         }),
       }),

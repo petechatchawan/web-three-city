@@ -29,6 +29,10 @@ const toolActions: Readonly<Record<GameToolMode, string>> = Object.freeze({
   flatten: 'tool-flatten',
   'road-build': 'tool-road-build',
   'road-bulldoze': 'tool-road-bulldoze',
+  'zone-residential': 'tool-zone-residential',
+  'zone-commercial': 'tool-zone-commercial',
+  'zone-industrial': 'tool-zone-industrial',
+  'zone-remove': 'tool-zone-remove',
 });
 const brushActions = Object.freeze({ 1: 'brush-1', 3: 'brush-3', 5: 'brush-5' });
 const navigateButton = requireButton('tool-navigate');
@@ -45,7 +49,11 @@ function currentBrush(): TerraformBrushSize {
 
 function cancelPreviewOrCloseTool(): void {
   const evidence = window.__WEB_THREE_CITY_INTERACTION__;
-  if (evidence?.terraform.strokeActive === true || evidence?.road.strokeActive === true) {
+  if (
+    evidence?.terraform.strokeActive === true ||
+    evidence?.road.strokeActive === true ||
+    evidence?.zone.strokeActive === true
+  ) {
     dispatchGameToolCancel(canvas);
   } else {
     navigateButton.click();

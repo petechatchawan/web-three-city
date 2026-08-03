@@ -1,4 +1,5 @@
 import type { RoadMutationPlan } from '@web-three-city/road-core';
+import type { ZoneMutationPlan } from '@web-three-city/zone-core';
 import type { InteractionEvidence } from './interaction-evidence.js';
 import type { GameTransactionDomain, GameTransactionState } from './game-tool-events.js';
 import type { TerraformStrokeRelease } from './terraform-stroke-session.js';
@@ -16,6 +17,10 @@ const ROAD_COMMIT = Object.freeze({
   state: 'committing',
   domain: 'road',
 }) satisfies GameTransactionAnnouncement;
+const ZONE_COMMIT = Object.freeze({
+  state: 'committing',
+  domain: 'zone',
+}) satisfies GameTransactionAnnouncement;
 const TERRAFORM_UNDO = Object.freeze({
   state: 'undoing',
   domain: 'terraform',
@@ -23,6 +28,10 @@ const TERRAFORM_UNDO = Object.freeze({
 const ROAD_UNDO = Object.freeze({
   state: 'undoing',
   domain: 'road',
+}) satisfies GameTransactionAnnouncement;
+const ZONE_UNDO = Object.freeze({
+  state: 'undoing',
+  domain: 'zone',
 }) satisfies GameTransactionAnnouncement;
 
 export function terraformReleaseTransaction(
@@ -37,11 +46,18 @@ export function roadPlanTransaction(
   return plan?.valid === true ? ROAD_COMMIT : null;
 }
 
+export function zonePlanTransaction(
+  plan: ZoneMutationPlan | null,
+): GameTransactionAnnouncement | null {
+  return plan?.valid === true ? ZONE_COMMIT : null;
+}
+
 export function undoTransaction(
   evidence: InteractionEvidence | undefined,
 ): GameTransactionAnnouncement | null {
   const domain = evidence?.road.undoKind;
   if (domain === 'terraform') return TERRAFORM_UNDO;
   if (domain === 'road') return ROAD_UNDO;
+  if (domain === 'zone') return ZONE_UNDO;
   return null;
 }

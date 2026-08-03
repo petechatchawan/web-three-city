@@ -29,12 +29,14 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Apply browser contract fixes
+      - name: Apply deterministic browser and occupancy fixes
         run: |
-          test -f tooling/zoning-browser-fix.patch || exit 0
-          git apply tooling/zoning-browser-fix.patch
-      - run: pnpm exec prettier --check browser-tests/game.spec.ts browser-tests/zoning.spec.ts
+          test -f tooling/apply-zoning-browser-fix.py || exit 0
+          python tooling/apply-zoning-browser-fix.py
+      - run: pnpm exec prettier --check apps/game/src/terraform-occupancy-guard.ts apps/game/src/terraform-occupancy-guard.test.ts browser-tests/game.spec.ts browser-tests/zoning.spec.ts
+      - run: pnpm exec vitest run apps/game/src/terraform-occupancy-guard.test.ts
       - run: pnpm typecheck:browser
+      - run: pnpm --filter @web-three-city/game typecheck
       - run: pnpm build
       - run: pnpm exec playwright install chromium
       - name: Run focused failed browser tests
@@ -44,6 +46,7 @@ jobs:
           --grep "exposes Terraform, Road, and Zone tools|rejects depth four and preserves Zone invariants"
       - name: Commit verified browser fixes
         run: |
+          rm -f tooling/apply-zoning-browser-fix.py
           rm -f tooling/zoning-browser-fix.patch
           rm -f .github/workflows/zoning-browser-fix.yml
           git add -A
@@ -52,5 +55,5 @@ jobs:
           fi
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git commit -m "test: fix Zoning browser contracts [zoning-browser-fix]"
+          git commit -m "fix: prioritize Zoning occupancy diagnostics [zoning-browser-fix]"
           git push origin HEAD:agent/zoning-foundation-v0-1

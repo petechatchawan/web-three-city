@@ -1,11 +1,12 @@
-import { describe, expect, it } from 'vitest';
 import type { TerrainCellSurfaceProfile } from '@web-three-city/terrain-core';
 import type { WorldConfig } from '@web-three-city/world-core';
+import { describe, expect, it } from 'vitest';
 import {
   BuildingContractError,
   buildingAtCell,
   commitBuildingMutation,
   createEmptyBuildingSnapshot,
+  occupiedCellsForBuilding,
   planBuildingBulldoze,
   planBuildingDevelopment,
   type BuildingDevelopmentEnvironment,
@@ -116,7 +117,7 @@ describe('building mutation', () => {
     });
   });
 
-  it('fails closed for mixed Zones and stale source revisions', () => {
+  it('never spans mixed Zones and still develops compatible sub-lots', () => {
     const before = createEmptyBuildingSnapshot(CONFIG);
     const mixed = environment({
       zoneDefinitionIdAt(cell) {
@@ -125,8 +126,24 @@ describe('building mutation', () => {
         return null;
       },
     });
-    expect(planBuildingDevelopment(before, mixed, CONFIG).valid).toBe(false);
 
+    const plan = planBuildingDevelopment(before, mixed, CONFIG);
+
+    expect(plan.valid).toBe(true);
+    expect(plan.addedInstances.map((instance) => instance.buildingDefinitionId)).toEqual([
+      'commercial-shop-1x1',
+      'residential-cottage-1x1',
+    ]);
+    for (const instance of plan.addedInstances) {
+      const zoneIds = new Set(
+        occupiedCellsForBuilding(instance).map((cell) => mixed.zoneDefinitionIdAt(cell)),
+      );
+      expect(zoneIds.size).toBe(1);
+    }
+  });
+
+  it('rejects stale source revisions', () => {
+    const before = createEmptyBuildingSnapshot(CONFIG);
     const plan = planBuildingDevelopment(before, environment(), CONFIG);
     expect(() =>
       commitBuildingMutation(before, plan, environment({ roadRevision: 3 }), CONFIG),

@@ -6,8 +6,10 @@ FILES = [
     Path('tooling/generate-building-foundation-part3.mjs'),
 ]
 
+AMBIGUITY_GUARD = "  if (source.indexOf(search, index + search.length) >= 0) throw new Error(`authoring:ambiguous-pattern:${path}`);\n"
+
 for path in FILES:
-    source = path.read_text(encoding='utf-8')
+    source = path.read_text(encoding='utf-8').replace(AMBIGUITY_GUARD, '')
     cursor = 0
     pieces: list[str] = []
     while True:

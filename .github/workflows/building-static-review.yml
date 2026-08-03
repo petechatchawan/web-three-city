@@ -18,13 +18,24 @@ jobs:
         with:
           ref: agent/building-content-occupancy-v0-1
           fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: pnpm
+      - name: Install locked authoring dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Repair static-review patch matching
+        run: python3 tooling/repair-building-static-review-script.py
       - name: Apply static-review corrections
         run: node tooling/apply-building-static-review-fixes.mjs
+      - name: Format authored source and workflow files
+        run: pnpm exec prettier --write "**/*.{ts,js,yml,yaml}"
       - name: Remove temporary correction machinery
         run: |
+          rm tooling/repair-building-static-review-script.py
           rm tooling/apply-building-static-review-fixes.mjs
           rm .github/workflows/building-static-review.yml
       - name: Commit corrections

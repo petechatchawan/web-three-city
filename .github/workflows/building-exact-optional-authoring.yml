@@ -1,0 +1,44 @@
+name: Building Exact Optional Authoring
+
+on:
+  pull_request:
+    branches: [master]
+    types: [synchronize]
+
+permissions:
+  contents: write
+
+jobs:
+  author:
+    if: github.head_ref == 'agent/building-content-occupancy-v0-1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/building-content-occupancy-v0-1
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install locked authoring dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Apply exact optional correction
+        run: python3 tooling/fix_building_exact_optional.py
+      - name: Format corrected source
+        run: pnpm exec prettier --write apps/game/src/game-input.ts
+      - name: Remove temporary authoring machinery
+        run: |
+          rm tooling/fix_building_exact_optional.py
+          rm .github/workflows/building-exact-optional-authoring.yml
+      - name: Commit correction
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "fix: preserve exact optional Building input contract"
+          git push origin HEAD:agent/building-content-occupancy-v0-1

@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation and automated/manual test specifications are written on the feature branch. Verification is intentionally deferred until the Owner's final test pass.
+Implementation, deterministic browser acceptance, visual evidence capture, and automated/manual test specifications are written on the feature branch. Verification is intentionally deferred until the Owner's final test pass.
 
 ## Manual acceptance matrix
 

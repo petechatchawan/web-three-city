@@ -86,12 +86,7 @@ export interface RoadInteractionEvidence {
 }
 
 export interface ZoneInteractionEvidence {
-  readonly mode:
-    | 'zone-residential'
-    | 'zone-commercial'
-    | 'zone-industrial'
-    | 'zone-remove'
-    | null;
+  readonly mode: 'zone-residential' | 'zone-commercial' | 'zone-industrial' | 'zone-remove' | null;
   readonly strokeActive: boolean;
   readonly previewValid: boolean | null;
   readonly previewInvalidReason: ZoneInvalidReason | null;

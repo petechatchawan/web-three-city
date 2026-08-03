@@ -1130,6 +1130,11 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
         committedBuildingRevision: buildingsSnapshot.revision,
         count: buildingCount(buildingsSnapshot),
         occupiedCellCount: occupiedBuildingCellCount(buildingsSnapshot),
+        definitionIds: Object.freeze(
+          buildingsSnapshot.instances
+            .map((instance) => instance.buildingDefinitionId)
+            .sort((first, second) => first.localeCompare(second)),
+        ),
         commitCount: buildingCommitCount,
         bulldozeCount: buildingBulldozeCount,
         undoCount: buildingUndoCount,

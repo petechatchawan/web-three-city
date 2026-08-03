@@ -3,6 +3,7 @@ import { buildingDefinitionForId } from './building-definitions.js';
 import { isBuildingRotationQuarterTurns } from './building-footprint.js';
 import { createBuildingSnapshot } from './building-snapshot.js';
 import type {
+  BuildingDefinition,
   BuildingDefinitionId,
   BuildingInstance,
   BuildingRotationQuarterTurns,
@@ -83,7 +84,7 @@ export function decodeBuildingSaveV1(
       typeof candidate.instanceId !== 'string' ||
       candidate.instanceId.length === 0 ||
       typeof candidate.buildingDefinitionId !== 'string' ||
-      candidate.buildingDefinitionVersion !== 1 ||
+      !Number.isSafeInteger(candidate.buildingDefinitionVersion) ||
       !isRecord(candidate.originCell) ||
       !Number.isInteger(candidate.originCell.x) ||
       !Number.isInteger(candidate.originCell.z) ||
@@ -92,7 +93,7 @@ export function decodeBuildingSaveV1(
       return err({ code: 'building-save:invalid-instance' });
     }
 
-    let definition;
+    let definition: BuildingDefinition;
     try {
       definition = buildingDefinitionForId(candidate.buildingDefinitionId as BuildingDefinitionId);
     } catch {

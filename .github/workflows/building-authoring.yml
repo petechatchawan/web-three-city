@@ -1,17 +1,16 @@
 name: Building Foundation Authoring
 
 on:
-  push:
-    branches:
-      - agent/building-content-occupancy-v0-1
-    paths:
-      - '.github/workflows/building-authoring.yml'
+  pull_request:
+    branches: [master]
+    types: [opened]
 
 permissions:
   contents: write
 
 jobs:
   author:
+    if: github.head_ref == 'agent/building-content-occupancy-v0-1'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -33,8 +32,9 @@ jobs:
           node tooling/generate-building-foundation-part3.mjs
       - name: Refresh workspace lockfile only
         run: pnpm install --lockfile-only
-      - name: Remove temporary authoring machinery
+      - name: Remove temporary authoring machinery and restore CI
         run: |
+          git checkout origin/master -- .github/workflows/ci.yml
           rm tooling/generate-building-foundation-part1.mjs
           rm tooling/generate-building-foundation-part2.mjs
           rm tooling/generate-building-foundation-part3.mjs

@@ -1,0 +1,56 @@
+name: Zoning browser fix
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: zoning-browser-fix
+  cancel-in-progress: true
+
+jobs:
+  verify-and-commit:
+    if: github.head_ref == 'agent/zoning-foundation-v0-1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/zoning-foundation-v0-1
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Apply browser contract fixes
+        run: |
+          test -f tooling/zoning-browser-fix.patch || exit 0
+          git apply tooling/zoning-browser-fix.patch
+      - run: pnpm exec prettier --check browser-tests/game.spec.ts browser-tests/zoning.spec.ts
+      - run: pnpm typecheck:browser
+      - run: pnpm --filter @web-three-city/game build
+      - run: pnpm exec playwright install chromium
+      - name: Run focused failed browser tests
+        run: >-
+          pnpm exec playwright test
+          browser-tests/game.spec.ts browser-tests/zoning.spec.ts
+          --grep "exposes Terraform, Road, and Zone tools|rejects depth four and preserves Zone invariants"
+      - name: Commit verified browser fixes
+        run: |
+          rm -f tooling/zoning-browser-fix.patch
+          rm -f .github/workflows/zoning-browser-fix.yml
+          git add -A
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git commit -m "test: fix Zoning browser contracts [zoning-browser-fix]"
+          git push origin HEAD:agent/zoning-foundation-v0-1

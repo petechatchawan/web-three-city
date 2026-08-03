@@ -17,10 +17,7 @@ import { decodeWorldSave, encodeWorldSaveV2, encodeWorldSaveV3 } from './world-s
 
 const CELL_COUNT = WORLD_CONFIG.mapWidth * WORLD_CONFIG.mapHeight;
 const LATTICE_COUNT = (WORLD_CONFIG.mapWidth + 1) * (WORLD_CONFIG.mapHeight + 1);
-const ROAD_CELLS = Object.freeze([
-  Object.freeze({ x: 4, z: 4 }),
-  Object.freeze({ x: 5, z: 4 }),
-]);
+const ROAD_CELLS = Object.freeze([Object.freeze({ x: 4, z: 4 }), Object.freeze({ x: 5, z: 4 })]);
 const BUILDING_CELLS = Object.freeze([
   Object.freeze({ x: 4, z: 5 }),
   Object.freeze({ x: 5, z: 5 }),
@@ -91,10 +88,7 @@ function buildings(instances: readonly BuildingInstance[] = [office()]): Buildin
 
 describe('WorldSaveV3 buildings', () => {
   it('migrates WorldSaveV2 to an authoritative empty Building snapshot', () => {
-    const decoded = decodeWorldSave(
-      encodeWorldSaveV2(terrain(), roads(), zones()),
-      WORLD_CONFIG,
-    );
+    const decoded = decodeWorldSave(encodeWorldSaveV2(terrain(), roads(), zones()), WORLD_CONFIG);
 
     expect(decoded.ok).toBe(true);
     if (!decoded.ok) return;
@@ -234,9 +228,7 @@ describe('WorldSaveV3 buildings', () => {
         terrain(),
         roads(),
         zones((_cell, index) =>
-          index === BUILDING_CELLS.length - 1
-            ? RESIDENTIAL_ZONE_CODE
-            : COMMERCIAL_ZONE_CODE,
+          index === BUILDING_CELLS.length - 1 ? RESIDENTIAL_ZONE_CODE : COMMERCIAL_ZONE_CODE,
         ),
         buildings(),
       ),

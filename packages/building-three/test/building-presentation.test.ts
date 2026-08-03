@@ -87,7 +87,9 @@ describe('BuildingPresentation', () => {
       'workshop',
     ]);
     const shop = presentation.root.children.find((child) => child.userData.instanceId === 'shop');
-    const office = presentation.root.children.find((child) => child.userData.instanceId === 'office');
+    const office = presentation.root.children.find(
+      (child) => child.userData.instanceId === 'office',
+    );
     const warehouse = presentation.root.children.find(
       (child) => child.userData.instanceId === 'warehouse',
     );

@@ -14,7 +14,9 @@ function roadPlan(valid: boolean): RoadMutationPlan {
   return { valid } as RoadMutationPlan;
 }
 
-function evidence(undoKind: 'terraform' | 'road' | 'zone' | null): InteractionEvidence {
+function evidence(
+  undoKind: 'terraform' | 'road' | 'zone' | 'building' | null,
+): InteractionEvidence {
   return {
     road: { undoKind },
   } as unknown as InteractionEvidence;
@@ -70,6 +72,10 @@ describe('game transaction presentation ownership', () => {
     expect(undoTransaction(evidence('zone'))).toEqual({
       state: 'undoing',
       domain: 'zone',
+    });
+    expect(undoTransaction(evidence('building'))).toEqual({
+      state: 'undoing',
+      domain: 'building',
     });
     expect(undoTransaction(evidence(null))).toBeNull();
     expect(undoTransaction(undefined)).toBeNull();

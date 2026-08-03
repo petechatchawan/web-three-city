@@ -31,7 +31,9 @@ const FLAT = Object.freeze({
   slopeAxis: null,
 }) as TerrainCellSurfaceProfile;
 
-function environment(overrides: Partial<BuildingDevelopmentEnvironment> = {}): BuildingDevelopmentEnvironment {
+function environment(
+  overrides: Partial<BuildingDevelopmentEnvironment> = {},
+): BuildingDevelopmentEnvironment {
   return Object.freeze({
     terrainRevision: 5,
     waterSourceTerrainRevision: 5,
@@ -45,7 +47,11 @@ function environment(overrides: Partial<BuildingDevelopmentEnvironment> = {}): B
     },
     roadAccessAt(cell) {
       return cell.z === 1
-        ? Object.freeze({ direction: 'north', distance: 1, roadCell: Object.freeze({ x: cell.x, z: 0 }) })
+        ? Object.freeze({
+            direction: 'north',
+            distance: 1,
+            roadCell: Object.freeze({ x: cell.x, z: 0 }),
+          })
         : null;
     },
     ...overrides,

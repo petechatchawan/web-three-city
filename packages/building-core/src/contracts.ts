@@ -1,6 +1,10 @@
 import type { ChunkCoord, TerrainCellSurfaceProfile } from '@web-three-city/terrain-core';
 import type { CellCoord } from '@web-three-city/world-core';
-import type { ZoneDefinitionId, ZoneRoadAccess, ZoneRoadDirection } from '@web-three-city/zone-core';
+import type {
+  ZoneDefinitionId,
+  ZoneRoadAccess,
+  ZoneRoadDirection,
+} from '@web-three-city/zone-core';
 
 export type BuildingDefinitionId =
   | 'residential-cottage-1x1'
@@ -13,12 +17,7 @@ export type BuildingDefinitionId =
 export type BuildingDefinitionVersion = 1;
 export type BuildingRotationQuarterTurns = 0 | 1 | 2 | 3;
 export type BuildingPrototypeId =
-  | 'cottage'
-  | 'rowhouse'
-  | 'shop'
-  | 'office'
-  | 'workshop'
-  | 'warehouse';
+  'cottage' | 'rowhouse' | 'shop' | 'office' | 'workshop' | 'warehouse';
 export type BuildingOperation = 'develop' | 'bulldoze';
 
 export interface BuildingDefinition {

@@ -5,5 +5,8 @@ test('captures the Building Foundation empty-world baseline', async ({ page }, t
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(GAME_URL);
   await expect(page.getByTestId('game-status')).toHaveText('Ready');
-  await page.screenshot({ path: testInfo.outputPath('building-foundation-baseline.png'), fullPage: true });
+  await page.screenshot({
+    path: testInfo.outputPath('building-foundation-baseline.png'),
+    fullPage: true,
+  });
 });

@@ -34,10 +34,18 @@ function environment(): BuildingDevelopmentEnvironment {
     zoneDefinitionIdAt: () => 'commercial',
     roadAccessAt(cell) {
       if (cell.x === 2 && cell.z === 2) {
-        return Object.freeze({ direction: 'east', distance: 1, roadCell: Object.freeze({ x: 4, z: 2 }) });
+        return Object.freeze({
+          direction: 'east',
+          distance: 1,
+          roadCell: Object.freeze({ x: 4, z: 2 }),
+        });
       }
       if (cell.x === 3 && cell.z === 2) {
-        return Object.freeze({ direction: 'north', distance: 1, roadCell: Object.freeze({ x: 3, z: 1 }) });
+        return Object.freeze({
+          direction: 'north',
+          distance: 1,
+          roadCell: Object.freeze({ x: 3, z: 1 }),
+        });
       }
       return null;
     },

@@ -12,7 +12,13 @@ describe('building development environment', () => {
     if (!generated.ok) throw new Error(generated.error.code);
     const water = deriveWaterSnapshot(generated.value, WORLD_CONFIG);
     if (!water.ok) throw new Error(water.error.code);
-    const environment = createBuildingDevelopmentEnvironment(generated.value, water.value, createEmptyRoadSnapshot(WORLD_CONFIG), createEmptyZoneSnapshot(WORLD_CONFIG), WORLD_CONFIG);
+    const environment = createBuildingDevelopmentEnvironment(
+      generated.value,
+      water.value,
+      createEmptyRoadSnapshot(WORLD_CONFIG),
+      createEmptyZoneSnapshot(WORLD_CONFIG),
+      WORLD_CONFIG,
+    );
     expect(environment.terrainRevision).toBe(generated.value.revision);
     expect(environment.waterSourceTerrainRevision).toBe(generated.value.revision);
     expect(environment.zoneDefinitionIdAt({ x: 0, z: 0 })).toBeNull();

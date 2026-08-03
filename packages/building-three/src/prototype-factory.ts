@@ -26,11 +26,12 @@ export function createBuildingPrototype(
   group.name = 'building-instance';
   group.userData.instanceId = instance.instanceId;
   group.userData.definitionId = definition.id;
-  const bodyMaterial = definition.compatibleZoneDefinitionIds[0] === 'residential'
-    ? materials.residential
-    : definition.compatibleZoneDefinitionIds[0] === 'commercial'
-      ? materials.commercial
-      : materials.industrial;
+  const bodyMaterial =
+    definition.compatibleZoneDefinitionIds[0] === 'residential'
+      ? materials.residential
+      : definition.compatibleZoneDefinitionIds[0] === 'commercial'
+        ? materials.commercial
+        : materials.industrial;
   const h = definition.prototypeHeight;
 
   switch (definition.prototypeId) {
@@ -49,7 +50,8 @@ export function createBuildingPrototype(
       break;
     case 'office':
       addBox(group, [1.65, h, 1.65], [0, h * 0.5, 0], bodyMaterial, 'building-body');
-      for (const y of [0.45, 0.95, 1.45]) addBox(group, [1.72, 0.06, 1.72], [0, y, 0], materials.accent, 'building-floor-band');
+      for (const y of [0.45, 0.95, 1.45])
+        addBox(group, [1.72, 0.06, 1.72], [0, y, 0], materials.accent, 'building-floor-band');
       break;
     case 'workshop':
       addBox(group, [0.82, h * 0.75, 1.68], [0, h * 0.375, 0], bodyMaterial, 'building-body');

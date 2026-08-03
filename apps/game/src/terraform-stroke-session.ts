@@ -1,3 +1,4 @@
+import type { BuildingSnapshot } from '@web-three-city/building-core';
 import type { RoadSnapshot } from '@web-three-city/road-core';
 import { createEmptyZoneSnapshot, type ZoneSnapshot } from '@web-three-city/zone-core';
 import {
@@ -67,6 +68,7 @@ export interface CreateTerraformStrokeSessionOptions {
   readonly getTerrainSnapshot: () => TerrainSnapshot;
   readonly getRoadSnapshot: () => RoadSnapshot;
   readonly getZoneSnapshot?: () => ZoneSnapshot;
+  readonly getBuildingSnapshot?: () => BuildingSnapshot;
   readonly onState: (state: TerraformStrokeSessionState) => void;
 }
 
@@ -100,6 +102,7 @@ export function createTerraformStrokeSession(
   let capturedTerrain: TerrainSnapshot | null = null;
   let capturedRoads: RoadSnapshot | null = null;
   let capturedZones: ZoneSnapshot | null = null;
+  let capturedBuildings: BuildingSnapshot | null = null;
   let lastSampledAnchor: CellCoord | null = null;
   const visitedAnchors = new Set<string>();
   let acceptedAnchors: CellCoord[] = [];
@@ -126,6 +129,7 @@ export function createTerraformStrokeSession(
     capturedTerrain = null;
     capturedRoads = null;
     capturedZones = null;
+    capturedBuildings = null;
     lastSampledAnchor = null;
     visitedAnchors.clear();
     acceptedAnchors = [];
@@ -164,7 +168,12 @@ export function createTerraformStrokeSession(
       inputFor(tentativeAnchors),
       options.config,
     );
-    const guarded = guardTerraformPlanWithOccupancy(corePlan, capturedRoads, capturedZones);
+    const guarded = guardTerraformPlanWithOccupancy(
+      corePlan,
+      capturedRoads,
+      capturedZones,
+      capturedBuildings ?? undefined,
+    );
 
     if (guarded.valid) {
       if (acceptedPlan !== null && sameProjectedLattice(acceptedPlan, guarded.corePlan)) {
@@ -222,6 +231,7 @@ export function createTerraformStrokeSession(
       capturedTerrain = options.getTerrainSnapshot();
       capturedRoads = options.getRoadSnapshot();
       capturedZones = options.getZoneSnapshot?.() ?? createEmptyZoneSnapshot(options.config);
+      capturedBuildings = options.getBuildingSnapshot?.() ?? null;
       lastSampledAnchor = null;
       visitedAnchors.clear();
       acceptedAnchors = [];

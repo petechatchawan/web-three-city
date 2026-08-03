@@ -67,19 +67,20 @@ import * as THREE from 'three';
 import { createBuildingDevelopmentEnvironment } from './building-development-environment.js';
 import { createBuildingWorldOccupancy } from './building-world-occupancy.js';
 import { createGameInput, type GameRenderViewport } from './game-input.js';
+import { dispatchGameTransactionState } from './game-tool-events.js';
 import type { BuildingToolMode, GameToolMode } from './game-tool-mode.js';
 import {
   publishInteractionEvidence,
   type WaterInteractionEvidence,
 } from './interaction-evidence.js';
-import { guardRoadPlanWithBuildings, type GameRoadBuildingInvalidReason } from './road-building-guard.js';
+import {
+  guardRoadPlanWithBuildings,
+  type GameRoadBuildingInvalidReason,
+} from './road-building-guard.js';
 import { guardRoadPlanWithZones } from './road-zone-guard.js';
 import { createRoadPlacementEnvironment } from './road-placement-environment.js';
 import { guardTerraformPlanWithOccupancy } from './terraform-occupancy-guard.js';
-import {
-  createZonePlacementEnvironment,
-  type ZoneWorldOccupancy,
-} from './zone-placement-environment.js';
+import { createZonePlacementEnvironment } from './zone-placement-environment.js';
 import { decodeWorldSave, encodeWorldSaveV3, type DecodedWorldState } from './world-save.js';
 import { guardZonePlanWithBuildings, type GameZoneInvalidReason } from './zone-building-guard.js';
 import { WorldUndoStore, type WorldUndoEntry } from './world-undo.js';
@@ -176,8 +177,6 @@ function requireWater(snapshot: TerrainSnapshot): WaterSnapshot {
   return result.value;
 }
 
-const EMPTY_WORLD_OCCUPANCY: ZoneWorldOccupancy = Object.freeze({ revision: 0, isBlocked: () => false });
-
 function stageTerrainWorld(
   terrain: TerrainSnapshot,
   roads: RoadSnapshot,
@@ -194,7 +193,13 @@ function stageTerrainWorld(
     zones,
     zoneEnvironment: createZonePlacementEnvironment(terrain, water, roads, occupancy, WORLD_CONFIG),
     buildings,
-    buildingEnvironment: createBuildingDevelopmentEnvironment(terrain, water, roads, zones, WORLD_CONFIG),
+    buildingEnvironment: createBuildingDevelopmentEnvironment(
+      terrain,
+      water,
+      roads,
+      zones,
+      WORLD_CONFIG,
+    ),
   });
 }
 
@@ -290,8 +295,12 @@ function statusForRoadPlan(
   return 'Road rejected';
 }
 
-function statusForZonePlan(plan: ZoneMutationPlan, routedReason: GameZoneInvalidReason | null = plan.invalidReason): string {
-  if (plan.valid && routedReason === null) return plan.operation === 'paint' ? 'Zone painted' : 'Zone removed';
+function statusForZonePlan(
+  plan: ZoneMutationPlan,
+  routedReason: GameZoneInvalidReason | null = plan.invalidReason,
+): string {
+  if (plan.valid && routedReason === null)
+    return plan.operation === 'paint' ? 'Zone painted' : 'Zone removed';
   if (routedReason === 'zone:building-occupied') return 'Zone blocked by building';
   if (plan.invalidReason === 'zone:road-access-required') return 'Zone needs road access';
   if (plan.invalidReason === 'zone:wet-cell') return 'Zone blocked by water';
@@ -309,7 +318,8 @@ function statusForBuildingPlan(plan: BuildingMutationPlan): string {
   if (plan.invalidReason === 'building:road-access-required') return 'Building needs Road frontage';
   if (plan.invalidReason === 'building:mixed-zone') return 'Building lot spans mixed Zones';
   if (plan.invalidReason === 'building:wet-cell') return 'Building blocked by water';
-  if (plan.invalidReason === 'building:unsupported-terrain') return 'Building requires flat terrain';
+  if (plan.invalidReason === 'building:unsupported-terrain')
+    return 'Building requires flat terrain';
   return 'Building rejected';
 }
 
@@ -433,7 +443,9 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
   );
   const buildingPresentation = new BuildingPresentation(
     scene,
-    (cell) => terrainCellSurfaceProfile(zoneSurfaceSnapshot, cell, WORLD_CONFIG).minimumLevel * WORLD_CONFIG.heightStep,
+    (cell) =>
+      terrainCellSurfaceProfile(zoneSurfaceSnapshot, cell, WORLD_CONFIG).minimumLevel *
+      WORLD_CONFIG.heightStep,
     WORLD_CONFIG,
   );
 
@@ -499,7 +511,6 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
       buildingsSnapshot = nextWorld.buildings;
       buildingEnvironment = nextWorld.buildingEnvironment;
       ui.setZoneCounts(zoneCounts(zonesSnapshot));
-  ui.setBuildingCount(buildingCount(buildingsSnapshot));
       ui.setBuildingCount(buildingCount(buildingsSnapshot));
       waterPresentationDurationMs = nextWaterPresentationDurationMs;
       waterBuildMetrics = stagedWaterBuildMetrics;
@@ -543,7 +554,12 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
   };
 
   const applyTerraformPlan = (plan: TerraformPlan): void => {
-    const candidate = guardTerraformPlanWithOccupancy(plan, roadsSnapshot, zonesSnapshot, buildingsSnapshot);
+    const candidate = guardTerraformPlanWithOccupancy(
+      plan,
+      roadsSnapshot,
+      zonesSnapshot,
+      buildingsSnapshot,
+    );
     if (!candidate.valid) {
       ui.setStatus(
         candidate.invalidReason === 'terraform:building-occupied'
@@ -551,8 +567,8 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
           : candidate.invalidReason === 'terraform:zone-occupied'
             ? 'Terraform blocked by zone'
             : candidate.invalidReason === 'terraform:road-occupied'
-            ? 'Terraform blocked by road'
-            : 'Terraform rejected',
+              ? 'Terraform blocked by road'
+              : 'Terraform rejected',
       );
       ui.setUndoAvailable(undoStore.available);
       return;
@@ -622,7 +638,13 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
         createBuildingWorldOccupancy(buildingsSnapshot),
         WORLD_CONFIG,
       );
-      buildingEnvironment = createBuildingDevelopmentEnvironment(snapshot, waterSnapshot, roadsSnapshot, zonesSnapshot, WORLD_CONFIG);
+      buildingEnvironment = createBuildingDevelopmentEnvironment(
+        snapshot,
+        waterSnapshot,
+        roadsSnapshot,
+        zonesSnapshot,
+        WORLD_CONFIG,
+      );
       undoStore.replace({ kind: 'road', roads: before });
       roadLastDirtyChunkCount = committed.receipt.dirtyChunks.length;
       roadChunkRebuildCount += committed.receipt.dirtyChunks.length;
@@ -635,7 +657,10 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     ui.setUndoAvailable(undoStore.available);
   };
 
-  const applyZonePlan = (plan: ZoneMutationPlan, routedReason: GameZoneInvalidReason | null = plan.invalidReason): void => {
+  const applyZonePlan = (
+    plan: ZoneMutationPlan,
+    routedReason: GameZoneInvalidReason | null = plan.invalidReason,
+  ): void => {
     zoneInvalidReason = routedReason;
     const candidate = guardZonePlanWithBuildings(plan, buildingsSnapshot);
     const reason = routedReason ?? candidate.invalidReason;
@@ -647,10 +672,21 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
 
     const before = zonesSnapshot;
     try {
-      const committed = commitZoneMutation(zonesSnapshot, candidate.corePlan, zoneEnvironment, WORLD_CONFIG);
+      const committed = commitZoneMutation(
+        zonesSnapshot,
+        candidate.corePlan,
+        zoneEnvironment,
+        WORLD_CONFIG,
+      );
       zonePresentation.rebuildDirty(committed.snapshot, committed.receipt.dirtyChunks);
       zonesSnapshot = committed.snapshot;
-      buildingEnvironment = createBuildingDevelopmentEnvironment(snapshot, waterSnapshot, roadsSnapshot, zonesSnapshot, WORLD_CONFIG);
+      buildingEnvironment = createBuildingDevelopmentEnvironment(
+        snapshot,
+        waterSnapshot,
+        roadsSnapshot,
+        zonesSnapshot,
+        WORLD_CONFIG,
+      );
       undoStore.replace({ kind: 'zone', zones: before });
       zoneLastDirtyChunkCount = committed.receipt.dirtyChunks.length;
       zoneChunkRebuildCount += committed.receipt.dirtyChunks.length;
@@ -666,9 +702,10 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
   };
 
   const applyBuildingRequest = (mode: BuildingToolMode, cell: CellCoord): void => {
-    const plan = mode === 'building-develop'
-      ? planBuildingDevelopment(buildingsSnapshot, buildingEnvironment, WORLD_CONFIG)
-      : planBuildingBulldoze(buildingsSnapshot, cell, buildingEnvironment, WORLD_CONFIG);
+    const plan =
+      mode === 'building-develop'
+        ? planBuildingDevelopment(buildingsSnapshot, buildingEnvironment, WORLD_CONFIG)
+        : planBuildingBulldoze(buildingsSnapshot, cell, buildingEnvironment, WORLD_CONFIG);
     buildingInvalidReason = plan.invalidReason;
     if (!plan.valid) {
       ui.setStatus(statusForBuildingPlan(plan));
@@ -676,11 +713,23 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
       return;
     }
     const before = buildingsSnapshot;
+    dispatchGameTransactionState(ui.canvas, 'committing', 'building');
     try {
-      const committed = commitBuildingMutation(buildingsSnapshot, plan, buildingEnvironment, WORLD_CONFIG);
+      const committed = commitBuildingMutation(
+        buildingsSnapshot,
+        plan,
+        buildingEnvironment,
+        WORLD_CONFIG,
+      );
       buildingsSnapshot = committed.snapshot;
       buildingPresentation.load(buildingsSnapshot);
-      zoneEnvironment = createZonePlacementEnvironment(snapshot, waterSnapshot, roadsSnapshot, createBuildingWorldOccupancy(buildingsSnapshot), WORLD_CONFIG);
+      zoneEnvironment = createZonePlacementEnvironment(
+        snapshot,
+        waterSnapshot,
+        roadsSnapshot,
+        createBuildingWorldOccupancy(buildingsSnapshot),
+        WORLD_CONFIG,
+      );
       undoStore.replace({ kind: 'building', buildings: before });
       if (plan.operation === 'develop') buildingCommitCount += 1;
       else buildingBulldozeCount += 1;
@@ -716,9 +765,26 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     getRoadEnvironment: () => roadEnvironment,
     getZoneSnapshot: () => zonesSnapshot,
     getZoneEnvironment: () => zoneEnvironment,
+    getBuildingSnapshot: () => buildingsSnapshot,
     guardRoadPlan: (plan, baseRoads) => {
-      const zoneCandidate = guardRoadPlanWithZones(plan, baseRoads, zonesSnapshot, snapshot, waterSnapshot, createBuildingWorldOccupancy(buildingsSnapshot), WORLD_CONFIG);
-      return guardRoadPlanWithBuildings(zoneCandidate, baseRoads, buildingsSnapshot, snapshot, waterSnapshot, zonesSnapshot, WORLD_CONFIG);
+      const zoneCandidate = guardRoadPlanWithZones(
+        plan,
+        baseRoads,
+        zonesSnapshot,
+        snapshot,
+        waterSnapshot,
+        createBuildingWorldOccupancy(buildingsSnapshot),
+        WORLD_CONFIG,
+      );
+      return guardRoadPlanWithBuildings(
+        zoneCandidate,
+        baseRoads,
+        buildingsSnapshot,
+        snapshot,
+        waterSnapshot,
+        zonesSnapshot,
+        WORLD_CONFIG,
+      );
     },
     guardZonePlan: (plan) => guardZonePlanWithBuildings(plan, buildingsSnapshot),
     onSelection: setSelection,
@@ -790,7 +856,9 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
       input.clearActiveSession();
       localStorage.setItem(
         WORLD_SAVE_KEY,
-        JSON.stringify(encodeWorldSaveV3(snapshot, roadsSnapshot, zonesSnapshot, buildingsSnapshot)),
+        JSON.stringify(
+          encodeWorldSaveV3(snapshot, roadsSnapshot, zonesSnapshot, buildingsSnapshot),
+        ),
       );
       ui.setStatus('Saved');
     },
@@ -870,8 +938,16 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     listenerOptions,
   );
   ui.zoneRemoveButton.addEventListener('click', () => setToolMode('zone-remove'), listenerOptions);
-  ui.buildingDevelopButton.addEventListener('click', () => setToolMode('building-develop'), listenerOptions);
-  ui.buildingBulldozeButton.addEventListener('click', () => setToolMode('building-bulldoze'), listenerOptions);
+  ui.buildingDevelopButton.addEventListener(
+    'click',
+    () => setToolMode('building-develop'),
+    listenerOptions,
+  );
+  ui.buildingBulldozeButton.addEventListener(
+    'click',
+    () => setToolMode('building-bulldoze'),
+    listenerOptions,
+  );
   ui.brush1Button.addEventListener('click', () => setBrushSize(1), listenerOptions);
   ui.brush3Button.addEventListener('click', () => setBrushSize(3), listenerOptions);
   ui.brush5Button.addEventListener('click', () => setBrushSize(5), listenerOptions);
@@ -898,7 +974,14 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
             snapshot,
             waterSnapshot,
             roadsSnapshot,
-            EMPTY_WORLD_OCCUPANCY,
+            createBuildingWorldOccupancy(buildingsSnapshot),
+            WORLD_CONFIG,
+          );
+          buildingEnvironment = createBuildingDevelopmentEnvironment(
+            snapshot,
+            waterSnapshot,
+            roadsSnapshot,
+            zonesSnapshot,
             WORLD_CONFIG,
           );
           roadUndoCount += 1;
@@ -914,7 +997,13 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
         try {
           zonePresentation.rebuildDirty(entry.zones, dirtyChunks);
           zonesSnapshot = entry.zones;
-          buildingEnvironment = createBuildingDevelopmentEnvironment(snapshot, waterSnapshot, roadsSnapshot, zonesSnapshot, WORLD_CONFIG);
+          buildingEnvironment = createBuildingDevelopmentEnvironment(
+            snapshot,
+            waterSnapshot,
+            roadsSnapshot,
+            zonesSnapshot,
+            WORLD_CONFIG,
+          );
           zoneUndoCount += 1;
           zoneLastDirtyChunkCount = dirtyChunks.length;
           zoneChunkRebuildCount += dirtyChunks.length;
@@ -929,7 +1018,13 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
         try {
           buildingsSnapshot = entry.buildings;
           buildingPresentation.load(buildingsSnapshot);
-          zoneEnvironment = createZonePlacementEnvironment(snapshot, waterSnapshot, roadsSnapshot, createBuildingWorldOccupancy(buildingsSnapshot), WORLD_CONFIG);
+          zoneEnvironment = createZonePlacementEnvironment(
+            snapshot,
+            waterSnapshot,
+            roadsSnapshot,
+            createBuildingWorldOccupancy(buildingsSnapshot),
+            WORLD_CONFIG,
+          );
           buildingUndoCount += 1;
           buildingInvalidReason = null;
           ui.setBuildingCount(buildingCount(buildingsSnapshot));
@@ -1096,6 +1191,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
   ui.setBrushSize(1);
   ui.setUndoAvailable(false);
   ui.setZoneCounts(zoneCounts(zonesSnapshot));
+  ui.setBuildingCount(buildingCount(buildingsSnapshot));
   ui.setStatus('Ready');
   render();
 

@@ -11,7 +11,14 @@ import {
 } from '@web-three-city/zone-core';
 
 function validCell(cell: CellCoord, config: WorldConfig): boolean {
-  return Number.isInteger(cell.x) && Number.isInteger(cell.z) && cell.x >= 0 && cell.z >= 0 && cell.x < config.mapWidth && cell.z < config.mapHeight;
+  return (
+    Number.isInteger(cell.x) &&
+    Number.isInteger(cell.z) &&
+    cell.x >= 0 &&
+    cell.z >= 0 &&
+    cell.x < config.mapWidth &&
+    cell.z < config.mapHeight
+  );
 }
 
 export function createBuildingDevelopmentEnvironment(
@@ -21,10 +28,20 @@ export function createBuildingDevelopmentEnvironment(
   zones: ZoneSnapshot,
   config: WorldConfig,
 ): BuildingDevelopmentEnvironment {
-  if (terrain.width !== config.mapWidth || terrain.height !== config.mapHeight || roads.width !== config.mapWidth || roads.height !== config.mapHeight || zones.width !== config.mapWidth || zones.height !== config.mapHeight || water.width !== config.mapWidth || water.height !== config.mapHeight) {
+  if (
+    terrain.width !== config.mapWidth ||
+    terrain.height !== config.mapHeight ||
+    roads.width !== config.mapWidth ||
+    roads.height !== config.mapHeight ||
+    zones.width !== config.mapWidth ||
+    zones.height !== config.mapHeight ||
+    water.width !== config.mapWidth ||
+    water.height !== config.mapHeight
+  ) {
     throw new RangeError('building-environment:invalid-dimensions');
   }
-  if (water.sourceTerrainRevision !== terrain.revision) throw new RangeError('building-environment:incoherent-revision');
+  if (water.sourceTerrainRevision !== terrain.revision)
+    throw new RangeError('building-environment:incoherent-revision');
   const seaMask = water.seaTriangleMask.slice();
   const environment: BuildingDevelopmentEnvironment = Object.freeze({
     terrainRevision: terrain.revision,

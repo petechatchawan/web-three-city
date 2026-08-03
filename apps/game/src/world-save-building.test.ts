@@ -10,7 +10,14 @@ describe('WorldSaveV3 buildings', () => {
   it('migrates WorldSaveV2 to empty Buildings', () => {
     const terrain = generateCoastalTerrain({ seed: 1_464_156_977, config: WORLD_CONFIG });
     if (!terrain.ok) throw new Error(terrain.error.code);
-    const decoded = decodeWorldSave(encodeWorldSaveV2(terrain.value, createEmptyRoadSnapshot(WORLD_CONFIG), createEmptyZoneSnapshot(WORLD_CONFIG)), WORLD_CONFIG);
+    const decoded = decodeWorldSave(
+      encodeWorldSaveV2(
+        terrain.value,
+        createEmptyRoadSnapshot(WORLD_CONFIG),
+        createEmptyZoneSnapshot(WORLD_CONFIG),
+      ),
+      WORLD_CONFIG,
+    );
     expect(decoded.ok && decoded.value.buildings.instances).toHaveLength(0);
   });
 
@@ -18,6 +25,13 @@ describe('WorldSaveV3 buildings', () => {
     const terrain = generateCoastalTerrain({ seed: 1_464_156_977, config: WORLD_CONFIG });
     if (!terrain.ok) throw new Error(terrain.error.code);
     const buildings = createBuildingSnapshot({ revision: 0, instances: [] }, WORLD_CONFIG);
-    expect(encodeWorldSaveV3(terrain.value, createEmptyRoadSnapshot(WORLD_CONFIG), createEmptyZoneSnapshot(WORLD_CONFIG), buildings)).toMatchObject({ schemaVersion: 3, buildings: { schemaVersion: 1 } });
+    expect(
+      encodeWorldSaveV3(
+        terrain.value,
+        createEmptyRoadSnapshot(WORLD_CONFIG),
+        createEmptyZoneSnapshot(WORLD_CONFIG),
+        buildings,
+      ),
+    ).toMatchObject({ schemaVersion: 3, buildings: { schemaVersion: 1 } });
   });
 });

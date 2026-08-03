@@ -3,11 +3,7 @@ import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
 import { buildingDefinitions } from './building-definitions.js';
 import { occupiedCellsForBuilding } from './building-footprint.js';
 import { resolveBuildingFrontage } from './building-frontage.js';
-import {
-  buildingAtCell,
-  buildingInstances,
-  createBuildingSnapshot,
-} from './building-snapshot.js';
+import { buildingAtCell, buildingInstances, createBuildingSnapshot } from './building-snapshot.js';
 import {
   BuildingContractError,
   type BuildingDefinition,

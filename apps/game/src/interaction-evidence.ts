@@ -10,6 +10,7 @@ import type { ZoneCounts, ZoneInvalidReason } from '@web-three-city/zone-core';
 import * as THREE from 'three';
 import type { GameInput, GameRenderViewport } from './game-input.js';
 import type { GameTerraformInvalidReason } from './terraform-occupancy-guard.js';
+import type { GameZoneInvalidReason } from './zone-building-guard.js';
 import type { TerraformCurrentStamp } from './terraform-stroke-session.js';
 
 export interface WaterInteractionEvidence {
@@ -101,7 +102,7 @@ export interface ZoneInteractionEvidence {
   readonly waterSourceTerrainRevision: number;
   readonly roadRevision: number;
   readonly undoKind: 'terraform' | 'road' | 'zone' | 'building' | null;
-  readonly invalidReason: ZoneInvalidReason | null;
+  readonly invalidReason: GameZoneInvalidReason | null;
   readonly committedRootCount: number;
   readonly previewRootCount: number;
   readonly invalidMarkerCount: number;
@@ -339,7 +340,10 @@ export function publishInteractionEvidence(source: InteractionEvidenceSource): v
       };
     },
     get building(): BuildingInteractionEvidence {
-      return { ...source.getBuildingEvidence(), committedRootCount: countRoots(source.scene, 'building-committed-root') };
+      return {
+        ...source.getBuildingEvidence(),
+        committedRootCount: countRoots(source.scene, 'building-committed-root'),
+      };
     },
     get zone(): ZoneInteractionEvidence {
       return {

@@ -19,10 +19,17 @@ export interface BuildingToolController {
   getState(): BuildingInputState;
 }
 
-export function createBuildingToolController(getMode: () => BuildingToolMode | null): BuildingToolController {
+export function createBuildingToolController(
+  getMode: () => BuildingToolMode | null,
+): BuildingToolController {
   let activePointer: number | null = null;
   let activeCell: CellCoord | null = null;
-  const state = (): BuildingInputState => Object.freeze({ mode: getMode(), strokeActive: activePointer !== null, cell: activeCell === null ? null : Object.freeze({ ...activeCell }) });
+  const state = (): BuildingInputState =>
+    Object.freeze({
+      mode: getMode(),
+      strokeActive: activePointer !== null,
+      cell: activeCell === null ? null : Object.freeze({ ...activeCell }),
+    });
   return {
     begin(pointerId, cell) {
       if (getMode() === null || activePointer !== null) return false;
@@ -39,10 +46,20 @@ export function createBuildingToolController(getMode: () => BuildingToolMode | n
       const selected = cell ?? activeCell;
       activePointer = null;
       activeCell = null;
-      return mode === null || selected === null ? null : Object.freeze({ mode, cell: Object.freeze({ ...selected }) });
+      return mode === null || selected === null
+        ? null
+        : Object.freeze({ mode, cell: Object.freeze({ ...selected }) });
     },
-    cancel(pointerId) { if (activePointer === pointerId) { activePointer = null; activeCell = null; } },
-    cancelAll() { activePointer = null; activeCell = null; },
+    cancel(pointerId) {
+      if (activePointer === pointerId) {
+        activePointer = null;
+        activeCell = null;
+      }
+    },
+    cancelAll() {
+      activePointer = null;
+      activeCell = null;
+    },
     getState: state,
   };
 }

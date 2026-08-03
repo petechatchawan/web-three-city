@@ -1,5 +1,5 @@
 import type { TerraformBrushSize } from '@web-three-city/terrain-core';
-import type { ZoneInvalidReason } from '@web-three-city/zone-core';
+import type { GameZoneInvalidReason } from './zone-building-guard.js';
 import type { GameOperationReason } from './game-reason-catalog.js';
 import type { GameToolMode } from './game-tool-mode.js';
 import type { RoadInputState } from './road-stroke-controller.js';
@@ -19,7 +19,7 @@ export type GameToolInteractionState =
   | {
       readonly kind: 'zone';
       readonly state: ZoneInputState;
-      readonly reason: ZoneInvalidReason | null;
+      readonly reason: GameZoneInvalidReason | null;
       readonly effectiveCellCount: number;
       readonly invalidCellCount: number;
     }
@@ -48,7 +48,7 @@ export type GameToolPresentationAction =
   | {
       readonly type: 'zone-state';
       readonly state: ZoneInputState;
-      readonly reason: ZoneInvalidReason | null;
+      readonly reason: GameZoneInvalidReason | null;
       readonly effectiveCellCount: number;
       readonly invalidCellCount: number;
     }

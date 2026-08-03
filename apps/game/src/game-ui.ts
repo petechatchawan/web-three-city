@@ -299,8 +299,14 @@ export function renderGameUi(root: HTMLElement): GameUi {
     root,
     '[data-action="tool-zone-remove"]',
   );
-  const buildingDevelopButton = requireElement<HTMLButtonElement>(root, '[data-action="tool-building-develop"]');
-  const buildingBulldozeButton = requireElement<HTMLButtonElement>(root, '[data-action="tool-building-bulldoze"]');
+  const buildingDevelopButton = requireElement<HTMLButtonElement>(
+    root,
+    '[data-action="tool-building-develop"]',
+  );
+  const buildingBulldozeButton = requireElement<HTMLButtonElement>(
+    root,
+    '[data-action="tool-building-bulldoze"]',
+  );
   const closeToolButton = requireElement<HTMLButtonElement>(root, '[data-action="tool-close"]');
   const brushControls = requireElement<HTMLElement>(
     root,
@@ -416,7 +422,9 @@ export function renderGameUi(root: HTMLElement): GameUi {
           ? 'Terrain'
           : state.interaction.domain === 'road'
             ? 'Road'
-            : 'Zone';
+            : state.interaction.domain === 'zone'
+              ? 'Zone'
+              : 'Building';
       message ??= `Applying ${domain} change…`;
     } else if (state.interaction.kind === 'undoing') {
       stateLabel = 'Undoing';
@@ -543,7 +551,9 @@ export function renderGameUi(root: HTMLElement): GameUi {
       zoneCommercialCount.textContent = String(counts.commercial);
       zoneIndustrialCount.textContent = String(counts.industrial);
     },
-    setBuildingCount(count: number): void { buildingCountValue.textContent = String(count); },
+    setBuildingCount(count: number): void {
+      buildingCountValue.textContent = String(count);
+    },
     renderToolPresentation,
     setSecondaryControlsExpanded(expanded: boolean): void {
       secondaryControls.open = expanded;

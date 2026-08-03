@@ -43,10 +43,16 @@ describe('building snapshot', () => {
 
   it('rejects duplicate IDs, overlaps, and out-of-bounds footprints', () => {
     expect(() =>
-      createBuildingSnapshot({ revision: 0, instances: [instance('x', 0, 0), instance('x', 4, 4)] }, CONFIG),
+      createBuildingSnapshot(
+        { revision: 0, instances: [instance('x', 0, 0), instance('x', 4, 4)] },
+        CONFIG,
+      ),
     ).toThrow('building-snapshot:duplicate-instance-id');
     expect(() =>
-      createBuildingSnapshot({ revision: 0, instances: [instance('x', 0, 0), instance('y', 1, 1)] }, CONFIG),
+      createBuildingSnapshot(
+        { revision: 0, instances: [instance('x', 0, 0), instance('y', 1, 1)] },
+        CONFIG,
+      ),
     ).toThrow('building-snapshot:overlapping-footprint');
     expect(() =>
       createBuildingSnapshot({ revision: 0, instances: [instance('x', 7, 7)] }, CONFIG),

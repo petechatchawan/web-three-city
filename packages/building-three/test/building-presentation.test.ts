@@ -24,9 +24,27 @@ describe('BuildingPresentation', () => {
       {
         revision: 1,
         instances: [
-          Object.freeze({ instanceId: 'r', buildingDefinitionId: 'residential-cottage-1x1', buildingDefinitionVersion: 1, originCell: Object.freeze({ x: 1, z: 1 }), rotationQuarterTurns: 0 }),
-          Object.freeze({ instanceId: 'c', buildingDefinitionId: 'commercial-shop-1x1', buildingDefinitionVersion: 1, originCell: Object.freeze({ x: 3, z: 1 }), rotationQuarterTurns: 1 }),
-          Object.freeze({ instanceId: 'i', buildingDefinitionId: 'industrial-workshop-1x2', buildingDefinitionVersion: 1, originCell: Object.freeze({ x: 5, z: 1 }), rotationQuarterTurns: 0 }),
+          Object.freeze({
+            instanceId: 'r',
+            buildingDefinitionId: 'residential-cottage-1x1',
+            buildingDefinitionVersion: 1,
+            originCell: Object.freeze({ x: 1, z: 1 }),
+            rotationQuarterTurns: 0,
+          }),
+          Object.freeze({
+            instanceId: 'c',
+            buildingDefinitionId: 'commercial-shop-1x1',
+            buildingDefinitionVersion: 1,
+            originCell: Object.freeze({ x: 3, z: 1 }),
+            rotationQuarterTurns: 1,
+          }),
+          Object.freeze({
+            instanceId: 'i',
+            buildingDefinitionId: 'industrial-workshop-1x2',
+            buildingDefinitionVersion: 1,
+            originCell: Object.freeze({ x: 5, z: 1 }),
+            rotationQuarterTurns: 0,
+          }),
         ],
       },
       CONFIG,
@@ -34,7 +52,11 @@ describe('BuildingPresentation', () => {
     presentation.load(snapshot);
     expect(presentation.root.name).toBe('building-committed-root');
     expect(presentation.root.children).toHaveLength(3);
-    expect(presentation.root.children.map((child) => child.userData.instanceId)).toEqual(['r', 'c', 'i']);
+    expect(presentation.root.children.map((child) => child.userData.instanceId)).toEqual([
+      'r',
+      'c',
+      'i',
+    ]);
     expect(presentation.root.children[1]?.rotation.y).toBeCloseTo(-Math.PI / 2);
     presentation.dispose();
     expect(scene.getObjectByName('building-committed-root')).toBeUndefined();

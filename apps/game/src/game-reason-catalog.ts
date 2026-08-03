@@ -1,10 +1,13 @@
 import type { BuildingInvalidReason } from '@web-three-city/building-core';
-import type { ZoneInvalidReason } from '@web-three-city/zone-core';
 import type { GameRoadBuildingInvalidReason } from './road-building-guard.js';
 import type { GameTerraformInvalidReason } from './terraform-occupancy-guard.js';
 import type { GameZoneInvalidReason } from './zone-building-guard.js';
 
-export type GameOperationReason = GameTerraformInvalidReason | GameRoadBuildingInvalidReason | GameZoneInvalidReason | BuildingInvalidReason;
+export type GameOperationReason =
+  | GameTerraformInvalidReason
+  | GameRoadBuildingInvalidReason
+  | GameZoneInvalidReason
+  | BuildingInvalidReason;
 
 const GAME_REASON_MESSAGES = {
   'terraform:height-range': 'This terrain cannot move farther in that direction',
@@ -56,4 +59,6 @@ const GAME_REASON_MESSAGES = {
   'building:not-found': 'No building occupies the selected cell',
 } satisfies Readonly<Record<GameOperationReason, string>>;
 
-export function messageForGameReason(reason: GameOperationReason): string { return GAME_REASON_MESSAGES[reason]; }
+export function messageForGameReason(reason: GameOperationReason): string {
+  return GAME_REASON_MESSAGES[reason];
+}

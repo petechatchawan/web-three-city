@@ -187,7 +187,14 @@ export function bindGameToolHud(
           interactionActive = false;
           hideMetrics();
           setMutationBlocked(true);
-          const domain = detail.domain === 'terraform' ? 'Terrain' : detail.domain === 'road' ? 'Road' : detail.domain === 'zone' ? 'Zone' : 'Building';
+          const domain =
+            detail.domain === 'terraform'
+              ? 'Terrain'
+              : detail.domain === 'road'
+                ? 'Road'
+                : detail.domain === 'zone'
+                  ? 'Zone'
+                  : 'Building';
           if (detail.state === 'committing') {
             contextState.textContent = 'Applying change';
             contextMessage.textContent = `Applying ${domain} change…`;

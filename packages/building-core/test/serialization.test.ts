@@ -51,7 +51,15 @@ describe('building serialization', () => {
       decodeBuildingSaveV1(
         {
           ...base,
-          instances: [{ instanceId: 'x', buildingDefinitionId: 'missing', buildingDefinitionVersion: 1, originCell: { x: 0, z: 0 }, rotationQuarterTurns: 0 }],
+          instances: [
+            {
+              instanceId: 'x',
+              buildingDefinitionId: 'missing',
+              buildingDefinitionVersion: 1,
+              originCell: { x: 0, z: 0 },
+              rotationQuarterTurns: 0,
+            },
+          ],
         },
         CONFIG,
       ),
@@ -60,7 +68,15 @@ describe('building serialization', () => {
       decodeBuildingSaveV1(
         {
           ...base,
-          instances: [{ instanceId: 'x', buildingDefinitionId: 'residential-cottage-1x1', buildingDefinitionVersion: 1, originCell: { x: 0, z: 0 }, rotationQuarterTurns: 9 }],
+          instances: [
+            {
+              instanceId: 'x',
+              buildingDefinitionId: 'residential-cottage-1x1',
+              buildingDefinitionVersion: 1,
+              originCell: { x: 0, z: 0 },
+              rotationQuarterTurns: 9,
+            },
+          ],
         },
         CONFIG,
       ),

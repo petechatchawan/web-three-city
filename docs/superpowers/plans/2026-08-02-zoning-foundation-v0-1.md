@@ -1,6 +1,6 @@
 # Zoning Foundation v0.1 Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Deliver authoritative Residential, Commercial, and Industrial zoning with reversible Paint/Remove strokes, Road-access validation, atomic persistence, Undo, presentation, and exact-head browser verification.
 
@@ -79,7 +79,7 @@
 **Interfaces:**
 - Produces: `ZoneDefinitionId`, `ZoneDefinitionCode`, `ZoneSnapshot`, `createZoneSnapshot`, `createEmptyZoneSnapshot`, `zoneDefinitionCodeAt`, `zoneOccupiedAt`, `zoneCounts`, `zoneDefinitionForId`, `zoneDefinitionForCode`.
 
-- [ ] **Step 1: Write failing definition and snapshot tests**
+- [x] **Step 1: Write failing definition and snapshot tests**
 
 ```ts
 it('keeps stable definition ids and codes', () => {
@@ -107,23 +107,23 @@ it('derives exact R/C/I counts', () => {
 });
 ```
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 Run: `pnpm --filter @web-three-city/zone-core test`
 
 Expected: FAIL because package and exports do not exist.
 
-- [ ] **Step 3: Implement minimal immutable contracts and state**
+- [x] **Step 3: Implement minimal immutable contracts and state**
 
 Use a private `WeakMap<ZoneSnapshot, Uint8Array>` matching the Road snapshot defensive-copy pattern. Reject invalid dimensions, revisions, byte lengths, and codes with stable `zone-snapshot:*` errors.
 
-- [ ] **Step 4: Run GREEN**
+- [x] **Step 4: Run GREEN**
 
 Run: `pnpm --filter @web-three-city/zone-core test && pnpm --filter @web-three-city/zone-core typecheck`
 
 Expected: all Task 1 tests pass and TypeScript exits `0`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/zone-core
@@ -146,7 +146,7 @@ git commit -m "feat: add immutable Zone state"
 - Consumes: Task 1 snapshot and definition APIs plus `TerrainCellSurfaceProfile`, `ChunkCoord`, `WorldConfig`.
 - Produces: `ZonePlacementEnvironment`, `ZoneRoadAccess`, `ZoneInvalidReason`, `ZoneInvalidCell`, `ZoneMutationPlan`, `planZoneMutation`, `commitZoneMutation`.
 
-- [ ] **Step 1: Write failing Road-access tests**
+- [x] **Step 1: Write failing Road-access tests**
 
 ```ts
 it.each([1, 2, 3])('accepts a flat dry cell with committed Road at depth %s', (distance) => {
@@ -166,17 +166,17 @@ it('uses shortest distance then N/E/S/W tie breaking', () => {
 
 Cover blocked occupancy, wet intermediates, non-flat intermediates, grade discontinuity, and Ramp end-edge compatibility.
 
-- [ ] **Step 2: Run Road-access RED**
+- [x] **Step 2: Run Road-access RED**
 
 Run: `pnpm --filter @web-three-city/zone-core test -- road-access.test.ts`
 
 Expected: FAIL because `findZoneRoadAccess` does not exist.
 
-- [ ] **Step 3: Implement cardinal access evaluator**
+- [x] **Step 3: Implement cardinal access evaluator**
 
 Evaluate directions in `north`, `east`, `south`, `west` order and distances `1..3`. Validate every intermediate cell and the final Road edge using immutable environment facts; return the shortest deterministic route or `null`.
 
-- [ ] **Step 4: Write failing Paint/Remove plan tests**
+- [x] **Step 4: Write failing Paint/Remove plan tests**
 
 ```ts
 it('rejects the complete Paint transaction when one cell conflicts', () => {
@@ -201,23 +201,23 @@ it('removes invalid legacy Zones without placement eligibility', () => {
 
 Also cover Road occupancy, Water, Ramp Terrain, non-Zone occupancy, same-type no-op filtering, no-change, deterministic invalid precedence, stale Zone/Terrain/Water/Road/occupancy revision rejection, revision increment exactly once, and owning-chunk dirty derivation.
 
-- [ ] **Step 5: Run mutation RED**
+- [x] **Step 5: Run mutation RED**
 
 Run: `pnpm --filter @web-three-city/zone-core test -- zone-mutation.test.ts`
 
 Expected: FAIL because mutation APIs do not exist.
 
-- [ ] **Step 6: Implement plan and commit**
+- [x] **Step 6: Implement plan and commit**
 
 Planning must copy the code buffer, validate every Paint cell independently, collect all invalid diagnostics, select the transaction reason by the locked precedence, and never commit a valid subset. Commit must reject every stale captured revision and malformed plan before creating a snapshot at `revision + 1`.
 
-- [ ] **Step 7: Run Task 2 GREEN**
+- [x] **Step 7: Run Task 2 GREEN**
 
 Run: `pnpm --filter @web-three-city/zone-core test && pnpm --filter @web-three-city/zone-core typecheck`
 
 Expected: all Zone core tests pass.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add packages/zone-core
@@ -236,7 +236,7 @@ git commit -m "feat: plan and commit Zone mutations"
 **Interfaces:**
 - Produces: `ZoneSaveV1`, `encodeZoneSaveV1`, `decodeZoneSaveV1`, `ZoneSaveError`.
 
-- [ ] **Step 1: Write failing serialization tests**
+- [x] **Step 1: Write failing serialization tests**
 
 ```ts
 it('round-trips Zone bytes and revision exactly', () => {
@@ -255,19 +255,19 @@ it.each([
 });
 ```
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 Run: `pnpm --filter @web-three-city/zone-core test -- serialization.test.ts`
 
-- [ ] **Step 3: Implement strict Base64 encode/decode**
+- [x] **Step 3: Implement strict Base64 encode/decode**
 
 Match existing Road serialization conventions, validate the envelope before snapshot construction, and map constructor failures to stable `zone-save:*` codes.
 
-- [ ] **Step 4: Run GREEN and package build**
+- [x] **Step 4: Run GREEN and package build**
 
 Run: `pnpm --filter @web-three-city/zone-core test && pnpm --filter @web-three-city/zone-core build`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/zone-core
@@ -297,35 +297,35 @@ git commit -m "feat: serialize Zone state"
 - Consumes: Zone snapshot/plan and a read-only `surfaceAt(cell)` adapter.
 - Produces: `buildZoneOverlayMesh`, `ZoneChunkPresentation`, `ZonePreviewPresentation`.
 
-- [ ] **Step 1: Write failing geometry tests**
+- [x] **Step 1: Write failing geometry tests**
 
 Assert finite indexed geometry, centered world origin, inset cell bounds, `surfaceOffset = 0.03`, deterministic hashes, and separate material groups for Residential/Commercial/Industrial.
 
-- [ ] **Step 2: Run geometry RED**
+- [x] **Step 2: Run geometry RED**
 
 Run: `pnpm --filter @web-three-city/zone-three test -- zone-overlay-geometry.test.ts`
 
-- [ ] **Step 3: Implement minimal cell-local overlay geometry**
+- [x] **Step 3: Implement minimal cell-local overlay geometry**
 
 Generate one inset quad per zoned flat cell at the authoritative level plus `0.03`. Do not merge Zone geometry into Terrain, Water, or Road roots.
 
-- [ ] **Step 4: Write failing presentation tests**
+- [x] **Step 4: Write failing presentation tests**
 
 Cover atomic committed-root replacement, old-root preservation on replacement failure, disposal after successful swap, Preview footprint restricted to `plan.changedCells`, invalid markers restricted to `plan.invalidCells`, and complete clear on cancellation.
 
-- [ ] **Step 5: Run presentation RED**
+- [x] **Step 5: Run presentation RED**
 
 Run: `pnpm --filter @web-three-city/zone-three test -- zone-chunk-presentation.test.ts zone-preview-presentation.test.ts`
 
-- [ ] **Step 6: Implement committed and Preview presenters**
+- [x] **Step 6: Implement committed and Preview presenters**
 
 Use separate roots and materials. Valid Paint uses selected Zone tint; Remove uses removal tint over base cells; invalid Preview displays only requested invalid cells plus markers.
 
-- [ ] **Step 7: Run GREEN**
+- [x] **Step 7: Run GREEN**
 
 Run: `pnpm --filter @web-three-city/zone-three test && pnpm --filter @web-three-city/zone-three typecheck && pnpm --filter @web-three-city/zone-three build`
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add packages/zone-three pnpm-lock.yaml
@@ -348,7 +348,7 @@ git commit -m "feat: render Zone overlays and Preview"
 **Interfaces:**
 - Produces: `createReversibleCellTrace`, `ZoneStrokeController`, `createZoneStrokeController`.
 
-- [ ] **Step 1: Write failing shared-trace tests**
+- [x] **Step 1: Write failing shared-trace tests**
 
 ```ts
 it('pops the exact reverse tail and branches from the retained cell', () => {
@@ -362,25 +362,25 @@ it('pops the exact reverse tail and branches from the retained cell', () => {
 });
 ```
 
-- [ ] **Step 2: Run RED, implement utility, migrate Road, run Road regressions**
+- [x] **Step 2: Run RED, implement utility, migrate Road, run Road regressions**
 
 Run RED: `pnpm --filter @web-three-city/game test -- reversible-cell-trace.test.ts`
 
 After implementation run: `pnpm --filter @web-three-city/game test -- reversible-cell-trace.test.ts road-stroke-controller.test.ts`
 
-- [ ] **Step 3: Write failing Zone controller tests**
+- [x] **Step 3: Write failing Zone controller tests**
 
 Cover immutable base capture, Paint/Remove mode mapping, reverse-tail Preview shrink, reverse-then-branch, cancellation, second-pointer rejection, pointer-up returning the retained final plan, and Preview clear.
 
-- [ ] **Step 4: Implement Zone controller**
+- [x] **Step 4: Implement Zone controller**
 
 The controller must capture Zones and placement environment at begin, replan from retained unique trace cells, and never commit directly.
 
-- [ ] **Step 5: Run GREEN**
+- [x] **Step 5: Run GREEN**
 
 Run: `pnpm --filter @web-three-city/game test -- reversible-cell-trace.test.ts road-stroke-controller.test.ts zone-stroke-controller.test.ts`
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add apps/game/src/reversible-cell-trace* apps/game/src/road-stroke-controller* apps/game/src/zone-stroke-controller* apps/game/package.json
@@ -404,35 +404,35 @@ git commit -m "feat: add reversible Zone strokes"
 **Interfaces:**
 - Produces: `createZonePlacementEnvironment`, `guardTerraformPlanWithOccupancy`, `guardRoadPlanWithZones`.
 
-- [ ] **Step 1: Write failing environment tests**
+- [x] **Step 1: Write failing environment tests**
 
 Verify defensive snapshots, coherent Terrain/Water revisions, committed Road-only access, copied Water mask, Road revision fencing, and deterministic occupancy revision.
 
-- [ ] **Step 2: Implement environment and run GREEN**
+- [x] **Step 2: Implement environment and run GREEN**
 
 Run: `pnpm --filter @web-three-city/game test -- zone-placement-environment.test.ts`
 
-- [ ] **Step 3: Write failing Terraform guard tests**
+- [x] **Step 3: Write failing Terraform guard tests**
 
 A Terraform plan is blocked when any affected shared vertex touches either a Road or Zone cell; reasons are `terraform:road-occupied` and `terraform:zone-occupied`, with deterministic blocked-cell lists and no mutation of the core plan.
 
-- [ ] **Step 4: Implement combined occupancy guard and migrate callers**
+- [x] **Step 4: Implement combined occupancy guard and migrate callers**
 
 Preserve existing Road behavior exactly while adding Zone blocking. Do not add Zone reasons to `terrain-core`.
 
-- [ ] **Step 5: Write failing Road guard tests**
+- [x] **Step 5: Write failing Road guard tests**
 
 Cover Build over a Zone, Bulldoze preserving access, Bulldoze removing the sole valid access ray, alternate Road access allowing Bulldoze, and no Zone snapshot mutation.
 
-- [ ] **Step 6: Implement Road/Zone guard**
+- [x] **Step 6: Implement Road/Zone guard**
 
 Evaluate the proposed final Road snapshot against every committed Zone cell using the same access algorithm and current Terrain/Water/occupancy facts. Reject the complete Road transaction on any overlap or access loss.
 
-- [ ] **Step 7: Run GREEN**
+- [x] **Step 7: Run GREEN**
 
 Run: `pnpm --filter @web-three-city/game test -- zone-placement-environment.test.ts terraform-occupancy-guard.test.ts road-zone-guard.test.ts`
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add apps/game/src/zone-placement-environment* apps/game/src/terraform-*guard* apps/game/src/road-zone-guard*
@@ -456,23 +456,23 @@ git commit -m "feat: enforce Zone world invariants"
 **Interfaces:**
 - Produces: `ZoneToolMode`, mode guards, Zone tool events, reason copy, HUD counts and labels.
 
-- [ ] **Step 1: Write failing tool/UI tests**
+- [x] **Step 1: Write failing tool/UI tests**
 
 Assert four Zone modes, mutually exclusive tool ownership, Residential/Commercial/Industrial/Remove controls, accessible names, active-state presentation, `R/C/I` committed counts, valid/invalid requested/effective counts, and exact reason copy.
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 Run: `pnpm --filter @web-three-city/game test -- game-tool-events.test.ts game-reason-catalog.test.ts game-tool-presentation.test.ts game-tool-hud-binding.test.ts game-ui.test.ts`
 
-- [ ] **Step 3: Implement minimal UI and HUD integration**
+- [x] **Step 3: Implement minimal UI and HUD integration**
 
 Keep the map-first layout and existing responsive breakpoints. Zone colors are presentation constants only and must not become definition identity.
 
-- [ ] **Step 4: Run GREEN**
+- [x] **Step 4: Run GREEN**
 
 Run the same focused command and `pnpm --filter @web-three-city/game typecheck`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/game/src/game-tool-* apps/game/src/game-reason-catalog* apps/game/src/game-ui* apps/game/src/style.css
@@ -492,19 +492,19 @@ git commit -m "feat: add Zone tools and HUD"
 **Interfaces:**
 - Produces: `WorldSaveV2`, decoded world state including `zones` and `zoneEnvironment`, Zone-tagged Undo.
 
-- [ ] **Step 1: Write failing migration tests**
+- [x] **Step 1: Write failing migration tests**
 
 Cover Terrain-only → empty Roads and Zones, `WorldSaveV1` → preserved Roads plus empty Zones, `WorldSaveV2` exact round-trip, invalid Zone bytes, Zone over Road, wet/non-flat Zone, missing Road access, and atomic rejection without partial state exposure.
 
-- [ ] **Step 2: Run save RED**
+- [x] **Step 2: Run save RED**
 
 Run: `pnpm --filter @web-three-city/game test -- world-save.test.ts`
 
-- [ ] **Step 3: Implement `WorldSaveV2`**
+- [x] **Step 3: Implement `WorldSaveV2`**
 
 Decode Terrain, derive Water, decode Roads, construct Road environment, validate Roads, decode Zones, construct Zone environment, and validate every Zone cell in that order. Legacy input must remain accepted.
 
-- [ ] **Step 4: Write failing Undo tests**
+- [x] **Step 4: Write failing Undo tests**
 
 ```ts
 it('stores and consumes one immutable Zone entry', () => {
@@ -518,11 +518,11 @@ it('stores and consumes one immutable Zone entry', () => {
 
 Cover replacement ordering, defensive copy, revision restoration, Load clear, and failed/no-op mutations leaving Undo unchanged.
 
-- [ ] **Step 5: Implement Zone Undo and run GREEN**
+- [x] **Step 5: Implement Zone Undo and run GREEN**
 
 Run: `pnpm --filter @web-three-city/game test -- world-save.test.ts world-undo.test.ts`
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add apps/game/src/world-save* apps/game/src/world-undo*
@@ -543,23 +543,23 @@ git commit -m "feat: persist and undo Zones"
 **Interfaces:**
 - Integrates all prior tasks into the live Game.
 
-- [ ] **Step 1: Write failing composition tests**
+- [x] **Step 1: Write failing composition tests**
 
 Cover initial empty Zones, Paint commit, Remove commit, Undo, Save/Load, Road guard routing, Terraform guard routing, Preview clear on tool change/load/context loss/disposal, context restoration rebuilding committed Zone chunks, and failure preserving previous roots.
 
-- [ ] **Step 2: Run composition RED**
+- [x] **Step 2: Run composition RED**
 
 Run focused Game tests naming every changed composition test file.
 
-- [ ] **Step 3: Implement bootstrap and transaction routing**
+- [x] **Step 3: Implement bootstrap and transaction routing**
 
 Commit order for Zone mutation: validate final plan → capture Undo snapshot → commit Zone snapshot → rebuild changed Zone chunks → clear Preview → update HUD/evidence. On presentation failure, keep authoritative/presentation recovery behavior consistent with existing Road transactions.
 
-- [ ] **Step 4: Run composition GREEN**
+- [x] **Step 4: Run composition GREEN**
 
 Run focused tests, then `pnpm --filter @web-three-city/game test`, typecheck, and build.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/game/src
@@ -581,7 +581,7 @@ git commit -m "feat: integrate Zoning into the Game"
 **Interfaces:**
 - Produces exact-head evidence for interaction, state, bounds, pixels, and lifecycle.
 
-- [ ] **Step 1: Write browser tests before final integration changes**
+- [x] **Step 1: Write browser tests before final integration changes**
 
 Required scenarios:
 
@@ -598,21 +598,21 @@ Required scenarios:
 11. HUD R/C/I counts equal authoritative Zone counts.
 12. Pointer cancellation, blur, second-touch takeover, and load leave no Preview root and commit nothing.
 
-- [ ] **Step 2: Run browser RED**
+- [x] **Step 2: Run browser RED**
 
 Run: `pnpm build:browser && pnpm exec playwright test browser-tests/zoning.spec.ts browser-tests/zoning-visual-evidence.spec.ts`
 
 Expected: new scenarios fail before missing integration is completed.
 
-- [ ] **Step 3: Add only the diagnostics required by tests**
+- [x] **Step 3: Add only the diagnostics required by tests**
 
 Expose Zone revision, counts, requested/effective/invalid counts, Preview root count, committed chunk/root counts, Preview world bounds, invalid reasons, and transaction receipts. Do not expose mutable snapshots.
 
-- [ ] **Step 4: Run browser GREEN**
+- [x] **Step 4: Run browser GREEN**
 
 Run the focused browser command until all new scenarios pass, then run the complete Chromium suite.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add browser-tests apps/game/src/interaction-evidence.ts
@@ -629,7 +629,7 @@ git commit -m "test: verify Zoning in Chromium"
 - Modify: `docs/superpowers/plans/2026-08-02-zoning-foundation-v0-1.md` checkbox state only.
 - Modify PR description with exact evidence.
 
-- [ ] **Step 1: Run focused package and Game verification**
+- [x] **Step 1: Run focused package and Game verification**
 
 ```bash
 pnpm --filter @web-three-city/zone-core test
@@ -638,7 +638,7 @@ pnpm --filter @web-three-city/game test
 pnpm typecheck
 ```
 
-- [ ] **Step 2: Run repository verification**
+- [x] **Step 2: Run repository verification**
 
 ```bash
 pnpm verify
@@ -646,7 +646,7 @@ pnpm verify
 
 Expected: format, lint, TypeScript, provenance, all workspace tests, deployment contracts, and all builds pass.
 
-- [ ] **Step 3: Run exact-head full verification**
+- [x] **Step 3: Run exact-head full verification**
 
 ```bash
 pnpm verify:full
@@ -654,25 +654,25 @@ pnpm verify:full
 
 Expected: frozen install, `pnpm verify`, Chromium install, complete Playwright suite, and clean-worktree gate pass at the same commit.
 
-- [ ] **Step 4: Inspect visual artifacts**
+- [x] **Step 4: Inspect visual artifacts**
 
 Confirm Zone colors, flat-surface alignment, committed/Preview isolation, invalid markers, Road overlap, Road-access depth, HUD counts, desktop layout, responsive/mobile layout, and restoration evidence directly from screenshots and traces.
 
-- [ ] **Step 5: Write evidence with exact values**
+- [x] **Step 5: Write evidence with exact values**
 
 Record exact head SHA, command outputs, test counts, workflow/run IDs, artifact ID/size/hash, screenshots reviewed, remaining limitations, and merge gate. Do not use estimated or inherited counts.
 
-- [ ] **Step 6: Final scope audit**
+- [x] **Step 6: Final scope audit**
 
 Verify no Buildings, growth, Demand, Population, Economy, Utilities, Traffic, Mixed-use, slope zoning, generic occupancy framework, final art, or temporary CI workflow entered the diff.
 
-- [ ] **Step 7: Commit closure documents**
+- [x] **Step 7: Commit closure documents**
 
 ```bash
 git add docs
 git commit -m "docs: close Zoning Foundation v0.1"
 ```
 
-- [ ] **Step 8: Re-run exact-head verification after documentation commit**
+- [x] **Step 8: Re-run exact-head verification after documentation commit**
 
 Run `pnpm verify:full` again on the final documentation descendant before claiming completion or requesting merge.

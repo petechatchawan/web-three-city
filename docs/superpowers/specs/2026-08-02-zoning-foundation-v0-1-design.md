@@ -1,6 +1,6 @@
 # Zoning Foundation v0.1 — Design Specification
 
-**Status:** Written specification pending owner review  
+**Status:** Implemented and exact-head verified; pending merge  
 **Date:** 2026-08-02  
 **Repository baseline:** `master@1d330d1103051d1dfdc10b67e3548e679cbb682b`  
 **Audience:** Web Three City maintainers and implementation agents  

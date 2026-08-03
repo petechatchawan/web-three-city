@@ -68,11 +68,18 @@ describe('building mutation', () => {
       instanceId: 'building:1:1',
       buildingDefinitionId: 'commercial-office-2x2',
       originCell: { x: 1, z: 1 },
-      rotationQuarterTurns: 0,
+      rotationQuarterTurns: 2,
     });
     const committed = commitBuildingMutation(before, plan, environment(), CONFIG);
     expect(committed.snapshot.revision).toBe(1);
     expect(committed.receipt.addedCellCount).toBe(4);
+  });
+
+  it('persists the rotation whose canonical entrance faces deterministic frontage', () => {
+    const before = createEmptyBuildingSnapshot(CONFIG);
+    const plan = planBuildingDevelopment(before, environment(), CONFIG);
+
+    expect(plan.addedInstances[0]?.rotationQuarterTurns).toBe(2);
   });
 
   it('bulldozes the whole instance selected by any occupied cell', () => {

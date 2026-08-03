@@ -67,6 +67,7 @@ The following are derived and must never be persisted as authority:
 - occupancy index entries
 - world bounds
 - road-facing edge
+- entrance direction derived from rotation
 - frontage cell
 - entrance candidate cell
 - Three.js groups, meshes, materials, and geometry
@@ -127,8 +128,8 @@ Building Presenter Rebuild
 
 1. Scan candidate origins by `z`, then `x`.
 2. Select definitions by descending `SelectionPriority`, descending footprint area, then `DefinitionId`.
-3. Select allowed rotations in numeric order.
-4. Resolve frontage by shortest road-access distance, then direction order `north`, `east`, `south`, `west`, then frontage-cell `z`, then `x`.
+3. Evaluate allowed rotations in numeric order, then prefer the valid rotation whose canonical south entrance edge faces the resolved Road frontage.
+4. Break remaining rotation ties by shortest road-access distance, direction order `north`, `east`, `south`, `west`, frontage-cell `z`, frontage-cell `x`, then numeric rotation.
 5. Generate instance IDs as `building:<target-building-revision>:<sequence>`.
 
 No random source participates in Building v0.1.

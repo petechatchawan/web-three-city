@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildingDefinitionForId,
+  buildingEntranceDirection,
   occupiedCellsForBuilding,
   rotatedBuildingFootprint,
   type BuildingInstance,
@@ -15,6 +16,12 @@ const INSTANCE: BuildingInstance = Object.freeze({
 });
 
 describe('building footprint', () => {
+  it('maps the canonical south entrance edge through quarter turns', () => {
+    expect(
+      [0, 1, 2, 3].map((rotation) => buildingEntranceDirection(rotation as 0 | 1 | 2 | 3)),
+    ).toEqual(['south', 'west', 'north', 'east']);
+  });
+
   it('swaps canonical dimensions on odd quarter turns', () => {
     const definition = buildingDefinitionForId('residential-rowhouse-1x2');
     expect(rotatedBuildingFootprint(definition, 0)).toEqual({ width: 1, depth: 2 });

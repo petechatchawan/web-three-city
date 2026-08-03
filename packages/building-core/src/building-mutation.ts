@@ -1,13 +1,14 @@
 import { chunkForCell, type ChunkCoord } from '@web-three-city/terrain-core';
 import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
 import { buildingDefinitions } from './building-definitions.js';
-import { occupiedCellsForBuilding } from './building-footprint.js';
+import { buildingEntranceDirection, occupiedCellsForBuilding } from './building-footprint.js';
 import { resolveBuildingFrontage } from './building-frontage.js';
 import { buildingAtCell, buildingInstances, createBuildingSnapshot } from './building-snapshot.js';
 import {
   BuildingContractError,
   type BuildingDefinition,
   type BuildingDevelopmentEnvironment,
+  type BuildingFrontage,
   type BuildingInstance,
   type BuildingInvalidReason,
   type BuildingMutationPlan,
@@ -124,10 +125,20 @@ function candidateReason(
     if (!environment.isDry(cell)) return 'building:wet-cell';
     if (environment.surfaceAt(cell).shape !== 'flat') return 'building:unsupported-terrain';
   }
-  if (resolveBuildingFrontage(instance, environment) === null) {
-    return 'building:road-access-required';
-  }
   return null;
+}
+
+function frontageDirectionOrder(direction: BuildingFrontage['direction']): number {
+  switch (direction) {
+    case 'north':
+      return 0;
+    case 'east':
+      return 1;
+    case 'south':
+      return 2;
+    case 'west':
+      return 3;
+  }
 }
 
 function createPlan(input: {
@@ -228,6 +239,10 @@ export function planBuildingDevelopment(
 
         let accepted: BuildingInstance | null = null;
         for (const definition of definitions) {
+          const placements: Array<{
+            readonly instance: BuildingInstance;
+            readonly frontage: BuildingFrontage;
+          }> = [];
           for (const rotation of [...definition.allowedRotationQuarterTurns].sort()) {
             const instance: BuildingInstance = Object.freeze({
               instanceId: `building:${targetRevision}:${sequence + 1}`,
@@ -237,12 +252,39 @@ export function planBuildingDevelopment(
               rotationQuarterTurns: rotation,
             });
             const reason = candidateReason(instance, occupied, environment, config);
-            if (reason === null) {
-              accepted = instance;
-              break;
+            if (reason !== null) {
+              reasons.add(reason);
+              continue;
             }
-            reasons.add(reason);
+            const frontage = resolveBuildingFrontage(instance, environment);
+            if (frontage === null) {
+              reasons.add('building:road-access-required');
+              continue;
+            }
+            placements.push(Object.freeze({ instance, frontage }));
           }
+          placements.sort((first, second) => {
+            const firstMisaligned =
+              buildingEntranceDirection(first.instance.rotationQuarterTurns) ===
+              first.frontage.direction
+                ? 0
+                : 1;
+            const secondMisaligned =
+              buildingEntranceDirection(second.instance.rotationQuarterTurns) ===
+              second.frontage.direction
+                ? 0
+                : 1;
+            return (
+              firstMisaligned - secondMisaligned ||
+              first.frontage.distance - second.frontage.distance ||
+              frontageDirectionOrder(first.frontage.direction) -
+                frontageDirectionOrder(second.frontage.direction) ||
+              first.frontage.frontageCell.z - second.frontage.frontageCell.z ||
+              first.frontage.frontageCell.x - second.frontage.frontageCell.x ||
+              first.instance.rotationQuarterTurns - second.instance.rotationQuarterTurns
+            );
+          });
+          accepted = placements[0]?.instance ?? null;
           if (accepted !== null) break;
         }
         if (accepted === null) continue;

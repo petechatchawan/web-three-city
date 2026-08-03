@@ -1,0 +1,51 @@
+name: Building Acceptance Authoring
+
+on:
+  pull_request:
+    branches: [master]
+    types: [synchronize]
+
+permissions:
+  contents: write
+
+jobs:
+  author:
+    if: github.head_ref == 'agent/building-content-occupancy-v0-1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/building-content-occupancy-v0-1
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install locked authoring dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Finalize acceptance specifications
+        run: python3 tooling/finalize_building_acceptance.py
+      - name: Format authored files
+        run: >-
+          pnpm exec prettier --write
+          apps/game/src/game-bootstrap.ts
+          apps/game/src/interaction-evidence.ts
+          browser-tests/building.spec.ts
+          browser-tests/building-visual-evidence.spec.ts
+          browser-tests/helpers/building-fixture.ts
+          browser-tests/zoning.spec.ts
+      - name: Remove temporary authoring machinery
+        run: |
+          rm tooling/finalize_building_acceptance.py
+          rm .github/workflows/building-acceptance-authoring.yml
+      - name: Commit acceptance coverage
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "test: complete Building Foundation acceptance coverage"
+          git push origin HEAD:agent/building-content-occupancy-v0-1

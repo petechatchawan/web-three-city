@@ -242,7 +242,9 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
     getTerrainSnapshot: options.getTerrainSnapshot,
     getRoadSnapshot: options.getRoadSnapshot,
     getZoneSnapshot: options.getZoneSnapshot,
-    getBuildingSnapshot: options.getBuildingSnapshot,
+    ...(options.getBuildingSnapshot === undefined
+      ? {}
+      : { getBuildingSnapshot: options.getBuildingSnapshot }),
     onState(state): void {
       options.preview.show(
         createTerraformPreviewSceneModel(state, options.getTerrainSnapshot(), options.config),

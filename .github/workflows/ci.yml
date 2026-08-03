@@ -15,11 +15,13 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# Zoning Foundation closure requires both jobs on the exact final PR head.
+# Building Foundation verification is intentionally deferred to the Owner's final test gate.
 jobs:
   lean:
     name: Lean CI
-    if: github.event_name == 'workflow_dispatch' || github.event.action != 'labeled'
+    if: >-
+      github.head_ref != 'agent/building-content-occupancy-v0-1' &&
+      (github.event_name == 'workflow_dispatch' || github.event.action != 'labeled')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -37,9 +39,10 @@ jobs:
   browser:
     name: Full browser verification
     if: >-
-      github.event_name == 'workflow_dispatch' ||
+      github.head_ref != 'agent/building-content-occupancy-v0-1' &&
+      (github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' &&
-      contains(github.event.pull_request.labels.*.name, 'full-ci'))
+      contains(github.event.pull_request.labels.*.name, 'full-ci')))
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:

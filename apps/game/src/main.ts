@@ -39,6 +39,20 @@ const WORLD_SAVE_KEYS = Object.freeze([
   'web-three-city:terrain-save:v1',
 ]);
 
+interface GameTimeTestApi {
+  readonly snapshot: () => Readonly<{
+    readonly simulation: SimulationSnapshot;
+    readonly speed: SimulationSpeed;
+    readonly buildingCount: number;
+  }>;
+  readonly setSpeed: (speed: SimulationSpeed) => void;
+  readonly step: () => boolean;
+}
+
+type GameTimeWindow = Window & {
+  __WEB_THREE_CITY_TIME__?: GameTimeTestApi;
+};
+
 const rootElement = document.querySelector<HTMLElement>('#app');
 if (rootElement === null) throw new Error('game:missing-root');
 const root: HTMLElement = rootElement;
@@ -178,6 +192,19 @@ function dispatchAutomaticBuildingPass(): void {
   navigateButton.click();
 }
 
+function shouldRunAutomaticBuildingPass(): boolean {
+  const dueConstruction = currentBuildings().instances.some(
+    (instance) =>
+      instance.lifecycle === 'construction' &&
+      instance.constructionCompletesAtTick <= simulation.absoluteTick,
+  );
+  const zonedCellCount = window.__WEB_THREE_CITY_INTERACTION__?.zone.counts.total ?? 0;
+  return (
+    dueConstruction ||
+    (zonedCellCount > 0 && isDevelopmentEvaluationTick(simulation.absoluteTick))
+  );
+}
+
 function advanceOneLogicalTick(): void {
   simulation = createSimulationSnapshot({
     revision: simulation.revision + 1,
@@ -185,26 +212,34 @@ function advanceOneLogicalTick(): void {
     growthSequence: simulation.growthSequence,
   });
   setBuildingPresentationAbsoluteTick(simulation.absoluteTick);
-  const expectedInstanceId = `building:growth:${simulation.growthSequence + 1}`;
-  const beforeIds = new Set(currentBuildings().instances.map((instance) => instance.instanceId));
-  configureAutomaticBuildingGrowth({
-    absoluteTick: simulation.absoluteTick,
-    growthSequence: simulation.growthSequence,
-    evaluation: isDevelopmentEvaluationTick(simulation.absoluteTick),
-  });
-  try {
-    dispatchAutomaticBuildingPass();
-  } finally {
-    configureAutomaticBuildingGrowth(null);
-  }
-  const afterIds = new Set(currentBuildings().instances.map((instance) => instance.instanceId));
-  if (!beforeIds.has(expectedInstanceId) && afterIds.has(expectedInstanceId)) {
-    simulation = createSimulationSnapshot({
-      revision: simulation.revision,
+
+  if (shouldRunAutomaticBuildingPass()) {
+    const expectedInstanceId = `building:growth:${simulation.growthSequence + 1}`;
+    const beforeIds = new Set(
+      currentBuildings().instances.map((instance) => instance.instanceId),
+    );
+    configureAutomaticBuildingGrowth({
       absoluteTick: simulation.absoluteTick,
-      growthSequence: simulation.growthSequence + 1,
+      growthSequence: simulation.growthSequence,
+      evaluation: isDevelopmentEvaluationTick(simulation.absoluteTick),
     });
+    try {
+      dispatchAutomaticBuildingPass();
+    } finally {
+      configureAutomaticBuildingGrowth(null);
+    }
+    const afterIds = new Set(
+      currentBuildings().instances.map((instance) => instance.instanceId),
+    );
+    if (!beforeIds.has(expectedInstanceId) && afterIds.has(expectedInstanceId)) {
+      simulation = createSimulationSnapshot({
+        revision: simulation.revision,
+        absoluteTick: simulation.absoluteTick,
+        growthSequence: simulation.growthSequence + 1,
+      });
+    }
   }
+
   refreshConstructionPhaseIfNeeded();
   refreshTimeUi();
 }
@@ -221,6 +256,18 @@ const timeUi = mountGameTimeUi(root, setSimulationSpeed, () => {
 setBuildingPresentationAbsoluteTick(simulation.absoluteTick);
 refreshConstructionPhaseIfNeeded();
 refreshTimeUi();
+
+const timeWindow = window as GameTimeWindow;
+timeWindow.__WEB_THREE_CITY_TIME__ = Object.freeze({
+  snapshot: () =>
+    Object.freeze({
+      simulation,
+      speed: simulationRuntime.getState().speed,
+      buildingCount: currentBuildings().instances.length,
+    }),
+  setSpeed: setSimulationSpeed,
+  step: () => simulationRuntime.step(advanceOneLogicalTick),
+});
 
 function readStoredWorld(): unknown | null {
   for (const key of WORLD_SAVE_KEYS) {
@@ -323,6 +370,7 @@ window.addEventListener(
     timeUi.dispose();
     bindings.abort();
     runtime.dispose();
+    delete timeWindow.__WEB_THREE_CITY_TIME__;
   },
   { once: true },
 );

@@ -90,9 +90,7 @@ export class BuildingPresentation {
               footprintWidth: definition.footprintWidth,
               footprintDepth: definition.footprintDepth,
               prototypeHeight: definition.prototypeHeight,
-              phase: constructionVisualPhase(
-                constructionProgressAtTick(instance, absoluteTick),
-              ),
+              phase: constructionVisualPhase(constructionProgressAtTick(instance, absoluteTick)),
               materials: this.#materials,
             })
           : createBuildingPrototype(instance, this.#materials, this.#config);

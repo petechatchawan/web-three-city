@@ -52,7 +52,10 @@ export function mountGameTimeUi(
   const fasterButton = requireElement<HTMLButtonElement>(section, '[data-action="time-faster"]');
   const stepButton = requireElement<HTMLButtonElement>(section, '[data-action="time-step"]');
   const calendar = requireElement<HTMLElement>(section, '[data-testid="game-calendar"]');
-  const construction = requireElement<HTMLElement>(section, '[data-testid="building-construction-count"]');
+  const construction = requireElement<HTMLElement>(
+    section,
+    '[data-testid="building-construction-count"]',
+  );
   const active = requireElement<HTMLElement>(section, '[data-testid="building-active-count"]');
   const total = requireElement<HTMLElement>(section, '[data-testid="building-total-count"]');
   const controller = new AbortController();

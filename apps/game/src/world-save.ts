@@ -373,7 +373,8 @@ export function decodeWorldSave(
       const definition = buildingDefinitionForId(instance.buildingDefinitionId);
       const cells = occupiedCellsForBuilding(instance);
       const firstCell = cells[0];
-      const zoneId = firstCell === undefined ? null : buildingEnvironment.zoneDefinitionIdAt(firstCell);
+      const zoneId =
+        firstCell === undefined ? null : buildingEnvironment.zoneDefinitionIdAt(firstCell);
       const invalid =
         zoneId === null ||
         !definition.compatibleZoneDefinitionIds.includes(zoneId) ||

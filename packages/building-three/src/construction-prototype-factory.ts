@@ -34,7 +34,13 @@ export function createConstructionPrototype(input: {
   group.name = `building-construction-${input.phase}`;
   const width = input.footprintWidth * 0.84;
   const depth = input.footprintDepth * 0.84;
-  addBox(group, [width, 0.1, depth], [0, 0.05, 0], input.materials.accent, 'construction-foundation');
+  addBox(
+    group,
+    [width, 0.1, depth],
+    [0, 0.05, 0],
+    input.materials.accent,
+    'construction-foundation',
+  );
   if (input.phase === 'frame' || input.phase === 'shell') {
     const halfWidth = width / 2 - 0.06;
     const halfDepth = depth / 2 - 0.06;
@@ -49,8 +55,20 @@ export function createConstructionPrototype(input: {
         );
       }
     }
-    addBox(group, [width, 0.1, 0.1], [0, input.prototypeHeight * 0.72, -halfDepth], input.materials.accent, 'construction-beam');
-    addBox(group, [width, 0.1, 0.1], [0, input.prototypeHeight * 0.72, halfDepth], input.materials.accent, 'construction-beam');
+    addBox(
+      group,
+      [width, 0.1, 0.1],
+      [0, input.prototypeHeight * 0.72, -halfDepth],
+      input.materials.accent,
+      'construction-beam',
+    );
+    addBox(
+      group,
+      [width, 0.1, 0.1],
+      [0, input.prototypeHeight * 0.72, halfDepth],
+      input.materials.accent,
+      'construction-beam',
+    );
   }
   if (input.phase === 'shell') {
     addBox(

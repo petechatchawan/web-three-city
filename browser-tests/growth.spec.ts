@@ -80,7 +80,9 @@ test('persists WorldSaveV4 and loads paused at the exact logical tick', async ({
   expect(loaded.speed).toBe('paused');
 });
 
-test('does not expose the explicit Develop Zones control in production Growth mode', async ({ page }) => {
+test('does not expose the explicit Develop Zones control in production Growth mode', async ({
+  page,
+}) => {
   await openGrowthGame(page);
   await expect(page.getByRole('button', { name: 'Develop Zones' })).toBeHidden();
   await expect(page.getByRole('button', { name: 'Bulldoze Building' })).toBeVisible();

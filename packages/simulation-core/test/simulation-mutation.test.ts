@@ -15,8 +15,6 @@ describe('simulation tick mutation', () => {
       absoluteTick: 9,
       growthSequence: 0,
     });
-    expect(() => commitSimulationTick(committed.snapshot, plan)).toThrow(
-      'simulation:stale-plan',
-    );
+    expect(() => commitSimulationTick(committed.snapshot, plan)).toThrow('simulation:stale-plan');
   });
 });

@@ -112,12 +112,7 @@ export function planBuildingGrowthTick(input: {
 
   const tickPlan = planSimulationTick(simulation);
   if (!tickPlan.valid) {
-    return invalidPlan(
-      buildings,
-      simulation,
-      input.environment,
-      'building-growth:tick-overflow',
-    );
+    return invalidPlan(buildings, simulation, input.environment, 'building-growth:tick-overflow');
   }
 
   const afterAbsoluteTick = tickPlan.afterAbsoluteTick;
@@ -162,8 +157,7 @@ export function planBuildingGrowthTick(input: {
         rotationQuarterTurns: selected.instance.rotationQuarterTurns,
         lifecycle: 'construction',
         constructionStartedAtTick: afterAbsoluteTick,
-        constructionCompletesAtTick:
-          afterAbsoluteTick + definition.constructionDurationTicks,
+        constructionCompletesAtTick: afterAbsoluteTick + definition.constructionDurationTicks,
       });
       proposed.push(construction);
       startedIds.push(construction.instanceId);
@@ -238,8 +232,7 @@ export function commitBuildingGrowthTick(input: {
     tickPlan,
     plan.nextGrowthSequence,
   );
-  const changed =
-    plan.startedInstanceIds.length > 0 || plan.completedInstanceIds.length > 0;
+  const changed = plan.startedInstanceIds.length > 0 || plan.completedInstanceIds.length > 0;
   const buildings = changed
     ? createBuildingSnapshot(
         {

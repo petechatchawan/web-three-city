@@ -208,8 +208,7 @@ function shouldRunAutomaticBuildingPass(): boolean {
   );
   const zonedCellCount = window.__WEB_THREE_CITY_INTERACTION__?.zone.counts.total ?? 0;
   return (
-    dueConstruction ||
-    (zonedCellCount > 0 && isDevelopmentEvaluationTick(simulation.absoluteTick))
+    dueConstruction || (zonedCellCount > 0 && isDevelopmentEvaluationTick(simulation.absoluteTick))
   );
 }
 
@@ -223,9 +222,7 @@ function advanceOneLogicalTick(): void {
 
   if (shouldRunAutomaticBuildingPass()) {
     const expectedInstanceId = `building:growth:${simulation.growthSequence + 1}`;
-    const beforeIds = new Set(
-      currentBuildings().instances.map((instance) => instance.instanceId),
-    );
+    const beforeIds = new Set(currentBuildings().instances.map((instance) => instance.instanceId));
     configureAutomaticBuildingGrowth({
       absoluteTick: simulation.absoluteTick,
       growthSequence: simulation.growthSequence,
@@ -236,9 +233,7 @@ function advanceOneLogicalTick(): void {
     } finally {
       configureAutomaticBuildingGrowth(null);
     }
-    const afterIds = new Set(
-      currentBuildings().instances.map((instance) => instance.instanceId),
-    );
+    const afterIds = new Set(currentBuildings().instances.map((instance) => instance.instanceId));
     if (!beforeIds.has(expectedInstanceId) && afterIds.has(expectedInstanceId)) {
       simulation = createSimulationSnapshot({
         revision: simulation.revision,

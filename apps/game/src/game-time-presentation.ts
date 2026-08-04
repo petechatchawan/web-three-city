@@ -1,11 +1,5 @@
-import {
-  buildingLifecycleCounts,
-  type BuildingSnapshot,
-} from '@web-three-city/building-core';
-import {
-  deriveGameCalendar,
-  type SimulationSnapshot,
-} from '@web-three-city/simulation-core';
+import { buildingLifecycleCounts, type BuildingSnapshot } from '@web-three-city/building-core';
+import { deriveGameCalendar, type SimulationSnapshot } from '@web-three-city/simulation-core';
 
 export interface GameTimePresentation {
   readonly calendarLabel: string;

@@ -28,9 +28,7 @@ export interface SimulationTickReceipt {
   readonly afterAbsoluteTick: number;
 }
 
-export type SimulationContractErrorCode =
-  | 'simulation:invalid-plan'
-  | 'simulation:stale-plan';
+export type SimulationContractErrorCode = 'simulation:invalid-plan' | 'simulation:stale-plan';
 
 export class SimulationContractError extends Error {
   readonly code: SimulationContractErrorCode;

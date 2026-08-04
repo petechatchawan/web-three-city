@@ -65,10 +65,7 @@ export function constructionProgressAtTick(
 ): number {
   if (!validTick(absoluteTick)) throw new RangeError('building-lifecycle:invalid-tick');
   const duration = instance.constructionCompletesAtTick - instance.constructionStartedAtTick;
-  return Math.max(
-    0,
-    Math.min(1, (absoluteTick - instance.constructionStartedAtTick) / duration),
-  );
+  return Math.max(0, Math.min(1, (absoluteTick - instance.constructionStartedAtTick) / duration));
 }
 
 export function activateCompletedBuilding(

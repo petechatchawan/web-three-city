@@ -77,12 +77,8 @@ export interface ActiveBuildingInstance extends BuildingInstanceBase {
 }
 
 export type BuildingInstance =
-  | LegacyBuildingInstance
-  | ConstructionBuildingInstance
-  | ActiveBuildingInstance;
-export type AuthoritativeBuildingInstance =
-  | ConstructionBuildingInstance
-  | ActiveBuildingInstance;
+  LegacyBuildingInstance | ConstructionBuildingInstance | ActiveBuildingInstance;
+export type AuthoritativeBuildingInstance = ConstructionBuildingInstance | ActiveBuildingInstance;
 
 export interface BuildingSnapshot {
   readonly revision: number;

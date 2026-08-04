@@ -14,14 +14,22 @@ describe('WorldSaveV4', () => {
     const roads = createEmptyRoadSnapshot(WORLD_CONFIG);
     const zones = createEmptyZoneSnapshot(WORLD_CONFIG);
     const buildings = createBuildingSnapshot({ revision: 0, instances: [] }, WORLD_CONFIG);
-    const simulation = createSimulationSnapshot({ revision: 4, absoluteTick: 27, growthSequence: 3 });
+    const simulation = createSimulationSnapshot({
+      revision: 4,
+      absoluteTick: 27,
+      growthSequence: 3,
+    });
     const decoded = decodeWorldSave(
       encodeWorldSaveV4(terrain.value, roads, zones, buildings, simulation),
       WORLD_CONFIG,
     );
     expect(decoded.ok).toBe(true);
     if (decoded.ok) {
-      expect(decoded.value.simulation).toEqual({ revision: 0, absoluteTick: 27, growthSequence: 3 });
+      expect(decoded.value.simulation).toEqual({
+        revision: 0,
+        absoluteTick: 27,
+        growthSequence: 3,
+      });
     }
   });
 
@@ -34,7 +42,12 @@ describe('WorldSaveV4', () => {
         roads: {},
         zones: {},
         buildings: {},
-        simulation: { kind: 'simulation-save', schemaVersion: 1, absoluteTick: -1, growthSequence: 0 },
+        simulation: {
+          kind: 'simulation-save',
+          schemaVersion: 1,
+          absoluteTick: -1,
+          growthSequence: 0,
+        },
       },
       WORLD_CONFIG,
     );

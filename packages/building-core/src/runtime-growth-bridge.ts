@@ -119,8 +119,7 @@ function automaticPlan(
         rotationQuarterTurns: selected.instance.rotationQuarterTurns,
         lifecycle: 'construction',
         constructionStartedAtTick: context.absoluteTick,
-        constructionCompletesAtTick:
-          context.absoluteTick + definition.constructionDurationTicks,
+        constructionCompletesAtTick: context.absoluteTick + definition.constructionDurationTicks,
       });
       completed.push(construction);
       added.push(construction);

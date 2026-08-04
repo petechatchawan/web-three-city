@@ -72,13 +72,19 @@ function copyBuildings(
 function copyEntry(entry: WorldUndoEntry, config: WorldConfig): WorldUndoEntry {
   switch (entry.kind) {
     case 'terraform':
-      return Object.freeze({ kind: 'terraform' as const, terrain: copyTerrain(entry.terrain, config) });
+      return Object.freeze({
+        kind: 'terraform' as const,
+        terrain: copyTerrain(entry.terrain, config),
+      });
     case 'road':
       return Object.freeze({ kind: 'road' as const, roads: copyRoads(entry.roads, config) });
     case 'zone':
       return Object.freeze({ kind: 'zone' as const, zones: copyZones(entry.zones, config) });
     case 'building':
-      return Object.freeze({ kind: 'building' as const, buildings: copyBuildings(entry.buildings, config) });
+      return Object.freeze({
+        kind: 'building' as const,
+        buildings: copyBuildings(entry.buildings, config),
+      });
   }
 }
 

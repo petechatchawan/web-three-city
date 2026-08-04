@@ -33,7 +33,11 @@ const environment: BuildingDevelopmentEnvironment = Object.freeze({
   zoneDefinitionIdAt: (cell: CellCoord) => (cell.x === 0 && cell.z === 0 ? 'residential' : null),
   roadAccessAt: (cell: CellCoord) =>
     cell.x === 0 && cell.z === 0
-      ? Object.freeze({ direction: 'south' as const, distance: 1 as const, roadCell: { x: 0, z: 1 } })
+      ? Object.freeze({
+          direction: 'south' as const,
+          distance: 1 as const,
+          roadCell: { x: 0, z: 1 },
+        })
       : null,
 });
 

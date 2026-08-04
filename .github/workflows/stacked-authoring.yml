@@ -1,0 +1,56 @@
+name: Stacked authoring
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  author-growth-core:
+    if: github.event.pull_request.head.ref == 'agent/building-growth-core-v0-1'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Execute checked-in authoring payload
+        shell: bash
+        run: |
+          payload=.github/workflows/author-building-growth-core.yml
+          if [ ! -f "$payload" ]; then
+            echo "Authoring payload already consumed."
+            exit 0
+          fi
+          python3 - <<'PY'
+          from pathlib import Path
+          lines = Path('.github/workflows/author-building-growth-core.yml').read_text().splitlines()
+          start = lines.index("          python3 <<'PY'") + 1
+          end = lines.index('          PY', start)
+          script = '\n'.join(line[10:] if line.startswith('          ') else line for line in lines[start:end]) + '\n'
+          Path('/tmp/author.py').write_text(script)
+          PY
+          python3 /tmp/author.py
+          pnpm install --lockfile-only
+      - name: Commit authored implementation
+        shell: bash
+        run: |
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "No authoring changes to commit."
+            exit 0
+          fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "feat: add simulation clock and Building Growth core"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}

@@ -5,6 +5,7 @@
   "type": "module",
   "exports": "./src/index.ts",
   "dependencies": {
+    "@web-three-city/simulation-core": "workspace:*",
     "@web-three-city/terrain-core": "workspace:*",
     "@web-three-city/world-core": "workspace:*",
     "@web-three-city/zone-core": "workspace:*"

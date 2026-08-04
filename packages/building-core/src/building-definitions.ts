@@ -25,6 +25,10 @@ function definition(value: BuildingDefinition): BuildingDefinition {
     value.footprintDepth <= 0 ||
     !Number.isSafeInteger(value.selectionPriority) ||
     value.selectionPriority < 0 ||
+    !Number.isSafeInteger(value.selectionWeight) ||
+    value.selectionWeight <= 0 ||
+    !Number.isSafeInteger(value.constructionDurationTicks) ||
+    value.constructionDurationTicks !== 24 * value.footprintWidth * value.footprintDepth ||
     rotations.length === 0 ||
     new Set(rotations).size !== rotations.length ||
     rotations.some((rotation) => rotation < 0 || rotation > 3) ||
@@ -55,6 +59,8 @@ export const RESIDENTIAL_COTTAGE_1X1 = definition({
   allowedRotationQuarterTurns: ALL_ROTATIONS,
   compatibleZoneDefinitionIds: Object.freeze(['residential']),
   selectionPriority: 10,
+  selectionWeight: 40,
+  constructionDurationTicks: 24,
   prototypeId: 'cottage',
   prototypeHeight: 0.8,
 });
@@ -68,6 +74,8 @@ export const RESIDENTIAL_ROWHOUSE_1X2 = definition({
   allowedRotationQuarterTurns: ALL_ROTATIONS,
   compatibleZoneDefinitionIds: Object.freeze(['residential']),
   selectionPriority: 20,
+  selectionWeight: 30,
+  constructionDurationTicks: 48,
   prototypeId: 'rowhouse',
   prototypeHeight: 1.25,
 });
@@ -81,6 +89,8 @@ export const COMMERCIAL_SHOP_1X1 = definition({
   allowedRotationQuarterTurns: ALL_ROTATIONS,
   compatibleZoneDefinitionIds: Object.freeze(['commercial']),
   selectionPriority: 10,
+  selectionWeight: 40,
+  constructionDurationTicks: 24,
   prototypeId: 'shop',
   prototypeHeight: 0.9,
 });
@@ -94,6 +104,8 @@ export const COMMERCIAL_OFFICE_2X2 = definition({
   allowedRotationQuarterTurns: ALL_ROTATIONS,
   compatibleZoneDefinitionIds: Object.freeze(['commercial']),
   selectionPriority: 30,
+  selectionWeight: 10,
+  constructionDurationTicks: 96,
   prototypeId: 'office',
   prototypeHeight: 2.1,
 });
@@ -107,6 +119,8 @@ export const INDUSTRIAL_WORKSHOP_1X2 = definition({
   allowedRotationQuarterTurns: ALL_ROTATIONS,
   compatibleZoneDefinitionIds: Object.freeze(['industrial']),
   selectionPriority: 20,
+  selectionWeight: 35,
+  constructionDurationTicks: 48,
   prototypeId: 'workshop',
   prototypeHeight: 1.05,
 });
@@ -120,6 +134,8 @@ export const INDUSTRIAL_WAREHOUSE_2X2 = definition({
   allowedRotationQuarterTurns: ALL_ROTATIONS,
   compatibleZoneDefinitionIds: Object.freeze(['industrial']),
   selectionPriority: 30,
+  selectionWeight: 20,
+  constructionDurationTicks: 96,
   prototypeId: 'warehouse',
   prototypeHeight: 1.35,
 });

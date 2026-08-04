@@ -15,7 +15,8 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# Building Growth & Variety Foundation closure requires both jobs on the exact final PR head.
+# Building Growth & Variety Foundation closure requires both jobs on the exact final PR head,
+# including deterministic two-worker browser execution and bounded heavy visual-evidence tests.
 jobs:
   lean:
     name: Lean CI

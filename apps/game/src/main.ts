@@ -32,8 +32,9 @@ import { expandGameSecondaryControls } from './game-secondary-controls.js';
 import { undoTransaction } from './game-transaction-presentation.js';
 import { decodeWorldSave, encodeWorldSaveV4 } from './world-save.js';
 
+const CURRENT_WORLD_SAVE_KEY = 'web-three-city:world-save:v3';
 const WORLD_SAVE_KEYS = Object.freeze([
-  'web-three-city:world-save:v3',
+  CURRENT_WORLD_SAVE_KEY,
   'web-three-city:world-save:v2',
   'web-three-city:world-save:v1',
   'web-three-city:terrain-save:v1',
@@ -308,7 +309,7 @@ saveButton.addEventListener(
     const decoded = decodeWorldSave(readStoredWorld(), WORLD_CONFIG);
     if (!decoded.ok) return;
     localStorage.setItem(
-      WORLD_SAVE_KEYS[0],
+      CURRENT_WORLD_SAVE_KEY,
       JSON.stringify(
         encodeWorldSaveV4(
           decoded.value.terrain,

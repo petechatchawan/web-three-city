@@ -1,4 +1,4 @@
-name: Building Static Closure Authoring
+name: Building Input Contract Authoring
 
 on:
   push:
@@ -16,12 +16,11 @@ jobs:
         with:
           ref: agent/building-content-occupancy-v0-1
           fetch-depth: 0
-      - name: Apply deterministic static closure
+      - name: Apply guarded Zone presentation contracts
         shell: bash
         run: |
-          set -euo pipefail
-          git fetch origin master
-          python3 - <<'PY'
+          set -uo pipefail
+          python3 - <<'PY' > .authoring-output.txt 2>&1
           from pathlib import Path
 
           def replace_once(path: str, old: str, new: str) -> None:
@@ -29,10 +28,9 @@ jobs:
               text = file.read_text()
               count = text.count(old)
               if count != 1:
-                  raise SystemExit(f'{path}: expected one source fragment, found {count}')
+                  raise RuntimeError(f'{path}: expected one fragment, found {count}')
               file.write_text(text.replace(old, new, 1))
 
-          # Guarded Zone presentation is a separate, testable boundary.
           Path('apps/game/src/zone-building-presentation.ts').write_text("""import type { ZoneToolMode } from './game-tool-mode.js';
           import type { ZoneInputState } from './zone-stroke-controller.js';
           import type { GameZoneInvalidReason, GuardedZoneCandidate } from './zone-building-guard.js';
@@ -178,275 +176,24 @@ jobs:
               }));
 """,
           )
-
           replace_once(
               'apps/game/src/road-building-guard.ts',
               '  readonly blockedBuildingCells?: readonly CellCoord[];\n',
               '  readonly blockedBuildingCells: readonly CellCoord[];\n',
           )
-
-          # Restore established interaction evidence semantics and root names.
-          replace_once(
-              'apps/game/src/interaction-evidence.ts',
-              """    get framingMarginRatio(): number {
-      return CAMERA_DEFAULTS.framingMarginRatio;
-    },
-""",
-              '    framingMarginRatio: CAMERA_DEFAULTS.framingMarginRatio,\n',
-          )
-          replace_once(
-              'apps/game/src/interaction-evidence.ts',
-              """    get terraform(): TerraformInteractionEvidence {
-      return {
-        ...source.getTerraformEvidence(),
-""",
-              """    get terraform(): TerraformInteractionEvidence {
-      const state = source.getTerraformEvidence();
-      return {
-        ...state,
-        previewValid: state.currentStampKind === 'no-change' ? false : state.previewValid,
-        previewCellCount: Math.max(0, state.previewCellCount - state.supportCellCount),
-""",
-          )
-          replace_once(
-              'apps/game/src/interaction-evidence.ts',
-              """        grid: countRoots(source.scene, 'terrain-grid-root'),
-        selection: countRoots(source.scene, 'selected-cell-root'),
-""",
-              """        grid: countRoots(source.scene, 'terrain-grid-presentation-root'),
-        selection: countRoots(source.scene, 'selected-cell-presentation-root'),
-""",
-          )
-          replace_once(
-              'apps/game/src/interaction-evidence.ts',
-              """  Object.defineProperty(window, '__WEB_THREE_CITY_INTERACTION__', {
-    configurable: true,
-    enumerable: false,
-    get: () => evidence,
-  });
-""",
-              '  window.__WEB_THREE_CITY_INTERACTION__ = evidence;\n',
-          )
-
-          # Harden definition normalization and reference validation.
-          replace_once(
-              'packages/building-core/src/building-definitions.ts',
-              """import type {
-  BuildingDefinition,
-""",
-              """import { zoneDefinitionForId } from '@web-three-city/zone-core';
-import type {
-  BuildingDefinition,
-""",
-          )
-          replace_once(
-              'packages/building-core/src/building-definitions.ts',
-              """function definition(value: BuildingDefinition): BuildingDefinition {
-  if (
-    !Number.isSafeInteger(value.footprintWidth) ||
-    value.footprintWidth <= 0 ||
-    !Number.isSafeInteger(value.footprintDepth) ||
-    value.footprintDepth <= 0 ||
-    value.allowedRotationQuarterTurns.length === 0 ||
-    value.compatibleZoneDefinitionIds.length === 0 ||
-    !Number.isFinite(value.prototypeHeight) ||
-    value.prototypeHeight <= 0
-  ) {
-    throw new RangeError('building-definition:invalid');
-  }
-  return Object.freeze({
-    ...value,
-    allowedRotationQuarterTurns: Object.freeze([...value.allowedRotationQuarterTurns]),
-    compatibleZoneDefinitionIds: Object.freeze([...value.compatibleZoneDefinitionIds]),
-  });
-}
-""",
-              """function definition(value: BuildingDefinition): BuildingDefinition {
-  const rotations = [...value.allowedRotationQuarterTurns];
-  const compatibleZoneDefinitionIds = [...value.compatibleZoneDefinitionIds];
-  let referencesResolvable = true;
-  try {
-    for (const zoneDefinitionId of compatibleZoneDefinitionIds) {
-      zoneDefinitionForId(zoneDefinitionId);
-    }
-  } catch {
-    referencesResolvable = false;
-  }
-  if (
-    !Number.isSafeInteger(value.footprintWidth) ||
-    value.footprintWidth <= 0 ||
-    !Number.isSafeInteger(value.footprintDepth) ||
-    value.footprintDepth <= 0 ||
-    !Number.isSafeInteger(value.selectionPriority) ||
-    value.selectionPriority < 0 ||
-    rotations.length === 0 ||
-    new Set(rotations).size !== rotations.length ||
-    rotations.some((rotation) => rotation < 0 || rotation > 3) ||
-    compatibleZoneDefinitionIds.length === 0 ||
-    new Set(compatibleZoneDefinitionIds).size !== compatibleZoneDefinitionIds.length ||
-    compatibleZoneDefinitionIds.some((zoneDefinitionId) => zoneDefinitionId.length === 0) ||
-    !referencesResolvable ||
-    !Number.isFinite(value.prototypeHeight) ||
-    value.prototypeHeight <= 0
-  ) {
-    throw new RangeError('building-definition:invalid');
-  }
-  return Object.freeze({
-    ...value,
-    allowedRotationQuarterTurns: Object.freeze(rotations.sort((first, second) => first - second)),
-    compatibleZoneDefinitionIds: Object.freeze(
-      compatibleZoneDefinitionIds.sort((first, second) => first.localeCompare(second)),
-    ),
-  });
-}
-""",
-          )
-
-          # Remove unsafe assertions and use the catalog authority directly.
-          replace_once(
-              'packages/building-core/src/building-mutation.ts',
-              "import { buildingDefinitions } from './building-definitions.js';\n",
-              "import { buildingDefinitionForId, buildingDefinitions } from './building-definitions.js';\n",
-          )
-          replace_once(
-              'packages/building-core/src/building-mutation.ts',
-              """  const definition = buildingDefinitions().find(
-    (candidate) => candidate.id === instance.buildingDefinitionId,
-  );
-  if (definition === undefined || !definition.compatibleZoneDefinitionIds.includes(originZone)) {
-""",
-              """  const definition = buildingDefinitionForId(instance.buildingDefinitionId);
-  if (!definition.compatibleZoneDefinitionIds.includes(originZone)) {
-""",
-          )
-          replace_once(
-              'packages/building-core/src/building-mutation.ts',
-              """  return (
-    first.length === second.length &&
-    first.every((instance, index) => sameInstance(instance, second[index]!))
-  );
-""",
-              """  return (
-    first.length === second.length &&
-    first.every((instance, index) => {
-      const candidate = second[index];
-      return candidate !== undefined && sameInstance(instance, candidate);
-    })
-  );
-""",
-          )
-          replace_once(
-              'packages/building-core/src/building-mutation.ts',
-              """    const verified =
-      plan.operation === 'develop'
-        ? planBuildingDevelopment(buildings, environment, config)
-        : planBuildingBulldoze(buildings, plan.requestedCell!, environment, config);
-""",
-              """    let verified: BuildingMutationPlan;
-    if (plan.operation === 'develop') {
-      verified = planBuildingDevelopment(buildings, environment, config);
-    } else {
-      if (plan.requestedCell === null) {
-        throw new BuildingContractError('building:invalid-proposed-state');
-      }
-      verified = planBuildingBulldoze(buildings, plan.requestedCell, environment, config);
-    }
-""",
-          )
-
-          # Make presentation elevation fail closed instead of allowing -Infinity.
-          replace_once(
-              'packages/building-three/src/building-presentation.ts',
-              """      const occupied = occupiedCellsForBuilding(instance);
-      const elevation = Math.max(...occupied.map((cell) => this.#elevationAt(cell)));
-""",
-              """      const occupied = occupiedCellsForBuilding(instance);
-      const firstOccupiedCell = occupied[0];
-      if (firstOccupiedCell === undefined) {
-        throw new Error('building-presentation:empty-footprint');
-      }
-      const elevation = occupied
-        .slice(1)
-        .reduce(
-          (maximum, cell) => Math.max(maximum, this.#elevationAt(cell)),
-          this.#elevationAt(firstOccupiedCell),
-        );
-""",
-          )
-
-          # WorldSave decoding must remain a Result-returning fail-closed boundary.
-          replace_once(
-              'apps/game/src/world-save.ts',
-              """  for (const instance of buildings.instances) {
-    const definition = buildingDefinitionForId(instance.buildingDefinitionId);
-    const cells = occupiedCellsForBuilding(instance);
-    const firstCell = cells[0];
-    const zoneId =
-      firstCell === undefined ? null : buildingEnvironment.zoneDefinitionIdAt(firstCell);
-    const invalid =
-      zoneId === null ||
-      !definition.compatibleZoneDefinitionIds.includes(zoneId) ||
-      cells.some(
-        (cell) =>
-          buildingEnvironment.zoneDefinitionIdAt(cell) !== zoneId ||
-          !buildingEnvironment.isDry(cell) ||
-          buildingEnvironment.surfaceAt(cell).shape !== 'flat' ||
-          buildingEnvironment.isRoadOccupied(cell),
-      ) ||
-      resolveBuildingFrontage(instance, buildingEnvironment) === null;
-    if (invalid) {
-      return err({
-        code: 'world-save:invalid-building-placement',
-        details: Object.freeze({ instanceId: instance.instanceId }),
-      });
-    }
-  }
-""",
-              """  try {
-    for (const instance of buildings.instances) {
-      const definition = buildingDefinitionForId(instance.buildingDefinitionId);
-      const cells = occupiedCellsForBuilding(instance);
-      const firstCell = cells[0];
-      const zoneId =
-        firstCell === undefined ? null : buildingEnvironment.zoneDefinitionIdAt(firstCell);
-      const invalid =
-        zoneId === null ||
-        !definition.compatibleZoneDefinitionIds.includes(zoneId) ||
-        cells.some(
-          (cell) =>
-            buildingEnvironment.zoneDefinitionIdAt(cell) !== zoneId ||
-            !buildingEnvironment.isDry(cell) ||
-            buildingEnvironment.surfaceAt(cell).shape !== 'flat' ||
-            buildingEnvironment.isRoadOccupied(cell),
-        ) ||
-        resolveBuildingFrontage(instance, buildingEnvironment) === null;
-      if (invalid) {
-        return err({
-          code: 'world-save:invalid-building-placement',
-          details: Object.freeze({ instanceId: instance.instanceId }),
-        });
-      }
-    }
-  } catch {
-    return err({ code: 'world-save:invalid-building-placement' });
-  }
-""",
-          )
-
-          # Restore the canonical CI workflow and remove authoring diagnostics.
-          master_ci = Path('/tmp/master-ci.yml')
+          print('phase-a:success')
           PY
-          git show origin/master:.github/workflows/ci.yml > /tmp/master-ci.yml
-          cp /tmp/master-ci.yml .github/workflows/ci.yml
-          rm -f sonar-findings.json
-          rm -f .github/workflows/building-static-diagnostics.yml
-      - name: Commit authored closure
-        shell: bash
-        run: |
-          set -euo pipefail
+          status=$?
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if [ "$status" -ne 0 ]; then
+            git add .authoring-output.txt
+            git commit -m 'chore: record Building authoring failure'
+            git push origin HEAD:agent/building-content-occupancy-v0-1
+            exit 0
+          fi
+          rm .authoring-output.txt
+          rm .github/workflows/building-static-diagnostics.yml
           git add -A
-          git diff --cached --quiet && exit 0
-          git commit -m 'fix: close Building integration contracts'
+          git commit -m 'fix: route Building-aware Zone presentation'
           git push origin HEAD:agent/building-content-occupancy-v0-1

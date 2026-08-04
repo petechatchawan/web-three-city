@@ -68,18 +68,21 @@ test('develops deterministic R/C/I content and preserves authority across guards
   expect(evidence.sceneRootCounts.buildingCommitted).toBe(1);
   await expect(page.getByTestId('building-count')).toHaveText('4');
 
-  const commercialCell = pointFor(points, BUILDING_FIXTURES.commercial.zoneCells[0]);
+  const commercialFrontCell = pointFor(points, BUILDING_FIXTURES.commercial.zoneCells[0]);
+  const commercialBackCell = pointFor(points, BUILDING_FIXTURES.commercial.zoneCells[2]);
 
   await page.getByRole('button', { name: 'Build Road' }).click();
-  await page.mouse.click(commercialCell.x, commercialCell.y);
+  await page.mouse.click(commercialFrontCell.x, commercialFrontCell.y);
   await expect(page.getByTestId('game-status')).toHaveText('Road blocked by building');
 
   await page.getByRole('button', { name: 'Remove Zone' }).click();
-  await page.mouse.click(commercialCell.x, commercialCell.y);
+  await page.mouse.click(commercialFrontCell.x, commercialFrontCell.y);
   await expect(page.getByTestId('game-status')).toHaveText('Zone blocked by building');
 
+  // Use the back row of the 2x2 footprint so the Terraform vertex set touches the Building
+  // without also touching its frontage Road. Road occupancy has intentionally higher precedence.
   await page.getByRole('button', { name: 'Raise' }).click();
-  await page.mouse.click(commercialCell.x, commercialCell.y);
+  await page.mouse.click(commercialBackCell.x, commercialBackCell.y);
   await expect(page.getByTestId('game-status')).toHaveText('Terraform blocked by building');
 
   await page.getByRole('button', { name: 'Bulldoze Road' }).click();
@@ -112,7 +115,7 @@ test('develops deterministic R/C/I content and preserves authority across guards
   });
 
   await page.getByRole('button', { name: 'Bulldoze Building' }).click();
-  await page.mouse.click(commercialCell.x, commercialCell.y);
+  await page.mouse.click(commercialFrontCell.x, commercialFrontCell.y);
   await expect(page.getByTestId('game-status')).toHaveText('Building bulldozed');
   evidence = await readEvidence(page);
   expect(evidence.building.count).toBe(3);
@@ -128,7 +131,7 @@ test('develops deterministic R/C/I content and preserves authority across guards
   expect(evidence.building.undoCount).toBe(1);
 
   await page.getByRole('button', { name: 'Bulldoze Building' }).click();
-  await page.mouse.click(commercialCell.x, commercialCell.y);
+  await page.mouse.click(commercialFrontCell.x, commercialFrontCell.y);
   await expect(page.getByTestId('game-status')).toHaveText('Building bulldozed');
   await page.getByRole('button', { name: 'Load world' }).click();
   await expect(page.getByTestId('game-status')).toHaveText('Loaded');

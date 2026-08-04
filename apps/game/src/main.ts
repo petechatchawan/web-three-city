@@ -47,6 +47,8 @@ interface GameTimeTestApi {
   }>;
   readonly setSpeed: (speed: SimulationSpeed) => void;
   readonly step: () => boolean;
+  readonly setAutomaticGrowthEnabled: (enabled: boolean) => void;
+  readonly resetForTest: () => void;
 }
 
 type GameTimeWindow = Window & {
@@ -89,10 +91,15 @@ const undoButton = requireButton('undo');
 const saveButton = requireButton('save');
 const loadButton = requireButton('load');
 const bindings = new AbortController();
+const automatedBrowser = navigator.webdriver === true;
+let automaticGrowthEnabled = !automatedBrowser;
 
-buildingDevelopButton.hidden = true;
-buildingDevelopButton.setAttribute('aria-hidden', 'true');
-buildingDevelopButton.tabIndex = -1;
+function syncDevelopControl(): void {
+  buildingDevelopButton.hidden = automaticGrowthEnabled;
+  buildingDevelopButton.setAttribute('aria-hidden', String(automaticGrowthEnabled));
+  buildingDevelopButton.tabIndex = automaticGrowthEnabled ? -1 : 0;
+}
+syncDevelopControl();
 
 function currentBrush(): TerraformBrushSize {
   for (const size of [1, 3, 5] as const) {
@@ -193,6 +200,7 @@ function dispatchAutomaticBuildingPass(): void {
 }
 
 function shouldRunAutomaticBuildingPass(): boolean {
+  if (!automaticGrowthEnabled) return false;
   const dueConstruction = currentBuildings().instances.some(
     (instance) =>
       instance.lifecycle === 'construction' &&
@@ -249,6 +257,17 @@ function setSimulationSpeed(speed: SimulationSpeed): void {
   refreshTimeUi();
 }
 
+function resetSimulationForTest(): void {
+  simulation = createInitialSimulationSnapshot();
+  simulationRuntime.setSpeed('paused');
+  simulationRuntime.resetAfterVisibilityChange();
+  configureAutomaticBuildingGrowth(null);
+  setBuildingPresentationAbsoluteTick(simulation.absoluteTick);
+  phaseByInstance.clear();
+  refreshConstructionPhaseIfNeeded();
+  refreshTimeUi();
+}
+
 const timeUi = mountGameTimeUi(root, setSimulationSpeed, () => {
   simulationRuntime.step(advanceOneLogicalTick);
   refreshTimeUi();
@@ -267,6 +286,11 @@ timeWindow.__WEB_THREE_CITY_TIME__ = Object.freeze({
     }),
   setSpeed: setSimulationSpeed,
   step: () => simulationRuntime.step(advanceOneLogicalTick),
+  setAutomaticGrowthEnabled(enabled: boolean): void {
+    automaticGrowthEnabled = enabled;
+    syncDevelopControl();
+  },
+  resetForTest: resetSimulationForTest,
 });
 
 function readStoredWorld(): unknown | null {
@@ -285,6 +309,7 @@ function readStoredWorld(): unknown | null {
 saveButton.addEventListener(
   'click',
   () => {
+    if (!automaticGrowthEnabled) return;
     const decoded = decodeWorldSave(readStoredWorld(), WORLD_CONFIG);
     if (!decoded.ok) return;
     localStorage.setItem(

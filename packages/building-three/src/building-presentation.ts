@@ -48,7 +48,16 @@ export class BuildingPresentation {
       const definition = buildingDefinitionForId(instance.buildingDefinitionId);
       const footprint = rotatedBuildingFootprint(definition, instance.rotationQuarterTurns);
       const occupied = occupiedCellsForBuilding(instance);
-      const elevation = Math.max(...occupied.map((cell) => this.#elevationAt(cell)));
+      const firstOccupiedCell = occupied[0];
+      if (firstOccupiedCell === undefined) {
+        throw new Error('building-presentation:empty-footprint');
+      }
+      const elevation = occupied
+        .slice(1)
+        .reduce(
+          (maximum, cell) => Math.max(maximum, this.#elevationAt(cell)),
+          this.#elevationAt(firstOccupiedCell),
+        );
       const group = createBuildingPrototype(instance, this.#materials, this.#config);
       group.position.set(
         (instance.originCell.x + footprint.width / 2) * this.#config.cellSize -

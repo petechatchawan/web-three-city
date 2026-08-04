@@ -1,6 +1,6 @@
 import { chunkForCell, type ChunkCoord } from '@web-three-city/terrain-core';
 import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
-import { buildingDefinitions } from './building-definitions.js';
+import { buildingDefinitionForId, buildingDefinitions } from './building-definitions.js';
 import { buildingEntranceDirection, occupiedCellsForBuilding } from './building-footprint.js';
 import { resolveBuildingFrontage } from './building-frontage.js';
 import { buildingAtCell, buildingInstances, createBuildingSnapshot } from './building-snapshot.js';
@@ -110,10 +110,8 @@ function candidateReason(
 ): BuildingInvalidReason | null {
   const originZone = environment.zoneDefinitionIdAt(instance.originCell);
   if (originZone === null) return 'building:no-zoned-lot';
-  const definition = buildingDefinitions().find(
-    (candidate) => candidate.id === instance.buildingDefinitionId,
-  );
-  if (definition === undefined || !definition.compatibleZoneDefinitionIds.includes(originZone)) {
+  const definition = buildingDefinitionForId(instance.buildingDefinitionId);
+  if (!definition.compatibleZoneDefinitionIds.includes(originZone)) {
     return 'building:no-compatible-definition';
   }
 
@@ -423,7 +421,10 @@ function sameInstances(
 ): boolean {
   return (
     first.length === second.length &&
-    first.every((instance, index) => sameInstance(instance, second[index]!))
+    first.every((instance, index) => {
+      const candidate = second[index];
+      return candidate !== undefined && sameInstance(instance, candidate);
+    })
   );
 }
 
@@ -456,10 +457,15 @@ export function commitBuildingMutation(
   }
 
   try {
-    const verified =
-      plan.operation === 'develop'
-        ? planBuildingDevelopment(buildings, environment, config)
-        : planBuildingBulldoze(buildings, plan.requestedCell!, environment, config);
+    let verified: BuildingMutationPlan;
+    if (plan.operation === 'develop') {
+      verified = planBuildingDevelopment(buildings, environment, config);
+    } else {
+      if (plan.requestedCell === null) {
+        throw new BuildingContractError('building:invalid-proposed-state');
+      }
+      verified = planBuildingBulldoze(buildings, plan.requestedCell, environment, config);
+    }
     if (!verified.valid || !sameInstances(verified.proposedInstances, plan.proposedInstances)) {
       throw new BuildingContractError('building:invalid-proposed-state');
     }

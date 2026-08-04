@@ -64,6 +64,8 @@ import type {
   GameRoadBuildingInvalidReason,
 } from './road-building-guard.js';
 import type { GameTerraformInvalidReason } from './terraform-occupancy-guard.js';
+import { createGuardedZonePresentation } from './zone-building-presentation.js';
+import type { GuardedZoneCandidate, GameZoneInvalidReason } from './zone-building-guard.js';
 import {
   createTerraformStrokeSession,
   type TerraformStrokeRelease,
@@ -136,15 +138,8 @@ export interface CreateGameInputOptions {
     plan: RoadMutationPlan,
     reason?: GameRoadBuildingInvalidReason | null,
   ) => void;
-  readonly guardZonePlan?: (plan: ZoneMutationPlan) => {
-    readonly previewPlan: ZoneMutationPlan;
-    readonly valid: boolean;
-    readonly invalidReason: import('./zone-building-guard.js').GameZoneInvalidReason | null;
-  };
-  readonly onZonePlan: (
-    plan: ZoneMutationPlan,
-    reason?: import('./zone-building-guard.js').GameZoneInvalidReason | null,
-  ) => void;
+  readonly guardZonePlan?: (plan: ZoneMutationPlan) => GuardedZoneCandidate;
+  readonly onZonePlan: (plan: ZoneMutationPlan, reason?: GameZoneInvalidReason | null) => void;
   readonly onBuildingRequest?: (mode: BuildingToolMode, cell: CellCoord) => void;
   readonly onReset: () => void;
 }
@@ -303,29 +298,20 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
           ? null
           : (options.guardZonePlan?.(plan) ??
             Object.freeze({
+              corePlan: plan,
               previewPlan: plan,
               valid: plan.valid,
               invalidReason: plan.invalidReason,
+              blockedBuildingCells: Object.freeze([]),
             }));
       routeZonePreview(options.zonePreview, baseZones, candidate?.previewPlan ?? null);
+      const presentation = createGuardedZonePresentation(
+        isZoneToolMode(mode) ? mode : null,
+        candidate,
+      );
       dispatchGameToolEvent(
         options.canvas,
-        Object.freeze({
-          type: 'zone-state',
-          state: Object.freeze({
-            mode: isZoneToolMode(mode) ? mode : null,
-            strokeActive: candidate !== null,
-            previewValid: candidate?.valid ?? null,
-            previewInvalidReason: plan?.invalidReason ?? null,
-            previewCellCount: plan?.requestedCells.length ?? 0,
-          }),
-          reason: candidate?.invalidReason ?? null,
-          effectiveCellCount: candidate?.valid === true ? (plan?.changedCells.length ?? 0) : 0,
-          invalidCellCount:
-            candidate?.invalidReason === 'zone:building-occupied'
-              ? 1
-              : (plan?.invalidCells.length ?? 0),
-        }),
+        Object.freeze({ type: 'zone-state', ...presentation }),
       );
     },
   });
@@ -394,11 +380,14 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
         const candidate =
           rawPlan === null
             ? null
-            : (options.guardZonePlan?.(rawPlan) ?? {
+            : (options.guardZonePlan?.(rawPlan) ??
+              Object.freeze({
+                corePlan: rawPlan,
                 previewPlan: rawPlan,
                 valid: rawPlan.valid,
                 invalidReason: rawPlan.invalidReason,
-              });
+                blockedBuildingCells: Object.freeze([]),
+              }));
         const finalPlan = candidate?.previewPlan ?? null;
         const transaction = zonePlanTransaction(finalPlan);
         if (transaction !== null) {

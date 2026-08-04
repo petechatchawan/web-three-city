@@ -1,3 +1,4 @@
+import { zoneDefinitionForId } from '@web-three-city/zone-core';
 import type {
   BuildingDefinition,
   BuildingDefinitionId,
@@ -7,13 +8,30 @@ import type {
 const ALL_ROTATIONS: readonly BuildingRotationQuarterTurns[] = Object.freeze([0, 1, 2, 3]);
 
 function definition(value: BuildingDefinition): BuildingDefinition {
+  const rotations = [...value.allowedRotationQuarterTurns];
+  const compatibleZoneDefinitionIds = [...value.compatibleZoneDefinitionIds];
+  let referencesResolvable = true;
+  try {
+    for (const zoneDefinitionId of compatibleZoneDefinitionIds) {
+      zoneDefinitionForId(zoneDefinitionId);
+    }
+  } catch {
+    referencesResolvable = false;
+  }
   if (
     !Number.isSafeInteger(value.footprintWidth) ||
     value.footprintWidth <= 0 ||
     !Number.isSafeInteger(value.footprintDepth) ||
     value.footprintDepth <= 0 ||
-    value.allowedRotationQuarterTurns.length === 0 ||
-    value.compatibleZoneDefinitionIds.length === 0 ||
+    !Number.isSafeInteger(value.selectionPriority) ||
+    value.selectionPriority < 0 ||
+    rotations.length === 0 ||
+    new Set(rotations).size !== rotations.length ||
+    rotations.some((rotation) => rotation < 0 || rotation > 3) ||
+    compatibleZoneDefinitionIds.length === 0 ||
+    new Set(compatibleZoneDefinitionIds).size !== compatibleZoneDefinitionIds.length ||
+    compatibleZoneDefinitionIds.some((zoneDefinitionId) => zoneDefinitionId.length === 0) ||
+    !referencesResolvable ||
     !Number.isFinite(value.prototypeHeight) ||
     value.prototypeHeight <= 0
   ) {
@@ -21,8 +39,10 @@ function definition(value: BuildingDefinition): BuildingDefinition {
   }
   return Object.freeze({
     ...value,
-    allowedRotationQuarterTurns: Object.freeze([...value.allowedRotationQuarterTurns]),
-    compatibleZoneDefinitionIds: Object.freeze([...value.compatibleZoneDefinitionIds]),
+    allowedRotationQuarterTurns: Object.freeze(rotations.sort((first, second) => first - second)),
+    compatibleZoneDefinitionIds: Object.freeze(
+      compatibleZoneDefinitionIds.sort((first, second) => first.localeCompare(second)),
+    ),
   });
 }
 

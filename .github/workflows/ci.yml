@@ -9,46 +9,17 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Zoning Foundation closure requires both jobs on the exact final PR head.
 jobs:
-  building-static-closure:
-    name: Building static closure authoring
-    if: github.head_ref == 'agent/building-content-occupancy-v0-1'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: agent/building-content-occupancy-v0-1
-          fetch-depth: 0
-      - name: Apply static closure
-        shell: bash
-        run: |
-          set -euo pipefail
-          git fetch origin master
-          python3 .github/scripts/building-static-closure.py
-      - name: Commit final authoring tree
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
-          if git diff --cached --quiet; then
-            echo 'No closure changes were produced.' >&2
-            exit 1
-          fi
-          git commit -m 'fix: complete Building static closure [skip ci]'
-          git push origin HEAD:agent/building-content-occupancy-v0-1
-
   lean:
     name: Lean CI
-    if: github.head_ref != 'agent/building-content-occupancy-v0-1'
+    if: github.event_name == 'workflow_dispatch' || github.event.action != 'labeled'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -66,10 +37,9 @@ jobs:
   browser:
     name: Full browser verification
     if: >-
-      github.head_ref != 'agent/building-content-occupancy-v0-1' &&
-      (github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' &&
-      contains(github.event.pull_request.labels.*.name, 'full-ci')))
+      contains(github.event.pull_request.labels.*.name, 'full-ci'))
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:

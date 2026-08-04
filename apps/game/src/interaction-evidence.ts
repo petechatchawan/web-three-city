@@ -302,9 +302,7 @@ export function publishInteractionEvidence(source: InteractionEvidenceSource): v
     get allWorldCornersInsideUsableViewport(): boolean {
       return allCornersInside(source.camera, source.config, source.getViewport());
     },
-    get framingMarginRatio(): number {
-      return CAMERA_DEFAULTS.framingMarginRatio;
-    },
+    framingMarginRatio: CAMERA_DEFAULTS.framingMarginRatio,
     get water(): WaterInteractionEvidence {
       return {
         ...source.getWaterEvidence(),
@@ -312,8 +310,11 @@ export function publishInteractionEvidence(source: InteractionEvidenceSource): v
       };
     },
     get terraform(): TerraformInteractionEvidence {
+      const state = source.getTerraformEvidence();
       return {
-        ...source.getTerraformEvidence(),
+        ...state,
+        previewValid: state.currentStampKind === 'no-change' ? false : state.previewValid,
+        previewCellCount: Math.max(0, state.previewCellCount - state.supportCellCount),
         previewRootCount: countRoots(source.scene, 'terraform-preview-root'),
         previewCoreCount: countNamedObjects(source.scene, 'terraform-preview-core'),
         previewSupportCount: countNamedObjects(source.scene, 'terraform-preview-support'),
@@ -361,8 +362,8 @@ export function publishInteractionEvidence(source: InteractionEvidenceSource): v
       return {
         terrain: countRoots(source.scene, 'terrain-presentation-root'),
         water: countRoots(source.scene, 'water-presentation-root'),
-        grid: countRoots(source.scene, 'terrain-grid-root'),
-        selection: countRoots(source.scene, 'selected-cell-root'),
+        grid: countRoots(source.scene, 'terrain-grid-presentation-root'),
+        selection: countRoots(source.scene, 'selected-cell-presentation-root'),
         preview: countRoots(source.scene, 'terraform-preview-root'),
         roadCommitted: countRoots(source.scene, 'road-committed-root'),
         roadPreview: countRoadPreviewRoots(source.scene),
@@ -372,9 +373,5 @@ export function publishInteractionEvidence(source: InteractionEvidenceSource): v
       };
     },
   };
-  Object.defineProperty(window, '__WEB_THREE_CITY_INTERACTION__', {
-    configurable: true,
-    enumerable: false,
-    get: () => evidence,
-  });
+  window.__WEB_THREE_CITY_INTERACTION__ = evidence;
 }

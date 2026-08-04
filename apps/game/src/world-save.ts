@@ -259,29 +259,33 @@ export function decodeWorldSave(
   } catch {
     return err({ code: 'world-save:invalid-building-environment' });
   }
-  for (const instance of buildings.instances) {
-    const definition = buildingDefinitionForId(instance.buildingDefinitionId);
-    const cells = occupiedCellsForBuilding(instance);
-    const firstCell = cells[0];
-    const zoneId =
-      firstCell === undefined ? null : buildingEnvironment.zoneDefinitionIdAt(firstCell);
-    const invalid =
-      zoneId === null ||
-      !definition.compatibleZoneDefinitionIds.includes(zoneId) ||
-      cells.some(
-        (cell) =>
-          buildingEnvironment.zoneDefinitionIdAt(cell) !== zoneId ||
-          !buildingEnvironment.isDry(cell) ||
-          buildingEnvironment.surfaceAt(cell).shape !== 'flat' ||
-          buildingEnvironment.isRoadOccupied(cell),
-      ) ||
-      resolveBuildingFrontage(instance, buildingEnvironment) === null;
-    if (invalid) {
-      return err({
-        code: 'world-save:invalid-building-placement',
-        details: Object.freeze({ instanceId: instance.instanceId }),
-      });
+  try {
+    for (const instance of buildings.instances) {
+      const definition = buildingDefinitionForId(instance.buildingDefinitionId);
+      const cells = occupiedCellsForBuilding(instance);
+      const firstCell = cells[0];
+      const zoneId =
+        firstCell === undefined ? null : buildingEnvironment.zoneDefinitionIdAt(firstCell);
+      const invalid =
+        zoneId === null ||
+        !definition.compatibleZoneDefinitionIds.includes(zoneId) ||
+        cells.some(
+          (cell) =>
+            buildingEnvironment.zoneDefinitionIdAt(cell) !== zoneId ||
+            !buildingEnvironment.isDry(cell) ||
+            buildingEnvironment.surfaceAt(cell).shape !== 'flat' ||
+            buildingEnvironment.isRoadOccupied(cell),
+        ) ||
+        resolveBuildingFrontage(instance, buildingEnvironment) === null;
+      if (invalid) {
+        return err({
+          code: 'world-save:invalid-building-placement',
+          details: Object.freeze({ instanceId: instance.instanceId }),
+        });
+      }
     }
+  } catch {
+    return err({ code: 'world-save:invalid-building-placement' });
   }
   let zoneEnvironment: ZonePlacementEnvironment;
   try {

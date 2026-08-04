@@ -72,30 +72,32 @@ export function selectBuildingCandidate(
   const highestPriority = Math.max(
     ...candidates.map((candidate) => candidate.definition.selectionPriority),
   );
-  let tier = candidates.filter(
+  const priorityTier = candidates.filter(
     (candidate) => candidate.definition.selectionPriority === highestPriority,
   );
   const bestByDefinition = new Map<BuildingDefinitionId, BuildingSelectionCandidate>();
-  for (const candidate of [...tier].sort(candidateOrder)) {
-    if (!bestByDefinition.has(candidate.definition.id))
+  for (const candidate of [...priorityTier].sort(candidateOrder)) {
+    if (!bestByDefinition.has(candidate.definition.id)) {
       bestByDefinition.set(candidate.definition.id, candidate);
+    }
   }
-  tier = [...bestByDefinition.values()];
-  const nonAdjacent = tier.filter(
+  const bestCandidates = [...bestByDefinition.values()];
+  const nonAdjacent = bestCandidates.filter(
     (candidate) => !context.adjacentDefinitionIds.has(candidate.definition.id),
   );
-  if (nonAdjacent.length > 0) tier = nonAdjacent;
-  tier.sort((a, b) => a.definition.id.localeCompare(b.definition.id));
-  const totalWeight = tier.reduce(
+  const eligibleTier = (nonAdjacent.length > 0 ? nonAdjacent : bestCandidates).sort((a, b) =>
+    a.definition.id.localeCompare(b.definition.id),
+  );
+  const totalWeight = eligibleTier.reduce(
     (total, candidate) => total + candidate.definition.selectionWeight,
     0,
   );
   let cursor = stableBuildingSelectionHash(context) % totalWeight;
-  for (const candidate of tier) {
+  for (const candidate of eligibleTier) {
     if (cursor < candidate.definition.selectionWeight) return candidate;
     cursor -= candidate.definition.selectionWeight;
   }
-  return tier[tier.length - 1] ?? null;
+  return eligibleTier[eligibleTier.length - 1] ?? null;
 }
 
 function adjacentDefinitionIds(

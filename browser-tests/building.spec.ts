@@ -10,9 +10,8 @@ import { GAME_URL, readEvidence } from './helpers/interaction.js';
 const SAVE_KEY = 'web-three-city:world-save:v3';
 const EXPECTED_DEFINITION_IDS = Object.freeze([
   'commercial-office-2x2',
-  'industrial-warehouse-2x2',
-  'residential-rowhouse-1x2',
-  'residential-rowhouse-1x2',
+  'industrial-factory-2x2',
+  'residential-apartment-2x2',
 ]);
 
 async function openGame(page: Page): Promise<void> {
@@ -61,12 +60,12 @@ test('develops deterministic R/C/I content and preserves authority across guards
     industrial: 4,
     total: 12,
   });
-  expect(evidence.building.count).toBe(4);
+  expect(evidence.building.count).toBe(3);
   expect(evidence.building.occupiedCellCount).toBe(12);
   expect(evidence.building.definitionIds).toEqual(EXPECTED_DEFINITION_IDS);
   expect(evidence.building.commitCount).toBe(1);
   expect(evidence.sceneRootCounts.buildingCommitted).toBe(1);
-  await expect(page.getByTestId('building-count')).toHaveText('4');
+  await expect(page.getByTestId('building-count')).toHaveText('3');
 
   const commercialFrontCell = pointFor(points, BUILDING_FIXTURES.commercial.zoneCells[0]);
   const commercialBackCell = pointFor(points, BUILDING_FIXTURES.commercial.zoneCells[2]);
@@ -95,7 +94,7 @@ test('develops deterministic R/C/I content and preserves authority across guards
   await expect(page.getByTestId('game-status')).toHaveText('Road required by building');
 
   evidence = await readEvidence(page);
-  expect(evidence.building.count).toBe(4);
+  expect(evidence.building.count).toBe(3);
   expect(evidence.zone.counts.commercial).toBe(4);
 
   await page.getByRole('button', { name: 'Save world' }).click();
@@ -108,8 +107,8 @@ test('develops deterministic R/C/I content and preserves authority across guards
       schemaVersion: 1,
       instances: expect.arrayContaining([
         expect.objectContaining({ buildingDefinitionId: 'commercial-office-2x2' }),
-        expect.objectContaining({ buildingDefinitionId: 'industrial-warehouse-2x2' }),
-        expect.objectContaining({ buildingDefinitionId: 'residential-rowhouse-1x2' }),
+        expect.objectContaining({ buildingDefinitionId: 'industrial-factory-2x2' }),
+        expect.objectContaining({ buildingDefinitionId: 'residential-apartment-2x2' }),
       ]),
     },
   });
@@ -118,7 +117,7 @@ test('develops deterministic R/C/I content and preserves authority across guards
   await page.mouse.click(commercialFrontCell.x, commercialFrontCell.y);
   await expect(page.getByTestId('game-status')).toHaveText('Building bulldozed');
   evidence = await readEvidence(page);
-  expect(evidence.building.count).toBe(3);
+  expect(evidence.building.count).toBe(2);
   expect(evidence.building.occupiedCellCount).toBe(8);
   expect(evidence.building.definitionIds).not.toContain('commercial-office-2x2');
   expect(evidence.zone.counts.commercial).toBe(4);
@@ -126,7 +125,7 @@ test('develops deterministic R/C/I content and preserves authority across guards
   await page.getByRole('button', { name: 'Undo latest world change' }).click();
   await expect(page.getByTestId('game-status')).toHaveText('Building undone');
   evidence = await readEvidence(page);
-  expect(evidence.building.count).toBe(4);
+  expect(evidence.building.count).toBe(3);
   expect(evidence.building.definitionIds).toEqual(EXPECTED_DEFINITION_IDS);
   expect(evidence.building.undoCount).toBe(1);
 
@@ -136,7 +135,7 @@ test('develops deterministic R/C/I content and preserves authority across guards
   await page.getByRole('button', { name: 'Load world' }).click();
   await expect(page.getByTestId('game-status')).toHaveText('Loaded');
   evidence = await readEvidence(page);
-  expect(evidence.building.count).toBe(4);
+  expect(evidence.building.count).toBe(3);
   expect(evidence.building.definitionIds).toEqual(EXPECTED_DEFINITION_IDS);
   expect(evidence.sceneRootCounts.buildingCommitted).toBe(1);
 });

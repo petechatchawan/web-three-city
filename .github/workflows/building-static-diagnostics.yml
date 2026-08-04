@@ -1,0 +1,51 @@
+name: Building Static Diagnostics
+
+on:
+  push:
+    branches:
+      - agent/building-content-occupancy-v0-1
+
+permissions:
+  contents: read
+
+jobs:
+  sonar-findings:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Query open Sonar findings
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            --get 'https://sonarcloud.io/api/issues/search' \
+            --data-urlencode 'componentKeys=petechatchawan_web-three-city' \
+            --data-urlencode 'pullRequest=19' \
+            --data-urlencode 'issueStatuses=OPEN,CONFIRMED' \
+            --data-urlencode 'ps=500' \
+            > sonar-issues.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(Path('sonar-issues.json').read_text())
+          print(f"total={payload.get('total', 0)}")
+          for issue in payload.get('issues', []):
+              flows = []
+              for flow in issue.get('flows', []):
+                  for location in flow.get('locations', []):
+                      flows.append({
+                          'component': location.get('component'),
+                          'line': location.get('textRange', {}).get('startLine'),
+                          'message': location.get('msg'),
+                      })
+              print(json.dumps({
+                  'key': issue.get('key'),
+                  'rule': issue.get('rule'),
+                  'type': issue.get('type'),
+                  'severity': issue.get('severity'),
+                  'component': issue.get('component'),
+                  'line': issue.get('line'),
+                  'message': issue.get('message'),
+                  'flows': flows,
+              }, ensure_ascii=False, sort_keys=True))
+          PY

@@ -77,12 +77,16 @@ export interface ActiveBuildingInstance extends BuildingInstanceBase {
 }
 
 export type BuildingInstance =
-  LegacyBuildingInstance | ConstructionBuildingInstance | ActiveBuildingInstance;
-export type AuthoritativeBuildingInstance = ConstructionBuildingInstance | ActiveBuildingInstance;
+  | LegacyBuildingInstance
+  | ConstructionBuildingInstance
+  | ActiveBuildingInstance;
+export type AuthoritativeBuildingInstance =
+  | ConstructionBuildingInstance
+  | ActiveBuildingInstance;
 
 export interface BuildingSnapshot {
   readonly revision: number;
-  readonly instances: readonly AuthoritativeBuildingInstance[];
+  readonly instances: readonly BuildingInstance[];
 }
 
 export interface RotatedBuildingFootprint {
@@ -166,7 +170,7 @@ export interface BuildingGrowthPlan {
   readonly baseZoneRevision: number;
   readonly beforeAbsoluteTick: number;
   readonly afterAbsoluteTick: number;
-  readonly proposedInstances: readonly AuthoritativeBuildingInstance[];
+  readonly proposedInstances: readonly BuildingInstance[];
   readonly startedInstanceIds: readonly string[];
   readonly completedInstanceIds: readonly string[];
   readonly nextGrowthSequence: number;

@@ -65,6 +65,9 @@ importers:
       '@web-three-city/road-three':
         specifier: workspace:*
         version: link:../../packages/road-three
+      '@web-three-city/simulation-core':
+        specifier: workspace:*
+        version: link:../../packages/simulation-core
       '@web-three-city/terrain-core':
         specifier: workspace:*
         version: link:../../packages/terrain-core
@@ -139,6 +142,9 @@ importers:
 
   packages/building-core:
     dependencies:
+      '@web-three-city/simulation-core':
+        specifier: workspace:*
+        version: link:../simulation-core
       '@web-three-city/terrain-core':
         specifier: workspace:*
         version: link:../terrain-core
@@ -213,6 +219,8 @@ importers:
       '@web-three-city/world-core':
         specifier: workspace:*
         version: link:../world-core
+
+  packages/simulation-core: {}
 
   packages/terrain-core:
     dependencies:

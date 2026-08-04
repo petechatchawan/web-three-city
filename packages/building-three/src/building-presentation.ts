@@ -15,10 +15,11 @@ import { createBuildingMaterials, type BuildingMaterials } from './material-fact
 import { createBuildingPrototype } from './prototype-factory.js';
 
 export type BuildingElevationResolver = (cell: CellCoord) => number;
+type BuildingPresentationReload = (snapshot: BuildingSnapshot, absoluteTick: number) => void;
 
 let defaultAbsoluteTick = 8;
 let latestSnapshot: BuildingSnapshot | null = null;
-let latestPresentation: BuildingPresentation | null = null;
+let latestPresentationReload: BuildingPresentationReload | null = null;
 
 export function setBuildingPresentationAbsoluteTick(absoluteTick: number): void {
   if (!Number.isSafeInteger(absoluteTick) || absoluteTick < 0) {
@@ -32,8 +33,8 @@ export function latestPresentedBuildingSnapshot(): BuildingSnapshot | null {
 }
 
 export function reloadLatestBuildingPresentation(): void {
-  if (latestPresentation !== null && latestSnapshot !== null) {
-    latestPresentation.load(latestSnapshot, defaultAbsoluteTick);
+  if (latestPresentationReload !== null && latestSnapshot !== null) {
+    latestPresentationReload(latestSnapshot, defaultAbsoluteTick);
   }
 }
 
@@ -43,6 +44,9 @@ export class BuildingPresentation {
   readonly #elevationAt: BuildingElevationResolver;
   readonly #materials: BuildingMaterials;
   readonly #root = new THREE.Group();
+  readonly #reloadLatest: BuildingPresentationReload = (snapshot, absoluteTick) => {
+    this.load(snapshot, absoluteTick);
+  };
   #disposed = false;
 
   constructor(scene: THREE.Scene, elevationAt: BuildingElevationResolver, config: WorldConfig) {
@@ -52,7 +56,7 @@ export class BuildingPresentation {
     this.#materials = createBuildingMaterials();
     this.#root.name = 'building-committed-root';
     scene.add(this.#root);
-    latestPresentation = this;
+    latestPresentationReload = this.#reloadLatest;
   }
 
   get root(): THREE.Group {
@@ -120,7 +124,9 @@ export class BuildingPresentation {
     this.clear();
     this.#materials.dispose();
     this.#scene.remove(this.#root);
-    if (latestPresentation === this) latestPresentation = null;
-    latestSnapshot = null;
+    if (latestPresentationReload === this.#reloadLatest) {
+      latestPresentationReload = null;
+      latestSnapshot = null;
+    }
   }
 }

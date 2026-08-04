@@ -8,12 +8,13 @@ import {
 import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
 import type { ZoneToolMode } from './game-tool-mode.js';
 import { createReversibleCellTrace, type ReversibleCellTrace } from './reversible-cell-trace.js';
+import type { GameZoneInvalidReason } from './zone-building-guard.js';
 
 export interface ZoneInputState {
   readonly mode: ZoneToolMode | null;
   readonly strokeActive: boolean;
   readonly previewValid: boolean | null;
-  readonly previewInvalidReason: ZoneMutationPlan['invalidReason'];
+  readonly previewInvalidReason: GameZoneInvalidReason | null;
   readonly previewCellCount: number;
 }
 

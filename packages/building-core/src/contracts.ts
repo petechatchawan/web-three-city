@@ -80,9 +80,7 @@ export type BuildingInstance =
   | LegacyBuildingInstance
   | ConstructionBuildingInstance
   | ActiveBuildingInstance;
-export type AuthoritativeBuildingInstance =
-  | ConstructionBuildingInstance
-  | ActiveBuildingInstance;
+export type AuthoritativeBuildingInstance = ConstructionBuildingInstance | ActiveBuildingInstance;
 
 export interface BuildingSnapshot {
   readonly revision: number;

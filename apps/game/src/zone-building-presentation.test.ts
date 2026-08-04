@@ -5,14 +5,8 @@ import type { GuardedZoneCandidate } from './zone-building-guard.js';
 
 function plan(): ZoneMutationPlan {
   return {
-    requestedCells: Object.freeze([
-      Object.freeze({ x: 2, z: 2 }),
-      Object.freeze({ x: 3, z: 2 }),
-    ]),
-    changedCells: Object.freeze([
-      Object.freeze({ x: 2, z: 2 }),
-      Object.freeze({ x: 3, z: 2 }),
-    ]),
+    requestedCells: Object.freeze([Object.freeze({ x: 2, z: 2 }), Object.freeze({ x: 3, z: 2 })]),
+    changedCells: Object.freeze([Object.freeze({ x: 2, z: 2 }), Object.freeze({ x: 3, z: 2 })]),
     invalidCells: Object.freeze([]),
     valid: true,
     invalidReason: null,

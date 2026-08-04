@@ -309,10 +309,7 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
         isZoneToolMode(mode) ? mode : null,
         candidate,
       );
-      dispatchGameToolEvent(
-        options.canvas,
-        Object.freeze({ type: 'zone-state', ...presentation }),
-      );
+      dispatchGameToolEvent(options.canvas, Object.freeze({ type: 'zone-state', ...presentation }));
     },
   });
 

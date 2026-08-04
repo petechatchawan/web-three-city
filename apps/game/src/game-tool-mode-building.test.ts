@@ -24,10 +24,7 @@ const MODES: readonly GameToolMode[] = Object.freeze([
 
 describe('Building tool modes', () => {
   it('narrows only the two Building operations', () => {
-    expect(MODES.filter(isBuildingToolMode)).toEqual([
-      'building-develop',
-      'building-bulldoze',
-    ]);
+    expect(MODES.filter(isBuildingToolMode)).toEqual(['building-develop', 'building-bulldoze']);
   });
 
   it('keeps Building modes isolated from Terrain, Road, and Zone domains', () => {

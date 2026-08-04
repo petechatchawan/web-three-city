@@ -73,10 +73,7 @@ describe('required Building frontage guard', () => {
     const corePlan = Object.freeze({
       operation: 'bulldoze' as const,
       addedCells: Object.freeze([]),
-      removedCells: Object.freeze([
-        Object.freeze({ x: 4, z: 4 }),
-        Object.freeze({ x: 5, z: 4 }),
-      ]),
+      removedCells: Object.freeze([Object.freeze({ x: 4, z: 4 }), Object.freeze({ x: 5, z: 4 })]),
       proposedDefinitionCodes: proposedCodes,
       valid: true,
       invalidReason: null,

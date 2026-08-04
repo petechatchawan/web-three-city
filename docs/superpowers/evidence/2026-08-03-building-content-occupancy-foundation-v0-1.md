@@ -2,7 +2,21 @@
 
 ## Status
 
-Implementation, deterministic browser acceptance, visual evidence capture, and automated/manual test specifications are written on the feature branch. Verification is intentionally deferred until the Owner's final test pass.
+Implementation, deterministic browser acceptance, visual evidence capture, and automated/manual test specifications are complete on the feature branch. Static integration closure is complete, temporary authoring artifacts are removed, and the branch is ready for the Owner's final verification gate.
+
+The PR remains Draft and unmerged. No verification result is claimed until the Owner runs the final test pass.
+
+## Static closure record
+
+- Building-aware Zone preview publishes the guarded reason and exact blocked-cell count.
+- Optional Building snapshot wiring is compatible with `exactOptionalPropertyTypes`.
+- Building Definition compatibility declarations are normalized, unique, resolvable, immutable, and fail closed.
+- Building mutation commit removes unsafe non-null assertions and re-plans against current authoritative inputs.
+- Building presentation rejects malformed empty footprints instead of deriving a non-finite elevation.
+- WorldSaveV3 Building placement validation remains a Result-returning fail-closed boundary.
+- Existing Terraform interaction-evidence semantics and canonical scene root names are preserved.
+- Standard repository CI workflow is restored from `master` for the Owner's test gate.
+- Temporary workflows, triggers, diagnostic output, and authoring scripts are absent from the final PR diff.
 
 ## Manual acceptance matrix
 
@@ -21,7 +35,7 @@ Implementation, deterministic browser acceptance, visual evidence capture, and a
 
 ## Verification record
 
-- Exact head: pending
+- Exact verification head: pending Owner test gate
 - Focused tests: not run by instruction
 - `pnpm check`: not run by instruction
 - Browser acceptance: not run by instruction

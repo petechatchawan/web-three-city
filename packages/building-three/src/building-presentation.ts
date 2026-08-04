@@ -1,11 +1,16 @@
 import {
   buildingDefinitionForId,
+  constructionProgressAtTick,
   occupiedCellsForBuilding,
   rotatedBuildingFootprint,
   type BuildingSnapshot,
 } from '@web-three-city/building-core';
 import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
 import * as THREE from 'three';
+import {
+  constructionVisualPhase,
+  createConstructionPrototype,
+} from './construction-prototype-factory.js';
 import { createBuildingMaterials, type BuildingMaterials } from './material-factory.js';
 import { createBuildingPrototype } from './prototype-factory.js';
 
@@ -41,24 +46,41 @@ export class BuildingPresentation {
     }
   }
 
-  load(snapshot: BuildingSnapshot): void {
+  load(snapshot: BuildingSnapshot, absoluteTick = 8): void {
     if (this.#disposed) throw new Error('building-presentation:disposed');
     this.clear();
     for (const instance of snapshot.instances) {
       const definition = buildingDefinitionForId(instance.buildingDefinitionId);
       const footprint = rotatedBuildingFootprint(definition, instance.rotationQuarterTurns);
       const occupied = occupiedCellsForBuilding(instance);
-      const firstOccupiedCell = occupied[0];
-      if (firstOccupiedCell === undefined) {
-        throw new Error('building-presentation:empty-footprint');
-      }
+      const first = occupied[0];
+      if (first === undefined) throw new Error('building-presentation:empty-footprint');
       const elevation = occupied
         .slice(1)
         .reduce(
           (maximum, cell) => Math.max(maximum, this.#elevationAt(cell)),
-          this.#elevationAt(firstOccupiedCell),
+          this.#elevationAt(first),
         );
-      const group = createBuildingPrototype(instance, this.#materials, this.#config);
+      const group =
+        instance.lifecycle === 'construction'
+          ? createConstructionPrototype({
+              footprintWidth: definition.footprintWidth,
+              footprintDepth: definition.footprintDepth,
+              prototypeHeight: definition.prototypeHeight,
+              phase: constructionVisualPhase(
+                constructionProgressAtTick(instance, absoluteTick),
+              ),
+              materials: this.#materials,
+            })
+          : createBuildingPrototype(instance, this.#materials, this.#config);
+      group.userData.instanceId = instance.instanceId;
+      group.userData.lifecycle = instance.lifecycle;
+      if (instance.lifecycle === 'construction') {
+        group.userData.constructionPhase = constructionVisualPhase(
+          constructionProgressAtTick(instance, absoluteTick),
+        );
+        group.scale.setScalar(this.#config.cellSize);
+      }
       group.position.set(
         (instance.originCell.x + footprint.width / 2) * this.#config.cellSize -
           (this.#config.mapWidth * this.#config.cellSize) / 2,

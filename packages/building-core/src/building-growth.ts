@@ -10,7 +10,7 @@ import type { WorldConfig } from '@web-three-city/world-core';
 import { buildingDefinitionForId } from './building-definitions.js';
 import { occupiedCellsForBuilding } from './building-footprint.js';
 import { activateCompletedBuilding, normalizeBuildingInstance } from './building-lifecycle.js';
-import { planBuildingDevelopment } from './building-mutation.js';
+import { selectGrowthBuildingPlacement } from './building-selection.js';
 import { createBuildingSnapshot } from './building-snapshot.js';
 import {
   BuildingContractError,
@@ -23,7 +23,7 @@ import {
 } from './contracts.js';
 
 function frozenStrings(values: Iterable<string>): readonly string[] {
-  return Object.freeze([...values].sort((first, second) => first.localeCompare(second)));
+  return Object.freeze([...values].sort((a, b) => a.localeCompare(b)));
 }
 
 function frozenChunks(chunks: Iterable<ChunkCoord>): readonly ChunkCoord[] {
@@ -31,7 +31,7 @@ function frozenChunks(chunks: Iterable<ChunkCoord>): readonly ChunkCoord[] {
   for (const chunk of chunks) unique.set(`${chunk.x}:${chunk.z}`, chunk);
   return Object.freeze(
     [...unique.values()]
-      .sort((first, second) => first.z - second.z || first.x - second.x)
+      .sort((a, b) => a.z - b.z || a.x - b.x)
       .map((chunk) => Object.freeze({ ...chunk })),
   );
 }
@@ -40,7 +40,6 @@ function environmentValid(environment: BuildingDevelopmentEnvironment): boolean 
   return (
     Number.isSafeInteger(environment.terrainRevision) &&
     environment.terrainRevision >= 0 &&
-    Number.isSafeInteger(environment.waterSourceTerrainRevision) &&
     environment.waterSourceTerrainRevision === environment.terrainRevision &&
     Number.isSafeInteger(environment.roadRevision) &&
     environment.roadRevision >= 0 &&
@@ -111,8 +110,8 @@ export function planBuildingGrowthTick(input: {
     );
   }
 
-  const simulationPlan = planSimulationTick(simulation);
-  if (!simulationPlan.valid) {
+  const tickPlan = planSimulationTick(simulation);
+  if (!tickPlan.valid) {
     return invalidPlan(
       buildings,
       simulation,
@@ -120,54 +119,56 @@ export function planBuildingGrowthTick(input: {
       'building-growth:tick-overflow',
     );
   }
-  const afterAbsoluteTick = simulationPlan.afterAbsoluteTick;
-  const completedInstanceIds: string[] = [];
-  const dirtyChunks: ChunkCoord[] = [];
-  const proposedInstances: AuthoritativeBuildingInstance[] = buildings.instances.map((instance) => {
+
+  const afterAbsoluteTick = tickPlan.afterAbsoluteTick;
+  const completedIds: string[] = [];
+  const dirty: ChunkCoord[] = [];
+  const proposed: AuthoritativeBuildingInstance[] = buildings.instances.map((instance) => {
     if (
       instance.lifecycle === 'construction' &&
       instance.constructionCompletesAtTick <= afterAbsoluteTick
     ) {
-      completedInstanceIds.push(instance.instanceId);
+      completedIds.push(instance.instanceId);
       for (const cell of occupiedCellsForBuilding(instance)) {
-        dirtyChunks.push(chunkForCell(cell, input.config));
+        dirty.push(chunkForCell(cell, input.config));
       }
       return activateCompletedBuilding(instance, afterAbsoluteTick);
     }
     return normalizeBuildingInstance(instance);
   });
 
-  const startedInstanceIds: string[] = [];
+  const startedIds: string[] = [];
   let nextGrowthSequence = simulation.growthSequence;
   if (isDevelopmentEvaluationTick(afterAbsoluteTick)) {
     const intermediate = createBuildingSnapshot(
-      { revision: buildings.revision, instances: proposedInstances },
+      { revision: buildings.revision, instances: proposed },
       input.config,
     );
-    const development = planBuildingDevelopment(
-      intermediate,
-      input.environment,
-      input.config,
-    );
-    const candidate = development.valid ? development.addedInstances[0] : undefined;
-    if (candidate !== undefined) {
-      const definition = buildingDefinitionForId(candidate.buildingDefinitionId);
+    const selected = selectGrowthBuildingPlacement({
+      buildings: intermediate,
+      environment: input.environment,
+      config: input.config,
+      absoluteTick: afterAbsoluteTick,
+      growthSequence: simulation.growthSequence,
+    });
+    if (selected !== null) {
       nextGrowthSequence += 1;
+      const definition = buildingDefinitionForId(selected.definition.id);
       const construction: AuthoritativeBuildingInstance = Object.freeze({
         instanceId: `building:growth:${nextGrowthSequence}`,
-        buildingDefinitionId: candidate.buildingDefinitionId,
-        buildingDefinitionVersion: candidate.buildingDefinitionVersion,
-        originCell: Object.freeze({ ...candidate.originCell }),
-        rotationQuarterTurns: candidate.rotationQuarterTurns,
+        buildingDefinitionId: definition.id,
+        buildingDefinitionVersion: definition.version,
+        originCell: Object.freeze({ ...selected.instance.originCell }),
+        rotationQuarterTurns: selected.instance.rotationQuarterTurns,
         lifecycle: 'construction',
         constructionStartedAtTick: afterAbsoluteTick,
         constructionCompletesAtTick:
           afterAbsoluteTick + definition.constructionDurationTicks,
       });
-      proposedInstances.push(construction);
-      startedInstanceIds.push(construction.instanceId);
+      proposed.push(construction);
+      startedIds.push(construction.instanceId);
       for (const cell of occupiedCellsForBuilding(construction)) {
-        dirtyChunks.push(chunkForCell(cell, input.config));
+        dirty.push(chunkForCell(cell, input.config));
       }
     }
   }
@@ -181,11 +182,11 @@ export function planBuildingGrowthTick(input: {
     baseZoneRevision: input.environment.zoneRevision,
     beforeAbsoluteTick: simulation.absoluteTick,
     afterAbsoluteTick,
-    proposedInstances: Object.freeze(proposedInstances.map(normalizeBuildingInstance)),
-    startedInstanceIds: frozenStrings(startedInstanceIds),
-    completedInstanceIds: frozenStrings(completedInstanceIds),
+    proposedInstances: Object.freeze(proposed.map(normalizeBuildingInstance)),
+    startedInstanceIds: frozenStrings(startedIds),
+    completedInstanceIds: frozenStrings(completedIds),
     nextGrowthSequence,
-    dirtyChunks: frozenChunks(dirtyChunks),
+    dirtyChunks: frozenChunks(dirty),
     valid: true,
     invalidReason: null,
   });
@@ -228,18 +229,18 @@ export function commitBuildingGrowthTick(input: {
     throw new BuildingContractError('building:stale-zone-plan');
   }
 
-  const simulationPlan = planSimulationTick(input.simulation);
-  if (!simulationPlan.valid || simulationPlan.afterAbsoluteTick !== plan.afterAbsoluteTick) {
+  const tickPlan = planSimulationTick(input.simulation);
+  if (!tickPlan.valid || tickPlan.afterAbsoluteTick !== plan.afterAbsoluteTick) {
     throw new BuildingContractError('building-growth:stale-simulation-plan');
   }
   const simulationCommit = commitSimulationTick(
     input.simulation,
-    simulationPlan,
+    tickPlan,
     plan.nextGrowthSequence,
   );
-  const buildingChanged =
+  const changed =
     plan.startedInstanceIds.length > 0 || plan.completedInstanceIds.length > 0;
-  const buildings = buildingChanged
+  const buildings = changed
     ? createBuildingSnapshot(
         {
           revision: input.buildings.revision + 1,

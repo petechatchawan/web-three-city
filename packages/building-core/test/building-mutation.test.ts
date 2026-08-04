@@ -1,5 +1,5 @@
 import type { TerrainCellSurfaceProfile } from '@web-three-city/terrain-core';
-import type { WorldConfig } from '@web-three-city/world-core';
+import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
 import { describe, expect, it } from 'vitest';
 import {
   BuildingContractError,
@@ -43,10 +43,10 @@ function environment(
     surfaceAt: () => FLAT,
     isDry: () => true,
     isRoadOccupied: () => false,
-    zoneDefinitionIdAt(cell) {
+    zoneDefinitionIdAt(cell: CellCoord) {
       return cell.x >= 1 && cell.x <= 2 && cell.z >= 1 && cell.z <= 2 ? 'commercial' : null;
     },
-    roadAccessAt(cell) {
+    roadAccessAt(cell: CellCoord) {
       return cell.z === 1
         ? Object.freeze({
             direction: 'north',
@@ -100,7 +100,7 @@ describe('building mutation', () => {
   it('discards every accepted lot when an environment accessor fails mid-scan', () => {
     const before = createEmptyBuildingSnapshot(CONFIG);
     const unstable = environment({
-      zoneDefinitionIdAt(cell) {
+      zoneDefinitionIdAt(cell: CellCoord) {
         if (cell.z === 1 && cell.x === 3) throw new Error('environment unavailable');
         return cell.x >= 1 && cell.x <= 2 && cell.z >= 1 && cell.z <= 2 ? 'commercial' : null;
       },
@@ -120,7 +120,7 @@ describe('building mutation', () => {
   it('never spans mixed Zones and still develops compatible sub-lots', () => {
     const before = createEmptyBuildingSnapshot(CONFIG);
     const mixed = environment({
-      zoneDefinitionIdAt(cell) {
+      zoneDefinitionIdAt(cell: CellCoord) {
         if (cell.x === 1 && cell.z === 1) return 'commercial';
         if (cell.x === 2 && cell.z === 1) return 'residential';
         return null;

@@ -1,4 +1,8 @@
-import { createBuildingSnapshot, type BuildingSnapshot } from '@web-three-city/building-core';
+import {
+  consumeAutomaticBuildingUndoSuppression,
+  createBuildingSnapshot,
+  type BuildingSnapshot,
+} from '@web-three-city/building-core';
 import { createRoadSnapshot, type RoadSnapshot } from '@web-three-city/road-core';
 import { createTerrainMap, type TerrainSnapshot } from '@web-three-city/terrain-core';
 import { createZoneSnapshot, type ZoneSnapshot } from '@web-three-city/zone-core';
@@ -24,6 +28,7 @@ function copyTerrain(
     revision,
   });
 }
+
 function copyRoads(
   snapshot: RoadSnapshot,
   config: WorldConfig,
@@ -39,6 +44,7 @@ function copyRoads(
     config,
   );
 }
+
 function copyZones(
   snapshot: ZoneSnapshot,
   config: WorldConfig,
@@ -54,6 +60,7 @@ function copyZones(
     config,
   );
 }
+
 function copyBuildings(
   snapshot: BuildingSnapshot,
   config: WorldConfig,
@@ -61,24 +68,20 @@ function copyBuildings(
 ): BuildingSnapshot {
   return createBuildingSnapshot({ revision, instances: snapshot.instances }, config);
 }
+
 function copyEntry(entry: WorldUndoEntry, config: WorldConfig): WorldUndoEntry {
   switch (entry.kind) {
     case 'terraform':
-      return Object.freeze({
-        kind: 'terraform' as const,
-        terrain: copyTerrain(entry.terrain, config),
-      });
+      return Object.freeze({ kind: 'terraform' as const, terrain: copyTerrain(entry.terrain, config) });
     case 'road':
       return Object.freeze({ kind: 'road' as const, roads: copyRoads(entry.roads, config) });
     case 'zone':
       return Object.freeze({ kind: 'zone' as const, zones: copyZones(entry.zones, config) });
     case 'building':
-      return Object.freeze({
-        kind: 'building' as const,
-        buildings: copyBuildings(entry.buildings, config),
-      });
+      return Object.freeze({ kind: 'building' as const, buildings: copyBuildings(entry.buildings, config) });
   }
 }
+
 function restoredEntry(entry: WorldUndoEntry, config: WorldConfig): WorldUndoEntry {
   switch (entry.kind) {
     case 'terraform':
@@ -103,27 +106,35 @@ function restoredEntry(entry: WorldUndoEntry, config: WorldConfig): WorldUndoEnt
       });
   }
 }
+
 export class WorldUndoStore {
   readonly #config: WorldConfig;
   #entry: WorldUndoEntry | null = null;
+
   constructor(config: WorldConfig) {
     this.#config = config;
   }
+
   get available(): boolean {
     return this.#entry !== null;
   }
+
   get kind(): WorldUndoEntry['kind'] | null {
     return this.#entry?.kind ?? null;
   }
+
   replace(entry: WorldUndoEntry): void {
+    if (entry.kind === 'building' && consumeAutomaticBuildingUndoSuppression()) return;
     this.#entry = copyEntry(entry, this.#config);
   }
+
   consume(): WorldUndoEntry | null {
     const entry = this.#entry;
     if (entry === null) return null;
     this.#entry = null;
     return restoredEntry(entry, this.#config);
   }
+
   clear(): void {
     this.#entry = null;
   }

@@ -1,0 +1,40 @@
+.game-time-controls {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.65rem 0.75rem;
+  border-top: 1px solid rgb(255 255 255 / 12%);
+  border-bottom: 1px solid rgb(255 255 255 / 12%);
+}
+
+.game-time-summary,
+.game-time-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.75rem;
+}
+
+.game-time-summary span {
+  font-size: 0.78rem;
+  opacity: 0.86;
+}
+
+.game-time-buttons button {
+  min-width: 3.25rem;
+}
+
+.game-time-buttons button.is-active {
+  outline: 2px solid currentColor;
+  outline-offset: 1px;
+}
+
+@media (max-width: 720px) {
+  .game-time-controls {
+    padding-inline: 0.5rem;
+  }
+
+  .game-time-summary,
+  .game-time-buttons {
+    gap: 0.35rem;
+  }
+}

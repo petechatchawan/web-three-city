@@ -6,12 +6,16 @@ on:
       - agent/building-content-occupancy-v0-1
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   sonar-findings:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/building-content-occupancy-v0-1
+          fetch-depth: 0
       - name: Query open Sonar findings
         shell: bash
         run: |
@@ -22,13 +26,13 @@ jobs:
             --data-urlencode 'pullRequest=19' \
             --data-urlencode 'issueStatuses=OPEN,CONFIRMED' \
             --data-urlencode 'ps=500' \
-            > sonar-issues.json
+            > sonar-issues.raw.json
           python3 - <<'PY'
           import json
           from pathlib import Path
 
-          payload = json.loads(Path('sonar-issues.json').read_text())
-          print(f"total={payload.get('total', 0)}")
+          payload = json.loads(Path('sonar-issues.raw.json').read_text())
+          findings = []
           for issue in payload.get('issues', []):
               flows = []
               for flow in issue.get('flows', []):
@@ -38,7 +42,7 @@ jobs:
                           'line': location.get('textRange', {}).get('startLine'),
                           'message': location.get('msg'),
                       })
-              print(json.dumps({
+              findings.append({
                   'key': issue.get('key'),
                   'rule': issue.get('rule'),
                   'type': issue.get('type'),
@@ -47,5 +51,21 @@ jobs:
                   'line': issue.get('line'),
                   'message': issue.get('message'),
                   'flows': flows,
-              }, ensure_ascii=False, sort_keys=True))
+              })
+          Path('sonar-findings.json').write_text(
+              json.dumps({'total': len(findings), 'issues': findings}, indent=2, sort_keys=True) + '\n'
+          )
           PY
+          rm sonar-issues.raw.json
+      - name: Commit diagnostics when changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- sonar-findings.json && git ls-files --error-unmatch sonar-findings.json >/dev/null 2>&1; then
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add sonar-findings.json
+          git commit -m 'chore: record Building static findings'
+          git push origin HEAD:agent/building-content-occupancy-v0-1

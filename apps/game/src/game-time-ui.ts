@@ -72,7 +72,7 @@ export function mountGameTimeUi(
     fastButton,
     fasterButton,
     stepButton,
-    update(speed, presentation) {
+    update(speed: SimulationSpeed, presentation: GameTimePresentation) {
       const buttons: ReadonlyArray<readonly [HTMLButtonElement, SimulationSpeed]> = [
         [pauseButton, 'paused'],
         [playButton, 'normal'],

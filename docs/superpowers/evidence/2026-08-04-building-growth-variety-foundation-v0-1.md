@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation and test specifications are authored on three stacked Draft branches. Workspace lockfile reconciliation is complete. The first complete exact-head verification is starting; no merge is authorized.
+Implementation and test specifications are authored on three stacked Draft branches. Workspace lockfile reconciliation and repository formatting are complete. The first complete formatted exact-head verification is starting; no merge is authorized.
 
 ## Stacked delivery
 

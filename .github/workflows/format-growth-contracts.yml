@@ -1,0 +1,38 @@
+name: Format Growth contracts once
+
+on:
+  push:
+    branches:
+      - agent/building-growth-runtime-v0-1
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/building-growth-runtime-v0-1
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Format contract and remove helper
+        run: |
+          pnpm exec prettier --write packages/building-core/src/contracts.ts
+          rm .github/workflows/format-growth-contracts.yml
+      - name: Commit formatter output
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add packages/building-core/src/contracts.ts .github/workflows/format-growth-contracts.yml
+          git commit -m 'style: apply Prettier to Growth contracts'
+          git push origin HEAD:agent/building-growth-runtime-v0-1

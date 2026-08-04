@@ -1,6 +1,7 @@
 import type { WorldConfig } from '@web-three-city/world-core';
 import { buildingDefinitionForId } from './building-definitions.js';
 import { isBuildingRotationQuarterTurns } from './building-footprint.js';
+import { normalizeBuildingInstance } from './building-lifecycle.js';
 import { createBuildingSnapshot } from './building-snapshot.js';
 import type {
   AuthoritativeBuildingInstance,
@@ -60,8 +61,9 @@ export function encodeBuildingSaveV2(snapshot: BuildingSnapshot): BuildingSaveV2
     schemaVersion: 2,
     revision: snapshot.revision,
     instances: Object.freeze(
-      snapshot.instances.map((instance) =>
-        Object.freeze(
+      snapshot.instances.map((rawInstance) => {
+        const instance = normalizeBuildingInstance(rawInstance);
+        return Object.freeze(
           instance.lifecycle === 'construction'
             ? {
                 instanceId: instance.instanceId,
@@ -82,8 +84,8 @@ export function encodeBuildingSaveV2(snapshot: BuildingSnapshot): BuildingSaveV2
                 lifecycle: 'active' as const,
                 activatedAtTick: instance.activatedAtTick,
               },
-        ),
-      ),
+        );
+      }),
     ),
   });
 }

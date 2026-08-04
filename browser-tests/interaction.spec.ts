@@ -163,5 +163,6 @@ test('context restore preserves grid and selection with one root each', async ({
     roadPreview: 0,
     zoneCommitted: 1,
     zonePreview: 0,
+    buildingCommitted: 1,
   });
 });

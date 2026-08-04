@@ -73,6 +73,8 @@ export function bindGameToolHud(
     '[data-action="tool-zone-commercial"]',
     '[data-action="tool-zone-industrial"]',
     '[data-action="tool-zone-remove"]',
+    '[data-action="tool-building-develop"]',
+    '[data-action="tool-building-bulldoze"]',
   ].map((selector) => requireElement<HTMLButtonElement>(root, selector));
   const undoButton = requireElement<HTMLButtonElement>(root, '[data-action="undo"]');
   let interactionActive = false;
@@ -173,6 +175,8 @@ export function bindGameToolHud(
           contextMessage.textContent = messageForGameReason(detail.reason);
           if (detail.reason === 'terraform:road-occupied') {
             setCompatibilityStatus('Terraform blocked by road');
+          } else if (detail.reason === 'terraform:building-occupied') {
+            setCompatibilityStatus('Terraform blocked by building');
           } else if (detail.reason === 'terraform:zone-occupied') {
             setCompatibilityStatus('Terraform blocked by zone');
           } else if (detail.reason === 'terraform:no-change') {
@@ -186,7 +190,13 @@ export function bindGameToolHud(
           hideMetrics();
           setMutationBlocked(true);
           const domain =
-            detail.domain === 'terraform' ? 'Terrain' : detail.domain === 'road' ? 'Road' : 'Zone';
+            detail.domain === 'terraform'
+              ? 'Terrain'
+              : detail.domain === 'road'
+                ? 'Road'
+                : detail.domain === 'zone'
+                  ? 'Zone'
+                  : 'Building';
           if (detail.state === 'committing') {
             contextState.textContent = 'Applying change';
             contextMessage.textContent = `Applying ${domain} change…`;

@@ -21,7 +21,7 @@ import {
   type TerrainCellScreenPoint,
 } from './helpers/interaction.js';
 
-const WORLD_SAVE_KEY = 'web-three-city:world-save:v2';
+const WORLD_SAVE_KEY = 'web-three-city:world-save:v3';
 const LEGACY_SAVE_KEY = 'web-three-city:terrain-save:v1';
 const GAME_SEED = 1_464_156_977;
 const BASE_TERRAIN = (() => {
@@ -318,7 +318,7 @@ test('Terraform touching one Road cell invalidates Preview and rejects the whole
   expect(after.road.undoKind).toBe('road');
 });
 
-test('WorldSaveV1 restores Roads and legacy Terrain saves migrate to empty Roads', async ({
+test('WorldSaveV3 restores Roads and legacy Terrain saves migrate to empty Roads', async ({
   page,
 }) => {
   await openGame(page);

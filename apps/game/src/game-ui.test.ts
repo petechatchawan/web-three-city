@@ -34,6 +34,7 @@ function terraformContextFixture(): GameToolPresentationState {
             invalidReason: 'terraform:road-occupied',
             blockedRoadCells: Object.freeze([{ x: 2, z: 1 }]),
             blockedZoneCells: Object.freeze([]),
+            blockedBuildingCells: Object.freeze([]),
           }),
         }),
       }),
@@ -53,6 +54,14 @@ describe('renderGameUi', () => {
     expect(root.querySelector('[data-testid="undo-world-change"]')).toBe(ui.undoButton);
     expect(root.querySelector('[data-testid="secondary-controls"]')).not.toBeNull();
     expect(root.querySelector('[data-testid="tool-close"]')).toBe(ui.closeToolButton);
+    expect(root.querySelector('[data-action="tool-building-develop"]')).toBe(
+      ui.buildingDevelopButton,
+    );
+    expect(root.querySelector('[data-action="tool-building-bulldoze"]')).toBe(
+      ui.buildingBulldozeButton,
+    );
+    ui.setBuildingCount(3);
+    expect(root.querySelector('[data-testid="building-count"]')?.textContent).toBe('3');
   });
 
   it('renders actionable Terraform context without revisions or hashes', () => {

@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { GAME_URL, readEvidence } from './helpers/interaction.js';
 
-const SAVE_KEY = 'web-three-city:world-save:v2';
+const SAVE_KEY = 'web-three-city:world-save:v3';
 
 async function waitForReady(page: import('@playwright/test').Page): Promise<void> {
   await page.goto(GAME_URL);
@@ -79,7 +79,8 @@ test('changes quality and round-trips world save data', async ({ page }) => {
   expect(saved).not.toBeNull();
   expect(JSON.parse(saved ?? '{}')).toMatchObject({
     kind: 'world-save',
-    schemaVersion: 2,
+    schemaVersion: 3,
+    buildings: { schemaVersion: 1 },
   });
 
   await page.getByLabel('Quality').selectOption('low');
@@ -107,6 +108,7 @@ test('recovers presentation state after WebGL context loss', async ({ page }) =>
   expect(evidence.sceneRootCounts.roadPreview).toBe(0);
   expect(evidence.sceneRootCounts.zoneCommitted).toBe(1);
   expect(evidence.sceneRootCounts.zonePreview).toBe(0);
+  expect(evidence.sceneRootCounts.buildingCommitted).toBe(1);
 });
 
 test('boots Coastal Water and Roads with one presentation root each', async ({ page }) => {
@@ -139,7 +141,9 @@ test('save and load reproduce identical Water evidence', async ({ page }) => {
   expect(after.waterRootCount).toBe(1);
 });
 
-test('restores exactly one Water and Road root after context restoration', async ({ page }) => {
+test('restores exactly one Water, Road, Zone, and Building root after context restoration', async ({
+  page,
+}) => {
   await waitForReady(page);
   const canvas = page.locator('#game-canvas');
   await canvas.evaluate((element) => {
@@ -154,9 +158,12 @@ test('restores exactly one Water and Road root after context restoration', async
   expect(evidence.sceneRootCounts.roadPreview).toBe(0);
   expect(evidence.sceneRootCounts.zoneCommitted).toBe(1);
   expect(evidence.sceneRootCounts.zonePreview).toBe(0);
+  expect(evidence.sceneRootCounts.buildingCommitted).toBe(1);
 });
 
-test('exposes Terraform, Road, and Zone tools with mode-aware brush controls', async ({ page }) => {
+test('exposes Terraform, Road, Zone, and Building tools with mode-aware brush controls', async ({
+  page,
+}) => {
   await waitForReady(page);
 
   await expect(page.getByRole('button', { name: 'Navigate' })).toHaveAttribute(
@@ -173,6 +180,8 @@ test('exposes Terraform, Road, and Zone tools with mode-aware brush controls', a
     'Commercial',
     'Industrial',
     'Remove Zone',
+    'Develop Zones',
+    'Bulldoze Building',
   ]) {
     await expect(page.getByRole('button', { name })).toHaveAttribute('aria-pressed', 'false');
   }
@@ -190,6 +199,14 @@ test('exposes Terraform, Road, and Zone tools with mode-aware brush controls', a
 
   await page.getByRole('button', { name: 'Residential' }).click();
   await expect(page.getByTestId('active-tool')).toHaveText('Residential Zone');
+  await expect(page.getByTestId('terraform-brush-controls')).toBeHidden();
+
+  await page.getByRole('button', { name: 'Develop Zones' }).click();
+  await expect(page.getByTestId('active-tool')).toHaveText('Develop Zones');
+  await expect(page.getByTestId('terraform-brush-controls')).toBeHidden();
+
+  await page.getByRole('button', { name: 'Bulldoze Building' }).click();
+  await expect(page.getByTestId('active-tool')).toHaveText('Bulldoze Building');
   await expect(page.getByTestId('terraform-brush-controls')).toBeHidden();
 
   await page.getByRole('button', { name: 'Raise' }).click();

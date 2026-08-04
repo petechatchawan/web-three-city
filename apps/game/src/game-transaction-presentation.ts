@@ -33,6 +33,10 @@ const ZONE_UNDO = Object.freeze({
   state: 'undoing',
   domain: 'zone',
 }) satisfies GameTransactionAnnouncement;
+const BUILDING_UNDO = Object.freeze({
+  state: 'undoing',
+  domain: 'building',
+}) satisfies GameTransactionAnnouncement;
 
 export function terraformReleaseTransaction(
   release: TerraformStrokeRelease,
@@ -59,5 +63,6 @@ export function undoTransaction(
   if (domain === 'terraform') return TERRAFORM_UNDO;
   if (domain === 'road') return ROAD_UNDO;
   if (domain === 'zone') return ZONE_UNDO;
+  if (domain === 'building') return BUILDING_UNDO;
   return null;
 }

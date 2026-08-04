@@ -1,3 +1,9 @@
+import type { BuildingSnapshot } from '@web-three-city/building-core';
+import type { BuildingToolMode } from './game-tool-mode.js';
+import {
+  createBuildingToolController,
+  type BuildingInputState,
+} from './building-tool-controller.js';
 import {
   CameraInteractionController,
   bindWorldInput,
@@ -35,6 +41,7 @@ import type {
 import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
 import * as THREE from 'three';
 import {
+  isBuildingToolMode,
   isRoadToolMode,
   isTerraformToolMode,
   isZoneToolMode,
@@ -52,8 +59,13 @@ import {
 } from './game-transaction-presentation.js';
 import { createRoadStrokeController, type RoadInputState } from './road-stroke-controller.js';
 import { createTerraformPreviewSceneModel } from './terraform-preview-adapter.js';
-import type { GuardedRoadCandidate, GameRoadInvalidReason } from './road-zone-guard.js';
+import type {
+  GuardedRoadBuildingCandidate,
+  GameRoadBuildingInvalidReason,
+} from './road-building-guard.js';
 import type { GameTerraformInvalidReason } from './terraform-occupancy-guard.js';
+import { createGuardedZonePresentation } from './zone-building-presentation.js';
+import type { GuardedZoneCandidate, GameZoneInvalidReason } from './zone-building-guard.js';
 import {
   createTerraformStrokeSession,
   type TerraformStrokeRelease,
@@ -93,6 +105,7 @@ export interface GameInput {
   getTerraformState(): TerraformInputState;
   getRoadState(): RoadInputState;
   getZoneState(): ZoneInputState;
+  getBuildingState(): BuildingInputState;
   clearActiveSession(): void;
   dispose(): void;
 }
@@ -111,17 +124,23 @@ export interface CreateGameInputOptions {
   readonly getRoadEnvironment: () => RoadPlacementEnvironment;
   readonly getZoneSnapshot: () => ZoneSnapshot;
   readonly getZoneEnvironment: () => ZonePlacementEnvironment;
+  readonly getBuildingSnapshot?: () => BuildingSnapshot;
   readonly guardRoadPlan?: (
     plan: RoadMutationPlan,
     baseRoads: RoadSnapshot,
-  ) => GuardedRoadCandidate;
+  ) => GuardedRoadBuildingCandidate;
   readonly onSelection: (cell: CellCoord | null) => void;
   readonly onTerraformCommit: (plan: TerraformPlan) => void;
   readonly onTerraformRelease?: (release: TerraformStrokeRelease) => void;
   readonly onTerraformState?: (state: TerraformStrokeSessionState) => void;
   readonly onTerraformReject?: (reason: GameTerraformInvalidReason | 'terraform:no-change') => void;
-  readonly onRoadPlan: (plan: RoadMutationPlan, reason?: GameRoadInvalidReason | null) => void;
-  readonly onZonePlan: (plan: ZoneMutationPlan) => void;
+  readonly onRoadPlan: (
+    plan: RoadMutationPlan,
+    reason?: GameRoadBuildingInvalidReason | null,
+  ) => void;
+  readonly guardZonePlan?: (plan: ZoneMutationPlan) => GuardedZoneCandidate;
+  readonly onZonePlan: (plan: ZoneMutationPlan, reason?: GameZoneInvalidReason | null) => void;
+  readonly onBuildingRequest?: (mode: BuildingToolMode, cell: CellCoord) => void;
   readonly onReset: () => void;
 }
 
@@ -218,6 +237,9 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
     getTerrainSnapshot: options.getTerrainSnapshot,
     getRoadSnapshot: options.getRoadSnapshot,
     getZoneSnapshot: options.getZoneSnapshot,
+    ...(options.getBuildingSnapshot === undefined
+      ? {}
+      : { getBuildingSnapshot: options.getBuildingSnapshot }),
     onState(state): void {
       options.preview.show(
         createTerraformPreviewSceneModel(state, options.getTerrainSnapshot(), options.config),
@@ -227,7 +249,10 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
     },
   });
 
-  const guardRoad = (plan: RoadMutationPlan, baseRoads: RoadSnapshot): GuardedRoadCandidate =>
+  const guardRoad = (
+    plan: RoadMutationPlan,
+    baseRoads: RoadSnapshot,
+  ): GuardedRoadBuildingCandidate =>
     options.guardRoadPlan?.(plan, baseRoads) ??
     Object.freeze({
       corePlan: plan,
@@ -235,6 +260,7 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
       valid: plan.valid,
       invalidReason: plan.invalidReason,
       blockedZoneCells: Object.freeze([]),
+      blockedBuildingCells: Object.freeze([]),
     });
 
   const roadController = createRoadStrokeController({
@@ -267,25 +293,29 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
     getZoneSnapshot: options.getZoneSnapshot,
     getEnvironment: options.getZoneEnvironment,
     onPreview(baseZones, plan): void {
-      routeZonePreview(options.zonePreview, baseZones, plan);
-      dispatchGameToolEvent(
-        options.canvas,
-        Object.freeze({
-          type: 'zone-state',
-          state: Object.freeze({
-            mode: isZoneToolMode(mode) ? mode : null,
-            strokeActive: plan !== null,
-            previewValid: plan?.valid ?? null,
-            previewInvalidReason: plan?.invalidReason ?? null,
-            previewCellCount: plan?.requestedCells.length ?? 0,
-          }),
-          reason: plan?.invalidReason ?? null,
-          effectiveCellCount: plan?.changedCells.length ?? 0,
-          invalidCellCount: plan?.invalidCells.length ?? 0,
-        }),
+      const candidate =
+        plan === null
+          ? null
+          : (options.guardZonePlan?.(plan) ??
+            Object.freeze({
+              corePlan: plan,
+              previewPlan: plan,
+              valid: plan.valid,
+              invalidReason: plan.invalidReason,
+              blockedBuildingCells: Object.freeze([]),
+            }));
+      routeZonePreview(options.zonePreview, baseZones, candidate?.previewPlan ?? null);
+      const presentation = createGuardedZonePresentation(
+        isZoneToolMode(mode) ? mode : null,
+        candidate,
       );
+      dispatchGameToolEvent(options.canvas, Object.freeze({ type: 'zone-state', ...presentation }));
     },
   });
+
+  const buildingController = createBuildingToolController(() =>
+    isBuildingToolMode(mode) ? mode : null,
+  );
 
   const rejectTerraform = (reason: GameTerraformInvalidReason | 'terraform:no-change'): void => {
     dispatchGameToolEvent(options.canvas, Object.freeze({ type: 'reason', reason }));
@@ -304,6 +334,7 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
 
       if (isRoadToolMode(mode)) return roadController.begin(pointerId, cell);
       if (isZoneToolMode(mode)) return zoneController.begin(pointerId, cell);
+      if (isBuildingToolMode(mode)) return buildingController.begin(pointerId, cell);
       if (!isTerraformToolMode(mode)) return false;
 
       if (mode === 'flatten') {
@@ -322,6 +353,7 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
       const cell = { x: result.cellX, z: result.cellZ };
       if (isRoadToolMode(mode)) roadController.move(pointerId, cell);
       else if (isZoneToolMode(mode)) zoneController.move(pointerId, cell);
+      else if (isBuildingToolMode(mode)) buildingController.move(pointerId, cell);
       else if (isTerraformToolMode(mode)) terraformSession.move(pointerId, cell);
     },
     end(pointerId: number, point: ScreenPoint): void {
@@ -341,12 +373,29 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
         return;
       }
       if (isZoneToolMode(mode)) {
-        const finalPlan = zoneController.end(pointerId, cell);
+        const rawPlan = zoneController.end(pointerId, cell);
+        const candidate =
+          rawPlan === null
+            ? null
+            : (options.guardZonePlan?.(rawPlan) ??
+              Object.freeze({
+                corePlan: rawPlan,
+                previewPlan: rawPlan,
+                valid: rawPlan.valid,
+                invalidReason: rawPlan.invalidReason,
+                blockedBuildingCells: Object.freeze([]),
+              }));
+        const finalPlan = candidate?.previewPlan ?? null;
         const transaction = zonePlanTransaction(finalPlan);
         if (transaction !== null) {
           dispatchGameTransactionState(options.canvas, transaction.state, transaction.domain);
         }
-        if (finalPlan !== null) options.onZonePlan(finalPlan);
+        if (finalPlan !== null) options.onZonePlan(finalPlan, candidate?.invalidReason ?? null);
+        return;
+      }
+      if (isBuildingToolMode(mode)) {
+        const request = buildingController.end(pointerId, cell);
+        if (request !== null) options.onBuildingRequest?.(request.mode, request.cell);
         return;
       }
       if (!isTerraformToolMode(mode)) return;
@@ -364,11 +413,13 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
     cancel(pointerId: number): void {
       roadController.cancel(pointerId);
       zoneController.cancel(pointerId);
+      buildingController.cancel(pointerId);
       terraformSession.cancel(pointerId);
     },
     cancelAll(): void {
       roadController.cancelAll();
       zoneController.cancelAll();
+      buildingController.cancelAll();
       terraformSession.cancelAll();
     },
   };
@@ -392,6 +443,8 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
   const clearAllSessions = (): void => {
     binding?.clearActiveSession();
     roadController.cancelAll();
+    zoneController.cancelAll();
+    buildingController.cancelAll();
     terraformSession.cancelAll();
   };
   const toolEventController = new AbortController();
@@ -417,7 +470,9 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
         value !== 'zone-residential' &&
         value !== 'zone-commercial' &&
         value !== 'zone-industrial' &&
-        value !== 'zone-remove'
+        value !== 'zone-remove' &&
+        value !== 'building-develop' &&
+        value !== 'building-bulldoze'
       ) {
         throw new RangeError('game-input:invalid-tool-mode');
       }
@@ -452,7 +507,10 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
           ? state.currentStamp.preview.corePlan.affectedCells.length
           : (state.acceptedPlan?.affectedCells.length ?? 0);
       return {
-        mode: isRoadToolMode(mode) || isZoneToolMode(mode) ? 'navigate' : mode,
+        mode:
+          isRoadToolMode(mode) || isZoneToolMode(mode) || isBuildingToolMode(mode)
+            ? 'navigate'
+            : mode,
         brushSize,
         strokeActive: state.strokeActive,
         previewValid,
@@ -470,6 +528,9 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
     getZoneState(): ZoneInputState {
       return zoneController.getState();
     },
+    getBuildingState(): BuildingInputState {
+      return buildingController.getState();
+    },
     clearActiveSession(): void {
       clearAllSessions();
     },
@@ -479,6 +540,7 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
       binding = null;
       roadController.cancelAll();
       zoneController.cancelAll();
+      buildingController.cancelAll();
       terraformSession.cancelAll();
       options.preview.clear();
       terrainObjects = [];

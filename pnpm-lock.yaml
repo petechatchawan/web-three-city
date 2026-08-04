@@ -50,6 +50,12 @@ importers:
 
   apps/game:
     dependencies:
+      '@web-three-city/building-core':
+        specifier: workspace:*
+        version: link:../../packages/building-core
+      '@web-three-city/building-three':
+        specifier: workspace:*
+        version: link:../../packages/building-three
       '@web-three-city/camera-input':
         specifier: workspace:*
         version: link:../../packages/camera-input
@@ -130,6 +136,30 @@ importers:
       '@types/three':
         specifier: 0.185.0
         version: 0.185.0
+
+  packages/building-core:
+    dependencies:
+      '@web-three-city/terrain-core':
+        specifier: workspace:*
+        version: link:../terrain-core
+      '@web-three-city/world-core':
+        specifier: workspace:*
+        version: link:../world-core
+      '@web-three-city/zone-core':
+        specifier: workspace:*
+        version: link:../zone-core
+
+  packages/building-three:
+    dependencies:
+      '@web-three-city/building-core':
+        specifier: workspace:*
+        version: link:../building-core
+      '@web-three-city/world-core':
+        specifier: workspace:*
+        version: link:../world-core
+      three:
+        specifier: 0.185.1
+        version: 0.185.1
 
   packages/camera-input:
     dependencies:

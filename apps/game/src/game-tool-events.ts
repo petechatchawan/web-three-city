@@ -1,6 +1,6 @@
-import type { ZoneInvalidReason } from '@web-three-city/zone-core';
+import type { GameRoadBuildingInvalidReason } from './road-building-guard.js';
+import type { GameZoneInvalidReason } from './zone-building-guard.js';
 import type { GameOperationReason } from './game-reason-catalog.js';
-import type { GameRoadInvalidReason } from './road-zone-guard.js';
 import type { RoadInputState } from './road-stroke-controller.js';
 import type { TerraformStrokeSessionState } from './terraform-stroke-session.js';
 import type { ZoneInputState } from './zone-stroke-controller.js';
@@ -9,19 +9,19 @@ export const GAME_TOOL_EVENT = 'web-three-city:game-tool-presentation';
 export const GAME_TOOL_CANCEL_EVENT = 'web-three-city:cancel-tool-session';
 
 export type GameTransactionState = 'committing' | 'undoing';
-export type GameTransactionDomain = 'terraform' | 'road' | 'zone';
+export type GameTransactionDomain = 'terraform' | 'road' | 'zone' | 'building';
 
 export type GameToolEventDetail =
   | { readonly type: 'terraform-state'; readonly state: TerraformStrokeSessionState }
   | {
       readonly type: 'road-state';
       readonly state: RoadInputState;
-      readonly reason: GameRoadInvalidReason | null;
+      readonly reason: GameRoadBuildingInvalidReason | null;
     }
   | {
       readonly type: 'zone-state';
       readonly state: ZoneInputState;
-      readonly reason: ZoneInvalidReason | null;
+      readonly reason: GameZoneInvalidReason | null;
       readonly effectiveCellCount: number;
       readonly invalidCellCount: number;
     }

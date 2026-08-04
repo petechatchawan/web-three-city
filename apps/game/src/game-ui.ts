@@ -46,6 +46,8 @@ export interface GameUi {
   readonly zoneCommercialButton: HTMLButtonElement;
   readonly zoneIndustrialButton: HTMLButtonElement;
   readonly zoneRemoveButton: HTMLButtonElement;
+  readonly buildingDevelopButton: HTMLButtonElement;
+  readonly buildingBulldozeButton: HTMLButtonElement;
   readonly closeToolButton: HTMLButtonElement;
   readonly brushControls: HTMLElement;
   readonly brush1Button: HTMLButtonElement;
@@ -62,6 +64,7 @@ export interface GameUi {
   setBrushSize(size: TerraformBrushSize): void;
   setUndoAvailable(available: boolean): void;
   setZoneCounts(counts: ZoneCounts): void;
+  setBuildingCount(count: number): void;
   renderToolPresentation(state: GameToolPresentationState): void;
   setSecondaryControlsExpanded(expanded: boolean): void;
 }
@@ -99,6 +102,10 @@ function toolLabel(mode: GameToolMode): string {
       return 'Industrial Zone';
     case 'zone-remove':
       return 'Remove Zone';
+    case 'building-develop':
+      return 'Develop Zones';
+    case 'building-bulldoze':
+      return 'Bulldoze Building';
   }
 }
 
@@ -129,6 +136,8 @@ export function renderGameUi(root: HTMLElement): GameUi {
               <button type="button" data-action="tool-zone-commercial" aria-pressed="false">Commercial</button>
               <button type="button" data-action="tool-zone-industrial" aria-pressed="false">Industrial</button>
               <button type="button" data-action="tool-zone-remove" aria-pressed="false">Remove Zone</button>
+              <button type="button" data-action="tool-building-develop" aria-label="Develop Zones" aria-pressed="false">Develop Zones</button>
+              <button type="button" data-action="tool-building-bulldoze" aria-label="Bulldoze Building" aria-pressed="false">Bulldoze Building</button>
               <button type="button" class="tool-close" data-action="tool-close" data-testid="tool-close">Close tool</button>
             </div>
             <div class="terraform-brush" data-testid="terraform-brush-controls" hidden>
@@ -179,6 +188,7 @@ export function renderGameUi(root: HTMLElement): GameUi {
                 <span>Selected</span>
                 <strong data-testid="selected-cell">None</strong>
               </div>
+              <div class="metrics-row"><span>Buildings</span><strong data-testid="building-count">0</strong></div>
               <div class="metrics-row zone-counts" aria-label="Committed zone counts">
                 <span>Zones</span>
                 <strong>
@@ -251,6 +261,7 @@ export function renderGameUi(root: HTMLElement): GameUi {
     root,
     '[data-testid="zone-industrial-count"]',
   );
+  const buildingCountValue = requireElement<HTMLElement>(root, '[data-testid="building-count"]');
   const controlsMode = requireElement<HTMLElement>(root, '[data-testid="controls-mode"]');
   const secondaryControls = requireElement<HTMLDetailsElement>(root, '.secondary-controls');
   const qualitySelect = requireElement<HTMLSelectElement>(root, '#quality-select');
@@ -288,6 +299,14 @@ export function renderGameUi(root: HTMLElement): GameUi {
     root,
     '[data-action="tool-zone-remove"]',
   );
+  const buildingDevelopButton = requireElement<HTMLButtonElement>(
+    root,
+    '[data-action="tool-building-develop"]',
+  );
+  const buildingBulldozeButton = requireElement<HTMLButtonElement>(
+    root,
+    '[data-action="tool-building-bulldoze"]',
+  );
   const closeToolButton = requireElement<HTMLButtonElement>(root, '[data-action="tool-close"]');
   const brushControls = requireElement<HTMLElement>(
     root,
@@ -308,6 +327,8 @@ export function renderGameUi(root: HTMLElement): GameUi {
     'zone-commercial': zoneCommercialButton,
     'zone-industrial': zoneIndustrialButton,
     'zone-remove': zoneRemoveButton,
+    'building-develop': buildingDevelopButton,
+    'building-bulldoze': buildingBulldozeButton,
   };
   const brushButtons: Readonly<Record<TerraformBrushSize, HTMLButtonElement>> = {
     1: brush1Button,
@@ -401,7 +422,9 @@ export function renderGameUi(root: HTMLElement): GameUi {
           ? 'Terrain'
           : state.interaction.domain === 'road'
             ? 'Road'
-            : 'Zone';
+            : state.interaction.domain === 'zone'
+              ? 'Zone'
+              : 'Building';
       message ??= `Applying ${domain} change…`;
     } else if (state.interaction.kind === 'undoing') {
       stateLabel = 'Undoing';
@@ -421,7 +444,11 @@ export function renderGameUi(root: HTMLElement): GameUi {
               ? state.mode === 'zone-remove'
                 ? 'Drag across Zone cells and release to remove them.'
                 : 'Drag across eligible cells and release to paint the Zone.'
-              : 'Drag across Terrain and release to apply accepted stamps.';
+              : state.mode === 'building-develop'
+                ? 'Release on the world to develop all eligible Zoned lots.'
+                : state.mode === 'building-bulldoze'
+                  ? 'Release on a Building footprint to bulldoze that Building.'
+                  : 'Drag across Terrain and release to apply accepted stamps.';
     }
     contextState.textContent = stateLabel;
     contextMessage.textContent = message;
@@ -453,6 +480,8 @@ export function renderGameUi(root: HTMLElement): GameUi {
     zoneCommercialButton,
     zoneIndustrialButton,
     zoneRemoveButton,
+    buildingDevelopButton,
+    buildingBulldozeButton,
     closeToolButton,
     brushControls,
     brush1Button,
@@ -521,6 +550,9 @@ export function renderGameUi(root: HTMLElement): GameUi {
       zoneResidentialCount.textContent = String(counts.residential);
       zoneCommercialCount.textContent = String(counts.commercial);
       zoneIndustrialCount.textContent = String(counts.industrial);
+    },
+    setBuildingCount(count: number): void {
+      buildingCountValue.textContent = String(count);
     },
     renderToolPresentation,
     setSecondaryControlsExpanded(expanded: boolean): void {

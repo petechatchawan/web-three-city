@@ -60,7 +60,7 @@ function freezeChunks(chunks: Iterable<ChunkCoord>): readonly ChunkCoord[] {
   );
 }
 
-function copyInstance(instance: BuildingInstance): BuildingInstance {
+function copyInstance(instance: BuildingInstance): AuthoritativeBuildingInstance {
   return normalizeBuildingInstance(instance);
 }
 
@@ -80,7 +80,8 @@ function automaticPlan(
   const dirty: ChunkCoord[] = [];
   const completed: AuthoritativeBuildingInstance[] = [];
   let changed = false;
-  for (const instance of snapshot.instances) {
+  for (const rawInstance of snapshot.instances) {
+    const instance = normalizeBuildingInstance(rawInstance);
     if (
       instance.lifecycle === 'construction' &&
       instance.constructionCompletesAtTick <= context.absoluteTick
@@ -92,7 +93,7 @@ function automaticPlan(
         dirty.push(chunkForCell(cell, config));
       }
     } else {
-      completed.push(normalizeBuildingInstance(instance));
+      completed.push(instance);
     }
   }
 

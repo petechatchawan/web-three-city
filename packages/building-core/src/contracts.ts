@@ -10,20 +10,32 @@ import type {
 export type BuildingDefinitionId =
   | 'residential-cottage-1x1'
   | 'residential-rowhouse-1x2'
+  | 'residential-duplex-2x1'
+  | 'residential-apartment-2x2'
   | 'commercial-shop-1x1'
+  | 'commercial-cafe-1x1'
+  | 'commercial-market-1x2'
   | 'commercial-office-2x2'
   | 'industrial-workshop-1x2'
-  | 'industrial-warehouse-2x2';
+  | 'industrial-depot-1x1'
+  | 'industrial-warehouse-2x2'
+  | 'industrial-factory-2x2';
 
 export type BuildingDefinitionVersion = 1;
 export type BuildingRotationQuarterTurns = 0 | 1 | 2 | 3;
 export type BuildingPrototypeId =
   | 'cottage'
   | 'rowhouse'
+  | 'duplex'
+  | 'apartment'
   | 'shop'
+  | 'cafe'
+  | 'market'
   | 'office'
   | 'workshop'
-  | 'warehouse';
+  | 'depot'
+  | 'warehouse'
+  | 'factory';
 export type BuildingOperation = 'develop' | 'bulldoze';
 
 export interface BuildingDefinition {

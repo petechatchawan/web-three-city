@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
 import {
-  dispatchCanvasPointer,
-  dispatchCanvasTouch,
   GAME_URL,
+  dispatchCanvasTouch,
+  dispatchTouchOn,
   readEvidence,
 } from './helpers/interaction.js';
 
@@ -14,101 +14,118 @@ async function openGame(page: import('@playwright/test').Page): Promise<void> {
 
 test('pinch zooms without selection', async ({ page }) => {
   await openGame(page);
-  const before = await readEvidence(page);
-  await dispatchCanvasTouch(page, 'pointerdown', 11, 800, 500);
-  await dispatchCanvasTouch(page, 'pointerdown', 12, 1000, 500);
-  await dispatchCanvasTouch(page, 'pointermove', 11, 760, 500);
-  await dispatchCanvasTouch(page, 'pointermove', 12, 1040, 500);
-  await dispatchCanvasTouch(page, 'pointerup', 11, 760, 500);
-  await dispatchCanvasTouch(page, 'pointerup', 12, 1040, 500);
+  const before = (await readEvidence(page)).camera.orthographicSize;
+
+  await dispatchCanvasTouch(page, 'pointerdown', 1, 700, 400);
+  await dispatchCanvasTouch(page, 'pointerdown', 2, 900, 400);
+  await dispatchCanvasTouch(page, 'pointermove', 1, 680, 400);
+  await dispatchCanvasTouch(page, 'pointermove', 2, 920, 400);
+  await dispatchCanvasTouch(page, 'pointermove', 1, 660, 400);
+  await dispatchCanvasTouch(page, 'pointermove', 2, 940, 400);
+  await dispatchCanvasTouch(page, 'pointerup', 1, 660, 400);
+  await dispatchCanvasTouch(page, 'pointerup', 2, 940, 400);
 
   const after = await readEvidence(page);
-  expect(after.camera.orthographicSize).toBeLessThan(before.camera.orthographicSize);
+  expect(after.camera.orthographicSize).toBeLessThan(before);
   expect(after.selectedCell).toBeNull();
+  expect(after.activePointerCount).toBe(0);
 });
 
 test('twist produces continuous yaw without selection', async ({ page }) => {
   await openGame(page);
-  const before = await readEvidence(page);
-  await dispatchCanvasTouch(page, 'pointerdown', 21, 820, 500);
-  await dispatchCanvasTouch(page, 'pointerdown', 22, 980, 500);
-  await dispatchCanvasTouch(page, 'pointermove', 21, 830, 460);
-  await dispatchCanvasTouch(page, 'pointermove', 22, 970, 540);
-  await dispatchCanvasTouch(page, 'pointerup', 21, 830, 460);
-  await dispatchCanvasTouch(page, 'pointerup', 22, 970, 540);
 
-  const after = await readEvidence(page);
-  expect(after.camera.yawDegrees).not.toBe(before.camera.yawDegrees);
-  expect(after.selectedCell).toBeNull();
+  await dispatchCanvasTouch(page, 'pointerdown', 1, 700, 400);
+  await dispatchCanvasTouch(page, 'pointerdown', 2, 900, 400);
+  await dispatchCanvasTouch(page, 'pointermove', 1, 710, 380);
+  await dispatchCanvasTouch(page, 'pointermove', 2, 890, 420);
+  await dispatchCanvasTouch(page, 'pointermove', 1, 725, 365);
+  await dispatchCanvasTouch(page, 'pointermove', 2, 875, 435);
+  await dispatchCanvasTouch(page, 'pointerup', 1, 725, 365);
+  await dispatchCanvasTouch(page, 'pointerup', 2, 875, 435);
+
+  const evidence = await readEvidence(page);
+  expect(evidence.camera.yawDegrees % 90).not.toBeCloseTo(0);
+  expect(evidence.selectedCell).toBeNull();
 });
 
 test('parallel upward drag increases pitch within limits', async ({ page }) => {
   await openGame(page);
-  const before = await readEvidence(page);
-  await dispatchCanvasTouch(page, 'pointerdown', 31, 850, 520);
-  await dispatchCanvasTouch(page, 'pointerdown', 32, 950, 520);
-  for (const y of [510, 500, 490, 480]) {
-    await dispatchCanvasTouch(page, 'pointermove', 31, 850, y);
-    await dispatchCanvasTouch(page, 'pointermove', 32, 950, y);
-  }
-  await dispatchCanvasTouch(page, 'pointerup', 31, 850, 480);
-  await dispatchCanvasTouch(page, 'pointerup', 32, 950, 480);
 
-  const after = await readEvidence(page);
-  expect(after.camera.pitchDegrees).toBeGreaterThan(before.camera.pitchDegrees);
-  expect(after.camera.pitchDegrees).toBeLessThanOrEqual(70);
-  expect(after.selectedCell).toBeNull();
+  await dispatchCanvasTouch(page, 'pointerdown', 1, 700, 450);
+  await dispatchCanvasTouch(page, 'pointerdown', 2, 900, 450);
+  await dispatchCanvasTouch(page, 'pointermove', 1, 700, 430);
+  await dispatchCanvasTouch(page, 'pointermove', 2, 900, 430);
+  await dispatchCanvasTouch(page, 'pointermove', 1, 700, 410);
+  await dispatchCanvasTouch(page, 'pointermove', 2, 900, 410);
+  await dispatchCanvasTouch(page, 'pointerup', 1, 700, 410);
+  await dispatchCanvasTouch(page, 'pointerup', 2, 900, 410);
+
+  const evidence = await readEvidence(page);
+  expect(evidence.camera.pitchDegrees).toBeGreaterThan(50);
+  expect(evidence.camera.pitchDegrees).toBeLessThanOrEqual(65);
+  expect(evidence.selectedCell).toBeNull();
 });
 
 test('third contact suppresses until all contacts release', async ({ page }) => {
   await openGame(page);
-  await dispatchCanvasTouch(page, 'pointerdown', 41, 780, 500);
-  await dispatchCanvasTouch(page, 'pointerdown', 42, 900, 500);
-  await dispatchCanvasTouch(page, 'pointerdown', 43, 1020, 500);
-  await dispatchCanvasTouch(page, 'pointermove', 41, 700, 500);
-  await dispatchCanvasTouch(page, 'pointermove', 42, 900, 450);
-  await dispatchCanvasTouch(page, 'pointermove', 43, 1100, 500);
-  await dispatchCanvasTouch(page, 'pointerup', 41, 700, 500);
-  await dispatchCanvasTouch(page, 'pointerup', 42, 900, 450);
-  await dispatchCanvasTouch(page, 'pointerup', 43, 1100, 500);
+  const before = (await readEvidence(page)).camera;
 
-  expect((await readEvidence(page)).selectedCell).toBeNull();
+  await dispatchCanvasTouch(page, 'pointerdown', 1, 700, 400);
+  await dispatchCanvasTouch(page, 'pointerdown', 2, 900, 400);
+  await dispatchCanvasTouch(page, 'pointerdown', 3, 800, 500);
+  await dispatchCanvasTouch(page, 'pointermove', 1, 650, 400);
+  await dispatchCanvasTouch(page, 'pointerup', 3, 800, 500);
+  await dispatchCanvasTouch(page, 'pointermove', 2, 950, 400);
+  await dispatchCanvasTouch(page, 'pointerup', 1, 650, 400);
+  await dispatchCanvasTouch(page, 'pointerup', 2, 950, 400);
+
+  const evidence = await readEvidence(page);
+  expect(evidence.camera).toEqual(before);
+  expect(evidence.selectedCell).toBeNull();
+  expect(evidence.activePointerCount).toBe(0);
 });
 
 test('pointer cancellation cannot select', async ({ page }) => {
   await openGame(page);
-  await dispatchCanvasPointer(page, 'pointerdown', 51, 900, 500);
-  await dispatchCanvasPointer(page, 'pointercancel', 51, 900, 500);
-  expect((await readEvidence(page)).selectedCell).toBeNull();
+
+  await dispatchCanvasTouch(page, 'pointerdown', 1, 800, 400);
+  await dispatchCanvasTouch(page, 'pointercancel', 1, 800, 400);
+
+  const evidence = await readEvidence(page);
+  expect(evidence.selectedCell).toBeNull();
+  expect(evidence.activePointerCount).toBe(0);
 });
 
 test('a pointer starting on UI never moves the world', async ({ page }) => {
   await openGame(page);
-  const before = await readEvidence(page);
-  const grid = page.getByRole('button', { name: 'Grid' });
-  const box = await grid.boundingBox();
-  expect(box).not.toBeNull();
-  if (box === null) return;
-  const x = box.x + box.width / 2;
-  const y = box.y + box.height / 2;
-  await page.mouse.move(x, y);
-  await page.mouse.down();
-  await page.mouse.move(x + 150, y + 100);
-  await page.mouse.up();
-  const after = await readEvidence(page);
-  expect(after.camera).toEqual(before.camera);
+  const before = (await readEvidence(page)).camera;
+  const saveButton = page.getByRole('button', { name: 'Save world' });
+  const box = await saveButton.boundingBox();
+  if (box === null) throw new Error('missing Save terrain bounds');
+
+  await dispatchTouchOn(saveButton, 'pointerdown', 1, box.x + 5, box.y + 5);
+  await dispatchTouchOn(saveButton, 'pointermove', 1, box.x + 80, box.y + 40);
+  await dispatchTouchOn(saveButton, 'pointerup', 1, box.x + 80, box.y + 40);
+
+  const evidence = await readEvidence(page);
+  expect(evidence.camera).toEqual(before);
+  expect(evidence.selectedCell).toBeNull();
+  expect(evidence.activePointerCount).toBe(0);
 });
 
 test('context loss clears an active session before release', async ({ page }) => {
   await openGame(page);
-  await dispatchCanvasPointer(page, 'pointerdown', 61, 900, 500);
+
+  await dispatchCanvasTouch(page, 'pointerdown', 1, 800, 400);
   await page.locator('#game-canvas').evaluate((canvas) => {
     canvas.dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
-    canvas.dispatchEvent(new Event('webglcontextrestored'));
   });
-  await dispatchCanvasPointer(page, 'pointerup', 61, 900, 500);
+  await expect(page.getByTestId('game-status')).toHaveText('Context lost');
+  await dispatchCanvasTouch(page, 'pointerup', 1, 800, 400);
 
-  expect((await readEvidence(page)).activePointerCount).toBe(0);
+  const evidence = await readEvidence(page);
+  expect(evidence.activePointerCount).toBe(0);
+  expect(evidence.selectedCell).toBeNull();
 });
 
 test('reset after resize uses the new usable viewport', async ({ page }) => {

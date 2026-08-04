@@ -1,0 +1,1276 @@
+name: Author Building Growth Core
+
+on:
+  push:
+    branches:
+      - agent/building-growth-core-v0-1
+
+permissions:
+  contents: write
+
+jobs:
+  author:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/building-growth-core-v0-1
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Author tests and implementation without executing tests
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          import json
+
+          def write(path: str, content: str) -> None:
+              target = Path(path)
+              target.parent.mkdir(parents=True, exist_ok=True)
+              target.write_text(content, encoding='utf-8')
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              target = Path(path)
+              text = target.read_text(encoding='utf-8')
+              if old not in text:
+                  raise SystemExit(f'missing replacement in {path}: {old[:80]!r}')
+              target.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          write('packages/simulation-core/package.json', '''{
+            "name": "@web-three-city/simulation-core",
+            "version": "0.0.0",
+            "private": true,
+            "type": "module",
+            "exports": "./src/index.ts",
+            "dependencies": {
+              "@web-three-city/world-core": "workspace:*"
+            },
+            "scripts": {
+              "test": "vitest run --passWithNoTests",
+              "test:coverage": "vitest run --coverage --passWithNoTests",
+              "typecheck": "tsc -p tsconfig.json --noEmit",
+              "build": "tsc -p tsconfig.build.json"
+            }
+          }
+          ''')
+          write('packages/simulation-core/tsconfig.json', '''{
+            "extends": "../../tsconfig.base.json",
+            "compilerOptions": { "noEmit": true },
+            "include": ["src", "test", "vitest.config.ts"]
+          }
+          ''')
+          write('packages/simulation-core/tsconfig.build.json', '''{
+            "extends": "../../tsconfig.base.json",
+            "compilerOptions": {
+              "declaration": true,
+              "emitDeclarationOnly": true,
+              "outDir": "dist",
+              "rootDir": "src"
+            },
+            "include": ["src"]
+          }
+          ''')
+          write('packages/simulation-core/vitest.config.ts', '''import { defineConfig } from 'vitest/config';
+
+          export default defineConfig({
+            test: { environment: 'node' },
+          });
+          ''')
+          write('packages/simulation-core/src/contracts.ts', '''export type SimulationSpeed = 'paused' | 'normal' | 'fast' | 'faster';
+
+          export interface SimulationSnapshot {
+            readonly revision: number;
+            readonly absoluteTick: number;
+            readonly growthSequence: number;
+          }
+
+          export interface GameCalendar {
+            readonly year: number;
+            readonly month: number;
+            readonly day: number;
+            readonly hour: number;
+          }
+
+          export interface SimulationTickPlan {
+            readonly baseRevision: number;
+            readonly beforeAbsoluteTick: number;
+            readonly afterAbsoluteTick: number;
+            readonly valid: boolean;
+            readonly invalidReason: 'simulation:invalid-state' | 'simulation:tick-overflow' | null;
+          }
+
+          export interface SimulationTickReceipt {
+            readonly beforeRevision: number;
+            readonly afterRevision: number;
+            readonly beforeAbsoluteTick: number;
+            readonly afterAbsoluteTick: number;
+          }
+
+          export type SimulationContractErrorCode =
+            | 'simulation:invalid-plan'
+            | 'simulation:stale-plan'
+            | 'simulation:invalid-state';
+
+          export class SimulationContractError extends Error {
+            readonly code: SimulationContractErrorCode;
+
+            constructor(code: SimulationContractErrorCode) {
+              super(code);
+              this.name = 'SimulationContractError';
+              this.code = code;
+            }
+          }
+          ''')
+          write('packages/simulation-core/src/calendar.ts', '''import type { GameCalendar } from './contracts.js';
+
+          export const HOURS_PER_DAY = 24;
+          export const DAYS_PER_MONTH = 30;
+          export const MONTHS_PER_YEAR = 12;
+          export const INITIAL_ABSOLUTE_TICK = 8;
+          export const DEVELOPMENT_EVALUATION_HOURS = Object.freeze([0, 6, 12, 18] as const);
+
+          export function assertAbsoluteTick(value: number): void {
+            if (!Number.isSafeInteger(value) || value < 0) {
+              throw new RangeError('simulation-calendar:invalid-tick');
+            }
+          }
+
+          export function deriveGameCalendar(absoluteTick: number): GameCalendar {
+            assertAbsoluteTick(absoluteTick);
+            const completeDays = Math.floor(absoluteTick / HOURS_PER_DAY);
+            const hour = absoluteTick % HOURS_PER_DAY;
+            const completeMonths = Math.floor(completeDays / DAYS_PER_MONTH);
+            const day = (completeDays % DAYS_PER_MONTH) + 1;
+            const year = Math.floor(completeMonths / MONTHS_PER_YEAR) + 1;
+            const month = (completeMonths % MONTHS_PER_YEAR) + 1;
+            return Object.freeze({ year, month, day, hour });
+          }
+
+          export function isDevelopmentEvaluationTick(absoluteTick: number): boolean {
+            return DEVELOPMENT_EVALUATION_HOURS.includes(
+              deriveGameCalendar(absoluteTick).hour as (typeof DEVELOPMENT_EVALUATION_HOURS)[number],
+            );
+          }
+          ''')
+          write('packages/simulation-core/src/simulation-snapshot.ts', '''import { INITIAL_ABSOLUTE_TICK, assertAbsoluteTick } from './calendar.js';
+          import type { SimulationSnapshot } from './contracts.js';
+
+          export function createSimulationSnapshot(input: SimulationSnapshot): SimulationSnapshot {
+            if (!Number.isSafeInteger(input.revision) || input.revision < 0) {
+              throw new RangeError('simulation-snapshot:invalid-revision');
+            }
+            assertAbsoluteTick(input.absoluteTick);
+            if (!Number.isSafeInteger(input.growthSequence) || input.growthSequence < 0) {
+              throw new RangeError('simulation-snapshot:invalid-growth-sequence');
+            }
+            return Object.freeze({
+              revision: input.revision,
+              absoluteTick: input.absoluteTick,
+              growthSequence: input.growthSequence,
+            });
+          }
+
+          export function createInitialSimulationSnapshot(): SimulationSnapshot {
+            return createSimulationSnapshot({
+              revision: 0,
+              absoluteTick: INITIAL_ABSOLUTE_TICK,
+              growthSequence: 0,
+            });
+          }
+          ''')
+          write('packages/simulation-core/src/simulation-mutation.ts', '''import {
+            SimulationContractError,
+            type SimulationSnapshot,
+            type SimulationTickPlan,
+            type SimulationTickReceipt,
+          } from './contracts.js';
+          import { createSimulationSnapshot } from './simulation-snapshot.js';
+
+          export function planSimulationTick(snapshot: SimulationSnapshot): SimulationTickPlan {
+            try {
+              const validated = createSimulationSnapshot(snapshot);
+              if (validated.absoluteTick === Number.MAX_SAFE_INTEGER) {
+                return Object.freeze({
+                  baseRevision: validated.revision,
+                  beforeAbsoluteTick: validated.absoluteTick,
+                  afterAbsoluteTick: validated.absoluteTick,
+                  valid: false,
+                  invalidReason: 'simulation:tick-overflow',
+                });
+              }
+              return Object.freeze({
+                baseRevision: validated.revision,
+                beforeAbsoluteTick: validated.absoluteTick,
+                afterAbsoluteTick: validated.absoluteTick + 1,
+                valid: true,
+                invalidReason: null,
+              });
+            } catch {
+              return Object.freeze({
+                baseRevision: snapshot.revision,
+                beforeAbsoluteTick: snapshot.absoluteTick,
+                afterAbsoluteTick: snapshot.absoluteTick,
+                valid: false,
+                invalidReason: 'simulation:invalid-state',
+              });
+            }
+          }
+
+          export function commitSimulationTick(
+            snapshot: SimulationSnapshot,
+            plan: SimulationTickPlan,
+            growthSequence = snapshot.growthSequence,
+          ): { readonly snapshot: SimulationSnapshot; readonly receipt: SimulationTickReceipt } {
+            if (!plan.valid || plan.invalidReason !== null) {
+              throw new SimulationContractError('simulation:invalid-plan');
+            }
+            const validated = createSimulationSnapshot(snapshot);
+            if (
+              validated.revision !== plan.baseRevision ||
+              validated.absoluteTick !== plan.beforeAbsoluteTick
+            ) {
+              throw new SimulationContractError('simulation:stale-plan');
+            }
+            const next = createSimulationSnapshot({
+              revision: validated.revision + 1,
+              absoluteTick: plan.afterAbsoluteTick,
+              growthSequence,
+            });
+            return Object.freeze({
+              snapshot: next,
+              receipt: Object.freeze({
+                beforeRevision: validated.revision,
+                afterRevision: next.revision,
+                beforeAbsoluteTick: validated.absoluteTick,
+                afterAbsoluteTick: next.absoluteTick,
+              }),
+            });
+          }
+          ''')
+          write('packages/simulation-core/src/serialization.ts', '''import { err, ok, type Result } from '@web-three-city/world-core';
+          import type { SimulationSnapshot } from './contracts.js';
+          import { createSimulationSnapshot } from './simulation-snapshot.js';
+
+          export interface SimulationSaveV1 {
+            readonly kind: 'simulation-save';
+            readonly schemaVersion: 1;
+            readonly absoluteTick: number;
+            readonly growthSequence: number;
+          }
+
+          export interface SimulationSaveError {
+            readonly code: 'simulation-save:invalid-schema' | 'simulation-save:invalid-state';
+          }
+
+          function isRecord(value: unknown): value is Record<string, unknown> {
+            return typeof value === 'object' && value !== null;
+          }
+
+          export function encodeSimulationSaveV1(snapshot: SimulationSnapshot): SimulationSaveV1 {
+            const validated = createSimulationSnapshot(snapshot);
+            return Object.freeze({
+              kind: 'simulation-save',
+              schemaVersion: 1,
+              absoluteTick: validated.absoluteTick,
+              growthSequence: validated.growthSequence,
+            });
+          }
+
+          export function decodeSimulationSaveV1(
+            input: unknown,
+          ): Result<SimulationSnapshot, SimulationSaveError> {
+            if (
+              !isRecord(input) ||
+              input.kind !== 'simulation-save' ||
+              input.schemaVersion !== 1 ||
+              typeof input.absoluteTick !== 'number' ||
+              typeof input.growthSequence !== 'number'
+            ) {
+              return err({ code: 'simulation-save:invalid-schema' });
+            }
+            try {
+              return ok(
+                createSimulationSnapshot({
+                  revision: 0,
+                  absoluteTick: input.absoluteTick,
+                  growthSequence: input.growthSequence,
+                }),
+              );
+            } catch {
+              return err({ code: 'simulation-save:invalid-state' });
+            }
+          }
+          ''')
+          write('packages/simulation-core/src/index.ts', '''export * from './contracts.js';
+          export * from './calendar.js';
+          export * from './simulation-snapshot.js';
+          export * from './simulation-mutation.js';
+          export * from './serialization.js';
+          ''')
+
+          write('packages/simulation-core/test/calendar.test.ts', '''import { describe, expect, it } from 'vitest';
+          import {
+            deriveGameCalendar,
+            isDevelopmentEvaluationTick,
+          } from '../src/index.js';
+
+          describe('simple game calendar', () => {
+            it('derives the initial calendar from absolute tick eight', () => {
+              expect(deriveGameCalendar(8)).toEqual({ year: 1, month: 1, day: 1, hour: 8 });
+            });
+
+            it('rolls exact day month and year boundaries', () => {
+              expect(deriveGameCalendar(24)).toEqual({ year: 1, month: 1, day: 2, hour: 0 });
+              expect(deriveGameCalendar(24 * 30)).toEqual({ year: 1, month: 2, day: 1, hour: 0 });
+              expect(deriveGameCalendar(24 * 30 * 12)).toEqual({ year: 2, month: 1, day: 1, hour: 0 });
+            });
+
+            it('rejects invalid ticks and identifies evaluation hours', () => {
+              expect(() => deriveGameCalendar(-1)).toThrow('simulation-calendar:invalid-tick');
+              expect(() => deriveGameCalendar(1.5)).toThrow('simulation-calendar:invalid-tick');
+              expect([0, 6, 12, 18].every(isDevelopmentEvaluationTick)).toBe(true);
+              expect(isDevelopmentEvaluationTick(8)).toBe(false);
+            });
+          });
+          ''')
+          write('packages/simulation-core/test/simulation-snapshot.test.ts', '''import { describe, expect, it } from 'vitest';
+          import {
+            createInitialSimulationSnapshot,
+            createSimulationSnapshot,
+          } from '../src/index.js';
+
+          describe('simulation snapshot', () => {
+            it('creates immutable initial authority', () => {
+              const snapshot = createInitialSimulationSnapshot();
+              expect(snapshot).toEqual({ revision: 0, absoluteTick: 8, growthSequence: 0 });
+              expect(Object.isFrozen(snapshot)).toBe(true);
+            });
+
+            it('rejects invalid authority', () => {
+              expect(() => createSimulationSnapshot({ revision: -1, absoluteTick: 8, growthSequence: 0 })).toThrow();
+              expect(() => createSimulationSnapshot({ revision: 0, absoluteTick: -1, growthSequence: 0 })).toThrow();
+              expect(() => createSimulationSnapshot({ revision: 0, absoluteTick: 8, growthSequence: -1 })).toThrow();
+            });
+          });
+          ''')
+          write('packages/simulation-core/test/simulation-mutation.test.ts', '''import { describe, expect, it } from 'vitest';
+          import {
+            commitSimulationTick,
+            createInitialSimulationSnapshot,
+            planSimulationTick,
+          } from '../src/index.js';
+
+          describe('simulation tick mutation', () => {
+            it('advances exactly one logical tick with revision fencing', () => {
+              const before = createInitialSimulationSnapshot();
+              const plan = planSimulationTick(before);
+              const committed = commitSimulationTick(before, plan);
+              expect(committed.snapshot).toEqual({ revision: 1, absoluteTick: 9, growthSequence: 0 });
+              expect(() => commitSimulationTick(committed.snapshot, plan)).toThrow('simulation:stale-plan');
+            });
+          });
+          ''')
+          write('packages/simulation-core/test/serialization.test.ts', '''import { describe, expect, it } from 'vitest';
+          import {
+            createSimulationSnapshot,
+            decodeSimulationSaveV1,
+            encodeSimulationSaveV1,
+          } from '../src/index.js';
+
+          describe('SimulationSaveV1', () => {
+            it('round trips authoritative tick and growth sequence', () => {
+              const snapshot = createSimulationSnapshot({ revision: 7, absoluteTick: 99, growthSequence: 4 });
+              const decoded = decodeSimulationSaveV1(encodeSimulationSaveV1(snapshot));
+              expect(decoded.ok).toBe(true);
+              if (decoded.ok) expect(decoded.value).toEqual({ revision: 0, absoluteTick: 99, growthSequence: 4 });
+            });
+
+            it('fails closed for malformed authority', () => {
+              expect(decodeSimulationSaveV1({ kind: 'simulation-save', schemaVersion: 1, absoluteTick: -1, growthSequence: 0 }).ok).toBe(false);
+            });
+          });
+          ''')
+
+          building_package = json.loads(Path('packages/building-core/package.json').read_text())
+          building_package['dependencies']['@web-three-city/simulation-core'] = 'workspace:*'
+          write('packages/building-core/package.json', json.dumps(building_package, indent=2) + '\n')
+
+          write('packages/building-core/src/contracts.ts', '''import type { SimulationSnapshot } from '@web-three-city/simulation-core';
+          import type { ChunkCoord, TerrainCellSurfaceProfile } from '@web-three-city/terrain-core';
+          import type { CellCoord } from '@web-three-city/world-core';
+          import type {
+            ZoneDefinitionId,
+            ZoneRoadAccess,
+            ZoneRoadDirection,
+          } from '@web-three-city/zone-core';
+
+          export type BuildingDefinitionId =
+            | 'residential-cottage-1x1'
+            | 'residential-rowhouse-1x2'
+            | 'commercial-shop-1x1'
+            | 'commercial-office-2x2'
+            | 'industrial-workshop-1x2'
+            | 'industrial-warehouse-2x2';
+
+          export type BuildingDefinitionVersion = 1;
+          export type BuildingRotationQuarterTurns = 0 | 1 | 2 | 3;
+          export type BuildingPrototypeId =
+            | 'cottage'
+            | 'rowhouse'
+            | 'shop'
+            | 'office'
+            | 'workshop'
+            | 'warehouse';
+          export type BuildingOperation = 'develop' | 'bulldoze';
+          export type BuildingLifecycle = 'construction' | 'active';
+
+          export interface BuildingDefinition {
+            readonly id: BuildingDefinitionId;
+            readonly version: BuildingDefinitionVersion;
+            readonly label: string;
+            readonly footprintWidth: number;
+            readonly footprintDepth: number;
+            readonly allowedRotationQuarterTurns: readonly BuildingRotationQuarterTurns[];
+            readonly compatibleZoneDefinitionIds: readonly ZoneDefinitionId[];
+            readonly selectionPriority: number;
+            readonly selectionWeight: number;
+            readonly constructionDurationTicks: number;
+            readonly prototypeId: BuildingPrototypeId;
+            readonly prototypeHeight: number;
+          }
+
+          export interface BuildingInstanceBase {
+            readonly instanceId: string;
+            readonly buildingDefinitionId: BuildingDefinitionId;
+            readonly buildingDefinitionVersion: BuildingDefinitionVersion;
+            readonly originCell: CellCoord;
+            readonly rotationQuarterTurns: BuildingRotationQuarterTurns;
+          }
+
+          export interface ConstructionBuildingInstance extends BuildingInstanceBase {
+            readonly lifecycle: 'construction';
+            readonly constructionStartedAtTick: number;
+            readonly constructionCompletesAtTick: number;
+          }
+
+          export interface ActiveBuildingInstance extends BuildingInstanceBase {
+            readonly lifecycle: 'active';
+            readonly activatedAtTick: number;
+          }
+
+          export type BuildingInstance = ConstructionBuildingInstance | ActiveBuildingInstance;
+          export type BuildingInstanceInput = BuildingInstance | BuildingInstanceBase;
+
+          export interface BuildingSnapshot {
+            readonly revision: number;
+            readonly instances: readonly BuildingInstance[];
+          }
+
+          export interface RotatedBuildingFootprint {
+            readonly width: number;
+            readonly depth: number;
+          }
+
+          export interface BuildingFrontage {
+            readonly direction: ZoneRoadDirection;
+            readonly distance: 1 | 2 | 3;
+            readonly frontageCell: CellCoord;
+            readonly roadCell: CellCoord;
+          }
+
+          export interface BuildingDevelopmentEnvironment {
+            readonly terrainRevision: number;
+            readonly waterSourceTerrainRevision: number;
+            readonly roadRevision: number;
+            readonly zoneRevision: number;
+            surfaceAt(cell: CellCoord): TerrainCellSurfaceProfile;
+            isDry(cell: CellCoord): boolean;
+            isRoadOccupied(cell: CellCoord): boolean;
+            zoneDefinitionIdAt(cell: CellCoord): ZoneDefinitionId | null;
+            roadAccessAt(cell: CellCoord): ZoneRoadAccess | null;
+          }
+
+          export type BuildingInvalidReason =
+            | 'building:invalid-state'
+            | 'building:invalid-environment'
+            | 'building:invalid-cell'
+            | 'building:no-change'
+            | 'building:no-zoned-lot'
+            | 'building:no-compatible-definition'
+            | 'building:mixed-zone'
+            | 'building:unsupported-terrain'
+            | 'building:wet-cell'
+            | 'building:road-occupied'
+            | 'building:occupied'
+            | 'building:road-access-required'
+            | 'building:not-found';
+
+          export interface BuildingMutationPlan {
+            readonly operation: BuildingOperation;
+            readonly baseBuildingRevision: number;
+            readonly baseTerrainRevision: number;
+            readonly baseWaterSourceTerrainRevision: number;
+            readonly baseRoadRevision: number;
+            readonly baseZoneRevision: number;
+            readonly requestedCell: CellCoord | null;
+            readonly proposedInstances: readonly BuildingInstance[];
+            readonly addedInstances: readonly BuildingInstance[];
+            readonly removedInstances: readonly BuildingInstance[];
+            readonly dirtyChunks: readonly ChunkCoord[];
+            readonly valid: boolean;
+            readonly invalidReason: BuildingInvalidReason | null;
+          }
+
+          export interface BuildingMutationReceipt {
+            readonly beforeRevision: number;
+            readonly afterRevision: number;
+            readonly operation: BuildingOperation;
+            readonly addedInstanceCount: number;
+            readonly removedInstanceCount: number;
+            readonly addedCellCount: number;
+            readonly removedCellCount: number;
+            readonly dirtyChunks: readonly ChunkCoord[];
+          }
+
+          export type BuildingGrowthInvalidReason =
+            | 'building-growth:invalid-building-state'
+            | 'building-growth:invalid-simulation-state'
+            | 'building-growth:invalid-environment'
+            | 'building-growth:tick-overflow';
+
+          export interface BuildingGrowthPlan {
+            readonly baseBuildingRevision: number;
+            readonly baseSimulationRevision: number;
+            readonly baseTerrainRevision: number;
+            readonly baseWaterSourceTerrainRevision: number;
+            readonly baseRoadRevision: number;
+            readonly baseZoneRevision: number;
+            readonly beforeAbsoluteTick: number;
+            readonly afterAbsoluteTick: number;
+            readonly proposedInstances: readonly BuildingInstance[];
+            readonly startedInstanceIds: readonly string[];
+            readonly completedInstanceIds: readonly string[];
+            readonly nextGrowthSequence: number;
+            readonly dirtyChunks: readonly ChunkCoord[];
+            readonly valid: boolean;
+            readonly invalidReason: BuildingGrowthInvalidReason | null;
+          }
+
+          export interface BuildingGrowthReceipt {
+            readonly beforeBuildingRevision: number;
+            readonly afterBuildingRevision: number;
+            readonly beforeSimulationRevision: number;
+            readonly afterSimulationRevision: number;
+            readonly beforeAbsoluteTick: number;
+            readonly afterAbsoluteTick: number;
+            readonly startedInstanceIds: readonly string[];
+            readonly completedInstanceIds: readonly string[];
+            readonly dirtyChunks: readonly ChunkCoord[];
+          }
+
+          export interface BuildingGrowthInput {
+            readonly buildings: BuildingSnapshot;
+            readonly simulation: SimulationSnapshot;
+            readonly environment: BuildingDevelopmentEnvironment;
+          }
+
+          export type BuildingContractErrorCode =
+            | 'building:invalid-plan'
+            | 'building:stale-building-plan'
+            | 'building:stale-terrain-plan'
+            | 'building:stale-water-plan'
+            | 'building:stale-road-plan'
+            | 'building:stale-zone-plan'
+            | 'building:incoherent-world-revision'
+            | 'building:invalid-proposed-state'
+            | 'building-growth:invalid-plan'
+            | 'building-growth:stale-simulation-plan';
+
+          export class BuildingContractError extends Error {
+            readonly code: BuildingContractErrorCode;
+
+            constructor(code: BuildingContractErrorCode) {
+              super(code);
+              this.name = 'BuildingContractError';
+              this.code = code;
+            }
+          }
+          ''')
+
+          write('packages/building-core/src/building-definitions.ts', '''import { zoneDefinitionForId } from '@web-three-city/zone-core';
+          import type {
+            BuildingDefinition,
+            BuildingDefinitionId,
+            BuildingRotationQuarterTurns,
+          } from './contracts.js';
+
+          const ALL_ROTATIONS: readonly BuildingRotationQuarterTurns[] = Object.freeze([0, 1, 2, 3]);
+
+          function definition(value: BuildingDefinition): BuildingDefinition {
+            const rotations = [...value.allowedRotationQuarterTurns];
+            const compatibleZoneDefinitionIds = [...value.compatibleZoneDefinitionIds];
+            let referencesResolvable = true;
+            try {
+              for (const zoneDefinitionId of compatibleZoneDefinitionIds) zoneDefinitionForId(zoneDefinitionId);
+            } catch {
+              referencesResolvable = false;
+            }
+            if (
+              !Number.isSafeInteger(value.footprintWidth) || value.footprintWidth <= 0 ||
+              !Number.isSafeInteger(value.footprintDepth) || value.footprintDepth <= 0 ||
+              !Number.isSafeInteger(value.selectionPriority) || value.selectionPriority < 0 ||
+              !Number.isSafeInteger(value.selectionWeight) || value.selectionWeight <= 0 ||
+              !Number.isSafeInteger(value.constructionDurationTicks) || value.constructionDurationTicks <= 0 ||
+              value.constructionDurationTicks !== 24 * value.footprintWidth * value.footprintDepth ||
+              rotations.length === 0 || new Set(rotations).size !== rotations.length ||
+              rotations.some((rotation) => rotation < 0 || rotation > 3) ||
+              compatibleZoneDefinitionIds.length === 0 ||
+              new Set(compatibleZoneDefinitionIds).size !== compatibleZoneDefinitionIds.length ||
+              compatibleZoneDefinitionIds.some((zoneDefinitionId) => zoneDefinitionId.length === 0) ||
+              !referencesResolvable || !Number.isFinite(value.prototypeHeight) || value.prototypeHeight <= 0
+            ) {
+              throw new RangeError('building-definition:invalid');
+            }
+            return Object.freeze({
+              ...value,
+              allowedRotationQuarterTurns: Object.freeze(rotations.sort((a, b) => a - b)),
+              compatibleZoneDefinitionIds: Object.freeze(compatibleZoneDefinitionIds.sort()),
+            });
+          }
+
+          export const RESIDENTIAL_COTTAGE_1X1 = definition({
+            id: 'residential-cottage-1x1', version: 1, label: 'Cottage',
+            footprintWidth: 1, footprintDepth: 1, allowedRotationQuarterTurns: ALL_ROTATIONS,
+            compatibleZoneDefinitionIds: Object.freeze(['residential']), selectionPriority: 10,
+            selectionWeight: 40, constructionDurationTicks: 24, prototypeId: 'cottage', prototypeHeight: 0.8,
+          });
+          export const RESIDENTIAL_ROWHOUSE_1X2 = definition({
+            id: 'residential-rowhouse-1x2', version: 1, label: 'Row House',
+            footprintWidth: 1, footprintDepth: 2, allowedRotationQuarterTurns: ALL_ROTATIONS,
+            compatibleZoneDefinitionIds: Object.freeze(['residential']), selectionPriority: 20,
+            selectionWeight: 30, constructionDurationTicks: 48, prototypeId: 'rowhouse', prototypeHeight: 1.25,
+          });
+          export const COMMERCIAL_SHOP_1X1 = definition({
+            id: 'commercial-shop-1x1', version: 1, label: 'Corner Shop',
+            footprintWidth: 1, footprintDepth: 1, allowedRotationQuarterTurns: ALL_ROTATIONS,
+            compatibleZoneDefinitionIds: Object.freeze(['commercial']), selectionPriority: 10,
+            selectionWeight: 40, constructionDurationTicks: 24, prototypeId: 'shop', prototypeHeight: 0.9,
+          });
+          export const COMMERCIAL_OFFICE_2X2 = definition({
+            id: 'commercial-office-2x2', version: 1, label: 'Office',
+            footprintWidth: 2, footprintDepth: 2, allowedRotationQuarterTurns: ALL_ROTATIONS,
+            compatibleZoneDefinitionIds: Object.freeze(['commercial']), selectionPriority: 30,
+            selectionWeight: 10, constructionDurationTicks: 96, prototypeId: 'office', prototypeHeight: 2.1,
+          });
+          export const INDUSTRIAL_WORKSHOP_1X2 = definition({
+            id: 'industrial-workshop-1x2', version: 1, label: 'Workshop',
+            footprintWidth: 1, footprintDepth: 2, allowedRotationQuarterTurns: ALL_ROTATIONS,
+            compatibleZoneDefinitionIds: Object.freeze(['industrial']), selectionPriority: 20,
+            selectionWeight: 35, constructionDurationTicks: 48, prototypeId: 'workshop', prototypeHeight: 1.05,
+          });
+          export const INDUSTRIAL_WAREHOUSE_2X2 = definition({
+            id: 'industrial-warehouse-2x2', version: 1, label: 'Warehouse',
+            footprintWidth: 2, footprintDepth: 2, allowedRotationQuarterTurns: ALL_ROTATIONS,
+            compatibleZoneDefinitionIds: Object.freeze(['industrial']), selectionPriority: 30,
+            selectionWeight: 20, constructionDurationTicks: 96, prototypeId: 'warehouse', prototypeHeight: 1.35,
+          });
+
+          const DEFINITIONS: readonly BuildingDefinition[] = Object.freeze([
+            RESIDENTIAL_COTTAGE_1X1, RESIDENTIAL_ROWHOUSE_1X2,
+            COMMERCIAL_SHOP_1X1, COMMERCIAL_OFFICE_2X2,
+            INDUSTRIAL_WORKSHOP_1X2, INDUSTRIAL_WAREHOUSE_2X2,
+          ]);
+          const BY_ID = new Map<BuildingDefinitionId, BuildingDefinition>(DEFINITIONS.map((entry) => [entry.id, entry]));
+
+          export function buildingDefinitions(): readonly BuildingDefinition[] { return DEFINITIONS; }
+          export function buildingDefinitionForId(id: BuildingDefinitionId): BuildingDefinition {
+            const found = BY_ID.get(id);
+            if (found === undefined) throw new RangeError('building-definition:unknown-id');
+            return found;
+          }
+          ''')
+
+          write('packages/building-core/src/building-lifecycle.ts', '''import { INITIAL_ABSOLUTE_TICK } from '@web-three-city/simulation-core';
+          import type {
+            ActiveBuildingInstance,
+            BuildingInstance,
+            BuildingInstanceInput,
+            BuildingSnapshot,
+            ConstructionBuildingInstance,
+          } from './contracts.js';
+
+          function validTick(value: number): boolean {
+            return Number.isSafeInteger(value) && value >= 0;
+          }
+
+          export function copyBuildingInstance(input: BuildingInstanceInput): BuildingInstance {
+            const base = {
+              instanceId: input.instanceId,
+              buildingDefinitionId: input.buildingDefinitionId,
+              buildingDefinitionVersion: input.buildingDefinitionVersion,
+              originCell: Object.freeze({ x: input.originCell.x, z: input.originCell.z }),
+              rotationQuarterTurns: input.rotationQuarterTurns,
+            } as const;
+            if (!('lifecycle' in input) || input.lifecycle === undefined) {
+              return Object.freeze({ ...base, lifecycle: 'active', activatedAtTick: INITIAL_ABSOLUTE_TICK });
+            }
+            if (input.lifecycle === 'construction') {
+              return Object.freeze({
+                ...base,
+                lifecycle: 'construction',
+                constructionStartedAtTick: input.constructionStartedAtTick,
+                constructionCompletesAtTick: input.constructionCompletesAtTick,
+              });
+            }
+            return Object.freeze({ ...base, lifecycle: 'active', activatedAtTick: input.activatedAtTick });
+          }
+
+          export function validateBuildingLifecycle(instance: BuildingInstance): void {
+            if (instance.lifecycle === 'construction') {
+              if (
+                !validTick(instance.constructionStartedAtTick) ||
+                !validTick(instance.constructionCompletesAtTick) ||
+                instance.constructionCompletesAtTick <= instance.constructionStartedAtTick
+              ) throw new RangeError('building-lifecycle:invalid-construction');
+              return;
+            }
+            if (!validTick(instance.activatedAtTick)) throw new RangeError('building-lifecycle:invalid-active');
+          }
+
+          export function constructionProgressAtTick(
+            instance: ConstructionBuildingInstance,
+            absoluteTick: number,
+          ): number {
+            if (!validTick(absoluteTick)) throw new RangeError('building-lifecycle:invalid-tick');
+            const duration = instance.constructionCompletesAtTick - instance.constructionStartedAtTick;
+            return Math.max(0, Math.min(1, (absoluteTick - instance.constructionStartedAtTick) / duration));
+          }
+
+          export function activateCompletedBuilding(
+            instance: ConstructionBuildingInstance,
+            activatedAtTick: number,
+          ): ActiveBuildingInstance {
+            if (!validTick(activatedAtTick) || activatedAtTick < instance.constructionCompletesAtTick) {
+              throw new RangeError('building-lifecycle:not-complete');
+            }
+            return Object.freeze({
+              instanceId: instance.instanceId,
+              buildingDefinitionId: instance.buildingDefinitionId,
+              buildingDefinitionVersion: instance.buildingDefinitionVersion,
+              originCell: Object.freeze({ ...instance.originCell }),
+              rotationQuarterTurns: instance.rotationQuarterTurns,
+              lifecycle: 'active',
+              activatedAtTick,
+            });
+          }
+
+          export function buildingLifecycleCounts(snapshot: BuildingSnapshot): Readonly<{
+            construction: number; active: number; total: number;
+          }> {
+            let construction = 0;
+            let active = 0;
+            for (const instance of snapshot.instances) {
+              if (instance.lifecycle === 'construction') construction += 1;
+              else active += 1;
+            }
+            return Object.freeze({ construction, active, total: construction + active });
+          }
+
+          export function sameBuildingInstanceAuthority(a: BuildingInstance, b: BuildingInstance): boolean {
+            if (
+              a.instanceId !== b.instanceId || a.buildingDefinitionId !== b.buildingDefinitionId ||
+              a.buildingDefinitionVersion !== b.buildingDefinitionVersion ||
+              a.originCell.x !== b.originCell.x || a.originCell.z !== b.originCell.z ||
+              a.rotationQuarterTurns !== b.rotationQuarterTurns || a.lifecycle !== b.lifecycle
+            ) return false;
+            return a.lifecycle === 'construction'
+              ? b.lifecycle === 'construction' &&
+                  a.constructionStartedAtTick === b.constructionStartedAtTick &&
+                  a.constructionCompletesAtTick === b.constructionCompletesAtTick
+              : b.lifecycle === 'active' && a.activatedAtTick === b.activatedAtTick;
+          }
+          ''')
+
+          write('packages/building-core/src/building-snapshot.ts', '''import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
+          import { buildingDefinitionForId } from './building-definitions.js';
+          import {
+            buildingFootprintInsideWorld,
+            isBuildingRotationQuarterTurns,
+            occupiedCellsForBuilding,
+          } from './building-footprint.js';
+          import { copyBuildingInstance, validateBuildingLifecycle } from './building-lifecycle.js';
+          import type { BuildingInstance, BuildingInstanceInput, BuildingSnapshot } from './contracts.js';
+
+          const OCCUPANCY = new WeakMap<BuildingSnapshot, ReadonlyMap<string, BuildingInstance>>();
+          const INSTANCES = new WeakMap<BuildingSnapshot, readonly BuildingInstance[]>();
+
+          export interface CreateBuildingSnapshotInput {
+            readonly revision: number;
+            readonly instances: readonly BuildingInstanceInput[];
+          }
+
+          function cellKey(cell: CellCoord): string { return `${cell.x}:${cell.z}`; }
+
+          export function createBuildingSnapshot(input: CreateBuildingSnapshotInput, config: WorldConfig): BuildingSnapshot {
+            if (!Number.isSafeInteger(input.revision) || input.revision < 0) {
+              throw new RangeError('building-snapshot:invalid-revision');
+            }
+            const identifiers = new Set<string>();
+            const occupancy = new Map<string, BuildingInstance>();
+            const instances = input.instances.map(copyBuildingInstance);
+            for (const instance of instances) {
+              if (instance.instanceId.length === 0 || identifiers.has(instance.instanceId)) {
+                throw new RangeError('building-snapshot:duplicate-instance-id');
+              }
+              identifiers.add(instance.instanceId);
+              validateBuildingLifecycle(instance);
+              if (!isBuildingRotationQuarterTurns(instance.rotationQuarterTurns)) {
+                throw new RangeError('building-snapshot:invalid-rotation');
+              }
+              const definition = buildingDefinitionForId(instance.buildingDefinitionId);
+              if (definition.version !== instance.buildingDefinitionVersion) {
+                throw new RangeError('building-snapshot:definition-version-mismatch');
+              }
+              if (!definition.allowedRotationQuarterTurns.includes(instance.rotationQuarterTurns)) {
+                throw new RangeError('building-snapshot:rotation-not-allowed');
+              }
+              if (!buildingFootprintInsideWorld(instance, config)) {
+                throw new RangeError('building-snapshot:footprint-out-of-bounds');
+              }
+              for (const cell of occupiedCellsForBuilding(instance)) {
+                const key = cellKey(cell);
+                if (occupancy.has(key)) throw new RangeError('building-snapshot:overlapping-footprint');
+                occupancy.set(key, instance);
+              }
+            }
+            const frozenInstances = Object.freeze([...instances].sort((a, b) => a.instanceId.localeCompare(b.instanceId)));
+            const snapshot: BuildingSnapshot = Object.freeze({ revision: input.revision, instances: frozenInstances });
+            INSTANCES.set(snapshot, frozenInstances);
+            OCCUPANCY.set(snapshot, occupancy);
+            return snapshot;
+          }
+
+          export function createEmptyBuildingSnapshot(config: WorldConfig): BuildingSnapshot {
+            return createBuildingSnapshot({ revision: 0, instances: Object.freeze([]) }, config);
+          }
+          export function buildingInstances(snapshot: BuildingSnapshot): readonly BuildingInstance[] {
+            return INSTANCES.get(snapshot) ?? snapshot.instances;
+          }
+          export function buildingAtCell(snapshot: BuildingSnapshot, cell: CellCoord): BuildingInstance | null {
+            if (!Number.isInteger(cell.x) || !Number.isInteger(cell.z)) return null;
+            const cached = OCCUPANCY.get(snapshot);
+            if (cached !== undefined) return cached.get(cellKey(cell)) ?? null;
+            return snapshot.instances.find((instance) => occupiedCellsForBuilding(instance).some(
+              (candidate) => candidate.x === cell.x && candidate.z === cell.z,
+            )) ?? null;
+          }
+          export function buildingOccupiedAt(snapshot: BuildingSnapshot, cell: CellCoord): boolean {
+            return buildingAtCell(snapshot, cell) !== null;
+          }
+          export function buildingCount(snapshot: BuildingSnapshot): number { return buildingInstances(snapshot).length; }
+          export function occupiedBuildingCellCount(snapshot: BuildingSnapshot): number {
+            const cached = OCCUPANCY.get(snapshot);
+            if (cached !== undefined) return cached.size;
+            return snapshot.instances.reduce((total, instance) => total + occupiedCellsForBuilding(instance).length, 0);
+          }
+          ''')
+
+          replace_once('packages/building-core/src/building-mutation.ts',
+            "import { chunkForCell, type ChunkCoord } from '@web-three-city/terrain-core';",
+            "import { INITIAL_ABSOLUTE_TICK } from '@web-three-city/simulation-core';\nimport { chunkForCell, type ChunkCoord } from '@web-three-city/terrain-core';")
+          replace_once('packages/building-core/src/building-mutation.ts',
+            "import { buildingAtCell, buildingInstances, createBuildingSnapshot } from './building-snapshot.js';",
+            "import { sameBuildingInstanceAuthority } from './building-lifecycle.js';\nimport { buildingAtCell, buildingInstances, createBuildingSnapshot } from './building-snapshot.js';")
+          replace_once('packages/building-core/src/building-mutation.ts',
+            "buildingDefinitionVersion: definition.version,\n              originCell,\n              rotationQuarterTurns: rotation,",
+            "buildingDefinitionVersion: definition.version,\n              originCell,\n              rotationQuarterTurns: rotation,\n              lifecycle: 'active',\n              activatedAtTick: INITIAL_ABSOLUTE_TICK,")
+          old_same = '''function sameInstance(first: BuildingInstance, second: BuildingInstance): boolean {
+  return (
+    first.instanceId === second.instanceId &&
+    first.buildingDefinitionId === second.buildingDefinitionId &&
+    first.buildingDefinitionVersion === second.buildingDefinitionVersion &&
+    first.originCell.x === second.originCell.x &&
+    first.originCell.z === second.originCell.z &&
+    first.rotationQuarterTurns === second.rotationQuarterTurns
+  );
+}'''
+          replace_once('packages/building-core/src/building-mutation.ts', old_same,
+            '''function sameInstance(first: BuildingInstance, second: BuildingInstance): boolean {
+  return sameBuildingInstanceAuthority(first, second);
+}''')
+
+          write('packages/building-core/src/building-growth.ts', '''import {
+            commitSimulationTick,
+            createSimulationSnapshot,
+            isDevelopmentEvaluationTick,
+            planSimulationTick,
+            type SimulationSnapshot,
+          } from '@web-three-city/simulation-core';
+          import { chunkForCell, type ChunkCoord } from '@web-three-city/terrain-core';
+          import type { WorldConfig } from '@web-three-city/world-core';
+          import { buildingDefinitionForId } from './building-definitions.js';
+          import { occupiedCellsForBuilding } from './building-footprint.js';
+          import { activateCompletedBuilding, copyBuildingInstance } from './building-lifecycle.js';
+          import { planBuildingDevelopment } from './building-mutation.js';
+          import { createBuildingSnapshot } from './building-snapshot.js';
+          import {
+            BuildingContractError,
+            type BuildingDevelopmentEnvironment,
+            type BuildingGrowthPlan,
+            type BuildingGrowthReceipt,
+            type BuildingInstance,
+            type BuildingSnapshot,
+          } from './contracts.js';
+
+          function freezeStrings(values: Iterable<string>): readonly string[] {
+            return Object.freeze([...values].sort());
+          }
+          function freezeChunks(values: Iterable<ChunkCoord>): readonly ChunkCoord[] {
+            const byKey = new Map<string, ChunkCoord>();
+            for (const chunk of values) byKey.set(`${chunk.x}:${chunk.z}`, chunk);
+            return Object.freeze([...byKey.values()].sort((a, b) => a.z - b.z || a.x - b.x).map((c) => Object.freeze({ ...c })));
+          }
+          function environmentValid(environment: BuildingDevelopmentEnvironment): boolean {
+            return [environment.terrainRevision, environment.waterSourceTerrainRevision, environment.roadRevision, environment.zoneRevision]
+              .every((value) => Number.isSafeInteger(value) && value >= 0) &&
+              environment.terrainRevision === environment.waterSourceTerrainRevision;
+          }
+
+          export function planBuildingGrowthTick(input: {
+            readonly buildings: BuildingSnapshot;
+            readonly simulation: SimulationSnapshot;
+            readonly environment: BuildingDevelopmentEnvironment;
+            readonly config: WorldConfig;
+          }): BuildingGrowthPlan {
+            let buildings: BuildingSnapshot;
+            let simulation: SimulationSnapshot;
+            try {
+              buildings = createBuildingSnapshot(input.buildings, input.config);
+            } catch {
+              return invalidPlan(input, 'building-growth:invalid-building-state');
+            }
+            try {
+              simulation = createSimulationSnapshot(input.simulation);
+            } catch {
+              return invalidPlan(input, 'building-growth:invalid-simulation-state');
+            }
+            if (!environmentValid(input.environment)) return invalidPlan(input, 'building-growth:invalid-environment');
+            const tickPlan = planSimulationTick(simulation);
+            if (!tickPlan.valid) return invalidPlan(input, 'building-growth:tick-overflow');
+            const afterTick = tickPlan.afterAbsoluteTick;
+            const completedIds: string[] = [];
+            const dirty: ChunkCoord[] = [];
+            let proposed: BuildingInstance[] = buildings.instances.map((instance) => {
+              if (instance.lifecycle === 'construction' && instance.constructionCompletesAtTick <= afterTick) {
+                completedIds.push(instance.instanceId);
+                for (const cell of occupiedCellsForBuilding(instance)) dirty.push(chunkForCell(cell, input.config));
+                return activateCompletedBuilding(instance, afterTick);
+              }
+              return copyBuildingInstance(instance);
+            });
+            const startedIds: string[] = [];
+            let nextGrowthSequence = simulation.growthSequence;
+            if (isDevelopmentEvaluationTick(afterTick)) {
+              const intermediate = createBuildingSnapshot({ revision: buildings.revision, instances: proposed }, input.config);
+              const development = planBuildingDevelopment(intermediate, input.environment, input.config);
+              const candidate = development.valid ? development.addedInstances[0] : undefined;
+              if (candidate !== undefined) {
+                const definition = buildingDefinitionForId(candidate.buildingDefinitionId);
+                nextGrowthSequence += 1;
+                const construction: BuildingInstance = Object.freeze({
+                  instanceId: `building:growth:${nextGrowthSequence}`,
+                  buildingDefinitionId: candidate.buildingDefinitionId,
+                  buildingDefinitionVersion: candidate.buildingDefinitionVersion,
+                  originCell: Object.freeze({ ...candidate.originCell }),
+                  rotationQuarterTurns: candidate.rotationQuarterTurns,
+                  lifecycle: 'construction',
+                  constructionStartedAtTick: afterTick,
+                  constructionCompletesAtTick: afterTick + definition.constructionDurationTicks,
+                });
+                proposed.push(construction);
+                startedIds.push(construction.instanceId);
+                for (const cell of occupiedCellsForBuilding(construction)) dirty.push(chunkForCell(cell, input.config));
+              }
+            }
+            return Object.freeze({
+              baseBuildingRevision: buildings.revision,
+              baseSimulationRevision: simulation.revision,
+              baseTerrainRevision: input.environment.terrainRevision,
+              baseWaterSourceTerrainRevision: input.environment.waterSourceTerrainRevision,
+              baseRoadRevision: input.environment.roadRevision,
+              baseZoneRevision: input.environment.zoneRevision,
+              beforeAbsoluteTick: simulation.absoluteTick,
+              afterAbsoluteTick: afterTick,
+              proposedInstances: Object.freeze(proposed.map(copyBuildingInstance)),
+              startedInstanceIds: freezeStrings(startedIds),
+              completedInstanceIds: freezeStrings(completedIds),
+              nextGrowthSequence,
+              dirtyChunks: freezeChunks(dirty),
+              valid: true,
+              invalidReason: null,
+            });
+          }
+
+          function invalidPlan(
+            input: { readonly buildings: BuildingSnapshot; readonly simulation: SimulationSnapshot; readonly environment: BuildingDevelopmentEnvironment },
+            reason: BuildingGrowthPlan['invalidReason'],
+          ): BuildingGrowthPlan {
+            return Object.freeze({
+              baseBuildingRevision: input.buildings.revision,
+              baseSimulationRevision: input.simulation.revision,
+              baseTerrainRevision: input.environment.terrainRevision,
+              baseWaterSourceTerrainRevision: input.environment.waterSourceTerrainRevision,
+              baseRoadRevision: input.environment.roadRevision,
+              baseZoneRevision: input.environment.zoneRevision,
+              beforeAbsoluteTick: input.simulation.absoluteTick,
+              afterAbsoluteTick: input.simulation.absoluteTick,
+              proposedInstances: Object.freeze([]), startedInstanceIds: Object.freeze([]),
+              completedInstanceIds: Object.freeze([]), nextGrowthSequence: input.simulation.growthSequence,
+              dirtyChunks: Object.freeze([]), valid: false, invalidReason: reason,
+            });
+          }
+
+          export function commitBuildingGrowthTick(input: {
+            readonly buildings: BuildingSnapshot;
+            readonly simulation: SimulationSnapshot;
+            readonly environment: BuildingDevelopmentEnvironment;
+            readonly config: WorldConfig;
+            readonly plan: BuildingGrowthPlan;
+          }): { readonly buildings: BuildingSnapshot; readonly simulation: SimulationSnapshot; readonly receipt: BuildingGrowthReceipt } {
+            const { plan } = input;
+            if (!plan.valid || plan.invalidReason !== null) throw new BuildingContractError('building-growth:invalid-plan');
+            if (input.buildings.revision !== plan.baseBuildingRevision) throw new BuildingContractError('building:stale-building-plan');
+            if (input.simulation.revision !== plan.baseSimulationRevision || input.simulation.absoluteTick !== plan.beforeAbsoluteTick) {
+              throw new BuildingContractError('building-growth:stale-simulation-plan');
+            }
+            if (input.environment.terrainRevision !== plan.baseTerrainRevision) throw new BuildingContractError('building:stale-terrain-plan');
+            if (input.environment.waterSourceTerrainRevision !== plan.baseWaterSourceTerrainRevision) throw new BuildingContractError('building:stale-water-plan');
+            if (input.environment.roadRevision !== plan.baseRoadRevision) throw new BuildingContractError('building:stale-road-plan');
+            if (input.environment.zoneRevision !== plan.baseZoneRevision) throw new BuildingContractError('building:stale-zone-plan');
+            const tickPlan = planSimulationTick(input.simulation);
+            if (!tickPlan.valid || tickPlan.afterAbsoluteTick !== plan.afterAbsoluteTick) throw new BuildingContractError('building-growth:stale-simulation-plan');
+            const simulationCommit = commitSimulationTick(input.simulation, tickPlan, plan.nextGrowthSequence);
+            const changed = plan.startedInstanceIds.length > 0 || plan.completedInstanceIds.length > 0;
+            const buildings = changed
+              ? createBuildingSnapshot({ revision: input.buildings.revision + 1, instances: plan.proposedInstances }, input.config)
+              : input.buildings;
+            return Object.freeze({
+              buildings,
+              simulation: simulationCommit.snapshot,
+              receipt: Object.freeze({
+                beforeBuildingRevision: input.buildings.revision,
+                afterBuildingRevision: buildings.revision,
+                beforeSimulationRevision: input.simulation.revision,
+                afterSimulationRevision: simulationCommit.snapshot.revision,
+                beforeAbsoluteTick: input.simulation.absoluteTick,
+                afterAbsoluteTick: simulationCommit.snapshot.absoluteTick,
+                startedInstanceIds: plan.startedInstanceIds,
+                completedInstanceIds: plan.completedInstanceIds,
+                dirtyChunks: plan.dirtyChunks,
+              }),
+            });
+          }
+          ''')
+
+          write('packages/building-core/src/serialization.ts', '''import { INITIAL_ABSOLUTE_TICK } from '@web-three-city/simulation-core';
+          import { err, ok, type Result, type WorldConfig } from '@web-three-city/world-core';
+          import { buildingDefinitionForId } from './building-definitions.js';
+          import { isBuildingRotationQuarterTurns } from './building-footprint.js';
+          import { createBuildingSnapshot } from './building-snapshot.js';
+          import type {
+            BuildingDefinition, BuildingDefinitionId, BuildingInstance,
+            BuildingRotationQuarterTurns, BuildingSnapshot,
+          } from './contracts.js';
+
+          export interface BuildingSaveInstanceV1 {
+            readonly instanceId: string; readonly buildingDefinitionId: BuildingDefinitionId;
+            readonly buildingDefinitionVersion: 1; readonly originCell: Readonly<{ x: number; z: number }>;
+            readonly rotationQuarterTurns: BuildingRotationQuarterTurns;
+          }
+          export interface BuildingSaveV1 {
+            readonly kind: 'building-save'; readonly schemaVersion: 1; readonly revision: number;
+            readonly instances: readonly BuildingSaveInstanceV1[];
+          }
+          export type BuildingSaveInstanceV2 =
+            | (BuildingSaveInstanceV1 & { readonly lifecycle: 'construction'; readonly constructionStartedAtTick: number; readonly constructionCompletesAtTick: number })
+            | (BuildingSaveInstanceV1 & { readonly lifecycle: 'active'; readonly activatedAtTick: number });
+          export interface BuildingSaveV2 {
+            readonly kind: 'building-save'; readonly schemaVersion: 2; readonly revision: number;
+            readonly instances: readonly BuildingSaveInstanceV2[];
+          }
+          export type BuildingSaveErrorCode =
+            | 'building-save:invalid-schema' | 'building-save:invalid-revision'
+            | 'building-save:invalid-instance' | 'building-save:unknown-definition'
+            | 'building-save:definition-version-mismatch' | 'building-save:invalid-rotation'
+            | 'building-save:invalid-lifecycle' | 'building-save:invalid-snapshot';
+          export interface BuildingSaveError { readonly code: BuildingSaveErrorCode; }
+          function isRecord(value: unknown): value is Record<string, unknown> { return typeof value === 'object' && value !== null; }
+
+          function encodeBase(instance: BuildingInstance): BuildingSaveInstanceV1 {
+            return Object.freeze({
+              instanceId: instance.instanceId, buildingDefinitionId: instance.buildingDefinitionId,
+              buildingDefinitionVersion: instance.buildingDefinitionVersion,
+              originCell: Object.freeze({ x: instance.originCell.x, z: instance.originCell.z }),
+              rotationQuarterTurns: instance.rotationQuarterTurns,
+            });
+          }
+          export function encodeBuildingSaveV1(snapshot: BuildingSnapshot): BuildingSaveV1 {
+            return Object.freeze({ kind: 'building-save', schemaVersion: 1, revision: snapshot.revision,
+              instances: Object.freeze(snapshot.instances.map(encodeBase)) });
+          }
+          export function encodeBuildingSaveV2(snapshot: BuildingSnapshot): BuildingSaveV2 {
+            return Object.freeze({ kind: 'building-save', schemaVersion: 2, revision: snapshot.revision,
+              instances: Object.freeze(snapshot.instances.map((instance) => Object.freeze(instance.lifecycle === 'construction'
+                ? { ...encodeBase(instance), lifecycle: 'construction' as const,
+                    constructionStartedAtTick: instance.constructionStartedAtTick,
+                    constructionCompletesAtTick: instance.constructionCompletesAtTick }
+                : { ...encodeBase(instance), lifecycle: 'active' as const, activatedAtTick: instance.activatedAtTick }))) });
+          }
+
+          function decodeBase(candidate: Record<string, unknown>): Result<BuildingSaveInstanceV1, BuildingSaveError> {
+            if (typeof candidate.instanceId !== 'string' || candidate.instanceId.length === 0 ||
+                typeof candidate.buildingDefinitionId !== 'string' || !Number.isSafeInteger(candidate.buildingDefinitionVersion) ||
+                !isRecord(candidate.originCell) || !Number.isInteger(candidate.originCell.x) || !Number.isInteger(candidate.originCell.z) ||
+                typeof candidate.rotationQuarterTurns !== 'number') return err({ code: 'building-save:invalid-instance' });
+            let definition: BuildingDefinition;
+            try { definition = buildingDefinitionForId(candidate.buildingDefinitionId as BuildingDefinitionId); }
+            catch { return err({ code: 'building-save:unknown-definition' }); }
+            if (definition.version !== candidate.buildingDefinitionVersion) return err({ code: 'building-save:definition-version-mismatch' });
+            if (!isBuildingRotationQuarterTurns(candidate.rotationQuarterTurns) || !definition.allowedRotationQuarterTurns.includes(candidate.rotationQuarterTurns)) {
+              return err({ code: 'building-save:invalid-rotation' });
+            }
+            return ok(Object.freeze({ instanceId: candidate.instanceId, buildingDefinitionId: definition.id,
+              buildingDefinitionVersion: definition.version,
+              originCell: Object.freeze({ x: candidate.originCell.x as number, z: candidate.originCell.z as number }),
+              rotationQuarterTurns: candidate.rotationQuarterTurns }));
+          }
+
+          export function decodeBuildingSaveV1(input: unknown, config: WorldConfig): Result<BuildingSnapshot, BuildingSaveError> {
+            if (!isRecord(input) || input.kind !== 'building-save' || input.schemaVersion !== 1 || !Array.isArray(input.instances)) {
+              return err({ code: 'building-save:invalid-schema' });
+            }
+            if (!Number.isSafeInteger(input.revision) || (input.revision as number) < 0) return err({ code: 'building-save:invalid-revision' });
+            const instances: BuildingInstance[] = [];
+            for (const candidate of input.instances) {
+              if (!isRecord(candidate)) return err({ code: 'building-save:invalid-instance' });
+              const base = decodeBase(candidate); if (!base.ok) return base;
+              instances.push(Object.freeze({ ...base.value, lifecycle: 'active', activatedAtTick: INITIAL_ABSOLUTE_TICK }));
+            }
+            try { return ok(createBuildingSnapshot({ revision: input.revision as number, instances }, config)); }
+            catch { return err({ code: 'building-save:invalid-snapshot' }); }
+          }
+
+          export function decodeBuildingSaveV2(input: unknown, config: WorldConfig): Result<BuildingSnapshot, BuildingSaveError> {
+            if (!isRecord(input) || input.kind !== 'building-save' || input.schemaVersion !== 2 || !Array.isArray(input.instances)) {
+              return err({ code: 'building-save:invalid-schema' });
+            }
+            if (!Number.isSafeInteger(input.revision) || (input.revision as number) < 0) return err({ code: 'building-save:invalid-revision' });
+            const instances: BuildingInstance[] = [];
+            for (const candidate of input.instances) {
+              if (!isRecord(candidate)) return err({ code: 'building-save:invalid-instance' });
+              const base = decodeBase(candidate); if (!base.ok) return base;
+              if (candidate.lifecycle === 'construction' && Number.isSafeInteger(candidate.constructionStartedAtTick) &&
+                  Number.isSafeInteger(candidate.constructionCompletesAtTick)) {
+                instances.push(Object.freeze({ ...base.value, lifecycle: 'construction',
+                  constructionStartedAtTick: candidate.constructionStartedAtTick as number,
+                  constructionCompletesAtTick: candidate.constructionCompletesAtTick as number }));
+              } else if (candidate.lifecycle === 'active' && Number.isSafeInteger(candidate.activatedAtTick)) {
+                instances.push(Object.freeze({ ...base.value, lifecycle: 'active', activatedAtTick: candidate.activatedAtTick as number }));
+              } else return err({ code: 'building-save:invalid-lifecycle' });
+            }
+            try { return ok(createBuildingSnapshot({ revision: input.revision as number, instances }, config)); }
+            catch { return err({ code: 'building-save:invalid-snapshot' }); }
+          }
+          ''')
+
+          replace_once('packages/building-core/src/index.ts',
+            "export * from './building-definitions.js';",
+            "export * from './building-definitions.js';\nexport * from './building-lifecycle.js';")
+          replace_once('packages/building-core/src/index.ts',
+            "export * from './building-mutation.js';",
+            "export * from './building-mutation.js';\nexport * from './building-growth.js';")
+
+          write('packages/building-core/test/building-lifecycle.test.ts', '''import { describe, expect, it } from 'vitest';
+          import { WORLD_CONFIG } from '@web-three-city/world-core';
+          import {
+            buildingLifecycleCounts, constructionProgressAtTick, createBuildingSnapshot,
+          } from '../src/index.js';
+
+          describe('Building lifecycle authority', () => {
+            it('validates construction and derives counts and progress', () => {
+              const construction = {
+                instanceId: 'building:growth:1', buildingDefinitionId: 'residential-cottage-1x1' as const,
+                buildingDefinitionVersion: 1 as const, originCell: { x: 0, z: 0 }, rotationQuarterTurns: 0 as const,
+                lifecycle: 'construction' as const, constructionStartedAtTick: 10, constructionCompletesAtTick: 34,
+              };
+              const snapshot = createBuildingSnapshot({ revision: 1, instances: [construction] }, WORLD_CONFIG);
+              expect(buildingLifecycleCounts(snapshot)).toEqual({ construction: 1, active: 0, total: 1 });
+              expect(constructionProgressAtTick(snapshot.instances[0] as typeof construction, 22)).toBe(0.5);
+            });
+
+            it('rejects an end tick that is not after start', () => {
+              expect(() => createBuildingSnapshot({ revision: 1, instances: [{
+                instanceId: 'bad', buildingDefinitionId: 'residential-cottage-1x1', buildingDefinitionVersion: 1,
+                originCell: { x: 0, z: 0 }, rotationQuarterTurns: 0, lifecycle: 'construction',
+                constructionStartedAtTick: 10, constructionCompletesAtTick: 10,
+              }] }, WORLD_CONFIG)).toThrow('building-lifecycle:invalid-construction');
+            });
+          });
+          ''')
+          write('packages/building-core/test/building-growth.test.ts', '''import { describe, expect, it } from 'vitest';
+          import { createSimulationSnapshot } from '@web-three-city/simulation-core';
+          import { WORLD_CONFIG } from '@web-three-city/world-core';
+          import {
+            commitBuildingGrowthTick, createEmptyBuildingSnapshot, planBuildingGrowthTick,
+            type BuildingDevelopmentEnvironment,
+          } from '../src/index.js';
+
+          const environment: BuildingDevelopmentEnvironment = Object.freeze({
+            terrainRevision: 0, waterSourceTerrainRevision: 0, roadRevision: 0, zoneRevision: 0,
+            surfaceAt: () => Object.freeze({ shape: 'flat', minimumHeightLevel: 0, maximumHeightLevel: 0, diagonal: 'nw-se' }),
+            isDry: () => true,
+            isRoadOccupied: () => false,
+            zoneDefinitionIdAt: (cell) => cell.x === 0 && cell.z === 0 ? 'residential' : null,
+            roadAccessAt: () => Object.freeze({ direction: 'south', distance: 1, roadCell: { x: 0, z: 1 } }),
+          });
+
+          describe('automatic Building Growth tick', () => {
+            it('starts at most one Construction on an evaluation tick', () => {
+              const buildings = createEmptyBuildingSnapshot(WORLD_CONFIG);
+              const simulation = createSimulationSnapshot({ revision: 0, absoluteTick: 23, growthSequence: 0 });
+              const plan = planBuildingGrowthTick({ buildings, simulation, environment, config: WORLD_CONFIG });
+              const result = commitBuildingGrowthTick({ buildings, simulation, environment, config: WORLD_CONFIG, plan });
+              expect(result.simulation.absoluteTick).toBe(24);
+              expect(result.buildings.instances).toHaveLength(1);
+              expect(result.buildings.instances[0]?.lifecycle).toBe('construction');
+              expect(result.receipt.startedInstanceIds).toEqual(['building:growth:1']);
+            });
+
+            it('advances an idle non-evaluation tick without changing Buildings', () => {
+              const buildings = createEmptyBuildingSnapshot(WORLD_CONFIG);
+              const simulation = createSimulationSnapshot({ revision: 0, absoluteTick: 8, growthSequence: 0 });
+              const plan = planBuildingGrowthTick({ buildings, simulation, environment, config: WORLD_CONFIG });
+              const result = commitBuildingGrowthTick({ buildings, simulation, environment, config: WORLD_CONFIG, plan });
+              expect(result.simulation.absoluteTick).toBe(9);
+              expect(result.buildings).toBe(buildings);
+            });
+          });
+          ''')
+
+          Path('.github/workflows/author-building-growth-core.yml').unlink()
+          PY
+          pnpm install --lockfile-only
+      - name: Commit authored branch
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "feat: add simulation clock and Building Growth core"
+          git push origin HEAD:agent/building-growth-core-v0-1

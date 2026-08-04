@@ -48,24 +48,24 @@ export function createBuildingDevelopmentEnvironment(
     waterSourceTerrainRevision: water.sourceTerrainRevision,
     roadRevision: roads.revision,
     zoneRevision: zones.revision,
-    surfaceAt(cell) {
+    surfaceAt(cell: CellCoord) {
       if (!validCell(cell, config)) throw new RangeError('building-environment:invalid-cell');
       return terrainCellSurfaceProfile(terrain, cell, config);
     },
-    isDry(cell) {
+    isDry(cell: CellCoord) {
       if (!validCell(cell, config)) return false;
       const first = triangleIndexFor(cell.x, cell.z, 0, config.mapWidth);
       const second = triangleIndexFor(cell.x, cell.z, 1, config.mapWidth);
       return seaMask[first] === 0 && seaMask[second] === 0;
     },
-    isRoadOccupied(cell) {
+    isRoadOccupied(cell: CellCoord) {
       return validCell(cell, config) && roadOccupiedAt(roads, cell);
     },
-    zoneDefinitionIdAt(cell) {
+    zoneDefinitionIdAt(cell: CellCoord) {
       if (!validCell(cell, config)) return null;
       return zoneDefinitionForCode(zoneDefinitionCodeAt(zones, cell))?.id ?? null;
     },
-    roadAccessAt(cell) {
+    roadAccessAt(cell: CellCoord) {
       return findZoneRoadAccess(
         cell,
         {

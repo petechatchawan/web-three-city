@@ -18,6 +18,7 @@ export type BuildingElevationResolver = (cell: CellCoord) => number;
 
 let defaultAbsoluteTick = 8;
 let latestSnapshot: BuildingSnapshot | null = null;
+let latestPresentation: BuildingPresentation | null = null;
 
 export function setBuildingPresentationAbsoluteTick(absoluteTick: number): void {
   if (!Number.isSafeInteger(absoluteTick) || absoluteTick < 0) {
@@ -28,6 +29,12 @@ export function setBuildingPresentationAbsoluteTick(absoluteTick: number): void 
 
 export function latestPresentedBuildingSnapshot(): BuildingSnapshot | null {
   return latestSnapshot;
+}
+
+export function reloadLatestBuildingPresentation(): void {
+  if (latestPresentation !== null && latestSnapshot !== null) {
+    latestPresentation.load(latestSnapshot, defaultAbsoluteTick);
+  }
 }
 
 export class BuildingPresentation {
@@ -45,6 +52,7 @@ export class BuildingPresentation {
     this.#materials = createBuildingMaterials();
     this.#root.name = 'building-committed-root';
     scene.add(this.#root);
+    latestPresentation = this;
   }
 
   get root(): THREE.Group {
@@ -114,6 +122,7 @@ export class BuildingPresentation {
     this.clear();
     this.#materials.dispose();
     this.#scene.remove(this.#root);
+    if (latestPresentation === this) latestPresentation = null;
     latestSnapshot = null;
   }
 }

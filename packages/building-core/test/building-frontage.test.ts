@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { TerrainCellSurfaceProfile } from '@web-three-city/terrain-core';
+import type { CellCoord } from '@web-three-city/world-core';
 import {
   resolveBuildingFrontage,
   type BuildingDevelopmentEnvironment,
@@ -32,7 +33,7 @@ function environment(): BuildingDevelopmentEnvironment {
     isDry: () => true,
     isRoadOccupied: () => false,
     zoneDefinitionIdAt: () => 'commercial',
-    roadAccessAt(cell) {
+    roadAccessAt(cell: CellCoord) {
       if (cell.x === 2 && cell.z === 2) {
         return Object.freeze({
           direction: 'east',

@@ -54,7 +54,7 @@ function invalidPlan(
   environment: BuildingDevelopmentEnvironment,
   reason: BuildingGrowthInvalidReason,
 ): BuildingGrowthPlan {
-  return Object.freeze({
+  const plan: BuildingGrowthPlan = {
     baseBuildingRevision: buildings.revision,
     baseSimulationRevision: simulation.revision,
     baseTerrainRevision: environment.terrainRevision,
@@ -70,7 +70,8 @@ function invalidPlan(
     dirtyChunks: Object.freeze([]),
     valid: false,
     invalidReason: reason,
-  });
+  };
+  return Object.freeze(plan);
 }
 
 export function planBuildingGrowthTick(input: {
@@ -119,17 +120,18 @@ export function planBuildingGrowthTick(input: {
   const completedIds: string[] = [];
   const dirty: ChunkCoord[] = [];
   const proposed: AuthoritativeBuildingInstance[] = buildings.instances.map((instance) => {
+    const authoritative = normalizeBuildingInstance(instance);
     if (
-      instance.lifecycle === 'construction' &&
-      instance.constructionCompletesAtTick <= afterAbsoluteTick
+      authoritative.lifecycle === 'construction' &&
+      authoritative.constructionCompletesAtTick <= afterAbsoluteTick
     ) {
-      completedIds.push(instance.instanceId);
-      for (const cell of occupiedCellsForBuilding(instance)) {
+      completedIds.push(authoritative.instanceId);
+      for (const cell of occupiedCellsForBuilding(authoritative)) {
         dirty.push(chunkForCell(cell, input.config));
       }
-      return activateCompletedBuilding(instance, afterAbsoluteTick);
+      return activateCompletedBuilding(authoritative, afterAbsoluteTick);
     }
-    return normalizeBuildingInstance(instance);
+    return authoritative;
   });
 
   const startedIds: string[] = [];

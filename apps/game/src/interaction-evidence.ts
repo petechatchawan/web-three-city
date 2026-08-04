@@ -6,7 +6,7 @@ import {
 import type { BuildingInvalidReason } from '@web-three-city/building-core';
 import type { TerraformBrushSize, WorldToolMode } from '@web-three-city/terrain-core';
 import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
-import type { ZoneCounts, ZoneInvalidReason } from '@web-three-city/zone-core';
+import type { ZoneCounts } from '@web-three-city/zone-core';
 import * as THREE from 'three';
 import type { GameInput, GameRenderViewport } from './game-input.js';
 import type { GameTerraformInvalidReason } from './terraform-occupancy-guard.js';
@@ -89,7 +89,7 @@ export interface ZoneInteractionEvidence {
   readonly mode: 'zone-residential' | 'zone-commercial' | 'zone-industrial' | 'zone-remove' | null;
   readonly strokeActive: boolean;
   readonly previewValid: boolean | null;
-  readonly previewInvalidReason: ZoneInvalidReason | null;
+  readonly previewInvalidReason: GameZoneInvalidReason | null;
   readonly previewCellCount: number;
   readonly committedZoneRevision: number;
   readonly counts: ZoneCounts;

@@ -16,6 +16,20 @@ import { createBuildingPrototype } from './prototype-factory.js';
 
 export type BuildingElevationResolver = (cell: CellCoord) => number;
 
+let defaultAbsoluteTick = 8;
+let latestSnapshot: BuildingSnapshot | null = null;
+
+export function setBuildingPresentationAbsoluteTick(absoluteTick: number): void {
+  if (!Number.isSafeInteger(absoluteTick) || absoluteTick < 0) {
+    throw new RangeError('building-presentation:invalid-tick');
+  }
+  defaultAbsoluteTick = absoluteTick;
+}
+
+export function latestPresentedBuildingSnapshot(): BuildingSnapshot | null {
+  return latestSnapshot;
+}
+
 export class BuildingPresentation {
   readonly #scene: THREE.Scene;
   readonly #config: WorldConfig;
@@ -46,8 +60,9 @@ export class BuildingPresentation {
     }
   }
 
-  load(snapshot: BuildingSnapshot, absoluteTick = 8): void {
+  load(snapshot: BuildingSnapshot, absoluteTick = defaultAbsoluteTick): void {
     if (this.#disposed) throw new Error('building-presentation:disposed');
+    latestSnapshot = snapshot;
     this.clear();
     for (const instance of snapshot.instances) {
       const definition = buildingDefinitionForId(instance.buildingDefinitionId);
@@ -99,5 +114,6 @@ export class BuildingPresentation {
     this.clear();
     this.#materials.dispose();
     this.#scene.remove(this.#root);
+    latestSnapshot = null;
   }
 }

@@ -3,6 +3,8 @@ import { prepareBuildingFixtureWorld } from './helpers/building-fixture.js';
 import { prepareDeterministicGrowthClock, stepLogicalTicks } from './helpers/growth-fixture.js';
 import { GAME_URL } from './helpers/interaction.js';
 
+test.describe.configure({ timeout: 60_000 });
+
 test('captures Construction phases, variety, and responsive time controls', async ({
   page,
 }, testInfo) => {

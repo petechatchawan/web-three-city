@@ -52,6 +52,7 @@ import {
 import {
   commitZoneMutation,
   createEmptyZoneSnapshot,
+  planZoneMutation,
   zoneCounts,
   type ZoneMutationPlan,
   type ZonePlacementEnvironment,
@@ -658,13 +659,20 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     ui.setUndoAvailable(undoStore.available);
   };
 
-  const applyZonePlan = (
-    plan: ZoneMutationPlan,
-    routedReason: GameZoneInvalidReason | null = plan.invalidReason,
-  ): void => {
-    zoneInvalidReason = routedReason;
-    const candidate = guardZonePlanWithBuildings(plan, buildingsSnapshot);
-    const reason = routedReason ?? candidate.invalidReason;
+  const applyZonePlan = (plan: ZoneMutationPlan): void => {
+    const revalidatedPlan = planZoneMutation(
+      zonesSnapshot,
+      {
+        operation: plan.operation,
+        definitionId: plan.definitionId,
+        cells: plan.requestedCells,
+      },
+      zoneEnvironment,
+      WORLD_CONFIG,
+    );
+    const candidate = guardZonePlanWithBuildings(revalidatedPlan, buildingsSnapshot);
+    const reason = candidate.invalidReason;
+    zoneInvalidReason = reason;
     if (!candidate.valid || reason !== null) {
       ui.setStatus(statusForZonePlan(candidate.previewPlan, reason));
       ui.setUndoAvailable(undoStore.available);

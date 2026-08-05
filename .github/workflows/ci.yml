@@ -16,7 +16,8 @@ concurrency:
   cancel-in-progress: true
 
 # Building Growth & Variety Foundation closure requires both jobs on the exact final PR head,
-# including deterministic two-worker browser execution and bounded heavy visual-evidence tests.
+# including automatic-Growth interaction isolation, deterministic two-worker browser execution,
+# and bounded heavy visual-evidence tests.
 jobs:
   lean:
     name: Lean CI

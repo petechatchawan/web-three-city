@@ -131,11 +131,13 @@ export function selectGrowthBuildingPlacement(input: {
   readonly config: WorldConfig;
   readonly absoluteTick: number;
   readonly growthSequence: number;
+  readonly reservedCells?: readonly CellCoord[];
 }): BuildingSelectionCandidate | null {
   const occupied = new Set<string>();
   for (const instance of input.buildings.instances) {
     for (const cell of occupiedCellsForBuilding(instance)) occupied.add(key(cell));
   }
+  const reserved = new Set((input.reservedCells ?? []).map(key));
 
   for (let z = 0; z < input.config.mapHeight; z += 1) {
     for (let x = 0; x < input.config.mapWidth; x += 1) {
@@ -160,6 +162,7 @@ export function selectGrowthBuildingPlacement(input: {
               (cell) =>
                 !inside(cell, input.config) ||
                 occupied.has(key(cell)) ||
+                reserved.has(key(cell)) ||
                 input.environment.zoneDefinitionIdAt(cell) !== zoneDefinitionId ||
                 input.environment.isRoadOccupied(cell) ||
                 !input.environment.isDry(cell) ||
@@ -169,7 +172,13 @@ export function selectGrowthBuildingPlacement(input: {
             continue;
           }
           const frontage = resolveBuildingFrontage(instance, input.environment);
-          if (frontage !== null) candidates.push(Object.freeze({ definition, instance, frontage }));
+          if (
+            frontage !== null &&
+            !reserved.has(key(frontage.frontageCell)) &&
+            !reserved.has(key(frontage.roadCell))
+          ) {
+            candidates.push(Object.freeze({ definition, instance, frontage }));
+          }
         }
       }
       if (candidates.length === 0) continue;

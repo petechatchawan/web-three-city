@@ -752,6 +752,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
       state: Object.freeze({ simulation, buildings: buildingsSnapshot }),
       environment: buildingEnvironment,
       config: WORLD_CONFIG,
+      reservedCells: inputRef.current?.getBackgroundGrowthReservations() ?? Object.freeze([]),
     });
     if (result.buildings.revision !== buildingsSnapshot.revision) {
       buildingsSnapshot = result.buildings;

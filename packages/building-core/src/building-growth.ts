@@ -6,7 +6,7 @@ import {
   type SimulationSnapshot,
 } from '@web-three-city/simulation-core';
 import { chunkForCell, type ChunkCoord } from '@web-three-city/terrain-core';
-import type { WorldConfig } from '@web-three-city/world-core';
+import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
 import { buildingDefinitionForId } from './building-definitions.js';
 import { occupiedCellsForBuilding } from './building-footprint.js';
 import { activateCompletedBuilding, normalizeBuildingInstance } from './building-lifecycle.js';
@@ -79,6 +79,7 @@ export function planBuildingGrowthTick(input: {
   readonly simulation: SimulationSnapshot;
   readonly environment: BuildingDevelopmentEnvironment;
   readonly config: WorldConfig;
+  readonly reservedCells?: readonly CellCoord[];
 }): BuildingGrowthPlan {
   let buildings: BuildingSnapshot;
   let simulation: SimulationSnapshot;
@@ -147,6 +148,7 @@ export function planBuildingGrowthTick(input: {
       config: input.config,
       absoluteTick: afterAbsoluteTick,
       growthSequence: simulation.growthSequence,
+      ...(input.reservedCells === undefined ? {} : { reservedCells: input.reservedCells }),
     });
     if (selected !== null) {
       nextGrowthSequence += 1;

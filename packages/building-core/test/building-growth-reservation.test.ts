@@ -67,7 +67,7 @@ describe('automatic Building Growth interaction reservations', () => {
       environment: environment(),
       config: CONFIG,
       reservedCells: Object.freeze([Object.freeze({ x: 0, z: 0 })]),
-    } as Parameters<typeof planBuildingGrowthTick>[0];
+    };
 
     const plan = planBuildingGrowthTick(input);
     const result = commitBuildingGrowthTick({

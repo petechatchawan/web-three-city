@@ -22,13 +22,21 @@ jobs:
         run: |
           python <<'PY'
           from pathlib import Path
+          import re
 
           def replace_once(path: Path, old: str, new: str) -> None:
               text = path.read_text()
               count = text.count(old)
               if count != 1:
-                  raise RuntimeError(f'{path}: expected one match, found {count}')
+                  raise RuntimeError(f'{path}: expected one literal match, found {count}')
               path.write_text(text.replace(old, new))
+
+          def replace_regex_once(path: Path, pattern: str, replacement: str) -> None:
+              text = path.read_text()
+              updated, count = re.subn(pattern, replacement, text, count=1, flags=re.MULTILINE)
+              if count != 1:
+                  raise RuntimeError(f'{path}: expected one regex match, found {count}: {pattern}')
+              path.write_text(updated)
 
           bootstrap = Path('apps/game/src/game-bootstrap.ts')
           replace_once(
@@ -42,6 +50,11 @@ jobs:
             dispose(): void;
           }
           """,
+          )
+          replace_once(
+              bootstrap,
+              '    return { dispose(): void {} };',
+              '    return { runAutomaticBuildingPass(): void {}, dispose(): void {} };',
           )
 
           old_building_request = """  const applyBuildingRequest = (mode: BuildingToolMode, cell: CellCoord): void => {
@@ -142,7 +155,11 @@ jobs:
           };
           """
           replace_once(bootstrap, old_building_request, new_building_request)
-          replace_once(bootstrap, '  return { dispose };\n', '  return { runAutomaticBuildingPass, dispose };\n')
+          replace_regex_once(
+              bootstrap,
+              r'^\s*return \{ dispose \};$',
+              '  return { runAutomaticBuildingPass, dispose };',
+          )
 
           main = Path('apps/game/src/main.ts')
           replace_once(main, 'let automaticPointerId = 10_000;\n', '')

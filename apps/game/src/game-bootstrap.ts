@@ -103,6 +103,7 @@ const QUALITY_POLICY = Object.freeze({
 });
 
 export interface GameRuntime {
+  runAutomaticBuildingPass(): void;
   dispose(): void;
 }
 
@@ -328,7 +329,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
   const capability = detectWebGL2(ui.canvas);
   if (!capability.supported) {
     ui.setStatus('WebGL2 unavailable');
-    return { dispose(): void {} };
+    return { runAutomaticBuildingPass(): void {}, dispose(): void {} };
   }
 
   const generated = generateCoastalTerrain({ seed: CURATED_SEED, config: WORLD_CONFIG });
@@ -701,48 +702,63 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     ui.setUndoAvailable(undoStore.available);
   };
 
-  const applyBuildingRequest = (mode: BuildingToolMode, cell: CellCoord): void => {
-    const plan =
-      mode === 'building-develop'
-        ? planBuildingDevelopment(buildingsSnapshot, buildingEnvironment, WORLD_CONFIG)
-        : planBuildingBulldoze(buildingsSnapshot, cell, buildingEnvironment, WORLD_CONFIG);
-    buildingInvalidReason = plan.invalidReason;
-    if (!plan.valid) {
+  const commitBuildingPlan = (
+  plan: BuildingMutationPlan,
+  interaction: 'interactive' | 'background',
+): void => {
+  const interactive = interaction === 'interactive';
+  if (interactive) buildingInvalidReason = plan.invalidReason;
+  if (!plan.valid) {
+    if (interactive) {
       ui.setStatus(statusForBuildingPlan(plan));
       ui.setUndoAvailable(undoStore.available);
-      return;
     }
-    const before = buildingsSnapshot;
-    dispatchGameTransactionState(ui.canvas, 'committing', 'building');
-    try {
-      const committed = commitBuildingMutation(
-        buildingsSnapshot,
-        plan,
-        buildingEnvironment,
-        WORLD_CONFIG,
-      );
-      buildingsSnapshot = committed.snapshot;
-      buildingPresentation.load(buildingsSnapshot);
-      zoneEnvironment = createZonePlacementEnvironment(
-        snapshot,
-        waterSnapshot,
-        roadsSnapshot,
-        createBuildingWorldOccupancy(buildingsSnapshot),
-        WORLD_CONFIG,
-      );
-      undoStore.replace({ kind: 'building', buildings: before });
-      if (plan.operation === 'develop') buildingCommitCount += 1;
-      else buildingBulldozeCount += 1;
-      buildingInvalidReason = null;
-      ui.setBuildingCount(buildingCount(buildingsSnapshot));
-      ui.setStatus(statusForBuildingPlan(plan));
-    } catch {
-      ui.setStatus('Building update failed');
-    }
-    ui.setUndoAvailable(undoStore.available);
-  };
+    return;
+  }
+  const before = buildingsSnapshot;
+  if (interactive) dispatchGameTransactionState(ui.canvas, 'committing', 'building');
+  try {
+    const committed = commitBuildingMutation(
+      buildingsSnapshot,
+      plan,
+      buildingEnvironment,
+      WORLD_CONFIG,
+    );
+    buildingsSnapshot = committed.snapshot;
+    buildingPresentation.load(buildingsSnapshot);
+    zoneEnvironment = createZonePlacementEnvironment(
+      snapshot,
+      waterSnapshot,
+      roadsSnapshot,
+      createBuildingWorldOccupancy(buildingsSnapshot),
+      WORLD_CONFIG,
+    );
+    undoStore.replace({ kind: 'building', buildings: before });
+    if (plan.operation === 'develop') buildingCommitCount += 1;
+    else buildingBulldozeCount += 1;
+    buildingInvalidReason = null;
+    ui.setBuildingCount(buildingCount(buildingsSnapshot));
+    if (interactive) ui.setStatus(statusForBuildingPlan(plan));
+  } catch {
+    if (interactive) ui.setStatus('Building update failed');
+  }
+  if (interactive) ui.setUndoAvailable(undoStore.available);
+};
 
-  const resetCamera = (): void => {
+const applyBuildingRequest = (mode: BuildingToolMode, cell: CellCoord): void => {
+  const plan =
+    mode === 'building-develop'
+      ? planBuildingDevelopment(buildingsSnapshot, buildingEnvironment, WORLD_CONFIG)
+      : planBuildingBulldoze(buildingsSnapshot, cell, buildingEnvironment, WORLD_CONFIG);
+  commitBuildingPlan(plan, 'interactive');
+};
+
+const runAutomaticBuildingPass = (): void => {
+  const plan = planBuildingDevelopment(buildingsSnapshot, buildingEnvironment, WORLD_CONFIG);
+  commitBuildingPlan(plan, 'background');
+};
+
+const resetCamera = (): void => {
     const layout = ui.measureViewport();
     ui.setControlsMode(layout.mode);
     cameraRig.setViewport(layout.width, layout.height, layout.insets);
@@ -1220,6 +1236,5 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     delete window.__WEB_THREE_CITY_INTERACTION__;
   };
   window.addEventListener('pagehide', dispose, { once: true });
-
-  return { dispose };
+  return { runAutomaticBuildingPass, dispose };
 }

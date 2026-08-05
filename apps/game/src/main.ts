@@ -133,7 +133,6 @@ let simulation: SimulationSnapshot = createInitialSimulationSnapshot();
 const simulationRuntime = createSimulationRuntime('normal');
 let previousFrameTimestamp: number | null = null;
 let frameRequest = 0;
-let automaticPointerId = 10_000;
 const phaseByInstance = new Map<string, string>();
 
 function currentBuildings() {
@@ -166,38 +165,7 @@ function refreshConstructionPhaseIfNeeded(): void {
 }
 
 function dispatchAutomaticBuildingPass(): void {
-  const rect = canvas.getBoundingClientRect();
-  const clientX = rect.left + Math.max(1, rect.width) / 2;
-  const clientY = rect.top + Math.max(1, rect.height) / 2;
-  automaticPointerId += 1;
-  buildingDevelopButton.click();
-  canvas.dispatchEvent(
-    new PointerEvent('pointerdown', {
-      bubbles: true,
-      cancelable: true,
-      pointerId: automaticPointerId,
-      pointerType: 'mouse',
-      isPrimary: true,
-      button: 0,
-      buttons: 1,
-      clientX,
-      clientY,
-    }),
-  );
-  canvas.dispatchEvent(
-    new PointerEvent('pointerup', {
-      bubbles: true,
-      cancelable: true,
-      pointerId: automaticPointerId,
-      pointerType: 'mouse',
-      isPrimary: true,
-      button: 0,
-      buttons: 0,
-      clientX,
-      clientY,
-    }),
-  );
-  navigateButton.click();
+  runtime.runAutomaticBuildingPass();
 }
 
 function shouldRunAutomaticBuildingPass(): boolean {

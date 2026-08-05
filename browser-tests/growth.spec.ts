@@ -55,6 +55,23 @@ test('starts at most one automatic Construction per evaluation tick', async ({ p
   await expect(page.getByTestId('building-construction-count')).toHaveText('2');
 });
 
+test('automatic Growth preserves the active Zoning tool', async ({ page }) => {
+  await openGrowthGame(page);
+  await prepareBuildingFixtureWorld(page);
+  const industrialButton = page.getByRole('button', { name: 'Industrial', exact: true });
+  await industrialButton.click();
+  await expect(page.getByTestId('active-tool')).toHaveText('Industrial Zone');
+  await expect(industrialButton).toHaveAttribute('aria-pressed', 'true');
+
+  const snapshot = await stepLogicalTicks(page, 4);
+
+  expect(snapshot.simulation.absoluteTick).toBe(12);
+  expect(snapshot.simulation.growthSequence).toBe(1);
+  expect(snapshot.buildingCount).toBe(1);
+  await expect(page.getByTestId('active-tool')).toHaveText('Industrial Zone');
+  await expect(industrialButton).toHaveAttribute('aria-pressed', 'true');
+});
+
 test('persists WorldSaveV4 and loads paused at the exact logical tick', async ({ page }) => {
   await openGrowthGame(page);
   await prepareBuildingFixtureWorld(page);

@@ -1,3 +1,4 @@
+import type { SimulationSnapshot } from '@web-three-city/simulation-core';
 import type { ChunkCoord, TerrainCellSurfaceProfile } from '@web-three-city/terrain-core';
 import type { CellCoord } from '@web-three-city/world-core';
 import type {
@@ -17,7 +18,12 @@ export type BuildingDefinitionId =
 export type BuildingDefinitionVersion = 1;
 export type BuildingRotationQuarterTurns = 0 | 1 | 2 | 3;
 export type BuildingPrototypeId =
-  'cottage' | 'rowhouse' | 'shop' | 'office' | 'workshop' | 'warehouse';
+  | 'cottage'
+  | 'rowhouse'
+  | 'shop'
+  | 'office'
+  | 'workshop'
+  | 'warehouse';
 export type BuildingOperation = 'develop' | 'bulldoze';
 
 export interface BuildingDefinition {
@@ -29,11 +35,13 @@ export interface BuildingDefinition {
   readonly allowedRotationQuarterTurns: readonly BuildingRotationQuarterTurns[];
   readonly compatibleZoneDefinitionIds: readonly ZoneDefinitionId[];
   readonly selectionPriority: number;
+  readonly selectionWeight: number;
+  readonly constructionDurationTicks: number;
   readonly prototypeId: BuildingPrototypeId;
   readonly prototypeHeight: number;
 }
 
-export interface BuildingInstance {
+export interface BuildingInstanceBase {
   readonly instanceId: string;
   readonly buildingDefinitionId: BuildingDefinitionId;
   readonly buildingDefinitionVersion: BuildingDefinitionVersion;
@@ -41,9 +49,32 @@ export interface BuildingInstance {
   readonly rotationQuarterTurns: BuildingRotationQuarterTurns;
 }
 
+export interface LegacyBuildingInstance extends BuildingInstanceBase {
+  readonly lifecycle?: never;
+}
+
+export interface ConstructionBuildingInstance extends BuildingInstanceBase {
+  readonly lifecycle: 'construction';
+  readonly constructionStartedAtTick: number;
+  readonly constructionCompletesAtTick: number;
+}
+
+export interface ActiveBuildingInstance extends BuildingInstanceBase {
+  readonly lifecycle: 'active';
+  readonly activatedAtTick: number;
+}
+
+export type BuildingInstance =
+  | LegacyBuildingInstance
+  | ConstructionBuildingInstance
+  | ActiveBuildingInstance;
+export type AuthoritativeBuildingInstance =
+  | ConstructionBuildingInstance
+  | ActiveBuildingInstance;
+
 export interface BuildingSnapshot {
   readonly revision: number;
-  readonly instances: readonly BuildingInstance[];
+  readonly instances: readonly AuthoritativeBuildingInstance[];
 }
 
 export interface RotatedBuildingFootprint {
@@ -112,6 +143,48 @@ export interface BuildingMutationReceipt {
   readonly dirtyChunks: readonly ChunkCoord[];
 }
 
+export type BuildingGrowthInvalidReason =
+  | 'building-growth:invalid-building-state'
+  | 'building-growth:invalid-simulation-state'
+  | 'building-growth:invalid-environment'
+  | 'building-growth:tick-overflow';
+
+export interface BuildingGrowthPlan {
+  readonly baseBuildingRevision: number;
+  readonly baseSimulationRevision: number;
+  readonly baseTerrainRevision: number;
+  readonly baseWaterSourceTerrainRevision: number;
+  readonly baseRoadRevision: number;
+  readonly baseZoneRevision: number;
+  readonly beforeAbsoluteTick: number;
+  readonly afterAbsoluteTick: number;
+  readonly proposedInstances: readonly AuthoritativeBuildingInstance[];
+  readonly startedInstanceIds: readonly string[];
+  readonly completedInstanceIds: readonly string[];
+  readonly nextGrowthSequence: number;
+  readonly dirtyChunks: readonly ChunkCoord[];
+  readonly valid: boolean;
+  readonly invalidReason: BuildingGrowthInvalidReason | null;
+}
+
+export interface BuildingGrowthReceipt {
+  readonly beforeBuildingRevision: number;
+  readonly afterBuildingRevision: number;
+  readonly beforeSimulationRevision: number;
+  readonly afterSimulationRevision: number;
+  readonly beforeAbsoluteTick: number;
+  readonly afterAbsoluteTick: number;
+  readonly startedInstanceIds: readonly string[];
+  readonly completedInstanceIds: readonly string[];
+  readonly dirtyChunks: readonly ChunkCoord[];
+}
+
+export interface BuildingGrowthInput {
+  readonly buildings: BuildingSnapshot;
+  readonly simulation: SimulationSnapshot;
+  readonly environment: BuildingDevelopmentEnvironment;
+}
+
 export type BuildingContractErrorCode =
   | 'building:invalid-plan'
   | 'building:stale-building-plan'
@@ -120,7 +193,9 @@ export type BuildingContractErrorCode =
   | 'building:stale-road-plan'
   | 'building:stale-zone-plan'
   | 'building:incoherent-world-revision'
-  | 'building:invalid-proposed-state';
+  | 'building:invalid-proposed-state'
+  | 'building-growth:invalid-plan'
+  | 'building-growth:stale-simulation-plan';
 
 export class BuildingContractError extends Error {
   readonly code: BuildingContractErrorCode;

@@ -5,10 +5,18 @@ import {
   isBuildingRotationQuarterTurns,
   occupiedCellsForBuilding,
 } from './building-footprint.js';
-import type { BuildingInstance, BuildingSnapshot } from './contracts.js';
+import { normalizeBuildingInstance, validateBuildingLifecycle } from './building-lifecycle.js';
+import type {
+  AuthoritativeBuildingInstance,
+  BuildingInstance,
+  BuildingSnapshot,
+} from './contracts.js';
 
-const OCCUPANCY = new WeakMap<BuildingSnapshot, ReadonlyMap<string, BuildingInstance>>();
-const INSTANCES = new WeakMap<BuildingSnapshot, readonly BuildingInstance[]>();
+const OCCUPANCY = new WeakMap<
+  BuildingSnapshot,
+  ReadonlyMap<string, AuthoritativeBuildingInstance>
+>();
+const INSTANCES = new WeakMap<BuildingSnapshot, readonly AuthoritativeBuildingInstance[]>();
 
 export interface CreateBuildingSnapshotInput {
   readonly revision: number;
@@ -17,16 +25,6 @@ export interface CreateBuildingSnapshotInput {
 
 function cellKey(cell: CellCoord): string {
   return `${cell.x}:${cell.z}`;
-}
-
-function copyInstance(instance: BuildingInstance): BuildingInstance {
-  return Object.freeze({
-    instanceId: instance.instanceId,
-    buildingDefinitionId: instance.buildingDefinitionId,
-    buildingDefinitionVersion: instance.buildingDefinitionVersion,
-    originCell: Object.freeze({ x: instance.originCell.x, z: instance.originCell.z }),
-    rotationQuarterTurns: instance.rotationQuarterTurns,
-  });
 }
 
 export function createBuildingSnapshot(
@@ -38,14 +36,15 @@ export function createBuildingSnapshot(
   }
 
   const identifiers = new Set<string>();
-  const occupancy = new Map<string, BuildingInstance>();
-  const instances = input.instances.map(copyInstance);
+  const occupancy = new Map<string, AuthoritativeBuildingInstance>();
+  const instances = input.instances.map(normalizeBuildingInstance);
 
   for (const instance of instances) {
     if (instance.instanceId.length === 0 || identifiers.has(instance.instanceId)) {
       throw new RangeError('building-snapshot:duplicate-instance-id');
     }
     identifiers.add(instance.instanceId);
+    validateBuildingLifecycle(instance);
 
     if (!isBuildingRotationQuarterTurns(instance.rotationQuarterTurns)) {
       throw new RangeError('building-snapshot:invalid-rotation');
@@ -73,9 +72,7 @@ export function createBuildingSnapshot(
   );
   const snapshot: BuildingSnapshot = Object.freeze({
     revision: input.revision,
-    get instances(): readonly BuildingInstance[] {
-      return frozenInstances;
-    },
+    instances: frozenInstances,
   });
   INSTANCES.set(snapshot, frozenInstances);
   OCCUPANCY.set(snapshot, occupancy);
@@ -86,14 +83,16 @@ export function createEmptyBuildingSnapshot(config: WorldConfig): BuildingSnapsh
   return createBuildingSnapshot({ revision: 0, instances: Object.freeze([]) }, config);
 }
 
-export function buildingInstances(snapshot: BuildingSnapshot): readonly BuildingInstance[] {
+export function buildingInstances(
+  snapshot: BuildingSnapshot,
+): readonly AuthoritativeBuildingInstance[] {
   return INSTANCES.get(snapshot) ?? snapshot.instances;
 }
 
 export function buildingAtCell(
   snapshot: BuildingSnapshot,
   cell: CellCoord,
-): BuildingInstance | null {
+): AuthoritativeBuildingInstance | null {
   if (!Number.isInteger(cell.x) || !Number.isInteger(cell.z)) return null;
   const cached = OCCUPANCY.get(snapshot);
   if (cached !== undefined) return cached.get(cellKey(cell)) ?? null;

@@ -35,6 +35,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Apply remediation
         run: node tooling/apply-headless-growth-remediation.mjs
+      - name: Diagnose guarded production routes
+        if: failure()
+        run: |
+          grep -n -C 3 -E 'building-develop|tool-building-develop|Develop Zones|Zones developed' apps/game/src/game-bootstrap.ts || true
       - name: Format changed sources
         run: |
           pnpm exec prettier --write \

@@ -25,17 +25,22 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Repair executor literal
+      - name: Repair executor literals
         run: |
           python - <<'PY'
           from pathlib import Path
           path = Path('tooling/apply-growth-reservation-fix.mjs')
           source = path.read_text()
-          before = "    for (const cell of cells) unique.set(\\`${cell.x}:${cell.z}\\`, cell);"
-          after = "    for (const cell of cells) unique.set(String(cell.x) + ':' + String(cell.z), cell);"
-          if before not in source:
+          literal_before = "    for (const cell of cells) unique.set(\\`${cell.x}:${cell.z}\\`, cell);"
+          literal_after = "    for (const cell of cells) unique.set(String(cell.x) + ':' + String(cell.z), cell);"
+          if literal_before not in source:
               raise SystemExit('growth-reservation-fix:missing-executor-literal')
-          path.write_text(source.replace(before, after))
+          source = source.replace(literal_before, literal_after)
+          optional_before = "      reservedCells: input.reservedCells,\\n"
+          optional_after = "      ...(input.reservedCells === undefined ? {} : { reservedCells: input.reservedCells }),\\n"
+          if source.count(optional_before) != 2:
+              raise SystemExit('growth-reservation-fix:unexpected-optional-forwarding-count')
+          path.write_text(source.replace(optional_before, optional_after))
           PY
       - run: node tooling/apply-growth-reservation-fix.mjs
       - run: >-

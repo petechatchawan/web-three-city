@@ -180,11 +180,11 @@ test('exposes Terraform, Road, Zone, and Building tools with mode-aware brush co
     'Commercial',
     'Industrial',
     'Remove Zone',
-    'Develop Zones',
     'Bulldoze Building',
   ]) {
     await expect(page.getByRole('button', { name })).toHaveAttribute('aria-pressed', 'false');
   }
+  await expect(page.getByRole('button', { name: 'Develop Zones' })).toHaveCount(0);
   await expect(page.getByTestId('terraform-brush-controls')).toBeHidden();
   await expect(page.getByRole('button', { name: 'Undo latest world change' })).toBeDisabled();
   await expect(page.getByTestId('active-tool')).toHaveText('Navigate');
@@ -199,10 +199,6 @@ test('exposes Terraform, Road, Zone, and Building tools with mode-aware brush co
 
   await page.getByRole('button', { name: 'Residential' }).click();
   await expect(page.getByTestId('active-tool')).toHaveText('Residential Zone');
-  await expect(page.getByTestId('terraform-brush-controls')).toBeHidden();
-
-  await page.getByRole('button', { name: 'Develop Zones' }).click();
-  await expect(page.getByTestId('active-tool')).toHaveText('Develop Zones');
   await expect(page.getByTestId('terraform-brush-controls')).toBeHidden();
 
   await page.getByRole('button', { name: 'Bulldoze Building' }).click();

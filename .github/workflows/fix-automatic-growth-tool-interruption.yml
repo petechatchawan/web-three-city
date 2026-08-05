@@ -33,7 +33,13 @@ jobs:
 
           def replace_regex_once(path: Path, pattern: str, replacement: str) -> None:
               text = path.read_text()
-              updated, count = re.subn(pattern, replacement, text, count=1, flags=re.MULTILINE)
+              updated, count = re.subn(
+                  pattern,
+                  replacement,
+                  text,
+                  count=1,
+                  flags=re.MULTILINE | re.DOTALL,
+              )
               if count != 1:
                   raise RuntimeError(f'{path}: expected one regex match, found {count}: {pattern}')
               path.write_text(updated)
@@ -57,48 +63,7 @@ jobs:
               '    return { runAutomaticBuildingPass(): void {}, dispose(): void {} };',
           )
 
-          old_building_request = """  const applyBuildingRequest = (mode: BuildingToolMode, cell: CellCoord): void => {
-            const plan =
-              mode === 'building-develop'
-                ? planBuildingDevelopment(buildingsSnapshot, buildingEnvironment, WORLD_CONFIG)
-                : planBuildingBulldoze(buildingsSnapshot, cell, buildingEnvironment, WORLD_CONFIG);
-            buildingInvalidReason = plan.invalidReason;
-            if (!plan.valid) {
-              ui.setStatus(statusForBuildingPlan(plan));
-              ui.setUndoAvailable(undoStore.available);
-              return;
-            }
-            const before = buildingsSnapshot;
-            dispatchGameTransactionState(ui.canvas, 'committing', 'building');
-            try {
-              const committed = commitBuildingMutation(
-                buildingsSnapshot,
-                plan,
-                buildingEnvironment,
-                WORLD_CONFIG,
-              );
-              buildingsSnapshot = committed.snapshot;
-              buildingPresentation.load(buildingsSnapshot);
-              zoneEnvironment = createZonePlacementEnvironment(
-                snapshot,
-                waterSnapshot,
-                roadsSnapshot,
-                createBuildingWorldOccupancy(buildingsSnapshot),
-                WORLD_CONFIG,
-              );
-              undoStore.replace({ kind: 'building', buildings: before });
-              if (plan.operation === 'develop') buildingCommitCount += 1;
-              else buildingBulldozeCount += 1;
-              buildingInvalidReason = null;
-              ui.setBuildingCount(buildingCount(buildingsSnapshot));
-              ui.setStatus(statusForBuildingPlan(plan));
-            } catch {
-              ui.setStatus('Building update failed');
-            }
-            ui.setUndoAvailable(undoStore.available);
-          };
-          """
-          new_building_request = """  const commitBuildingPlan = (
+          building_block = """  const commitBuildingPlan = (
             plan: BuildingMutationPlan,
             interaction: 'interactive' | 'background',
           ): void => {
@@ -153,8 +118,13 @@ jobs:
             const plan = planBuildingDevelopment(buildingsSnapshot, buildingEnvironment, WORLD_CONFIG);
             commitBuildingPlan(plan, 'background');
           };
-          """
-          replace_once(bootstrap, old_building_request, new_building_request)
+
+          const resetCamera"""
+          replace_regex_once(
+              bootstrap,
+              r"  const applyBuildingRequest = .*?\n  const resetCamera",
+              building_block,
+          )
           replace_regex_once(
               bootstrap,
               r'^\s*return \{ dispose \};$',
@@ -163,46 +133,15 @@ jobs:
 
           main = Path('apps/game/src/main.ts')
           replace_once(main, 'let automaticPointerId = 10_000;\n', '')
-          old_dispatch = """function dispatchAutomaticBuildingPass(): void {
-            const rect = canvas.getBoundingClientRect();
-            const clientX = rect.left + Math.max(1, rect.width) / 2;
-            const clientY = rect.top + Math.max(1, rect.height) / 2;
-            automaticPointerId += 1;
-            buildingDevelopButton.click();
-            canvas.dispatchEvent(
-              new PointerEvent('pointerdown', {
-                bubbles: true,
-                cancelable: true,
-                pointerId: automaticPointerId,
-                pointerType: 'mouse',
-                isPrimary: true,
-                button: 0,
-                buttons: 1,
-                clientX,
-                clientY,
-              }),
-            );
-            canvas.dispatchEvent(
-              new PointerEvent('pointerup', {
-                bubbles: true,
-                cancelable: true,
-                pointerId: automaticPointerId,
-                pointerType: 'mouse',
-                isPrimary: true,
-                button: 0,
-                buttons: 0,
-                clientX,
-                clientY,
-              }),
-            );
-            navigateButton.click();
-          }
-          """
-          new_dispatch = """function dispatchAutomaticBuildingPass(): void {
+          replace_regex_once(
+              main,
+              r"function dispatchAutomaticBuildingPass\(\): void \{.*?\n\}\n\nfunction shouldRunAutomaticBuildingPass",
+              """function dispatchAutomaticBuildingPass(): void {
             runtime.runAutomaticBuildingPass();
           }
-          """
-          replace_once(main, old_dispatch, new_dispatch)
+
+          function shouldRunAutomaticBuildingPass""",
+          )
           PY
 
           rm .github/workflows/fix-automatic-growth-tool-interruption.yml

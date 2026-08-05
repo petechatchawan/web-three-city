@@ -1,0 +1,77 @@
+name: Materialize verified Growth isolation commit
+
+on:
+  push:
+    branches:
+      - agent/building-growth-runtime-v0-1
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: materialize-background-growth-isolation
+  cancel-in-progress: true
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/building-growth-runtime-v0-1
+          fetch-depth: 1
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: verified-background-growth-isolation
+          path: verified-fix
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: 30987800318
+
+      - name: Create verified Git objects without moving the branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          bootstrap_blob=$(gh api --method POST "repos/${GITHUB_REPOSITORY}/git/blobs" \
+            -f content="$(base64 -w0 verified-fix/apps/game/src/game-bootstrap.ts)" \
+            -f encoding=base64 --jq .sha)
+          main_blob=$(gh api --method POST "repos/${GITHUB_REPOSITORY}/git/blobs" \
+            -f content="$(base64 -w0 verified-fix/apps/game/src/main.ts)" \
+            -f encoding=base64 --jq .sha)
+          growth_test_blob=$(gh api --method POST "repos/${GITHUB_REPOSITORY}/git/blobs" \
+            -f content="$(base64 -w0 verified-fix/browser-tests/growth.spec.ts)" \
+            -f encoding=base64 --jq .sha)
+          base_tree=$(git rev-parse "${GITHUB_SHA}^{tree}")
+
+          jq -n \
+            --arg base_tree "$base_tree" \
+            --arg bootstrap_blob "$bootstrap_blob" \
+            --arg main_blob "$main_blob" \
+            --arg growth_test_blob "$growth_test_blob" \
+            '{
+              base_tree: $base_tree,
+              tree: [
+                {path:"apps/game/src/game-bootstrap.ts", mode:"100644", type:"blob", sha:$bootstrap_blob},
+                {path:"apps/game/src/main.ts", mode:"100644", type:"blob", sha:$main_blob},
+                {path:"browser-tests/growth.spec.ts", mode:"100644", type:"blob", sha:$growth_test_blob},
+                {path:".github/workflows/materialize-background-growth-isolation.yml", mode:"100644", type:"blob", sha:null}
+              ]
+            }' > tree.json
+          tree_sha=$(gh api --method POST "repos/${GITHUB_REPOSITORY}/git/trees" --input tree.json --jq .sha)
+
+          jq -n \
+            --arg message "fix: isolate automatic Growth from active tools" \
+            --arg tree "$tree_sha" \
+            --arg parent "$GITHUB_SHA" \
+            '{message:$message, tree:$tree, parents:[$parent]}' > commit.json
+          commit_sha=$(gh api --method POST "repos/${GITHUB_REPOSITORY}/git/commits" --input commit.json --jq .sha)
+          printf '%s\n' "$commit_sha" | tee candidate-commit.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: verified-growth-candidate-commit
+          path: candidate-commit.txt
+          if-no-files-found: error
+          retention-days: 1

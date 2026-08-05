@@ -703,62 +703,62 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
   };
 
   const commitBuildingPlan = (
-  plan: BuildingMutationPlan,
-  interaction: 'interactive' | 'background',
-): void => {
-  const interactive = interaction === 'interactive';
-  if (interactive) buildingInvalidReason = plan.invalidReason;
-  if (!plan.valid) {
-    if (interactive) {
-      ui.setStatus(statusForBuildingPlan(plan));
-      ui.setUndoAvailable(undoStore.available);
+    plan: BuildingMutationPlan,
+    interaction: 'interactive' | 'background',
+  ): void => {
+    const interactive = interaction === 'interactive';
+    if (interactive) buildingInvalidReason = plan.invalidReason;
+    if (!plan.valid) {
+      if (interactive) {
+        ui.setStatus(statusForBuildingPlan(plan));
+        ui.setUndoAvailable(undoStore.available);
+      }
+      return;
     }
-    return;
-  }
-  const before = buildingsSnapshot;
-  if (interactive) dispatchGameTransactionState(ui.canvas, 'committing', 'building');
-  try {
-    const committed = commitBuildingMutation(
-      buildingsSnapshot,
-      plan,
-      buildingEnvironment,
-      WORLD_CONFIG,
-    );
-    buildingsSnapshot = committed.snapshot;
-    buildingPresentation.load(buildingsSnapshot);
-    zoneEnvironment = createZonePlacementEnvironment(
-      snapshot,
-      waterSnapshot,
-      roadsSnapshot,
-      createBuildingWorldOccupancy(buildingsSnapshot),
-      WORLD_CONFIG,
-    );
-    undoStore.replace({ kind: 'building', buildings: before });
-    if (plan.operation === 'develop') buildingCommitCount += 1;
-    else buildingBulldozeCount += 1;
-    buildingInvalidReason = null;
-    ui.setBuildingCount(buildingCount(buildingsSnapshot));
-    if (interactive) ui.setStatus(statusForBuildingPlan(plan));
-  } catch {
-    if (interactive) ui.setStatus('Building update failed');
-  }
-  if (interactive) ui.setUndoAvailable(undoStore.available);
-};
+    const before = buildingsSnapshot;
+    if (interactive) dispatchGameTransactionState(ui.canvas, 'committing', 'building');
+    try {
+      const committed = commitBuildingMutation(
+        buildingsSnapshot,
+        plan,
+        buildingEnvironment,
+        WORLD_CONFIG,
+      );
+      buildingsSnapshot = committed.snapshot;
+      buildingPresentation.load(buildingsSnapshot);
+      zoneEnvironment = createZonePlacementEnvironment(
+        snapshot,
+        waterSnapshot,
+        roadsSnapshot,
+        createBuildingWorldOccupancy(buildingsSnapshot),
+        WORLD_CONFIG,
+      );
+      undoStore.replace({ kind: 'building', buildings: before });
+      if (plan.operation === 'develop') buildingCommitCount += 1;
+      else buildingBulldozeCount += 1;
+      buildingInvalidReason = null;
+      ui.setBuildingCount(buildingCount(buildingsSnapshot));
+      if (interactive) ui.setStatus(statusForBuildingPlan(plan));
+    } catch {
+      if (interactive) ui.setStatus('Building update failed');
+    }
+    if (interactive) ui.setUndoAvailable(undoStore.available);
+  };
 
-const applyBuildingRequest = (mode: BuildingToolMode, cell: CellCoord): void => {
-  const plan =
-    mode === 'building-develop'
-      ? planBuildingDevelopment(buildingsSnapshot, buildingEnvironment, WORLD_CONFIG)
-      : planBuildingBulldoze(buildingsSnapshot, cell, buildingEnvironment, WORLD_CONFIG);
-  commitBuildingPlan(plan, 'interactive');
-};
+  const applyBuildingRequest = (mode: BuildingToolMode, cell: CellCoord): void => {
+    const plan =
+      mode === 'building-develop'
+        ? planBuildingDevelopment(buildingsSnapshot, buildingEnvironment, WORLD_CONFIG)
+        : planBuildingBulldoze(buildingsSnapshot, cell, buildingEnvironment, WORLD_CONFIG);
+    commitBuildingPlan(plan, 'interactive');
+  };
 
-const runAutomaticBuildingPass = (): void => {
-  const plan = planBuildingDevelopment(buildingsSnapshot, buildingEnvironment, WORLD_CONFIG);
-  commitBuildingPlan(plan, 'background');
-};
+  const runAutomaticBuildingPass = (): void => {
+    const plan = planBuildingDevelopment(buildingsSnapshot, buildingEnvironment, WORLD_CONFIG);
+    commitBuildingPlan(plan, 'background');
+  };
 
-const resetCamera = (): void => {
+  const resetCamera = (): void => {
     const layout = ui.measureViewport();
     ui.setControlsMode(layout.mode);
     cameraRig.setViewport(layout.width, layout.height, layout.insets);

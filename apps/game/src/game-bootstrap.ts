@@ -4,7 +4,6 @@ import {
   createEmptyBuildingSnapshot,
   occupiedBuildingCellCount,
   planBuildingBulldoze,
-  planBuildingDevelopment,
   type BuildingDevelopmentEnvironment,
   type BuildingMutationPlan,
   type BuildingSnapshot,
@@ -69,7 +68,7 @@ import { createBuildingDevelopmentEnvironment } from './building-development-env
 import { createBuildingWorldOccupancy } from './building-world-occupancy.js';
 import { createGameInput, type GameRenderViewport } from './game-input.js';
 import { dispatchGameTransactionState } from './game-tool-events.js';
-import type { BuildingToolMode, GameToolMode } from './game-tool-mode.js';
+import type { GameToolMode } from './game-tool-mode.js';
 import {
   publishInteractionEvidence,
   type WaterInteractionEvidence,
@@ -314,16 +313,10 @@ function statusForZonePlan(
   return 'Zone rejected';
 }
 
-function statusForBuildingPlan(plan: BuildingMutationPlan): string {
-  if (plan.valid) return plan.operation === 'develop' ? 'Zones developed' : 'Building bulldozed';
-  if (plan.invalidReason === 'building:no-zoned-lot') return 'No eligible Zoned lots';
+function statusForBuildingBulldozePlan(plan: BuildingMutationPlan): string {
+  if (plan.valid) return 'Building bulldozed';
   if (plan.invalidReason === 'building:not-found') return 'No building selected';
-  if (plan.invalidReason === 'building:road-access-required') return 'Building needs Road frontage';
-  if (plan.invalidReason === 'building:mixed-zone') return 'Building lot spans mixed Zones';
-  if (plan.invalidReason === 'building:wet-cell') return 'Building blocked by water';
-  if (plan.invalidReason === 'building:unsupported-terrain')
-    return 'Building requires flat terrain';
-  return 'Building rejected';
+  return 'Building bulldoze rejected';
 }
 
 export function bootstrapGame(root: HTMLElement): GameRuntime {
@@ -709,10 +702,13 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     ui.setUndoAvailable(undoStore.available);
   };
 
-  const commitBuildingPlan = (plan: BuildingMutationPlan): void => {
+  const commitBuildingBulldozePlan = (plan: BuildingMutationPlan): void => {
+    if (plan.operation !== 'bulldoze') {
+      throw new Error('game:interactive-building-operation-must-be-bulldoze');
+    }
     buildingInvalidReason = plan.invalidReason;
     if (!plan.valid) {
-      ui.setStatus(statusForBuildingPlan(plan));
+      ui.setStatus(statusForBuildingBulldozePlan(plan));
       ui.setUndoAvailable(undoStore.available);
       return;
     }
@@ -735,23 +731,20 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
         WORLD_CONFIG,
       );
       undoStore.replace({ kind: 'building', buildings: before });
-      if (plan.operation === 'develop') buildingCommitCount += 1;
-      else buildingBulldozeCount += 1;
+      buildingBulldozeCount += 1;
       buildingInvalidReason = null;
       ui.setBuildingCount(buildingCount(buildingsSnapshot));
-      ui.setStatus(statusForBuildingPlan(plan));
+      ui.setStatus(statusForBuildingBulldozePlan(plan));
     } catch {
       ui.setStatus('Building update failed');
     }
     ui.setUndoAvailable(undoStore.available);
   };
 
-  const applyBuildingRequest = (mode: BuildingToolMode, cell: CellCoord): void => {
-    const plan =
-      mode === 'building-develop'
-        ? planBuildingDevelopment(buildingsSnapshot, buildingEnvironment, WORLD_CONFIG)
-        : planBuildingBulldoze(buildingsSnapshot, cell, buildingEnvironment, WORLD_CONFIG);
-    commitBuildingPlan(plan);
+  const applyBuildingBulldozeRequest = (cell: CellCoord): void => {
+    commitBuildingBulldozePlan(
+      planBuildingBulldoze(buildingsSnapshot, cell, buildingEnvironment, WORLD_CONFIG),
+    );
   };
 
   const runBackgroundGrowthTick = (simulation: SimulationSnapshot): SimulationSnapshot => {
@@ -825,7 +818,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     onTerraformCommit: applyTerraformPlan,
     onRoadPlan: applyRoadPlan,
     onZonePlan: applyZonePlan,
-    onBuildingRequest: applyBuildingRequest,
+    onBuildingBulldoze: applyBuildingBulldozeRequest,
     onReset: resetCamera,
   });
   inputRef.current = input;
@@ -972,11 +965,6 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     listenerOptions,
   );
   ui.zoneRemoveButton.addEventListener('click', () => setToolMode('zone-remove'), listenerOptions);
-  ui.buildingDevelopButton.addEventListener(
-    'click',
-    () => setToolMode('building-develop'),
-    listenerOptions,
-  );
   ui.buildingBulldozeButton.addEventListener(
     'click',
     () => setToolMode('building-bulldoze'),

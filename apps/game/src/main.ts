@@ -79,12 +79,10 @@ const toolActions: Readonly<Record<GameToolMode, string>> = Object.freeze({
   'zone-commercial': 'tool-zone-commercial',
   'zone-industrial': 'tool-zone-industrial',
   'zone-remove': 'tool-zone-remove',
-  'building-develop': 'tool-building-develop',
   'building-bulldoze': 'tool-building-bulldoze',
 });
 const brushActions = Object.freeze({ 1: 'brush-1', 3: 'brush-3', 5: 'brush-5' });
 const navigateButton = requireButton('tool-navigate');
-const buildingDevelopButton = requireButton('tool-building-develop');
 const closeToolButton = requireButton('tool-close');
 const undoButton = requireButton('undo');
 const saveButton = requireButton('save');
@@ -92,13 +90,6 @@ const loadButton = requireButton('load');
 const bindings = new AbortController();
 const automatedBrowser = navigator.webdriver === true;
 let automaticGrowthEnabled = !automatedBrowser;
-
-function syncDevelopControl(): void {
-  buildingDevelopButton.hidden = automaticGrowthEnabled;
-  buildingDevelopButton.setAttribute('aria-hidden', String(automaticGrowthEnabled));
-  buildingDevelopButton.tabIndex = automaticGrowthEnabled ? -1 : 0;
-}
-syncDevelopControl();
 
 function currentBrush(): TerraformBrushSize {
   for (const size of [1, 3, 5] as const) {
@@ -210,7 +201,6 @@ timeWindow.__WEB_THREE_CITY_TIME__ = Object.freeze({
   step: () => simulationRuntime.step(advanceOneLogicalTick),
   setAutomaticGrowthEnabled(enabled: boolean): void {
     automaticGrowthEnabled = enabled;
-    syncDevelopControl();
   },
   resetForTest: resetSimulationForTest,
 });

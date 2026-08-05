@@ -1,5 +1,4 @@
 import type { BuildingSnapshot } from '@web-three-city/building-core';
-import type { BuildingToolMode } from './game-tool-mode.js';
 import {
   createBuildingToolController,
   type BuildingInputState,
@@ -42,6 +41,7 @@ import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
 import * as THREE from 'three';
 import {
   isBuildingToolMode,
+  isGameToolMode,
   isRoadToolMode,
   isTerraformToolMode,
   isZoneToolMode,
@@ -140,7 +140,7 @@ export interface CreateGameInputOptions {
   ) => void;
   readonly guardZonePlan?: (plan: ZoneMutationPlan) => GuardedZoneCandidate;
   readonly onZonePlan: (plan: ZoneMutationPlan, reason?: GameZoneInvalidReason | null) => void;
-  readonly onBuildingRequest?: (mode: BuildingToolMode, cell: CellCoord) => void;
+  readonly onBuildingBulldoze?: (cell: CellCoord) => void;
   readonly onReset: () => void;
 }
 
@@ -395,7 +395,7 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
       }
       if (isBuildingToolMode(mode)) {
         const request = buildingController.end(pointerId, cell);
-        if (request !== null) options.onBuildingRequest?.(request.mode, request.cell);
+        if (request !== null) options.onBuildingBulldoze?.(request.cell);
         return;
       }
       if (!isTerraformToolMode(mode)) return;
@@ -460,20 +460,7 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
     },
     refreshTerrainObjects,
     setToolMode(value: GameToolMode): void {
-      if (
-        value !== 'navigate' &&
-        value !== 'raise' &&
-        value !== 'lower' &&
-        value !== 'flatten' &&
-        value !== 'road-build' &&
-        value !== 'road-bulldoze' &&
-        value !== 'zone-residential' &&
-        value !== 'zone-commercial' &&
-        value !== 'zone-industrial' &&
-        value !== 'zone-remove' &&
-        value !== 'building-develop' &&
-        value !== 'building-bulldoze'
-      ) {
+      if (!isGameToolMode(value)) {
         throw new RangeError('game-input:invalid-tool-mode');
       }
       clearAllSessions();

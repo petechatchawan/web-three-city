@@ -46,7 +46,6 @@ export interface GameUi {
   readonly zoneCommercialButton: HTMLButtonElement;
   readonly zoneIndustrialButton: HTMLButtonElement;
   readonly zoneRemoveButton: HTMLButtonElement;
-  readonly buildingDevelopButton: HTMLButtonElement;
   readonly buildingBulldozeButton: HTMLButtonElement;
   readonly closeToolButton: HTMLButtonElement;
   readonly brushControls: HTMLElement;
@@ -102,8 +101,6 @@ function toolLabel(mode: GameToolMode): string {
       return 'Industrial Zone';
     case 'zone-remove':
       return 'Remove Zone';
-    case 'building-develop':
-      return 'Develop Zones';
     case 'building-bulldoze':
       return 'Bulldoze Building';
   }
@@ -136,7 +133,6 @@ export function renderGameUi(root: HTMLElement): GameUi {
               <button type="button" data-action="tool-zone-commercial" aria-pressed="false">Commercial</button>
               <button type="button" data-action="tool-zone-industrial" aria-pressed="false">Industrial</button>
               <button type="button" data-action="tool-zone-remove" aria-pressed="false">Remove Zone</button>
-              <button type="button" data-action="tool-building-develop" aria-label="Develop Zones" aria-pressed="false">Develop Zones</button>
               <button type="button" data-action="tool-building-bulldoze" aria-label="Bulldoze Building" aria-pressed="false">Bulldoze Building</button>
               <button type="button" class="tool-close" data-action="tool-close" data-testid="tool-close">Close tool</button>
             </div>
@@ -299,10 +295,6 @@ export function renderGameUi(root: HTMLElement): GameUi {
     root,
     '[data-action="tool-zone-remove"]',
   );
-  const buildingDevelopButton = requireElement<HTMLButtonElement>(
-    root,
-    '[data-action="tool-building-develop"]',
-  );
   const buildingBulldozeButton = requireElement<HTMLButtonElement>(
     root,
     '[data-action="tool-building-bulldoze"]',
@@ -327,7 +319,6 @@ export function renderGameUi(root: HTMLElement): GameUi {
     'zone-commercial': zoneCommercialButton,
     'zone-industrial': zoneIndustrialButton,
     'zone-remove': zoneRemoveButton,
-    'building-develop': buildingDevelopButton,
     'building-bulldoze': buildingBulldozeButton,
   };
   const brushButtons: Readonly<Record<TerraformBrushSize, HTMLButtonElement>> = {
@@ -444,11 +435,9 @@ export function renderGameUi(root: HTMLElement): GameUi {
               ? state.mode === 'zone-remove'
                 ? 'Drag across Zone cells and release to remove them.'
                 : 'Drag across eligible cells and release to paint the Zone.'
-              : state.mode === 'building-develop'
-                ? 'Release on the world to develop all eligible Zoned lots.'
-                : state.mode === 'building-bulldoze'
-                  ? 'Release on a Building footprint to bulldoze that Building.'
-                  : 'Drag across Terrain and release to apply accepted stamps.';
+              : state.mode === 'building-bulldoze'
+                ? 'Release on a Building footprint to bulldoze that Building.'
+                : 'Drag across Terrain and release to apply accepted stamps.';
     }
     contextState.textContent = stateLabel;
     contextMessage.textContent = message;
@@ -480,7 +469,6 @@ export function renderGameUi(root: HTMLElement): GameUi {
     zoneCommercialButton,
     zoneIndustrialButton,
     zoneRemoveButton,
-    buildingDevelopButton,
     buildingBulldozeButton,
     closeToolButton,
     brushControls,

@@ -68,28 +68,22 @@ test('automatic Growth preserves the active Zoning tool and in-progress stroke',
   await industrialButton.click();
   await expect(page.getByTestId('active-tool')).toHaveText('Industrial Zone');
   await expect(industrialButton).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Develop Zones' })).toHaveCount(0);
 
   await page.evaluate(() => {
     const canvas = document.querySelector<HTMLCanvasElement>('#game-canvas');
     const navigate = document.querySelector<HTMLButtonElement>('[data-action="tool-navigate"]');
-    const develop = document.querySelector<HTMLButtonElement>(
-      '[data-action="tool-building-develop"]',
-    );
     const status = document.querySelector<HTMLElement>('[data-testid="game-status"]');
-    if (canvas === null || navigate === null || develop === null || status === null) {
+    if (canvas === null || navigate === null || status === null) {
       throw new Error('growth:missing-isolation-probe-target');
     }
     const probe = {
       navigateClicks: 0,
-      developClicks: 0,
       buildingTransactions: 0,
       statusValues: [] as string[],
     };
     navigate.addEventListener('click', () => {
       probe.navigateClicks += 1;
-    });
-    develop.addEventListener('click', () => {
-      probe.developClicks += 1;
     });
     canvas.addEventListener('web-three-city:game-tool-presentation', (event) => {
       const detail = (event as CustomEvent<{ readonly type?: string; readonly domain?: string }>)
@@ -165,7 +159,6 @@ test('automatic Growth preserves the active Zoning tool and in-progress stroke',
       window as Window & {
         __WEB_THREE_CITY_GROWTH_ISOLATION_PROBE__?: {
           readonly navigateClicks: number;
-          readonly developClicks: number;
           readonly buildingTransactions: number;
           readonly statusValues: readonly string[];
         };
@@ -175,7 +168,6 @@ test('automatic Growth preserves the active Zoning tool and in-progress stroke',
     return value;
   });
   expect(probe.navigateClicks).toBe(0);
-  expect(probe.developClicks).toBe(0);
   expect(probe.buildingTransactions).toBe(0);
   expect(probe.statusValues).not.toContain('Zones developed');
 
@@ -214,6 +206,6 @@ test('does not expose the explicit Develop Zones control in production Growth mo
   page,
 }) => {
   await openGrowthGame(page);
-  await expect(page.getByRole('button', { name: 'Develop Zones' })).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Develop Zones' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Bulldoze Building' })).toBeVisible();
 });

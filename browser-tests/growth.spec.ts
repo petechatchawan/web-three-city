@@ -1,5 +1,9 @@
 import { expect, test } from '@playwright/test';
-import { prepareBuildingFixtureWorld } from './helpers/building-fixture.js';
+import {
+  BUILDING_FIXTURES,
+  pointFor,
+  prepareBuildingFixtureWorld,
+} from './helpers/building-fixture.js';
 import {
   prepareDeterministicGrowthClock,
   readTimeSnapshot,
@@ -55,19 +59,128 @@ test('starts at most one automatic Construction per evaluation tick', async ({ p
   await expect(page.getByTestId('building-construction-count')).toHaveText('2');
 });
 
-test('automatic Growth preserves the active Zoning tool', async ({ page }) => {
+test('automatic Growth preserves the active Zoning tool and in-progress stroke', async ({
+  page,
+}) => {
   await openGrowthGame(page);
-  await prepareBuildingFixtureWorld(page);
+  const points = await prepareBuildingFixtureWorld(page);
   const industrialButton = page.getByRole('button', { name: 'Industrial', exact: true });
   await industrialButton.click();
   await expect(page.getByTestId('active-tool')).toHaveText('Industrial Zone');
   await expect(industrialButton).toHaveAttribute('aria-pressed', 'true');
 
-  const snapshot = await stepLogicalTicks(page, 4);
+  await page.evaluate(() => {
+    const canvas = document.querySelector<HTMLCanvasElement>('#game-canvas');
+    const navigate = document.querySelector<HTMLButtonElement>('[data-action="tool-navigate"]');
+    const develop = document.querySelector<HTMLButtonElement>(
+      '[data-action="tool-building-develop"]',
+    );
+    const status = document.querySelector<HTMLElement>('[data-testid="game-status"]');
+    if (canvas === null || navigate === null || develop === null || status === null) {
+      throw new Error('growth:missing-isolation-probe-target');
+    }
+    const probe = {
+      navigateClicks: 0,
+      developClicks: 0,
+      buildingTransactions: 0,
+      statusValues: [] as string[],
+    };
+    navigate.addEventListener('click', () => {
+      probe.navigateClicks += 1;
+    });
+    develop.addEventListener('click', () => {
+      probe.developClicks += 1;
+    });
+    canvas.addEventListener('web-three-city:game-tool-presentation', (event) => {
+      const detail = (event as CustomEvent<{ readonly type?: string; readonly domain?: string }>)
+        .detail;
+      if (detail?.type === 'transaction-state' && detail.domain === 'building') {
+        probe.buildingTransactions += 1;
+      }
+    });
+    new MutationObserver(() => {
+      probe.statusValues.push(status.textContent?.trim() ?? '');
+    }).observe(status, { childList: true, characterData: true, subtree: true });
+    (
+      window as Window & {
+        __WEB_THREE_CITY_GROWTH_ISOLATION_PROBE__?: typeof probe;
+      }
+    ).__WEB_THREE_CITY_GROWTH_ISOLATION_PROBE__ = probe;
+  });
 
-  expect(snapshot.simulation.absoluteTick).toBe(12);
-  expect(snapshot.simulation.growthSequence).toBe(1);
-  expect(snapshot.buildingCount).toBe(1);
+  const startPoint = pointFor(points, BUILDING_FIXTURES.industrial.zoneCells[0]);
+  const endPoint = pointFor(points, BUILDING_FIXTURES.industrial.zoneCells[1]);
+  const status = page.getByTestId('game-status');
+  const undo = page.getByTestId('undo-world-change');
+  const statusBeforeGrowth = (await status.textContent()) ?? '';
+  const undoDisabledBeforeGrowth = await undo.isDisabled();
+
+  await page.mouse.move(startPoint.x, startPoint.y);
+  await page.mouse.down();
+  await expect
+    .poll(() =>
+      page.evaluate(() => window.__WEB_THREE_CITY_INTERACTION__?.zone.strokeActive ?? false),
+    )
+    .toBe(true);
+
+  await page.evaluate(() => {
+    const timeWindow = window as Window & {
+      __WEB_THREE_CITY_TIME__?: {
+        setSpeed(speed: 'paused' | 'normal' | 'fast' | 'faster'): void;
+      };
+    };
+    timeWindow.__WEB_THREE_CITY_TIME__?.setSpeed('faster');
+  });
+  await expect
+    .poll(async () => (await readTimeSnapshot(page)).simulation.absoluteTick, {
+      timeout: 5_000,
+    })
+    .toBeGreaterThanOrEqual(12);
+  await page.evaluate(() => {
+    const timeWindow = window as Window & {
+      __WEB_THREE_CITY_TIME__?: {
+        setSpeed(speed: 'paused' | 'normal' | 'fast' | 'faster'): void;
+      };
+    };
+    timeWindow.__WEB_THREE_CITY_TIME__?.setSpeed('paused');
+  });
+
+  const snapshot = await readTimeSnapshot(page);
+  expect(snapshot.simulation.absoluteTick).toBeGreaterThanOrEqual(12);
+  expect(snapshot.simulation.growthSequence).toBeGreaterThanOrEqual(1);
+  expect(snapshot.buildingCount).toBeGreaterThanOrEqual(1);
+  await expect(page.getByTestId('active-tool')).toHaveText('Industrial Zone');
+  await expect(industrialButton).toHaveAttribute('aria-pressed', 'true');
+  await expect
+    .poll(() =>
+      page.evaluate(() => window.__WEB_THREE_CITY_INTERACTION__?.zone.strokeActive ?? false),
+    )
+    .toBe(true);
+  await expect(status).toHaveText(statusBeforeGrowth);
+  await expect(status).not.toHaveText('Zones developed');
+  expect(await undo.isDisabled()).toBe(undoDisabledBeforeGrowth);
+
+  const probe = await page.evaluate(() => {
+    const value = (
+      window as Window & {
+        __WEB_THREE_CITY_GROWTH_ISOLATION_PROBE__?: {
+          readonly navigateClicks: number;
+          readonly developClicks: number;
+          readonly buildingTransactions: number;
+          readonly statusValues: readonly string[];
+        };
+      }
+    ).__WEB_THREE_CITY_GROWTH_ISOLATION_PROBE__;
+    if (value === undefined) throw new Error('growth:missing-isolation-probe');
+    return value;
+  });
+  expect(probe.navigateClicks).toBe(0);
+  expect(probe.developClicks).toBe(0);
+  expect(probe.buildingTransactions).toBe(0);
+  expect(probe.statusValues).not.toContain('Zones developed');
+
+  await page.mouse.move(endPoint.x, endPoint.y);
+  await page.mouse.up();
   await expect(page.getByTestId('active-tool')).toHaveText('Industrial Zone');
   await expect(industrialButton).toHaveAttribute('aria-pressed', 'true');
 });

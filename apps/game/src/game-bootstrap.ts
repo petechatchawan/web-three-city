@@ -11,6 +11,7 @@ import {
 } from '@web-three-city/building-core';
 import { BuildingPresentation } from '@web-three-city/building-three';
 import { OrthographicCameraRig } from '@web-three-city/camera-input';
+import type { SimulationSnapshot } from '@web-three-city/simulation-core';
 import {
   commitRoadMutation,
   createEmptyRoadSnapshot,
@@ -83,6 +84,7 @@ import { guardTerraformPlanWithOccupancy } from './terraform-occupancy-guard.js'
 import { createZonePlacementEnvironment } from './zone-placement-environment.js';
 import { decodeWorldSave, encodeWorldSaveV3, type DecodedWorldState } from './world-save.js';
 import { guardZonePlanWithBuildings, type GameZoneInvalidReason } from './zone-building-guard.js';
+import { executeWorldGrowthTick } from './world-growth-transaction.js';
 import { WorldUndoStore, type WorldUndoEntry } from './world-undo.js';
 import { renderGameUi, type GameViewportLayout, type QualityLevel } from './game-ui.js';
 
@@ -103,7 +105,7 @@ const QUALITY_POLICY = Object.freeze({
 });
 
 export interface GameRuntime {
-  runAutomaticBuildingPass(): void;
+  runBackgroundGrowthTick(simulation: SimulationSnapshot): SimulationSnapshot;
   dispose(): void;
 }
 
@@ -329,7 +331,12 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
   const capability = detectWebGL2(ui.canvas);
   if (!capability.supported) {
     ui.setStatus('WebGL2 unavailable');
-    return { runAutomaticBuildingPass(): void {}, dispose(): void {} };
+    return {
+      runBackgroundGrowthTick(simulation: SimulationSnapshot): SimulationSnapshot {
+        return simulation;
+      },
+      dispose(): void {},
+    };
   }
 
   const generated = generateCoastalTerrain({ seed: CURATED_SEED, config: WORLD_CONFIG });
@@ -702,21 +709,15 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     ui.setUndoAvailable(undoStore.available);
   };
 
-  const commitBuildingPlan = (
-    plan: BuildingMutationPlan,
-    interaction: 'interactive' | 'background',
-  ): void => {
-    const interactive = interaction === 'interactive';
-    if (interactive) buildingInvalidReason = plan.invalidReason;
+  const commitBuildingPlan = (plan: BuildingMutationPlan): void => {
+    buildingInvalidReason = plan.invalidReason;
     if (!plan.valid) {
-      if (interactive) {
-        ui.setStatus(statusForBuildingPlan(plan));
-        ui.setUndoAvailable(undoStore.available);
-      }
+      ui.setStatus(statusForBuildingPlan(plan));
+      ui.setUndoAvailable(undoStore.available);
       return;
     }
     const before = buildingsSnapshot;
-    if (interactive) dispatchGameTransactionState(ui.canvas, 'committing', 'building');
+    dispatchGameTransactionState(ui.canvas, 'committing', 'building');
     try {
       const committed = commitBuildingMutation(
         buildingsSnapshot,
@@ -738,11 +739,11 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
       else buildingBulldozeCount += 1;
       buildingInvalidReason = null;
       ui.setBuildingCount(buildingCount(buildingsSnapshot));
-      if (interactive) ui.setStatus(statusForBuildingPlan(plan));
+      ui.setStatus(statusForBuildingPlan(plan));
     } catch {
-      if (interactive) ui.setStatus('Building update failed');
+      ui.setStatus('Building update failed');
     }
-    if (interactive) ui.setUndoAvailable(undoStore.available);
+    ui.setUndoAvailable(undoStore.available);
   };
 
   const applyBuildingRequest = (mode: BuildingToolMode, cell: CellCoord): void => {
@@ -750,12 +751,29 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
       mode === 'building-develop'
         ? planBuildingDevelopment(buildingsSnapshot, buildingEnvironment, WORLD_CONFIG)
         : planBuildingBulldoze(buildingsSnapshot, cell, buildingEnvironment, WORLD_CONFIG);
-    commitBuildingPlan(plan, 'interactive');
+    commitBuildingPlan(plan);
   };
 
-  const runAutomaticBuildingPass = (): void => {
-    const plan = planBuildingDevelopment(buildingsSnapshot, buildingEnvironment, WORLD_CONFIG);
-    commitBuildingPlan(plan, 'background');
+  const runBackgroundGrowthTick = (simulation: SimulationSnapshot): SimulationSnapshot => {
+    const result = executeWorldGrowthTick({
+      state: Object.freeze({ simulation, buildings: buildingsSnapshot }),
+      environment: buildingEnvironment,
+      config: WORLD_CONFIG,
+    });
+    if (result.buildings.revision !== buildingsSnapshot.revision) {
+      buildingsSnapshot = result.buildings;
+      buildingPresentation.load(buildingsSnapshot);
+      zoneEnvironment = createZonePlacementEnvironment(
+        snapshot,
+        waterSnapshot,
+        roadsSnapshot,
+        createBuildingWorldOccupancy(buildingsSnapshot),
+        WORLD_CONFIG,
+      );
+      buildingCommitCount += 1;
+      ui.setBuildingCount(buildingCount(buildingsSnapshot));
+    }
+    return result.simulation;
   };
 
   const resetCamera = (): void => {
@@ -1236,5 +1254,5 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     delete window.__WEB_THREE_CITY_INTERACTION__;
   };
   window.addEventListener('pagehide', dispose, { once: true });
-  return { runAutomaticBuildingPass, dispose };
+  return { runBackgroundGrowthTick, dispose };
 }

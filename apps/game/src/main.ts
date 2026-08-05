@@ -1,7 +1,6 @@
 import './style.css';
 import './growth-time.css';
 import {
-  configureAutomaticBuildingGrowth,
   constructionProgressAtTick,
   createEmptyBuildingSnapshot,
 } from '@web-three-city/building-core';
@@ -14,7 +13,6 @@ import {
 import {
   createInitialSimulationSnapshot,
   createSimulationSnapshot,
-  isDevelopmentEvaluationTick,
   type SimulationSnapshot,
   type SimulationSpeed,
 } from '@web-three-city/simulation-core';
@@ -164,54 +162,15 @@ function refreshConstructionPhaseIfNeeded(): void {
   if (changed) reloadLatestBuildingPresentation();
 }
 
-function dispatchAutomaticBuildingPass(): void {
-  runtime.runAutomaticBuildingPass();
-}
-
-function shouldRunAutomaticBuildingPass(): boolean {
-  if (!automaticGrowthEnabled) return false;
-  const dueConstruction = currentBuildings().instances.some(
-    (instance) =>
-      instance.lifecycle === 'construction' &&
-      instance.constructionCompletesAtTick <= simulation.absoluteTick,
-  );
-  const zonedCellCount = window.__WEB_THREE_CITY_INTERACTION__?.zone.counts.total ?? 0;
-  return (
-    dueConstruction || (zonedCellCount > 0 && isDevelopmentEvaluationTick(simulation.absoluteTick))
-  );
-}
-
 function advanceOneLogicalTick(): void {
-  simulation = createSimulationSnapshot({
-    revision: simulation.revision + 1,
-    absoluteTick: simulation.absoluteTick + 1,
-    growthSequence: simulation.growthSequence,
-  });
-  setBuildingPresentationAbsoluteTick(simulation.absoluteTick);
-
-  if (shouldRunAutomaticBuildingPass()) {
-    const expectedInstanceId = `building:growth:${simulation.growthSequence + 1}`;
-    const beforeIds = new Set(currentBuildings().instances.map((instance) => instance.instanceId));
-    configureAutomaticBuildingGrowth({
-      absoluteTick: simulation.absoluteTick,
-      growthSequence: simulation.growthSequence,
-      evaluation: isDevelopmentEvaluationTick(simulation.absoluteTick),
-    });
-    try {
-      dispatchAutomaticBuildingPass();
-    } finally {
-      configureAutomaticBuildingGrowth(null);
-    }
-    const afterIds = new Set(currentBuildings().instances.map((instance) => instance.instanceId));
-    if (!beforeIds.has(expectedInstanceId) && afterIds.has(expectedInstanceId)) {
-      simulation = createSimulationSnapshot({
-        revision: simulation.revision,
-        absoluteTick: simulation.absoluteTick,
-        growthSequence: simulation.growthSequence + 1,
+  simulation = automaticGrowthEnabled
+    ? runtime.runBackgroundGrowthTick(simulation)
+    : createSimulationSnapshot({
+        revision: simulation.revision + 1,
+        absoluteTick: simulation.absoluteTick + 1,
+        growthSequence: simulation.growthSequence,
       });
-    }
-  }
-
+  setBuildingPresentationAbsoluteTick(simulation.absoluteTick);
   refreshConstructionPhaseIfNeeded();
   refreshTimeUi();
 }
@@ -225,7 +184,6 @@ function resetSimulationForTest(): void {
   simulation = createInitialSimulationSnapshot();
   simulationRuntime.setSpeed('paused');
   simulationRuntime.resetAfterVisibilityChange();
-  configureAutomaticBuildingGrowth(null);
   setBuildingPresentationAbsoluteTick(simulation.absoluteTick);
   phaseByInstance.clear();
   refreshConstructionPhaseIfNeeded();

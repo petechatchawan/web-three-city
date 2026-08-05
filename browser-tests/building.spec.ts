@@ -10,7 +10,7 @@ import { GAME_URL, readEvidence } from './helpers/interaction.js';
 const SAVE_KEY = 'web-three-city:world-save:v3';
 const EXPECTED_DEFINITION_IDS = Object.freeze([
   'commercial-office-2x2',
-  'industrial-factory-2x2',
+  'industrial-warehouse-2x2',
   'residential-apartment-2x2',
 ]);
 
@@ -128,7 +128,7 @@ test('grows deterministic R/C/I content and preserves authority across guards, U
       schemaVersion: 1,
       instances: expect.arrayContaining([
         expect.objectContaining({ buildingDefinitionId: 'commercial-office-2x2' }),
-        expect.objectContaining({ buildingDefinitionId: 'industrial-factory-2x2' }),
+        expect.objectContaining({ buildingDefinitionId: 'industrial-warehouse-2x2' }),
         expect.objectContaining({ buildingDefinitionId: 'residential-apartment-2x2' }),
       ]),
     },

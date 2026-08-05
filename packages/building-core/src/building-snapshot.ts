@@ -86,7 +86,9 @@ export function createEmptyBuildingSnapshot(config: WorldConfig): BuildingSnapsh
 export function buildingInstances(
   snapshot: BuildingSnapshot,
 ): readonly AuthoritativeBuildingInstance[] {
-  return INSTANCES.get(snapshot) ?? snapshot.instances;
+  const cached = INSTANCES.get(snapshot);
+  if (cached !== undefined) return cached;
+  return Object.freeze(snapshot.instances.map(normalizeBuildingInstance));
 }
 
 export function buildingAtCell(
@@ -97,7 +99,7 @@ export function buildingAtCell(
   const cached = OCCUPANCY.get(snapshot);
   if (cached !== undefined) return cached.get(cellKey(cell)) ?? null;
   return (
-    snapshot.instances.find((instance) =>
+    buildingInstances(snapshot).find((instance) =>
       occupiedCellsForBuilding(instance).some(
         (candidate) => candidate.x === cell.x && candidate.z === cell.z,
       ),
@@ -116,7 +118,7 @@ export function buildingCount(snapshot: BuildingSnapshot): number {
 export function occupiedBuildingCellCount(snapshot: BuildingSnapshot): number {
   const cached = OCCUPANCY.get(snapshot);
   if (cached !== undefined) return cached.size;
-  return snapshot.instances.reduce(
+  return buildingInstances(snapshot).reduce(
     (total, instance) => total + occupiedCellsForBuilding(instance).length,
     0,
   );

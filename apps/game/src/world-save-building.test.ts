@@ -2,6 +2,7 @@ import {
   createBuildingSnapshot,
   type BuildingInstance,
   type BuildingSnapshot,
+  type LegacyBuildingInstance,
 } from '@web-three-city/building-core';
 import { createRoadSnapshot, type RoadSnapshot } from '@web-three-city/road-core';
 import { createTerrainMap, type TerrainSnapshot } from '@web-three-city/terrain-core';
@@ -24,6 +25,8 @@ const BUILDING_CELLS = Object.freeze([
   Object.freeze({ x: 4, z: 6 }),
   Object.freeze({ x: 5, z: 6 }),
 ]);
+
+type LegacyOfficeOverrides = Partial<Omit<LegacyBuildingInstance, 'lifecycle'>>;
 
 function terrain(): TerrainSnapshot {
   return createTerrainMap({
@@ -71,7 +74,7 @@ function zones(
   );
 }
 
-function office(overrides: Partial<BuildingInstance> = {}): BuildingInstance {
+function office(overrides: LegacyOfficeOverrides = {}): LegacyBuildingInstance {
   return Object.freeze({
     instanceId: 'building:6:1',
     buildingDefinitionId: 'commercial-office-2x2',

@@ -45,7 +45,7 @@ function terraformContextFixture(): GameToolPresentationState {
 }
 
 describe('renderGameUi', () => {
-  it('separates primary tools, context, Undo, and secondary controls', () => {
+  it('separates primary tools, context, Undo, and secondary controls without interactive Develop Zones', () => {
     const root = document.createElement('div');
     const ui = renderGameUi(root);
 
@@ -54,9 +54,8 @@ describe('renderGameUi', () => {
     expect(root.querySelector('[data-testid="undo-world-change"]')).toBe(ui.undoButton);
     expect(root.querySelector('[data-testid="secondary-controls"]')).not.toBeNull();
     expect(root.querySelector('[data-testid="tool-close"]')).toBe(ui.closeToolButton);
-    expect(root.querySelector('[data-action="tool-building-develop"]')).toBe(
-      ui.buildingDevelopButton,
-    );
+    expect(root.querySelector('[data-action="tool-building-develop"]')).toBeNull();
+    expect(root.textContent).not.toContain('Develop Zones');
     expect(root.querySelector('[data-action="tool-building-bulldoze"]')).toBe(
       ui.buildingBulldozeButton,
     );

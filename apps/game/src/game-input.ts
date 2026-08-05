@@ -1,5 +1,4 @@
 import type { BuildingSnapshot } from '@web-three-city/building-core';
-import type { BuildingToolMode } from './game-tool-mode.js';
 import {
   createBuildingToolController,
   type BuildingInputState,
@@ -42,6 +41,7 @@ import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
 import * as THREE from 'three';
 import {
   isBuildingToolMode,
+  isGameToolMode,
   isRoadToolMode,
   isTerraformToolMode,
   isZoneToolMode,
@@ -106,6 +106,7 @@ export interface GameInput {
   getRoadState(): RoadInputState;
   getZoneState(): ZoneInputState;
   getBuildingState(): BuildingInputState;
+  getBackgroundGrowthReservations(): readonly CellCoord[];
   clearActiveSession(): void;
   dispose(): void;
 }
@@ -140,7 +141,7 @@ export interface CreateGameInputOptions {
   ) => void;
   readonly guardZonePlan?: (plan: ZoneMutationPlan) => GuardedZoneCandidate;
   readonly onZonePlan: (plan: ZoneMutationPlan, reason?: GameZoneInvalidReason | null) => void;
-  readonly onBuildingRequest?: (mode: BuildingToolMode, cell: CellCoord) => void;
+  readonly onBuildingBulldoze?: (cell: CellCoord) => void;
   readonly onReset: () => void;
 }
 
@@ -204,6 +205,17 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
   };
   let mode: GameToolMode = 'navigate';
   let brushSize: TerraformBrushSize = 1;
+  let backgroundGrowthReservations: readonly CellCoord[] = Object.freeze([]);
+
+  const setBackgroundGrowthReservations = (cells: readonly CellCoord[]): void => {
+    const unique = new Map<string, CellCoord>();
+    for (const cell of cells) unique.set(String(cell.x) + ':' + String(cell.z), cell);
+    backgroundGrowthReservations = Object.freeze(
+      [...unique.values()]
+        .sort((first, second) => first.z - second.z || first.x - second.x)
+        .map((cell) => Object.freeze({ x: cell.x, z: cell.z })),
+    );
+  };
 
   const refreshTerrainObjects = (): void => {
     terrainObjects = allChunkCoords(options.config).map((chunk) =>
@@ -241,6 +253,12 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
       ? {}
       : { getBuildingSnapshot: options.getBuildingSnapshot }),
     onState(state): void {
+      const reservationCells =
+        state.acceptedPlan?.affectedCells ??
+        (state.currentStamp.kind === 'rejected' || state.currentStamp.kind === 'no-change'
+          ? state.currentStamp.preview.corePlan.affectedCells
+          : Object.freeze([]));
+      setBackgroundGrowthReservations(state.strokeActive ? reservationCells : Object.freeze([]));
       options.preview.show(
         createTerraformPreviewSceneModel(state, options.getTerrainSnapshot(), options.config),
       );
@@ -269,6 +287,7 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
     getRoadSnapshot: options.getRoadSnapshot,
     getEnvironment: options.getRoadEnvironment,
     onPreview(baseRoads, plan, environment): void {
+      setBackgroundGrowthReservations(plan?.requestedCells ?? Object.freeze([]));
       const candidate = baseRoads === null || plan === null ? null : guardRoad(plan, baseRoads);
       routeRoadPreview(options.roadPreview, baseRoads, candidate?.previewPlan ?? null, environment);
       dispatchGameToolEvent(
@@ -293,6 +312,7 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
     getZoneSnapshot: options.getZoneSnapshot,
     getEnvironment: options.getZoneEnvironment,
     onPreview(baseZones, plan): void {
+      setBackgroundGrowthReservations(plan?.requestedCells ?? Object.freeze([]));
       const candidate =
         plan === null
           ? null
@@ -334,7 +354,11 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
 
       if (isRoadToolMode(mode)) return roadController.begin(pointerId, cell);
       if (isZoneToolMode(mode)) return zoneController.begin(pointerId, cell);
-      if (isBuildingToolMode(mode)) return buildingController.begin(pointerId, cell);
+      if (isBuildingToolMode(mode)) {
+        const started = buildingController.begin(pointerId, cell);
+        if (started) setBackgroundGrowthReservations([cell]);
+        return started;
+      }
       if (!isTerraformToolMode(mode)) return false;
 
       if (mode === 'flatten') {
@@ -353,8 +377,10 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
       const cell = { x: result.cellX, z: result.cellZ };
       if (isRoadToolMode(mode)) roadController.move(pointerId, cell);
       else if (isZoneToolMode(mode)) zoneController.move(pointerId, cell);
-      else if (isBuildingToolMode(mode)) buildingController.move(pointerId, cell);
-      else if (isTerraformToolMode(mode)) terraformSession.move(pointerId, cell);
+      else if (isBuildingToolMode(mode)) {
+        buildingController.move(pointerId, cell);
+        setBackgroundGrowthReservations([cell]);
+      } else if (isTerraformToolMode(mode)) terraformSession.move(pointerId, cell);
     },
     end(pointerId: number, point: ScreenPoint): void {
       const result = pick(point);
@@ -395,7 +421,8 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
       }
       if (isBuildingToolMode(mode)) {
         const request = buildingController.end(pointerId, cell);
-        if (request !== null) options.onBuildingRequest?.(request.mode, request.cell);
+        setBackgroundGrowthReservations(Object.freeze([]));
+        if (request !== null) options.onBuildingBulldoze?.(request.cell);
         return;
       }
       if (!isTerraformToolMode(mode)) return;
@@ -415,12 +442,14 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
       zoneController.cancel(pointerId);
       buildingController.cancel(pointerId);
       terraformSession.cancel(pointerId);
+      setBackgroundGrowthReservations(Object.freeze([]));
     },
     cancelAll(): void {
       roadController.cancelAll();
       zoneController.cancelAll();
       buildingController.cancelAll();
       terraformSession.cancelAll();
+      setBackgroundGrowthReservations(Object.freeze([]));
     },
   };
 
@@ -446,6 +475,7 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
     zoneController.cancelAll();
     buildingController.cancelAll();
     terraformSession.cancelAll();
+    setBackgroundGrowthReservations(Object.freeze([]));
   };
   const toolEventController = new AbortController();
   bindGameToolCancel(options.canvas, clearAllSessions, toolEventController.signal);
@@ -460,20 +490,7 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
     },
     refreshTerrainObjects,
     setToolMode(value: GameToolMode): void {
-      if (
-        value !== 'navigate' &&
-        value !== 'raise' &&
-        value !== 'lower' &&
-        value !== 'flatten' &&
-        value !== 'road-build' &&
-        value !== 'road-bulldoze' &&
-        value !== 'zone-residential' &&
-        value !== 'zone-commercial' &&
-        value !== 'zone-industrial' &&
-        value !== 'zone-remove' &&
-        value !== 'building-develop' &&
-        value !== 'building-bulldoze'
-      ) {
+      if (!isGameToolMode(value)) {
         throw new RangeError('game-input:invalid-tool-mode');
       }
       clearAllSessions();
@@ -530,6 +547,9 @@ export function createGameInput(options: CreateGameInputOptions): GameInput {
     },
     getBuildingState(): BuildingInputState {
       return buildingController.getState();
+    },
+    getBackgroundGrowthReservations(): readonly CellCoord[] {
+      return backgroundGrowthReservations;
     },
     clearActiveSession(): void {
       clearAllSessions();

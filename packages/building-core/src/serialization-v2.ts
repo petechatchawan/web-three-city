@@ -1,6 +1,7 @@
 import type { WorldConfig } from '@web-three-city/world-core';
 import { buildingDefinitionForId } from './building-definitions.js';
 import { isBuildingRotationQuarterTurns } from './building-footprint.js';
+import { normalizeBuildingInstance } from './building-lifecycle.js';
 import { createBuildingSnapshot } from './building-snapshot.js';
 import type {
   AuthoritativeBuildingInstance,
@@ -60,8 +61,9 @@ export function encodeBuildingSaveV2(snapshot: BuildingSnapshot): BuildingSaveV2
     schemaVersion: 2,
     revision: snapshot.revision,
     instances: Object.freeze(
-      snapshot.instances.map((instance) =>
-        Object.freeze(
+      snapshot.instances.map((rawInstance) => {
+        const instance = normalizeBuildingInstance(rawInstance);
+        return Object.freeze(
           instance.lifecycle === 'construction'
             ? {
                 instanceId: instance.instanceId,
@@ -82,16 +84,13 @@ export function encodeBuildingSaveV2(snapshot: BuildingSnapshot): BuildingSaveV2
                 lifecycle: 'active' as const,
                 activatedAtTick: instance.activatedAtTick,
               },
-        ),
-      ),
+        );
+      }),
     ),
   });
 }
 
-export function decodeBuildingSaveV2(
-  input: unknown,
-  config: WorldConfig,
-): BuildingSaveV2Result {
+export function decodeBuildingSaveV2(input: unknown, config: WorldConfig): BuildingSaveV2Result {
   if (
     !isRecord(input) ||
     input.kind !== 'building-save' ||
@@ -155,10 +154,7 @@ export function decodeBuildingSaveV2(
           constructionCompletesAtTick: candidate.constructionCompletesAtTick,
         }),
       );
-    } else if (
-      candidate.lifecycle === 'active' &&
-      typeof candidate.activatedAtTick === 'number'
-    ) {
+    } else if (candidate.lifecycle === 'active' && typeof candidate.activatedAtTick === 'number') {
       instances.push(
         Object.freeze({
           ...base,
@@ -177,10 +173,7 @@ export function decodeBuildingSaveV2(
   try {
     return Object.freeze({
       ok: true,
-      value: createBuildingSnapshot(
-        { revision: input.revision as number, instances },
-        config,
-      ),
+      value: createBuildingSnapshot({ revision: input.revision as number, instances }, config),
     });
   } catch {
     return Object.freeze({

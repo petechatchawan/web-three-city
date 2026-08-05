@@ -6,7 +6,7 @@ import {
   type SimulationSnapshot,
 } from '@web-three-city/simulation-core';
 import { chunkForCell, type ChunkCoord } from '@web-three-city/terrain-core';
-import type { WorldConfig } from '@web-three-city/world-core';
+import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
 import { buildingDefinitionForId } from './building-definitions.js';
 import { occupiedCellsForBuilding } from './building-footprint.js';
 import { activateCompletedBuilding, normalizeBuildingInstance } from './building-lifecycle.js';
@@ -54,7 +54,7 @@ function invalidPlan(
   environment: BuildingDevelopmentEnvironment,
   reason: BuildingGrowthInvalidReason,
 ): BuildingGrowthPlan {
-  return Object.freeze({
+  const plan: BuildingGrowthPlan = {
     baseBuildingRevision: buildings.revision,
     baseSimulationRevision: simulation.revision,
     baseTerrainRevision: environment.terrainRevision,
@@ -70,7 +70,8 @@ function invalidPlan(
     dirtyChunks: Object.freeze([]),
     valid: false,
     invalidReason: reason,
-  });
+  };
+  return Object.freeze(plan);
 }
 
 export function planBuildingGrowthTick(input: {
@@ -78,6 +79,7 @@ export function planBuildingGrowthTick(input: {
   readonly simulation: SimulationSnapshot;
   readonly environment: BuildingDevelopmentEnvironment;
   readonly config: WorldConfig;
+  readonly reservedCells?: readonly CellCoord[];
 }): BuildingGrowthPlan {
   let buildings: BuildingSnapshot;
   let simulation: SimulationSnapshot;
@@ -112,29 +114,25 @@ export function planBuildingGrowthTick(input: {
 
   const tickPlan = planSimulationTick(simulation);
   if (!tickPlan.valid) {
-    return invalidPlan(
-      buildings,
-      simulation,
-      input.environment,
-      'building-growth:tick-overflow',
-    );
+    return invalidPlan(buildings, simulation, input.environment, 'building-growth:tick-overflow');
   }
 
   const afterAbsoluteTick = tickPlan.afterAbsoluteTick;
   const completedIds: string[] = [];
   const dirty: ChunkCoord[] = [];
   const proposed: AuthoritativeBuildingInstance[] = buildings.instances.map((instance) => {
+    const authoritative = normalizeBuildingInstance(instance);
     if (
-      instance.lifecycle === 'construction' &&
-      instance.constructionCompletesAtTick <= afterAbsoluteTick
+      authoritative.lifecycle === 'construction' &&
+      authoritative.constructionCompletesAtTick <= afterAbsoluteTick
     ) {
-      completedIds.push(instance.instanceId);
-      for (const cell of occupiedCellsForBuilding(instance)) {
+      completedIds.push(authoritative.instanceId);
+      for (const cell of occupiedCellsForBuilding(authoritative)) {
         dirty.push(chunkForCell(cell, input.config));
       }
-      return activateCompletedBuilding(instance, afterAbsoluteTick);
+      return activateCompletedBuilding(authoritative, afterAbsoluteTick);
     }
-    return normalizeBuildingInstance(instance);
+    return authoritative;
   });
 
   const startedIds: string[] = [];
@@ -150,6 +148,7 @@ export function planBuildingGrowthTick(input: {
       config: input.config,
       absoluteTick: afterAbsoluteTick,
       growthSequence: simulation.growthSequence,
+      ...(input.reservedCells === undefined ? {} : { reservedCells: input.reservedCells }),
     });
     if (selected !== null) {
       nextGrowthSequence += 1;
@@ -162,8 +161,7 @@ export function planBuildingGrowthTick(input: {
         rotationQuarterTurns: selected.instance.rotationQuarterTurns,
         lifecycle: 'construction',
         constructionStartedAtTick: afterAbsoluteTick,
-        constructionCompletesAtTick:
-          afterAbsoluteTick + definition.constructionDurationTicks,
+        constructionCompletesAtTick: afterAbsoluteTick + definition.constructionDurationTicks,
       });
       proposed.push(construction);
       startedIds.push(construction.instanceId);
@@ -238,8 +236,7 @@ export function commitBuildingGrowthTick(input: {
     tickPlan,
     plan.nextGrowthSequence,
   );
-  const changed =
-    plan.startedInstanceIds.length > 0 || plan.completedInstanceIds.length > 0;
+  const changed = plan.startedInstanceIds.length > 0 || plan.completedInstanceIds.length > 0;
   const buildings = changed
     ? createBuildingSnapshot(
         {

@@ -73,7 +73,6 @@ export function bindGameToolHud(
     '[data-action="tool-zone-commercial"]',
     '[data-action="tool-zone-industrial"]',
     '[data-action="tool-zone-remove"]',
-    '[data-action="tool-building-develop"]',
     '[data-action="tool-building-bulldoze"]',
   ].map((selector) => requireElement<HTMLButtonElement>(root, selector));
   const undoButton = requireElement<HTMLButtonElement>(root, '[data-action="undo"]');

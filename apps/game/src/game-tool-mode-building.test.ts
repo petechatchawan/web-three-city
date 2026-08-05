@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   isBuildingToolMode,
+  isGameToolMode,
   isRoadToolMode,
   isTerraformToolMode,
   isZoneToolMode,
@@ -18,20 +19,18 @@ const MODES: readonly GameToolMode[] = Object.freeze([
   'zone-commercial',
   'zone-industrial',
   'zone-remove',
-  'building-develop',
   'building-bulldoze',
 ]);
 
 describe('Building tool modes', () => {
-  it('narrows only the two Building operations', () => {
-    expect(MODES.filter(isBuildingToolMode)).toEqual(['building-develop', 'building-bulldoze']);
+  it('exposes only interactive Building bulldoze', () => {
+    expect(MODES.filter(isBuildingToolMode)).toEqual(['building-bulldoze']);
+    expect(isGameToolMode('building-develop')).toBe(false);
   });
 
-  it('keeps Building modes isolated from Terrain, Road, and Zone domains', () => {
-    for (const mode of ['building-develop', 'building-bulldoze'] as const) {
-      expect(isTerraformToolMode(mode)).toBe(false);
-      expect(isRoadToolMode(mode)).toBe(false);
-      expect(isZoneToolMode(mode)).toBe(false);
-    }
+  it('keeps Building bulldoze isolated from Terrain, Road, and Zone domains', () => {
+    expect(isTerraformToolMode('building-bulldoze')).toBe(false);
+    expect(isRoadToolMode('building-bulldoze')).toBe(false);
+    expect(isZoneToolMode('building-bulldoze')).toBe(false);
   });
 });

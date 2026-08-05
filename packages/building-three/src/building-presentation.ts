@@ -15,6 +15,28 @@ import { createBuildingMaterials, type BuildingMaterials } from './material-fact
 import { createBuildingPrototype } from './prototype-factory.js';
 
 export type BuildingElevationResolver = (cell: CellCoord) => number;
+type BuildingPresentationReload = (snapshot: BuildingSnapshot, absoluteTick: number) => void;
+
+let defaultAbsoluteTick = 8;
+let latestSnapshot: BuildingSnapshot | null = null;
+let latestPresentationReload: BuildingPresentationReload | null = null;
+
+export function setBuildingPresentationAbsoluteTick(absoluteTick: number): void {
+  if (!Number.isSafeInteger(absoluteTick) || absoluteTick < 0) {
+    throw new RangeError('building-presentation:invalid-tick');
+  }
+  defaultAbsoluteTick = absoluteTick;
+}
+
+export function latestPresentedBuildingSnapshot(): BuildingSnapshot | null {
+  return latestSnapshot;
+}
+
+export function reloadLatestBuildingPresentation(): void {
+  if (latestPresentationReload !== null && latestSnapshot !== null) {
+    latestPresentationReload(latestSnapshot, defaultAbsoluteTick);
+  }
+}
 
 export class BuildingPresentation {
   readonly #scene: THREE.Scene;
@@ -22,6 +44,9 @@ export class BuildingPresentation {
   readonly #elevationAt: BuildingElevationResolver;
   readonly #materials: BuildingMaterials;
   readonly #root = new THREE.Group();
+  readonly #reloadLatest: BuildingPresentationReload = (snapshot, absoluteTick) => {
+    this.load(snapshot, absoluteTick);
+  };
   #disposed = false;
 
   constructor(scene: THREE.Scene, elevationAt: BuildingElevationResolver, config: WorldConfig) {
@@ -31,6 +56,7 @@ export class BuildingPresentation {
     this.#materials = createBuildingMaterials();
     this.#root.name = 'building-committed-root';
     scene.add(this.#root);
+    latestPresentationReload = this.#reloadLatest;
   }
 
   get root(): THREE.Group {
@@ -46,8 +72,9 @@ export class BuildingPresentation {
     }
   }
 
-  load(snapshot: BuildingSnapshot, absoluteTick = 8): void {
+  load(snapshot: BuildingSnapshot, absoluteTick = defaultAbsoluteTick): void {
     if (this.#disposed) throw new Error('building-presentation:disposed');
+    latestSnapshot = snapshot;
     this.clear();
     for (const instance of snapshot.instances) {
       const definition = buildingDefinitionForId(instance.buildingDefinitionId);
@@ -67,9 +94,7 @@ export class BuildingPresentation {
               footprintWidth: definition.footprintWidth,
               footprintDepth: definition.footprintDepth,
               prototypeHeight: definition.prototypeHeight,
-              phase: constructionVisualPhase(
-                constructionProgressAtTick(instance, absoluteTick),
-              ),
+              phase: constructionVisualPhase(constructionProgressAtTick(instance, absoluteTick)),
               materials: this.#materials,
             })
           : createBuildingPrototype(instance, this.#materials, this.#config);
@@ -99,5 +124,9 @@ export class BuildingPresentation {
     this.clear();
     this.#materials.dispose();
     this.#scene.remove(this.#root);
+    if (latestPresentationReload === this.#reloadLatest) {
+      latestPresentationReload = null;
+      latestSnapshot = null;
+    }
   }
 }

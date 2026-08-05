@@ -1,0 +1,67 @@
+import { expect, test } from '@playwright/test';
+import {
+  BUILDING_FIXTURES,
+  pointFor,
+  prepareBuildingFixtureWorld,
+} from './helpers/building-fixture.js';
+import { prepareDeterministicGrowthClock, readTimeSnapshot } from './helpers/growth-fixture.js';
+import { GAME_URL } from './helpers/interaction.js';
+
+test('active Zone removal commits after background Growth skips its reserved cells', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(GAME_URL);
+  await expect(page.getByTestId('game-status')).toHaveText('Ready');
+  await prepareDeterministicGrowthClock(page);
+  const points = await prepareBuildingFixtureWorld(page);
+
+  const removeButton = page.getByRole('button', { name: 'Remove Zone' });
+  await removeButton.click();
+  const start = pointFor(points, BUILDING_FIXTURES.residential.zoneCells[0]);
+  const end = pointFor(points, BUILDING_FIXTURES.residential.zoneCells[1]);
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  await page.mouse.move(end.x, end.y);
+  await expect
+    .poll(() =>
+      page.evaluate(() => window.__WEB_THREE_CITY_INTERACTION__?.zone.strokeActive ?? false),
+    )
+    .toBe(true);
+
+  await page.evaluate(() => {
+    const api = (
+      window as Window & {
+        __WEB_THREE_CITY_TIME__?: {
+          setSpeed(speed: 'paused' | 'normal' | 'fast' | 'faster'): void;
+        };
+      }
+    ).__WEB_THREE_CITY_TIME__;
+    if (api === undefined) throw new Error('growth-reservation:missing-time-api');
+    api.setSpeed('faster');
+  });
+  await expect
+    .poll(async () => (await readTimeSnapshot(page)).simulation.absoluteTick, { timeout: 5_000 })
+    .toBeGreaterThanOrEqual(12);
+  await page.evaluate(() => {
+    const api = (
+      window as Window & {
+        __WEB_THREE_CITY_TIME__?: {
+          setSpeed(speed: 'paused' | 'normal' | 'fast' | 'faster'): void;
+        };
+      }
+    ).__WEB_THREE_CITY_TIME__;
+    if (api === undefined) throw new Error('growth-reservation:missing-time-api');
+    api.setSpeed('paused');
+  });
+
+  await expect(page.getByTestId('active-tool')).toHaveText('Remove Zone');
+  await expect(removeButton).toHaveAttribute('aria-pressed', 'true');
+  await page.mouse.up();
+  await expect(page.getByTestId('game-status')).toHaveText('Zone removed');
+  await expect(page.getByTestId('game-status')).not.toHaveText('Building rejected');
+  await expect(page.getByTestId('game-status')).not.toHaveText('Zone blocked by building');
+  await expect(page.getByTestId('zone-residential-count')).toHaveText('2');
+  await expect(page.getByTestId('active-tool')).toHaveText('Remove Zone');
+  await expect(removeButton).toHaveAttribute('aria-pressed', 'true');
+});

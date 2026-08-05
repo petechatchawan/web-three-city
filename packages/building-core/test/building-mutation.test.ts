@@ -131,7 +131,7 @@ describe('building mutation', () => {
 
     expect(plan.valid).toBe(true);
     expect(plan.addedInstances.map((instance) => instance.buildingDefinitionId)).toEqual([
-      'commercial-shop-1x1',
+      'commercial-cafe-1x1',
       'residential-cottage-1x1',
     ]);
     for (const instance of plan.addedInstances) {

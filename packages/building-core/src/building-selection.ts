@@ -1,9 +1,6 @@
 import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
 import { buildingDefinitions } from './building-definitions.js';
-import {
-  buildingEntranceDirection,
-  occupiedCellsForBuilding,
-} from './building-footprint.js';
+import { buildingEntranceDirection, occupiedCellsForBuilding } from './building-footprint.js';
 import { resolveBuildingFrontage } from './building-frontage.js';
 import type {
   BuildingDefinition,
@@ -41,8 +38,10 @@ function frontageOrder(direction: BuildingFrontage['direction']): number {
 }
 
 function candidateOrder(a: BuildingSelectionCandidate, b: BuildingSelectionCandidate): number {
-  const aMisaligned = buildingEntranceDirection(a.instance.rotationQuarterTurns) === a.frontage.direction ? 0 : 1;
-  const bMisaligned = buildingEntranceDirection(b.instance.rotationQuarterTurns) === b.frontage.direction ? 0 : 1;
+  const aMisaligned =
+    buildingEntranceDirection(a.instance.rotationQuarterTurns) === a.frontage.direction ? 0 : 1;
+  const bMisaligned =
+    buildingEntranceDirection(b.instance.rotationQuarterTurns) === b.frontage.direction ? 0 : 1;
   return (
     aMisaligned - bMisaligned ||
     a.frontage.distance - b.frontage.distance ||
@@ -70,25 +69,35 @@ export function selectBuildingCandidate(
   context: BuildingSelectionContext,
 ): BuildingSelectionCandidate | null {
   if (candidates.length === 0) return null;
-  const highestPriority = Math.max(...candidates.map((candidate) => candidate.definition.selectionPriority));
-  let tier = candidates.filter((candidate) => candidate.definition.selectionPriority === highestPriority);
+  const highestPriority = Math.max(
+    ...candidates.map((candidate) => candidate.definition.selectionPriority),
+  );
+  const priorityTier = candidates.filter(
+    (candidate) => candidate.definition.selectionPriority === highestPriority,
+  );
   const bestByDefinition = new Map<BuildingDefinitionId, BuildingSelectionCandidate>();
-  for (const candidate of [...tier].sort(candidateOrder)) {
-    if (!bestByDefinition.has(candidate.definition.id)) bestByDefinition.set(candidate.definition.id, candidate);
+  for (const candidate of [...priorityTier].sort(candidateOrder)) {
+    if (!bestByDefinition.has(candidate.definition.id)) {
+      bestByDefinition.set(candidate.definition.id, candidate);
+    }
   }
-  tier = [...bestByDefinition.values()];
-  const nonAdjacent = tier.filter(
+  const bestCandidates = [...bestByDefinition.values()];
+  const nonAdjacent = bestCandidates.filter(
     (candidate) => !context.adjacentDefinitionIds.has(candidate.definition.id),
   );
-  if (nonAdjacent.length > 0) tier = nonAdjacent;
-  tier.sort((a, b) => a.definition.id.localeCompare(b.definition.id));
-  const totalWeight = tier.reduce((total, candidate) => total + candidate.definition.selectionWeight, 0);
+  const eligibleTier = (nonAdjacent.length > 0 ? nonAdjacent : bestCandidates).sort((a, b) =>
+    a.definition.id.localeCompare(b.definition.id),
+  );
+  const totalWeight = eligibleTier.reduce(
+    (total, candidate) => total + candidate.definition.selectionWeight,
+    0,
+  );
   let cursor = stableBuildingSelectionHash(context) % totalWeight;
-  for (const candidate of tier) {
+  for (const candidate of eligibleTier) {
     if (cursor < candidate.definition.selectionWeight) return candidate;
     cursor -= candidate.definition.selectionWeight;
   }
-  return tier[tier.length - 1] ?? null;
+  return eligibleTier[eligibleTier.length - 1] ?? null;
 }
 
 function adjacentDefinitionIds(
@@ -122,11 +131,13 @@ export function selectGrowthBuildingPlacement(input: {
   readonly config: WorldConfig;
   readonly absoluteTick: number;
   readonly growthSequence: number;
+  readonly reservedCells?: readonly CellCoord[];
 }): BuildingSelectionCandidate | null {
   const occupied = new Set<string>();
   for (const instance of input.buildings.instances) {
     for (const cell of occupiedCellsForBuilding(instance)) occupied.add(key(cell));
   }
+  const reserved = new Set((input.reservedCells ?? []).map(key));
 
   for (let z = 0; z < input.config.mapHeight; z += 1) {
     for (let x = 0; x < input.config.mapWidth; x += 1) {
@@ -151,6 +162,7 @@ export function selectGrowthBuildingPlacement(input: {
               (cell) =>
                 !inside(cell, input.config) ||
                 occupied.has(key(cell)) ||
+                reserved.has(key(cell)) ||
                 input.environment.zoneDefinitionIdAt(cell) !== zoneDefinitionId ||
                 input.environment.isRoadOccupied(cell) ||
                 !input.environment.isDry(cell) ||
@@ -160,7 +172,13 @@ export function selectGrowthBuildingPlacement(input: {
             continue;
           }
           const frontage = resolveBuildingFrontage(instance, input.environment);
-          if (frontage !== null) candidates.push(Object.freeze({ definition, instance, frontage }));
+          if (
+            frontage !== null &&
+            !reserved.has(key(frontage.frontageCell)) &&
+            !reserved.has(key(frontage.roadCell))
+          ) {
+            candidates.push(Object.freeze({ definition, instance, frontage }));
+          }
         }
       }
       if (candidates.length === 0) continue;

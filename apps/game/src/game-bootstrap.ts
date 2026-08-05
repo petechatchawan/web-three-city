@@ -4,13 +4,13 @@ import {
   createEmptyBuildingSnapshot,
   occupiedBuildingCellCount,
   planBuildingBulldoze,
-  planBuildingDevelopment,
   type BuildingDevelopmentEnvironment,
   type BuildingMutationPlan,
   type BuildingSnapshot,
 } from '@web-three-city/building-core';
 import { BuildingPresentation } from '@web-three-city/building-three';
 import { OrthographicCameraRig } from '@web-three-city/camera-input';
+import type { SimulationSnapshot } from '@web-three-city/simulation-core';
 import {
   commitRoadMutation,
   createEmptyRoadSnapshot,
@@ -52,6 +52,7 @@ import {
 import {
   commitZoneMutation,
   createEmptyZoneSnapshot,
+  planZoneMutation,
   zoneCounts,
   type ZoneMutationPlan,
   type ZonePlacementEnvironment,
@@ -68,7 +69,7 @@ import { createBuildingDevelopmentEnvironment } from './building-development-env
 import { createBuildingWorldOccupancy } from './building-world-occupancy.js';
 import { createGameInput, type GameRenderViewport } from './game-input.js';
 import { dispatchGameTransactionState } from './game-tool-events.js';
-import type { BuildingToolMode, GameToolMode } from './game-tool-mode.js';
+import type { GameToolMode } from './game-tool-mode.js';
 import {
   publishInteractionEvidence,
   type WaterInteractionEvidence,
@@ -83,6 +84,7 @@ import { guardTerraformPlanWithOccupancy } from './terraform-occupancy-guard.js'
 import { createZonePlacementEnvironment } from './zone-placement-environment.js';
 import { decodeWorldSave, encodeWorldSaveV3, type DecodedWorldState } from './world-save.js';
 import { guardZonePlanWithBuildings, type GameZoneInvalidReason } from './zone-building-guard.js';
+import { executeWorldGrowthTick } from './world-growth-transaction.js';
 import { WorldUndoStore, type WorldUndoEntry } from './world-undo.js';
 import { renderGameUi, type GameViewportLayout, type QualityLevel } from './game-ui.js';
 
@@ -103,6 +105,7 @@ const QUALITY_POLICY = Object.freeze({
 });
 
 export interface GameRuntime {
+  runBackgroundGrowthTick(simulation: SimulationSnapshot): SimulationSnapshot;
   dispose(): void;
 }
 
@@ -311,16 +314,10 @@ function statusForZonePlan(
   return 'Zone rejected';
 }
 
-function statusForBuildingPlan(plan: BuildingMutationPlan): string {
-  if (plan.valid) return plan.operation === 'develop' ? 'Zones developed' : 'Building bulldozed';
-  if (plan.invalidReason === 'building:no-zoned-lot') return 'No eligible Zoned lots';
+function statusForBuildingBulldozePlan(plan: BuildingMutationPlan): string {
+  if (plan.valid) return 'Building bulldozed';
   if (plan.invalidReason === 'building:not-found') return 'No building selected';
-  if (plan.invalidReason === 'building:road-access-required') return 'Building needs Road frontage';
-  if (plan.invalidReason === 'building:mixed-zone') return 'Building lot spans mixed Zones';
-  if (plan.invalidReason === 'building:wet-cell') return 'Building blocked by water';
-  if (plan.invalidReason === 'building:unsupported-terrain')
-    return 'Building requires flat terrain';
-  return 'Building rejected';
+  return 'Building bulldoze rejected';
 }
 
 export function bootstrapGame(root: HTMLElement): GameRuntime {
@@ -328,7 +325,12 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
   const capability = detectWebGL2(ui.canvas);
   if (!capability.supported) {
     ui.setStatus('WebGL2 unavailable');
-    return { dispose(): void {} };
+    return {
+      runBackgroundGrowthTick(simulation: SimulationSnapshot): SimulationSnapshot {
+        return simulation;
+      },
+      dispose(): void {},
+    };
   }
 
   const generated = generateCoastalTerrain({ seed: CURATED_SEED, config: WORLD_CONFIG });
@@ -657,13 +659,20 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     ui.setUndoAvailable(undoStore.available);
   };
 
-  const applyZonePlan = (
-    plan: ZoneMutationPlan,
-    routedReason: GameZoneInvalidReason | null = plan.invalidReason,
-  ): void => {
-    zoneInvalidReason = routedReason;
-    const candidate = guardZonePlanWithBuildings(plan, buildingsSnapshot);
-    const reason = routedReason ?? candidate.invalidReason;
+  const applyZonePlan = (plan: ZoneMutationPlan): void => {
+    const revalidatedPlan = planZoneMutation(
+      zonesSnapshot,
+      {
+        operation: plan.operation,
+        definitionId: plan.definitionId,
+        cells: plan.requestedCells,
+      },
+      zoneEnvironment,
+      WORLD_CONFIG,
+    );
+    const candidate = guardZonePlanWithBuildings(revalidatedPlan, buildingsSnapshot);
+    const reason = candidate.invalidReason;
+    zoneInvalidReason = reason;
     if (!candidate.valid || reason !== null) {
       ui.setStatus(statusForZonePlan(candidate.previewPlan, reason));
       ui.setUndoAvailable(undoStore.available);
@@ -701,14 +710,13 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     ui.setUndoAvailable(undoStore.available);
   };
 
-  const applyBuildingRequest = (mode: BuildingToolMode, cell: CellCoord): void => {
-    const plan =
-      mode === 'building-develop'
-        ? planBuildingDevelopment(buildingsSnapshot, buildingEnvironment, WORLD_CONFIG)
-        : planBuildingBulldoze(buildingsSnapshot, cell, buildingEnvironment, WORLD_CONFIG);
+  const commitBuildingBulldozePlan = (plan: BuildingMutationPlan): void => {
+    if (plan.operation !== 'bulldoze') {
+      throw new Error('game:interactive-building-operation-must-be-bulldoze');
+    }
     buildingInvalidReason = plan.invalidReason;
     if (!plan.valid) {
-      ui.setStatus(statusForBuildingPlan(plan));
+      ui.setStatus(statusForBuildingBulldozePlan(plan));
       ui.setUndoAvailable(undoStore.available);
       return;
     }
@@ -731,15 +739,43 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
         WORLD_CONFIG,
       );
       undoStore.replace({ kind: 'building', buildings: before });
-      if (plan.operation === 'develop') buildingCommitCount += 1;
-      else buildingBulldozeCount += 1;
+      buildingBulldozeCount += 1;
       buildingInvalidReason = null;
       ui.setBuildingCount(buildingCount(buildingsSnapshot));
-      ui.setStatus(statusForBuildingPlan(plan));
+      ui.setStatus(statusForBuildingBulldozePlan(plan));
     } catch {
       ui.setStatus('Building update failed');
     }
     ui.setUndoAvailable(undoStore.available);
+  };
+
+  const applyBuildingBulldozeRequest = (cell: CellCoord): void => {
+    commitBuildingBulldozePlan(
+      planBuildingBulldoze(buildingsSnapshot, cell, buildingEnvironment, WORLD_CONFIG),
+    );
+  };
+
+  const runBackgroundGrowthTick = (simulation: SimulationSnapshot): SimulationSnapshot => {
+    const result = executeWorldGrowthTick({
+      state: Object.freeze({ simulation, buildings: buildingsSnapshot }),
+      environment: buildingEnvironment,
+      config: WORLD_CONFIG,
+      reservedCells: inputRef.current?.getBackgroundGrowthReservations() ?? Object.freeze([]),
+    });
+    if (result.buildings.revision !== buildingsSnapshot.revision) {
+      buildingsSnapshot = result.buildings;
+      buildingPresentation.load(buildingsSnapshot);
+      zoneEnvironment = createZonePlacementEnvironment(
+        snapshot,
+        waterSnapshot,
+        roadsSnapshot,
+        createBuildingWorldOccupancy(buildingsSnapshot),
+        WORLD_CONFIG,
+      );
+      buildingCommitCount += 1;
+      ui.setBuildingCount(buildingCount(buildingsSnapshot));
+    }
+    return result.simulation;
   };
 
   const resetCamera = (): void => {
@@ -791,7 +827,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     onTerraformCommit: applyTerraformPlan,
     onRoadPlan: applyRoadPlan,
     onZonePlan: applyZonePlan,
-    onBuildingRequest: applyBuildingRequest,
+    onBuildingBulldoze: applyBuildingBulldozeRequest,
     onReset: resetCamera,
   });
   inputRef.current = input;
@@ -938,11 +974,6 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     listenerOptions,
   );
   ui.zoneRemoveButton.addEventListener('click', () => setToolMode('zone-remove'), listenerOptions);
-  ui.buildingDevelopButton.addEventListener(
-    'click',
-    () => setToolMode('building-develop'),
-    listenerOptions,
-  );
   ui.buildingBulldozeButton.addEventListener(
     'click',
     () => setToolMode('building-bulldoze'),
@@ -1220,6 +1251,5 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     delete window.__WEB_THREE_CITY_INTERACTION__;
   };
   window.addEventListener('pagehide', dispose, { once: true });
-
-  return { dispose };
+  return { runBackgroundGrowthTick, dispose };
 }

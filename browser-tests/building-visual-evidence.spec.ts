@@ -20,7 +20,7 @@ test('captures deterministic Residential, Commercial, and Industrial prototypes'
   const evidence = await readEvidence(page);
   expect(evidence.building.definitionIds).toEqual([
     'commercial-office-2x2',
-    'industrial-factory-2x2',
+    'industrial-warehouse-2x2',
     'residential-apartment-2x2',
   ]);
   await page.screenshot({

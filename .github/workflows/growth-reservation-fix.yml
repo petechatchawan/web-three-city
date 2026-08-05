@@ -36,8 +36,8 @@ jobs:
           if literal_before not in source:
               raise SystemExit('growth-reservation-fix:missing-executor-literal')
           source = source.replace(literal_before, literal_after)
-          optional_before = "      reservedCells: input.reservedCells,\\n"
-          optional_after = "      ...(input.reservedCells === undefined ? {} : { reservedCells: input.reservedCells }),\\n"
+          optional_before = "reservedCells: input.reservedCells,"
+          optional_after = "...(input.reservedCells === undefined ? {} : { reservedCells: input.reservedCells }),"
           if source.count(optional_before) != 2:
               raise SystemExit('growth-reservation-fix:unexpected-optional-forwarding-count')
           path.write_text(source.replace(optional_before, optional_after))

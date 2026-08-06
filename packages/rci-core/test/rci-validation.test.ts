@@ -77,6 +77,7 @@ describe('RCI validation', () => {
     expect(result.issues.map((issue) => issue.code)).toEqual([
       'rci:dangling-household',
       'rci:duplicate-active-membership',
+      'rci:invalid-state',
     ]);
   });
 

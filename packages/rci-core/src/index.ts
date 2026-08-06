@@ -41,6 +41,20 @@ export type {
   UndirectedRelationshipRecord,
   WorkplaceRecord,
 } from './contracts/records.js';
+export { createBuildingGrowthPolicy } from './demand/building-growth-policy.js';
+export { evaluateRciDemand, smoothRciDemand } from './demand/demand-evaluator.js';
+export type { RciDemandEvaluation } from './demand/demand-evaluator.js';
+export {
+  FOUNDATION_RCI_DEMAND_FACTORS,
+  clampDemandMilli,
+} from './demand/demand-factor.js';
+export type {
+  RciDemandChannel,
+  RciDemandFactorContext,
+  RciDemandFactorContribution,
+  RciDemandFactorDefinition,
+} from './demand/demand-factor.js';
+export { updateRciGrowthGates } from './demand/growth-gate.js';
 export { createFoundationRciRegistries } from './definitions/foundation-definitions.js';
 export type {
   AnnualRateBandDefinition,
@@ -152,6 +166,8 @@ export type {
 } from './population/qualification-resolver.js';
 export { createRciCurrentStateIndex } from './projection/population-index.js';
 export type { RciCurrentStateIndex } from './projection/population-index.js';
+export { createRciProjection } from './projection/rci-projection.js';
+export type { RciProjection } from './projection/rci-projection.js';
 export { FOUNDATION_RCI_CONFIGURATION } from './rci-configuration.js';
 export type { RciConfiguration } from './rci-configuration.js';
 export {

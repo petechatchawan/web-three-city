@@ -91,7 +91,11 @@ export function mountRciHud(panel: HTMLElement): RciHudAdapter {
 
   return Object.freeze({
     element: section,
-    update(snapshot, registries, evaluationTick): void {
+    update(
+      snapshot: RciSnapshot,
+      registries: RciDefinitionRegistries,
+      evaluationTick: number,
+    ): void {
       const model = createRciHudModel(snapshot, registries, evaluationTick);
       population.textContent = String(model.population);
       households.textContent = String(model.households);

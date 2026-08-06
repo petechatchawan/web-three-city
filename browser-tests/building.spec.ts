@@ -25,6 +25,21 @@ type SavedWorldFixture = Readonly<{
   }>;
 }>;
 
+function findTerraformSupportCell(
+  originCell: SavedBuildingInstance['originCell'],
+): SavedBuildingInstance['originCell'] {
+  const zoneCells = BUILDING_FIXTURES.commercial.zoneCells;
+  const backRowZ = Math.max(...zoneCells.map((cell) => cell.z));
+  const supportCell =
+    originCell.z === backRowZ
+      ? zoneCells.find((cell) => cell.z === backRowZ && cell.x !== originCell.x)
+      : zoneCells.find((cell) => cell.z === backRowZ && cell.x === originCell.x);
+  if (supportCell === undefined) {
+    throw new Error(`building:missing-terraform-support:${originCell.x}:${originCell.z}`);
+  }
+  return supportCell;
+}
+
 async function openGame(page: Page): Promise<void> {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(GAME_URL);
@@ -126,10 +141,10 @@ test('grows deterministic R/C/I content and preserves authority across guards, U
     throw new Error('building:missing-commercial-instance');
   }
   const commercialOccupiedCell = pointFor(points, commercialInstance.originCell);
-  const commercialSupportCell = pointFor(points, {
-    x: commercialInstance.originCell.x,
-    z: commercialInstance.originCell.z + 1,
-  });
+  const commercialSupportCell = pointFor(
+    points,
+    findTerraformSupportCell(commercialInstance.originCell),
+  );
   const bulldozedDefinitionId = commercialInstance.buildingDefinitionId;
 
   await page.getByRole('button', { name: 'Build Road' }).click();
@@ -140,8 +155,8 @@ test('grows deterministic R/C/I content and preserves authority across guards, U
   await page.mouse.click(commercialOccupiedCell.x, commercialOccupiedCell.y);
   await expect(page.getByTestId('game-status')).toHaveText('Zone blocked by building');
 
-  // Use the rear-row cell so its Terraform vertex support touches the front-row 1x1 Building
-  // without also touching the frontage Road. Road occupancy has intentionally higher precedence.
+  // Always use a rear-row fixture cell whose Terraform vertex support touches the occupied 1x1
+  // Building without also touching the frontage Road. Road occupancy has higher precedence.
   await page.getByRole('button', { name: 'Raise' }).click();
   await page.mouse.click(commercialSupportCell.x, commercialSupportCell.y);
   await expect(page.getByTestId('game-status')).toHaveText('Terraform blocked by building');

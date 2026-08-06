@@ -32,7 +32,5 @@ export function canonicalCitizenPair(
   if (first === second) {
     throw new RciContractError('rci:invalid-relationship');
   }
-  return Object.freeze(
-    compareStableId(first, second) < 0 ? [first, second] : [second, first],
-  );
+  return Object.freeze(compareStableId(first, second) < 0 ? [first, second] : [second, first]);
 }

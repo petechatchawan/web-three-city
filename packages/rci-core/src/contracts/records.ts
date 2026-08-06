@@ -61,9 +61,7 @@ export interface UndirectedRelationshipRecord {
   readonly endedAtTick: number | null;
 }
 
-export type RelationshipRecord =
-  | DirectionalRelationshipRecord
-  | UndirectedRelationshipRecord;
+export type RelationshipRecord = DirectionalRelationshipRecord | UndirectedRelationshipRecord;
 
 export interface CitizenQualificationRecord {
   readonly citizenQualificationId: CitizenQualificationId;

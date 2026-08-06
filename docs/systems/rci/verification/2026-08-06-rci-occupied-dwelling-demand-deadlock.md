@@ -145,6 +145,17 @@ Demand R +43 open | C +22 open | I +22 open
 - The original all-closed deadlock is no longer reproducible.
 - Save compatibility is confirmed at the gameplay level because the original saved city resumed directly.
 
+## Documentation Normalization
+
+The same correction is reflected in:
+
+- [`../README.md`](../README.md) — living system status and runtime contract.
+- [`../specs/README.md`](../specs/README.md) — implemented specification status and post-closure clarification.
+- [`../tdd/README.md`](../tdd/README.md) — completed execution packet and retained binding contracts.
+- [`2026-08-06-rci-foundation-v0-1-closure.md`](2026-08-06-rci-foundation-v0-1-closure.md) — closed foundation baseline and separate post-closure correction boundary.
+
+The original design specification remains a planning-time historical record; current delivery status is maintained by those living documents.
+
 ## CI Infrastructure Note
 
 GitHub Actions runs created during the incident window were cancelled or skipped before execution while hosted runners were unavailable. For example, run `31122086766` ended with Lean CI cancelled and Full browser verification skipped; this is not a test failure and provides no code verdict.

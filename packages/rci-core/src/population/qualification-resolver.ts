@@ -3,8 +3,7 @@ import type { RciDefinitionRegistries } from '../definitions/contracts.js';
 import { deterministicSample, type ProbabilityUnit } from './deterministic-sample.js';
 
 export type QualificationResolverContext =
-  | 'working-age-immigrant'
-  | 'resident-reaching-working-age';
+  'working-age-immigrant' | 'resident-reaching-working-age';
 
 export interface QualificationResolverInput {
   readonly citizenId: CitizenId;

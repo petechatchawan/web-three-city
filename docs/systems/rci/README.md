@@ -1,7 +1,7 @@
 # RCI Demand & Occupancy System
 
-**Status:** Implemented — final stacked verification pending  
-**Current implementation head:** `feat/rci-game-integration-v0-1`  
+**Status:** Implemented — Foundation v0.1 with occupied-Dwelling Demand deadlock hotfix  
+**Current implementation baseline:** `master`  
 **Primary ownership:** `packages/rci-core`; `apps/game` owns atomic world orchestration, Save composition, and HUD presentation  
 **Persistence:** `RciSaveV1` inside `WorldSaveV5`
 
@@ -44,6 +44,8 @@ Provide deterministic authority for Citizens, Relationships, Households, housing
 - Stable factor ordering and bounded integer scores in `-100_000..100_000`.
 - Integer smoothing into authoritative Demand state.
 - Persisted hysteresis gates: `>=15_000` opens, `<=5_000` closes, and the neutral band retains prior state.
+- Residential target-buffer Demand is based on wholly vacant Dwelling Units relative to active Households; unused resident capacity inside an assigned Dwelling Unit is not vacant housing.
+- A city with no vacant Dwelling Unit can recover a closed Residential Growth gate through subsequent daily Demand evaluations without Save migration or world reset.
 - Negative Demand suppresses future growth but never abandons existing Buildings or Zones.
 - RCI derives a caller-supplied `BuildingGrowthPolicy`; Building Core never imports RCI.
 - Demand magnitude affects eligible-zone selection weight deterministically.
@@ -115,7 +117,7 @@ Dependency direction remains acyclic: `building-core` and `simulation-core` do n
 
 `RciSaveV1` stores normalized histories, queues, accumulator, Demand, gates, seed, revisions, and every sequence. Registry definitions, indexes, projections, events, policy objects, renderer state, active tools, pointer sessions, and HUD DOM are rebuilt.
 
-`WorldSaveV5` is the current envelope. V1–V4 decode in dependency order and initialize deterministic RCI authority from decoded Simulation and active Building inventory. Decode is all-or-nothing.
+`WorldSaveV5` is the current envelope. V1–V4 decode in dependency order and initialize deterministic RCI authority from decoded Simulation and active Building inventory. Decode is all-or-nothing. The occupied-Dwelling Demand hotfix changes a derived factor context only and requires no Save schema migration.
 
 ## Invariants and Failure Behavior
 
@@ -126,6 +128,7 @@ Dependency direction remains acyclic: `building-core` and `simulation-core` do n
 - An eligible Citizen has at most one active Employment assignment.
 - Housing and position capacities cannot be exceeded by reconciliation.
 - Relocation and incoming materialization require adequate vacant housing.
+- Demand must use the same wholly vacant Dwelling Unit authority required by Household materialization.
 - Valid workers are not displaced; upgrades require an already-vacant better fit.
 - Order-sensitive work uses explicit stable comparators and integer arithmetic.
 - Growth gates persist because neutral-band behavior depends on prior state.
@@ -141,7 +144,6 @@ Registries and policies support new relationship, qualification, occupation, cap
 - No Economy, wages, taxes, business profitability, utilities, services, traffic, Land Value, abandonment, density upgrades, Education gameplay, or Citizen movement AI.
 - HUD is intentionally compact and read-only.
 - Scale baseline covers `5,000` Citizens; larger performance budgets are not yet hard release gates.
-- Final exact-head package, repository, browser, Save/resume, and benchmark evidence is recorded only after the stacked PR 2–6 verification run completes.
 
 ## Handoff Checklist
 
@@ -155,4 +157,5 @@ Registries and policies support new relationship, qualification, occupation, cap
 - PR 5: [Demand and Growth policy](verification/2026-08-06-rci-pr5-demand-growth.md)
 - PR 6: [Game integration](verification/2026-08-06-rci-pr6-game-integration.md)
 - Closure: [RCI Foundation v0.1](verification/2026-08-06-rci-foundation-v0-1-closure.md)
+- Hotfix: [Occupied-Dwelling Demand deadlock](verification/2026-08-06-rci-occupied-dwelling-demand-deadlock.md)
 - Related systems: [World](../world/README.md), [Buildings](../buildings/README.md), [Simulation Time](../simulation-time/README.md), [Economy](../economy/README.md)

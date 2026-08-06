@@ -1,6 +1,6 @@
 import {
   createFoundationRciRegistries,
-  createInitialRciSnapshot,
+  createRciMigrationInventory,
   decodeRciSaveV1,
   encodeRciSaveV1,
   type RciSaveV1,
@@ -33,7 +33,6 @@ export interface DecodedWorldState extends legacy.DecodedWorldState {
 }
 
 export type WorldSaveErrorCode = legacy.WorldSaveErrorCode | 'world-save:invalid-rci';
-
 export interface WorldSaveError {
   readonly code: WorldSaveErrorCode;
   readonly details?: Readonly<Record<string, unknown>>;
@@ -52,11 +51,7 @@ export function encodeWorldSaveV5(
   rci: RciSnapshot,
 ): WorldSaveV5 {
   const base = legacy.encodeWorldSaveV4(terrain, roads, zones, buildings, simulation);
-  return Object.freeze({
-    ...base,
-    schemaVersion: 5,
-    rci: encodeRciSaveV1(rci),
-  });
+  return Object.freeze({ ...base, schemaVersion: 5, rci: encodeRciSaveV1(rci) });
 }
 
 export function decodeWorldSave(
@@ -68,11 +63,16 @@ export function decodeWorldSave(
   const base = legacy.decodeWorldSave(legacyInput, config);
   if (!base.ok) return base;
 
+  const registries = createFoundationRciRegistries();
   if (!isV5) {
     return ok(
       Object.freeze({
         ...base.value,
-        rci: createInitialRciSnapshot({ absoluteTick: base.value.simulation.absoluteTick }),
+        rci: createRciMigrationInventory({
+          buildings: base.value.buildings,
+          absoluteTick: base.value.simulation.absoluteTick,
+          registries,
+        }),
       }),
     );
   }
@@ -81,7 +81,7 @@ export function decodeWorldSave(
   const decodedRci = decodeRciSaveV1(input.rci, {
     buildings: base.value.buildings,
     simulation: base.value.simulation,
-    registries: createFoundationRciRegistries(),
+    registries,
   });
   if (!decodedRci.ok) {
     return err({

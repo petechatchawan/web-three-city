@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as rci from '../src/index.js';
 
+// PR 4 intentionally exposes Population, Housing/Migration, and Employment APIs only.
 describe('@web-three-city/rci-core public boundary', () => {
   it('exports only intentional foundation entry points', () => {
     expect(Object.keys(rci).sort()).toEqual([

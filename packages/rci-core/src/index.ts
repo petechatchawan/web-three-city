@@ -62,6 +62,17 @@ export type {
   SexDefinition,
   WorkplaceCapacityProfileDefinition,
 } from './definitions/contracts.js';
+export { createEmploymentIndex, positionKey } from './employment/employment-index.js';
+export type { EmploymentIndex, EmploymentProjection } from './employment/employment-index.js';
+export { planEmploymentReconciliation } from './employment/employment-reconciliation.js';
+export type { EmploymentReconciliationPlan } from './employment/employment-reconciliation.js';
+export { FOUNDATION_EMPLOYMENT_EMIGRATION_FACTORS } from './employment/employment-pressure.js';
+export {
+  isWorkplaceCapacityProfile,
+  workplaceCapacityProfileForId,
+} from './employment/workplace-capacity.js';
+export { synchronizeWorkplaceInventory } from './employment/workplace-inventory.js';
+export type { WorkplaceInventorySynchronizationResult } from './employment/workplace-inventory.js';
 export { orderRciDomainEvents } from './events/event-ordering.js';
 export type {
   CitizenBornEvent,

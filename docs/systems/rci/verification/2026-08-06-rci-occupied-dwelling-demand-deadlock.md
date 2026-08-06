@@ -116,6 +116,45 @@ Deployment                                   16/16 PASS
 Workspace builds                             PASS
 ```
 
+## Manual Recovery Verification
+
+The original saved city was loaded on the complete R/C/I correction and continued at `4×` without resetting the world or migrating the save.
+
+Intermediate observed state:
+
+```text
+Year 1 / Month 3 / Day 9 / 10:00
+Population 47
+Households 23
+Housing 23/24
+Employment 37/37
+Buildings 27
+Demand R +20 open | C +34 open | I -83 closed
+```
+
+The Residential and Commercial channels recovered first. Continued simulation then produced:
+
+```text
+Year 1 / Month 4 / Day 4 / 06:00
+Population 67
+Households 32
+Housing 32/34
+Employment 50/50
+Buildings 37
+Zones R 40 | C 6 | I 4
+Demand R +43 open | C +22 open | I +22 open
+```
+
+Manual verdict:
+
+- Population increased from `4` to `67`.
+- Households increased from `3` to `32`.
+- Active Buildings increased to `37` through automatic Growth.
+- Residential, Commercial, and Industrial Demand all recovered above the opening threshold.
+- All three persisted Growth gates reopened.
+- Industrial recovery occurred after the workforce and capacity state changed naturally; it was not forced through a reset or direct player development action.
+- The reported all-closed RCI deadlock is no longer reproducible on the corrected branch.
+
 ## Final Verification
 
-The final PR head must pass both Lean CI and Full browser verification after the complete R/C/I correction is committed. Record the exact run, head, browser count, clean-worktree result, merge commit, and final `master` tree equality in the PR before closure.
+The final PR head must pass both Lean CI and Full browser verification after this manual evidence commit. Record the exact run, head, browser count, clean-worktree result, merge commit, and final `master` tree equality in the PR before closure.

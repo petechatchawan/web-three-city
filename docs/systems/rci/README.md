@@ -1,125 +1,158 @@
 # RCI Demand & Occupancy System
 
-**Status:** Partial — PR 1–5 domain implementation written; game integration and final verification remain  
-**Current stacked head:** `feat/rci-demand-growth-v0-1`  
-**Primary ownership:** `packages/rci-core`; `apps/game` owns atomic runtime composition and HUD  
+**Status:** Implemented — final stacked verification pending  
+**Current implementation head:** `feat/rci-game-integration-v0-1`  
+**Primary ownership:** `packages/rci-core`; `apps/game` owns atomic world orchestration, Save composition, and HUD presentation  
 **Persistence:** `RciSaveV1` inside `WorldSaveV5`
 
 ## Purpose
 
-Provide deterministic authority for Citizens, Relationships, Households, housing, Workplaces, Employment, migration, R/C/I Demand, and growth gates without coupling domain state to rendering or UI.
+Provide deterministic authority for Citizens, Relationships, Households, housing, Workplaces, Employment, migration, R/C/I Demand, and growth gates while keeping rendering, input tools, and UI outside the domain package.
 
-## Implemented Capabilities
+## Current Capabilities
 
 ### Population and Household lifecycle
 
-- Stable immutable authority, canonical Save, tick-derived age, normalized Household/family history, deterministic qualifications, and daily 08:00 birth/death lifecycle.
+- Stable immutable normalized records, bounded revisions, persisted ID sequences, extensible registries, complete-state validation, and canonical Save output.
+- Tick-derived age and age bands; daily lifecycle evaluates only at the canonical `08:00` boundary.
+- Household membership is independent from family and partner relationships.
+- Deterministic qualifications, fertility, mortality, birth, death, and historical-record retention.
+- Ordered domain events and stale-plan commit fences.
 
 ### Housing and migration
 
-- Versioned Residential capacity profiles and deterministic Dwelling inventory.
-- Adequate-capacity relocation, displaced-first reconciliation, 720-tick expiry, fixed-point incoming queue, atomic Household materialization, and historical emigration.
+- Versioned Residential capacity profiles resolved from active Building definitions.
+- Deterministic Dwelling inventory and normalized housing-assignment history.
+- Adequate-capacity best-fit relocation, displaced-first processing, and exact `720`-tick displacement expiry.
+- Fixed-point incoming request accumulation, five versioned migration archetypes, and atomic Household materialization.
+- Historical Household emigration and fixed-point housing pressure factors.
+- Prior World Saves derive inventory from active Buildings without inventing Citizens or occupancy.
 
 ### Workplaces and Employment
 
-- Versioned Workplace capacity profiles and deterministic inventory.
-- Stability-first matching, closest-qualified vacancies, capacity enforcement, and one non-displacing daily best-fit upgrade.
-- Employment projection and compatible job supply for migration.
+- Deterministic Workplace inventory from active Commercial and Industrial Buildings.
+- Versioned position-group capacities, qualification requirements, and optional occupations.
+- Stability-first matching preserves valid workers before processing unemployed residents.
+- Closest-qualified stable matching, capacity bounds, and no worker displacement.
+- At most one vacant better-fit controlled upgrade per daily boundary.
+- Employment projections and compatible vacancies feed migration policy.
+- Employment-side pressure factors share the same ordered fixed-point contract.
 
-### R/C/I Demand and Building Growth
+### Demand and Building Growth
 
-- Extensible factor definitions evaluate from derived Population, Housing, Migration, and Employment projections.
-- Factors and contributions are ordered by stable definition ID.
-- All scores use integer fixed-point values in `-100_000..100_000`; no floating accumulation is persisted.
-- Target-buffer evaluation produces raw Residential, Commercial, and Industrial targets.
-- Integer smoothing updates authoritative Demand only on daily boundaries.
-- Persisted Growth gates use hysteresis: Demand `>=15_000` opens, `<=5_000` closes, and `6_000..14_000` retains prior state.
-- Negative Demand closes growth but does not abandon existing Buildings or remove Zones.
-- `createBuildingGrowthPolicy()` maps gates and positive Demand magnitude into caller-supplied zone eligibility/weight.
-- Building Core defines the generic policy contract and default open policy, but never imports RCI.
-- Policy-aware placement can choose across eligible zone origins while preserving deterministic selection.
+- Extensible Residential, Commercial, and Industrial Demand factors evaluated from derived projections.
+- Stable factor ordering and bounded integer scores in `-100_000..100_000`.
+- Integer smoothing into authoritative Demand state.
+- Persisted hysteresis gates: `>=15_000` opens, `<=5_000` closes, and the neutral band retains prior state.
+- Negative Demand suppresses future growth but never abandons existing Buildings or Zones.
+- RCI derives a caller-supplied `BuildingGrowthPolicy`; Building Core never imports RCI.
+- Demand magnitude affects eligible-zone selection weight deterministically.
 
-## Authority
+### Game integration and presentation
 
-### Authoritative
+- `GameWorldStateStore` publishes Simulation, Building, and RCI snapshots as one world revision.
+- `planGameWorldTick` stages Building Growth, Simulation advancement, RCI reconciliation, validation, and receipts before publication.
+- Failure or stale revision leaves the committed state unchanged.
+- Existing Terraform, Road, Zone, Building, undo, and pointer workflows remain outside background RCI orchestration.
+- `WorldSaveV5` round-trips Simulation, Buildings, and `RciSaveV1` atomically with V1–V4 migration.
+- Compact HUD shows Population, Households, Housing, Employment, and signed R/C/I Demand/gate state.
+- HUD updates are projection-only and do not change active tools or pointer sessions.
 
-Citizen presence, qualifications, Relationships, Households/memberships, Dwelling Units/housing assignments, Workplaces/Employment assignments, migration queues/accumulator, smoothed Demand, Growth gates, deterministic seed, bounded revisions, and ID sequences.
+## Authoritative State
 
-### Derived
+- Citizen and historical-presence records.
+- Relationships.
+- Households and membership history.
+- Qualification history.
+- Dwelling Units and housing assignments.
+- Workplaces and Employment assignments.
+- Incoming and displaced queues plus fixed-point attraction accumulator.
+- Smoothed R/C/I Demand and Growth gates.
+- Deterministic seed, bounded revisions, and all generated-ID sequences.
 
-Current Household/home/job/qualification, demographic and family views, capacities, vacancies, unemployment, compatible jobs, underemployment, factor contributions, raw Demand targets, Building Growth policy, scorecards, and HUD values.
+## Derived State
 
-## Tick Pipeline
+Current Household, home, job, qualification, age bands, demographics, family projections, capacities, vacancies, overcrowding, unemployment, compatible vacancies, underemployment, factor contributions, raw Demand targets, Building Growth policy, scorecards, and HUD values.
+
+## Canonical Tick Pipeline
 
 ```text
-validate Simulation/Building/RCI revisions
+read one committed GameWorldState
+→ plan Building Growth with the current RCI policy
+→ stage Simulation + Building result
 → synchronize Dwelling and Workplace inventory
-→ daily Population lifecycle at 08:00
-→ Employment validity, unemployed matching, and one controlled upgrade
-→ compatible job projection and incoming request accumulation
-→ Housing relocation/materialization/displacement expiry
+→ evaluate daily Population lifecycle at 08:00
+→ reconcile Employment
+→ derive compatible vacancy supply and accumulate migration requests
+→ reconcile Housing, materialization, displacement, and expiry
 → derive RCI projection
-→ evaluate ordered Demand factors
-→ apply integer smoothing
+→ evaluate and smooth ordered Demand factors
 → update persisted hysteresis gates
-→ validate complete proposed RCI snapshot
-→ commit with stale-revision fences
+→ validate the complete staged state
+→ atomically publish one new GameWorldState revision
+→ update renderers and HUD from committed snapshots
 ```
-
-The game runtime composes this RCI plan with Building Growth and Simulation atomically in PR 6.
 
 ## Integrations
 
 ```mermaid
 flowchart LR
-  Simulation --> RCI
-  Buildings -->|lifecycle + capacity profiles| RCI
-  Employment --> Migration
-  RCI --> RciSaveV1
-  RciSaveV1 --> WorldSaveV5
+  Runtime[Simulation runtime] --> GameWorldTick
+  Buildings --> GameWorldTick
+  RCI --> GameWorldTick
+  GameWorldTick --> StateStore[GameWorldStateStore]
+  StateStore --> Buildings
+  StateStore --> RCI
+  StateStore --> Simulation
+  StateStore --> WorldSaveV5
+  StateStore --> HUD
   RCI -->|BuildingGrowthPolicy| Buildings
-  RCI -->|RciProjection| HUD
 ```
+
+Dependency direction remains acyclic: `building-core` and `simulation-core` do not import `rci-core`; `apps/game` composes them.
 
 ## Persistence
 
-`RciSaveV1` stores normalized histories, queues, fixed-point accumulator, smoothed Demand, gates, revisions, seed, and every sequence. Raw factor contributions, indexes, projections, policy objects, events, renderer state, and UI state are rebuilt.
+`RciSaveV1` stores normalized histories, queues, accumulator, Demand, gates, seed, revisions, and every sequence. Registry definitions, indexes, projections, events, policy objects, renderer state, active tools, pointer sessions, and HUD DOM are rebuilt.
+
+`WorldSaveV5` is the current envelope. V1–V4 decode in dependency order and initialize deterministic RCI authority from decoded Simulation and active Building inventory. Decode is all-or-nothing.
 
 ## Invariants and Failure Behavior
 
-- One authoritative source for each fact; all projections are rebuildable.
-- Failed/stale plans consume no IDs and publish no partial state.
-- Resident, home, job, and capacity cardinality rules are enforced.
-- Valid Employment is stable and never displaced by upgrades.
-- Relocation/materialization require adequate housing capacity.
-- Demand values are finite bounded integers; factor ordering is explicit.
-- Gate state persists because neutral-band behavior cannot be derived from current Demand alone.
-- Building Growth policy is caller-provided and cannot create a package dependency cycle.
-- Historical records remain addressable after terminal lifecycle changes.
+- One authoritative source for each fact; every projection is rebuildable.
+- Stable IDs are never reused and failed plans consume no sequence values.
+- A resident has exactly one active Household membership.
+- A Household and Dwelling Unit have at most one active housing assignment each.
+- An eligible Citizen has at most one active Employment assignment.
+- Housing and position capacities cannot be exceeded by reconciliation.
+- Relocation and incoming materialization require adequate vacant housing.
+- Valid workers are not displaced; upgrades require an already-vacant better fit.
+- Order-sensitive work uses explicit stable comparators and integer arithmetic.
+- Growth gates persist because neutral-band behavior depends on prior state.
+- Invalid Save, stale plan, or failed staged transaction publishes no partial world state.
+- Background simulation cannot switch tools, close menus, alter previews, or append undo records.
 
 ## Extension Points
 
-Definition registries and strategy contracts support new classifications, capacity profiles, migration archetypes, rate/pressure/Demand factors, matching policies, Education, Economy, Land Value, Services, and Utilities without replacing historical entity schemas.
+Registries and policies support new relationship, qualification, occupation, capacity, migration, lifecycle-rate, pressure, and Demand definitions. Future Education, Economy, Land Value, Services, Utilities, Traffic, and Citizen AI can consume projections or add factors without replacing historical entity schemas.
 
 ## Current Limitations
 
-Not yet written on this branch:
-
-- atomic game-world planner/store integration,
-- runtime Save/Load ownership wiring,
-- compact HUD and browser acceptance,
-- benchmark and final closure verification.
-
-These are delivered by PR 6 and then the whole PR 2–6 stack is tested and repaired at the final gate.
+- No Economy, wages, taxes, business profitability, utilities, services, traffic, Land Value, abandonment, density upgrades, Education gameplay, or Citizen movement AI.
+- HUD is intentionally compact and read-only.
+- Scale baseline covers `5,000` Citizens; larger performance budgets are not yet hard release gates.
+- Final exact-head package, repository, browser, Save/resume, and benchmark evidence is recorded only after the stacked PR 2–6 verification run completes.
 
 ## Handoff Checklist
 
 - Design: [RCI Demand & Occupancy Foundation v0.1](specs/2026-08-06-rci-demand-occupancy-foundation-v0-1.md)
+- Authority ADR: [Citizen records as population authority](adrs/0001-citizen-records-as-population-authority.md)
 - TDD packet: [execution index](tdd/README.md)
 - PR 1: [Core contracts and Save](verification/2026-08-06-rci-pr1-core-contracts-save-v1.md)
 - PR 2: [Population lifecycle](verification/2026-08-06-rci-pr2-population-lifecycle.md)
 - PR 3: [Housing and migration](verification/2026-08-06-rci-pr3-housing-migration.md)
 - PR 4: [Workplaces and Employment](verification/2026-08-06-rci-pr4-workplaces-employment.md)
 - PR 5: [Demand and Growth policy](verification/2026-08-06-rci-pr5-demand-growth.md)
-- Next plan: [PR 6 — Game integration and closure](tdd/2026-08-06-rci-pr6-game-integration-hud-verification.md)
+- PR 6: [Game integration](verification/2026-08-06-rci-pr6-game-integration.md)
+- Closure: [RCI Foundation v0.1](verification/2026-08-06-rci-foundation-v0-1-closure.md)
 - Related systems: [World](../world/README.md), [Buildings](../buildings/README.md), [Simulation Time](../simulation-time/README.md), [Economy](../economy/README.md)

@@ -1,13 +1,33 @@
 # RCI Demand & Occupancy System
 
-**Status:** Implemented — Foundation v0.1 with fully-occupied Growth deadlock hotfix  
-**Current implementation baseline:** `master`  
+**Foundation status:** Implemented, verified, and merged  
+**Foundation baseline:** `master` at `9409e301d2710db856b584fc555d5c4f714bba62`  
+**Post-closure correction:** PR #32 manually accepted; exact-head automated verification and merge pending  
 **Primary ownership:** `packages/rci-core`; `apps/game` owns atomic world orchestration, Save composition, and HUD presentation  
 **Persistence:** `RciSaveV1` inside `WorldSaveV5`
 
 ## Purpose
 
-Provide deterministic authority for Citizens, Relationships, Households, housing, Workplaces, Employment, migration, R/C/I Demand, and growth gates while keeping rendering, input tools, and UI outside the domain package.
+Provide deterministic authority for Citizens, Relationships, Households, housing, Workplaces, Employment, migration, R/C/I Demand, and Growth gates while keeping rendering, input tools, and UI outside the domain package.
+
+## Delivery Status
+
+RCI Foundation v0.1 was delivered through PR #26–#31 and closed on the exact verified source tree `75a04d244a3e27a7f6a89d46f90bd676d60626d4`. The final squash-merged `master` commit has the same tree.
+
+Manual gameplay later identified a fully-occupied Growth deadlock. PR #32 corrects the Demand target-buffer definitions. The original saved city now recovers naturally without a reset or Save migration:
+
+```text
+Initial deadlock
+Population 4 | Households 3 | Housing 3/3 | Employment 4/4
+Demand R -32 closed | C -29 closed | I -47 closed
+
+Manual recovery result
+Population 67 | Households 32 | Housing 32/34 | Employment 50/50
+Buildings 37
+Demand R +43 open | C +22 open | I +22 open
+```
+
+This manual result is accepted. PR #32 remains outside the `master` baseline until its own exact-head Lean CI and Full browser verification complete.
 
 ## Current Capabilities
 
@@ -44,12 +64,14 @@ Provide deterministic authority for Citizens, Relationships, Households, housing
 - Stable factor ordering and bounded integer scores in `-100_000..100_000`.
 - Integer smoothing into authoritative Demand state.
 - Persisted hysteresis gates: `>=15_000` opens, `<=5_000` closes, and the neutral band retains prior state.
-- Residential target-buffer Demand is based on wholly vacant Dwelling Units relative to active Households; unused resident capacity inside an assigned Dwelling Unit is not vacant housing.
-- Commercial and Industrial target-buffer Demand normalizes vacancy pressure against a 20% vacant-position target with a minimum target of one vacant position.
-- A fully occupied city can recover closed Residential, Commercial, and Industrial Growth gates through subsequent daily Demand evaluations without Save migration or world reset.
-- Negative Demand suppresses future growth but never abandons existing Buildings or Zones.
+- Residential target-buffer Demand uses wholly vacant Dwelling Units relative to active Households; spare beds inside an assigned Dwelling Unit are not vacant housing.
+- Commercial and Industrial target-buffer Demand normalizes vacancy pressure against a 20% vacant-position target with a minimum target of one position.
+- A fully occupied city can recover closed R/C/I Growth gates through later daily Demand evaluations.
+- Negative Demand suppresses future Growth but never abandons existing Buildings or Zones.
 - RCI derives a caller-supplied `BuildingGrowthPolicy`; Building Core never imports RCI.
 - Demand magnitude affects eligible-zone selection weight deterministically.
+
+The corrected target-buffer behavior above is implemented in PR #32 and becomes the authoritative runtime contract after that PR is merged.
 
 ### Game integration and presentation
 
@@ -118,7 +140,7 @@ Dependency direction remains acyclic: `building-core` and `simulation-core` do n
 
 `RciSaveV1` stores normalized histories, queues, accumulator, Demand, gates, seed, revisions, and every sequence. Registry definitions, indexes, projections, events, policy objects, renderer state, active tools, pointer sessions, and HUD DOM are rebuilt.
 
-`WorldSaveV5` is the current envelope. V1–V4 decode in dependency order and initialize deterministic RCI authority from decoded Simulation and active Building inventory. Decode is all-or-nothing. The fully-occupied Growth hotfix changes derived factor inputs and evaluation only and requires no Save schema migration.
+`WorldSaveV5` is the current envelope. V1–V4 decode in dependency order and initialize deterministic RCI authority from decoded Simulation and active Building inventory. Decode is all-or-nothing. PR #32 changes only derived Demand factor inputs and evaluation; it requires no Save schema migration.
 
 ## Invariants and Failure Behavior
 
@@ -130,7 +152,7 @@ Dependency direction remains acyclic: `building-core` and `simulation-core` do n
 - Housing and position capacities cannot be exceeded by reconciliation.
 - Relocation and incoming materialization require adequate vacant housing.
 - Demand must use the same wholly vacant Dwelling Unit authority required by Household materialization.
-- A target-buffer factor at full occupancy must produce a reachable score above its Growth-gate opening threshold.
+- A target-buffer factor at full occupancy must be able to exceed its Growth-gate opening threshold.
 - Valid workers are not displaced; upgrades require an already-vacant better fit.
 - Order-sensitive work uses explicit stable comparators and integer arithmetic.
 - Growth gates persist because neutral-band behavior depends on prior state.
@@ -147,17 +169,17 @@ Registries and policies support new relationship, qualification, occupation, cap
 - HUD is intentionally compact and read-only.
 - Scale baseline covers `5,000` Citizens; larger performance budgets are not yet hard release gates.
 
-## Handoff Checklist
+## Handoff Index
 
 - Design: [RCI Demand & Occupancy Foundation v0.1](specs/2026-08-06-rci-demand-occupancy-foundation-v0-1.md)
 - Authority ADR: [Citizen records as population authority](adrs/0001-citizen-records-as-population-authority.md)
-- TDD packet: [execution index](tdd/README.md)
+- TDD execution packet: [execution index](tdd/README.md)
 - PR 1: [Core contracts and Save](verification/2026-08-06-rci-pr1-core-contracts-save-v1.md)
 - PR 2: [Population lifecycle](verification/2026-08-06-rci-pr2-population-lifecycle.md)
 - PR 3: [Housing and migration](verification/2026-08-06-rci-pr3-housing-migration.md)
 - PR 4: [Workplaces and Employment](verification/2026-08-06-rci-pr4-workplaces-employment.md)
 - PR 5: [Demand and Growth policy](verification/2026-08-06-rci-pr5-demand-growth.md)
 - PR 6: [Game integration](verification/2026-08-06-rci-pr6-game-integration.md)
-- Closure: [RCI Foundation v0.1](verification/2026-08-06-rci-foundation-v0-1-closure.md)
-- Hotfix: [Fully-occupied Growth deadlock](verification/2026-08-06-rci-occupied-dwelling-demand-deadlock.md)
+- Foundation closure: [RCI Foundation v0.1](verification/2026-08-06-rci-foundation-v0-1-closure.md)
+- Post-closure correction: [Fully-occupied Growth deadlock](verification/2026-08-06-rci-occupied-dwelling-demand-deadlock.md)
 - Related systems: [World](../world/README.md), [Buildings](../buildings/README.md), [Simulation Time](../simulation-time/README.md), [Economy](../economy/README.md)

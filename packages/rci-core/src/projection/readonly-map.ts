@@ -18,10 +18,7 @@ export class ReadonlyMapView<K, V> implements ReadonlyMap<K, V> {
     return this.#source.has(key);
   }
 
-  forEach(
-    callbackfn: (value: V, key: K, map: ReadonlyMap<K, V>) => void,
-    thisArg?: unknown,
-  ): void {
+  forEach(callbackfn: (value: V, key: K, map: ReadonlyMap<K, V>) => void, thisArg?: unknown): void {
     for (const [key, value] of this.#source) {
       callbackfn.call(thisArg, value, key, this);
     }

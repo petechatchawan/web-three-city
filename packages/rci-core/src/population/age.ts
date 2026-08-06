@@ -6,10 +6,7 @@ export const RCI_TICKS_PER_YEAR = RCI_TICKS_PER_DAY * RCI_DAYS_PER_YEAR;
 export const RCI_DAILY_LIFECYCLE_HOUR = 8;
 
 export type AgeBandDefinitionId =
-  | 'age-band.early-childhood'
-  | 'age-band.school-age'
-  | 'age-band.working-age'
-  | 'age-band.senior';
+  'age-band.early-childhood' | 'age-band.school-age' | 'age-band.working-age' | 'age-band.senior';
 
 function assertSafeTick(value: number): void {
   if (!Number.isSafeInteger(value)) {
@@ -27,10 +24,7 @@ export function ageYearsAtTick(bornAtTick: number, absoluteTick: number): number
   return Math.floor(elapsed / RCI_TICKS_PER_YEAR);
 }
 
-export function ageBandAtTick(
-  bornAtTick: number,
-  absoluteTick: number,
-): AgeBandDefinitionId {
+export function ageBandAtTick(bornAtTick: number, absoluteTick: number): AgeBandDefinitionId {
   const age = ageYearsAtTick(bornAtTick, absoluteTick);
   if (age < 6) return 'age-band.early-childhood';
   if (age < 18) return 'age-band.school-age';

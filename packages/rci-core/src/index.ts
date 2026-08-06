@@ -56,6 +56,19 @@ export type {
   RelationshipTypeDefinition,
   SexDefinition,
 } from './definitions/contracts.js';
+export { decodeRciSaveV1, encodeRciSaveV1 } from './persistence/serialization.js';
+export type { RciSaveError, RciSaveErrorCode, RciSaveV1 } from './persistence/serialization.js';
+export {
+  RCI_DAYS_PER_YEAR,
+  RCI_TICKS_PER_DAY,
+  RCI_TICKS_PER_YEAR,
+  ageBandAtTick,
+  ageYearsAtTick,
+  isDailyLifecycleTick,
+} from './population/age.js';
+export type { AgeBandDefinitionId } from './population/age.js';
+export { createRciCurrentStateIndex } from './projection/population-index.js';
+export type { RciCurrentStateIndex } from './projection/population-index.js';
 export {
   DEFAULT_RCI_DETERMINISTIC_SEED,
   createInitialRciSnapshot,
@@ -75,5 +88,3 @@ export type {
 } from './rci-snapshot.js';
 export { validateRciSnapshot } from './validation/rci-validation.js';
 export type { RciValidationIssue, RciValidationResult } from './validation/rci-validation.js';
-export { decodeRciSaveV1, encodeRciSaveV1 } from './persistence/serialization.js';
-export type { RciSaveError, RciSaveErrorCode, RciSaveV1 } from './persistence/serialization.js';

@@ -3,10 +3,7 @@ import { RciContractError, canonicalCitizenPair } from '../src/index.js';
 
 describe('RCI foundation contracts', () => {
   it('canonicalizes undirected citizen pairs lexically', () => {
-    expect(canonicalCitizenPair('citizen:12', 'citizen:2')).toEqual([
-      'citizen:12',
-      'citizen:2',
-    ]);
+    expect(canonicalCitizenPair('citizen:12', 'citizen:2')).toEqual(['citizen:12', 'citizen:2']);
   });
 
   it('rejects self relationships', () => {

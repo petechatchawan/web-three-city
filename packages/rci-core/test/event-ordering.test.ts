@@ -31,7 +31,9 @@ const events: readonly RciDomainEvent[] = [
 
 describe('RCI domain event ordering', () => {
   it('orders by tick, priority, entity kind, stable id, and sequence', () => {
-    expect(orderRciDomainEvents(events).map((event) => event.type)).toEqual([
+    const ordered = orderRciDomainEvents(events);
+    expect(ordered.map((event) => event.priority)).toEqual([10, 30, 40]);
+    expect(ordered.map((event) => event.type)).toEqual([
       'citizen.reached-age-band',
       'citizen.born',
       'citizen.died',

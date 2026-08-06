@@ -56,3 +56,27 @@ export type {
   RelationshipTypeDefinition,
   SexDefinition,
 } from './definitions/contracts.js';
+export {
+  DEFAULT_RCI_DETERMINISTIC_SEED,
+  createInitialRciSnapshot,
+  createRciSnapshot,
+} from './rci-snapshot.js';
+export type {
+  EmploymentSnapshot,
+  HouseholdSnapshot,
+  HousingSnapshot,
+  MigrationSnapshot,
+  PopulationSnapshot,
+  RciDemandSnapshot,
+  RciSequenceState,
+  RciSnapshot,
+  RciValidationContext,
+  RelationshipSnapshot,
+} from './rci-snapshot.js';
+export { validateRciSnapshot } from './validation/rci-validation.js';
+export type {
+  RciValidationIssue,
+  RciValidationResult,
+} from './validation/rci-validation.js';
+export { decodeRciSaveV1, encodeRciSaveV1 } from './persistence/serialization.js';
+export type { RciSaveError, RciSaveErrorCode, RciSaveV1 } from './persistence/serialization.js';

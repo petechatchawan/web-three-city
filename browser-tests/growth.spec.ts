@@ -188,10 +188,12 @@ test('persists WorldSaveV5 and loads paused at the exact logical tick', async ({
     readonly schemaVersion?: number;
     readonly simulation?: { readonly absoluteTick?: number; readonly growthSequence?: number };
     readonly buildings?: { readonly schemaVersion?: number };
+    readonly rci?: { readonly schemaVersion?: number };
   };
   expect(parsed.schemaVersion).toBe(5);
   expect(parsed.simulation).toMatchObject({ absoluteTick: 12, growthSequence: 1 });
   expect(parsed.buildings?.schemaVersion).toBe(2);
+  expect(parsed.rci?.schemaVersion).toBe(1);
 
   await stepLogicalTicks(page, 3);
   await page.getByRole('button', { name: 'Load world' }).click();

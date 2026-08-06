@@ -97,7 +97,9 @@ export function planRciTick(input: RciTickInput): RciTickPlan {
     buildingsAfter: input.buildingsAfter,
     registries: input.registries,
     evaluationTick: input.simulationAfter.absoluteTick,
-    displacedExpiryTicks: input.configuration.displacedExpiryTicks,
+    ...(input.configuration.displacedExpiryTicks === undefined
+      ? {}
+      : { displacedExpiryTicks: input.configuration.displacedExpiryTicks }),
   }).proposedSnapshot;
   const emittedEvents: RciDomainEvent[] = [];
   const daily = isDailyLifecycleTick(

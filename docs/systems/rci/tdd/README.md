@@ -23,6 +23,21 @@ The plans deliberately avoid a single oversized implementation branch. Merge eac
 | 5 | [Demand and building-growth policy](2026-08-06-rci-pr5-demand-growth-policy.md) | Fixed-point R/C/I demand, smoothing, persisted hysteresis gates, caller-supplied growth policy | PR 4 |
 | 6 | [Atomic game integration, HUD, browser acceptance, and final verification](2026-08-06-rci-pr6-game-integration-hud-verification.md) | End-to-end world tick, final V5 save/load, HUD, browser scenarios, benchmark evidence, closure | PR 5 |
 
+## Binding implementation clarifications
+
+The following contracts were locked during implementation-plan self-review. They are normative and supersede any abbreviated wording inside an individual PR plan.
+
+1. **Registry boundary** — generic `createDefinitionRegistry` and canonical sorting helpers remain internal. The intended public content entry point is `createFoundationRciRegistries()` together with explicit registry types. App code must not assemble foundation definitions by importing internal modules.
+2. **Canonical relationship helper** — `canonicalCitizenPair()` is an internal relationship helper. Internal unit tests may import its owning module directly; it is not required in the package root runtime export list.
+3. **Annual-rate units** — authored annual probabilities use integer millionths in `0..1_000_000`, where `1_000_000` means probability `1.0` or `100%`. Use names such as `annualRateMillionths`; do not use ambiguous `annualRateMilli` or `milli-percent` terminology.
+4. **Capacity-profile IDs** — all profile IDs include the canonical `capacity.` prefix, for example `capacity.commercial.shop.v1` and `capacity.industrial.factory.v1`. Short labels in tables are descriptive only.
+5. **Housing capacity** — both displaced-Household relocation and incoming-Household materialization require a vacant Dwelling Unit with sufficient resident capacity. Relocation never creates new overcrowding. Birth may cause overcrowding only while the Household remains in its current valid Unit.
+6. **State-store responsibility** — `GameWorldStateStore` owns atomic storage/replacement only. Cross-domain coherence is validated by the world-tick planner/validator before `replace()`; the store does not duplicate RCI/Building/Simulation business validation.
+7. **Save revisions** — `RciSaveV1` uses an explicit versioned revision object with named fields (`root`, `population`, `relationships`, `households`, `housing`, `employment`, `migration`, `demand`) rather than an open `Record<string, number>`.
+8. **Public API growth** — the PR 1 package boundary is the foundation subset. Later PRs deliberately add `planRciTick`, `commitRciTick`, `createRciProjection`, and `createBuildingGrowthPolicy` as their implementations become real; no placeholder runtime export is added early.
+
+A plan implementation that conflicts with these clarifications must stop and update the plan before production code is committed.
+
 ## Branch and review policy
 
 Use one branch per plan:

@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { PROBABILITY_SCALE, deterministicSample } from '../src/index.js';
+import {
+  DETERMINISTIC_SAMPLE_ALGORITHM,
+  PROBABILITY_SCALE,
+  deterministicSample,
+} from '../src/index.js';
 
 describe('RCI deterministic counter-based sampling', () => {
   it('locks canonical FNV-1a v1 golden vectors', () => {
+    expect(DETERMINISTIC_SAMPLE_ALGORITHM).toBe('fnv1a32-null-delimited-v1');
     expect(
       deterministicSample({
         seed: 1,

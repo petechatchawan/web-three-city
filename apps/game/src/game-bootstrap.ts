@@ -10,7 +10,15 @@ import {
 } from '@web-three-city/building-core';
 import { BuildingPresentation } from '@web-three-city/building-three';
 import { OrthographicCameraRig } from '@web-three-city/camera-input';
-import type { SimulationSnapshot } from '@web-three-city/simulation-core';
+import {
+  createFoundationRciRegistries,
+  createInitialRciSnapshot,
+  type RciSnapshot,
+} from '@web-three-city/rci-core';
+import {
+  createInitialSimulationSnapshot,
+  type SimulationSnapshot,
+} from '@web-three-city/simulation-core';
 import {
   commitRoadMutation,
   createEmptyRoadSnapshot,
@@ -82,13 +90,16 @@ import { guardRoadPlanWithZones } from './road-zone-guard.js';
 import { createRoadPlacementEnvironment } from './road-placement-environment.js';
 import { guardTerraformPlanWithOccupancy } from './terraform-occupancy-guard.js';
 import { createZonePlacementEnvironment } from './zone-placement-environment.js';
-import { decodeWorldSave, encodeWorldSaveV3, type DecodedWorldState } from './world-save.js';
+import { decodeWorldSave, encodeWorldSaveV5, type DecodedWorldState } from './world-save.js';
 import { guardZonePlanWithBuildings, type GameZoneInvalidReason } from './zone-building-guard.js';
-import { executeWorldGrowthTick } from './world-growth-transaction.js';
+import { executeGameWorldTick } from './game-world-tick.js';
+import { GameWorldStateStore } from './game-world-state.js';
+import { mountRciHud } from './rci-hud.js';
 import { WorldUndoStore, type WorldUndoEntry } from './world-undo.js';
 import { renderGameUi, type GameViewportLayout, type QualityLevel } from './game-ui.js';
 
-const WORLD_SAVE_KEY = 'web-three-city:world-save:v3';
+const WORLD_SAVE_KEY = 'web-three-city:world-save:v5';
+const LEGACY_WORLD_SAVE_V3_KEY = 'web-three-city:world-save:v3';
 const LEGACY_WORLD_SAVE_V2_KEY = 'web-three-city:world-save:v2';
 const LEGACY_WORLD_SAVE_KEY = 'web-three-city:world-save:v1';
 const LEGACY_TERRAIN_SAVE_KEY = 'web-three-city:terrain-save:v1';
@@ -341,6 +352,18 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
   let roadsSnapshot = createEmptyRoadSnapshot(WORLD_CONFIG);
   let zonesSnapshot = createEmptyZoneSnapshot(WORLD_CONFIG);
   let buildingsSnapshot = createEmptyBuildingSnapshot(WORLD_CONFIG);
+  const rciRegistries = createFoundationRciRegistries();
+  let simulationSnapshot = createInitialSimulationSnapshot();
+  let rciSnapshot: RciSnapshot = createInitialRciSnapshot({
+    absoluteTick: simulationSnapshot.absoluteTick,
+  });
+  const worldStateStore = new GameWorldStateStore({
+    revision: 0,
+    simulation: simulationSnapshot,
+    buildings: buildingsSnapshot,
+    rci: rciSnapshot,
+  });
+  let pendingLoadedSimulation: SimulationSnapshot | null = null;
   let roadEnvironment = createRoadPlacementEnvironment(snapshot, waterSnapshot, WORLD_CONFIG);
   let zoneEnvironment = createZonePlacementEnvironment(
     snapshot,
@@ -459,6 +482,8 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
   roadPresentation.loadAll(roadsSnapshot, roadEnvironment);
   zonePresentation.loadAll(zonesSnapshot);
   buildingPresentation.load(buildingsSnapshot);
+  const rciHud = mountRciHud(ui.panel);
+  rciHud.update(rciSnapshot, rciRegistries, simulationSnapshot.absoluteTick);
 
   const grid = new TerrainGridPresentation(scene, WORLD_CONFIG);
   grid.setVisible(false);
@@ -490,7 +515,9 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
       buildings: buildingsSnapshot,
       buildingEnvironment,
     };
-    replacingWorld = true;
+  const previousSimulationSnapshot = simulationSnapshot;
+  const previousRciSnapshot = rciSnapshot;
+  replacingWorld = true;
     try {
       terrain.load(nextWorld.terrain);
       const presentationStart = performance.now();
@@ -512,6 +539,17 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
       zoneEnvironment = nextWorld.zoneEnvironment;
       buildingsSnapshot = nextWorld.buildings;
       buildingEnvironment = nextWorld.buildingEnvironment;
+      if ('rci' in nextWorld) {
+        simulationSnapshot = nextWorld.simulation;
+        rciSnapshot = nextWorld.rci;
+        pendingLoadedSimulation = nextWorld.simulation;
+      }
+      worldStateStore.synchronizeExternal({
+        simulation: simulationSnapshot,
+        buildings: buildingsSnapshot,
+        rci: rciSnapshot,
+      });
+      rciHud.update(rciSnapshot, rciRegistries, simulationSnapshot.absoluteTick);
       ui.setZoneCounts(zoneCounts(zonesSnapshot));
       ui.setBuildingCount(buildingCount(buildingsSnapshot));
       waterPresentationDurationMs = nextWaterPresentationDurationMs;
@@ -533,6 +571,14 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
       } catch {
         // Context restoration can rebuild the last committed authoritative world.
       }
+      simulationSnapshot = previousSimulationSnapshot;
+      rciSnapshot = previousRciSnapshot;
+      worldStateStore.synchronizeExternal({
+        simulation: simulationSnapshot,
+        buildings: buildingsSnapshot,
+        rci: rciSnapshot,
+      });
+      rciHud.update(rciSnapshot, rciRegistries, simulationSnapshot.absoluteTick);
       ui.setStatus('World update failed');
       return false;
     } finally {
@@ -756,27 +802,39 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
   };
 
   const runBackgroundGrowthTick = (simulation: SimulationSnapshot): SimulationSnapshot => {
-    const result = executeWorldGrowthTick({
-      state: Object.freeze({ simulation, buildings: buildingsSnapshot }),
-      environment: buildingEnvironment,
-      config: WORLD_CONFIG,
-      reservedCells: inputRef.current?.getBackgroundGrowthReservations() ?? Object.freeze([]),
-    });
-    if (result.buildings.revision !== buildingsSnapshot.revision) {
-      buildingsSnapshot = result.buildings;
-      buildingPresentation.load(buildingsSnapshot);
-      zoneEnvironment = createZonePlacementEnvironment(
-        snapshot,
-        waterSnapshot,
-        roadsSnapshot,
-        createBuildingWorldOccupancy(buildingsSnapshot),
-        WORLD_CONFIG,
-      );
-      buildingCommitCount += 1;
-      ui.setBuildingCount(buildingCount(buildingsSnapshot));
-    }
-    return result.simulation;
-  };
+  const baseSimulation = pendingLoadedSimulation ?? simulation;
+  pendingLoadedSimulation = null;
+  simulationSnapshot = baseSimulation;
+  worldStateStore.synchronizeExternal({
+    simulation: baseSimulation,
+    buildings: buildingsSnapshot,
+    rci: rciSnapshot,
+  });
+  const result = executeGameWorldTick({
+    store: worldStateStore,
+    environment: buildingEnvironment,
+    config: WORLD_CONFIG,
+    registries: rciRegistries,
+    reservedCells: inputRef.current?.getBackgroundGrowthReservations() ?? Object.freeze([]),
+  });
+  simulationSnapshot = result.state.simulation;
+  rciSnapshot = result.state.rci;
+  if (result.state.buildings.revision !== buildingsSnapshot.revision) {
+    buildingsSnapshot = result.state.buildings;
+    buildingPresentation.load(buildingsSnapshot);
+    zoneEnvironment = createZonePlacementEnvironment(
+      snapshot,
+      waterSnapshot,
+      roadsSnapshot,
+      createBuildingWorldOccupancy(buildingsSnapshot),
+      WORLD_CONFIG,
+    );
+    buildingCommitCount += 1;
+    ui.setBuildingCount(buildingCount(buildingsSnapshot));
+  }
+  rciHud.update(rciSnapshot, rciRegistries, simulationSnapshot.absoluteTick);
+  return simulationSnapshot;
+};
 
   const resetCamera = (): void => {
     const layout = ui.measureViewport();
@@ -893,7 +951,14 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
       localStorage.setItem(
         WORLD_SAVE_KEY,
         JSON.stringify(
-          encodeWorldSaveV3(snapshot, roadsSnapshot, zonesSnapshot, buildingsSnapshot),
+          encodeWorldSaveV5(
+          snapshot,
+          roadsSnapshot,
+          zonesSnapshot,
+          buildingsSnapshot,
+          simulationSnapshot,
+          rciSnapshot,
+        ),
         ),
       );
       ui.setStatus('Saved');
@@ -906,6 +971,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
       input.clearActiveSession();
       const saved =
         localStorage.getItem(WORLD_SAVE_KEY) ??
+          localStorage.getItem(LEGACY_WORLD_SAVE_V3_KEY) ??
         localStorage.getItem(LEGACY_WORLD_SAVE_V2_KEY) ??
         localStorage.getItem(LEGACY_WORLD_SAVE_KEY) ??
         localStorage.getItem(LEGACY_TERRAIN_SAVE_KEY);
@@ -1237,6 +1303,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     abortController.abort();
     window.cancelAnimationFrame(animationFrame);
     input.dispose();
+      rciHud.dispose();
     roadPreview.dispose();
     zonePreview.dispose();
     preview.dispose();

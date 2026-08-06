@@ -1,0 +1,64 @@
+name: Align browser contracts with WorldSaveV5
+
+on:
+  push:
+    branches: [feat/rci-game-integration-v0-1]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/rci-game-integration-v0-1
+      - uses: actions/setup-python@v5
+      - name: Patch current WorldSave browser contracts
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          replacements = {
+              'browser-tests/building.spec.ts': [
+                  ("const SAVE_KEY = 'web-three-city:world-save:v3';", "const SAVE_KEY = 'web-three-city:world-save:v5';"),
+                  ('across guards, Undo, and Save V3', 'across guards, Undo, and Save V5'),
+                  ("    schemaVersion: 3,\n    buildings: {\n      kind: 'building-save',\n      schemaVersion: 1,", "    schemaVersion: 5,\n    buildings: {\n      kind: 'building-save',\n      schemaVersion: 2,"),
+              ],
+              'browser-tests/growth.spec.ts': [
+                  ("const SAVE_KEY = 'web-three-city:world-save:v3';", "const SAVE_KEY = 'web-three-city:world-save:v5';"),
+                  ('persists WorldSaveV4 and loads paused', 'persists WorldSaveV5 and loads paused'),
+                  ('expect(parsed.schemaVersion).toBe(4);', 'expect(parsed.schemaVersion).toBe(5);'),
+              ],
+              'browser-tests/road.spec.ts': [
+                  ("const WORLD_SAVE_KEY = 'web-three-city:world-save:v3';", "const WORLD_SAVE_KEY = 'web-three-city:world-save:v5';"),
+                  ('WorldSaveV3 restores Roads', 'WorldSaveV5 restores Roads'),
+              ],
+              'browser-tests/water.spec.ts': [
+                  ("const WORLD_SAVE_KEY = 'web-three-city:world-save:v3';", "const WORLD_SAVE_KEY = 'web-three-city:world-save:v5';"),
+                  ('WorldSaveV3', 'WorldSaveV5'),
+              ],
+              'browser-tests/zoning.spec.ts': [
+                  ("const WORLD_SAVE_KEY = 'web-three-city:world-save:v3';", "const WORLD_SAVE_KEY = 'web-three-city:world-save:v5';"),
+                  ('WorldSaveV3', 'WorldSaveV5'),
+              ],
+          }
+
+          for filename, pairs in replacements.items():
+              path = Path(filename)
+              text = path.read_text()
+              for old, new in pairs:
+                  if old not in text:
+                      raise SystemExit(f'missing expected contract in {filename}: {old!r}')
+                  text = text.replace(old, new)
+              path.write_text(text)
+          PY
+      - name: Commit contract alignment and remove workflow
+        run: |
+          rm .github/workflows/rci-browser-v5-contracts.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "test(browser): align Save contracts with WorldSaveV5"
+          git push origin HEAD:feat/rci-game-integration-v0-1

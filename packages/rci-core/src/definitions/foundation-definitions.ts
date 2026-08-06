@@ -96,8 +96,7 @@ function freezeBand(band: AnnualRateBandDefinition): AnnualRateBandDefinition {
   if (
     !Number.isSafeInteger(band.minAge) ||
     band.minAge < 0 ||
-    (band.maxAge !== null &&
-      (!Number.isSafeInteger(band.maxAge) || band.maxAge < band.minAge)) ||
+    (band.maxAge !== null && (!Number.isSafeInteger(band.maxAge) || band.maxAge < band.minAge)) ||
     !Number.isSafeInteger(band.annualRateMillionth) ||
     band.annualRateMillionth < 0 ||
     band.annualRateMillionth > 1_000_000

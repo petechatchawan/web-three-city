@@ -88,9 +88,9 @@ describe('RCI Demand foundation', () => {
     expect(policy.allowsZone('residential')).toBe(true);
     expect(policy.allowsZone('commercial')).toBe(true);
     expect(policy.allowsZone('industrial')).toBe(true);
-    expect(policy.zoneWeightMilli('residential')).toBe(100_000);
-    expect(policy.zoneWeightMilli('commercial')).toBe(100_000);
-    expect(policy.zoneWeightMilli('industrial')).toBe(100_000);
+    expect(policy.zoneWeightMilli('residential')).toBe(1_000);
+    expect(policy.zoneWeightMilli('commercial')).toBe(1_000);
+    expect(policy.zoneWeightMilli('industrial')).toBe(1_000);
   });
 
   it('derives a caller policy without mutating Building state', () => {

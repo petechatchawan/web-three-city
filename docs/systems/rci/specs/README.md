@@ -30,3 +30,5 @@ For handoff and future maintenance, use this precedence:
 1. [`../README.md`](../README.md) for current runtime behavior and delivery state.
 2. Verification records for exact evidence and closure boundaries.
 3. The design specification for approved architectural intent and historical decisions.
+
+The TDD packet is implementation history and must not be used as the current work-status source after closure.

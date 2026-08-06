@@ -27,10 +27,7 @@ export interface PopulationLifecycleResult {
   readonly events: readonly RciDomainEvent[];
 }
 
-function annualRateForAge(
-  bands: readonly AnnualRateBandDefinition[],
-  age: number,
-): number {
+function annualRateForAge(bands: readonly AnnualRateBandDefinition[], age: number): number {
   return (
     bands.find((band) => age >= band.minAge && (band.maxAge === null || age <= band.maxAge))
       ?.annualRateMillionth ?? 0
@@ -58,7 +55,9 @@ function activePartnerFor(
       candidate.participantCitizenIds.includes(citizenId),
   );
   if (relationship === undefined || relationship.orientation !== 'undirected') return null;
-  return relationship.participantCitizenIds.find((participant) => participant !== citizenId) ?? null;
+  return (
+    relationship.participantCitizenIds.find((participant) => participant !== citizenId) ?? null
+  );
 }
 
 function eventBase(
@@ -72,13 +71,15 @@ function eventBase(
   return { type, tick, priority, entityKind, entityId, sequence } as const;
 }
 
-export function evaluateDailyPopulationLifecycle(input: Readonly<{
-  snapshot: RciSnapshot;
-  evaluationTick: number;
-  registries: RciDefinitionRegistries;
-  populationRateProfile: PopulationRateProfileDefinition;
-  qualificationResolver?: QualificationResolver;
-}>): PopulationLifecycleResult {
+export function evaluateDailyPopulationLifecycle(
+  input: Readonly<{
+    snapshot: RciSnapshot;
+    evaluationTick: number;
+    registries: RciDefinitionRegistries;
+    populationRateProfile: PopulationRateProfileDefinition;
+    qualificationResolver?: QualificationResolver;
+  }>,
+): PopulationLifecycleResult {
   const base = canonicalizeRciSnapshot(input.snapshot);
   const originalResidents = base.population.citizens
     .filter((citizen) => citizen.presence === 'resident')
@@ -159,7 +160,11 @@ export function evaluateDailyPopulationLifecycle(input: Readonly<{
   }
 
   for (const mother of originalResidents) {
-    if (!input.populationRateProfile.fertilityEligibleSexDefinitionIds.includes(mother.sexDefinitionId)) {
+    if (
+      !input.populationRateProfile.fertilityEligibleSexDefinitionIds.includes(
+        mother.sexDefinitionId,
+      )
+    ) {
       continue;
     }
     const membership = activeMembershipFor(memberships, mother.citizenId);
@@ -235,14 +240,7 @@ export function evaluateDailyPopulationLifecycle(input: Readonly<{
     }
     events.push(
       Object.freeze({
-        ...eventBase(
-          'citizen.born',
-          input.evaluationTick,
-          30,
-          'citizen',
-          childId,
-          nextEvent,
-        ),
+        ...eventBase('citizen.born', input.evaluationTick, 30, 'citizen', childId, nextEvent),
       }),
     );
     nextCitizen += 1;

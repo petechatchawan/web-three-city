@@ -13,7 +13,7 @@ export class GameWorldStateStore {
   #state: GameWorldState;
 
   constructor(initialState: GameWorldState) {
-    this.#state = Object.freeze({ ...initialState });
+    this.#state = Object.freeze(initialState);
   }
 
   snapshot(): GameWorldState {
@@ -27,7 +27,7 @@ export class GameWorldStateStore {
     if (nextState.revision !== expectedRevision + 1) {
       throw new Error('game-world-state:invalid-next-revision');
     }
-    this.#state = Object.freeze({ ...nextState });
+    this.#state = Object.freeze(nextState);
     return this.#state;
   }
 

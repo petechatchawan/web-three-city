@@ -36,12 +36,12 @@ jobs:
                   ('WorldSaveV3 restores Roads', 'WorldSaveV5 restores Roads'),
               ],
               'browser-tests/water.spec.ts': [
-                  ("const WORLD_SAVE_KEY = 'web-three-city:world-save:v3';", "const WORLD_SAVE_KEY = 'web-three-city:world-save:v5';"),
-                  ('WorldSaveV3', 'WorldSaveV5'),
+                  ("const SAVE_KEY = 'web-three-city:world-save:v3';", "const SAVE_KEY = 'web-three-city:world-save:v5';"),
               ],
               'browser-tests/zoning.spec.ts': [
-                  ("const WORLD_SAVE_KEY = 'web-three-city:world-save:v3';", "const WORLD_SAVE_KEY = 'web-three-city:world-save:v5';"),
-                  ('WorldSaveV3', 'WorldSaveV5'),
+                  ("const SAVE_KEY = 'web-three-city:world-save:v3';", "const SAVE_KEY = 'web-three-city:world-save:v5';"),
+                  ('round-trips WorldSaveV3', 'round-trips WorldSaveV5'),
+                  ("    schemaVersion: 3,\n    zones: { schemaVersion: 1 },\n    buildings: { schemaVersion: 1, instances: [] },", "    schemaVersion: 5,\n    zones: { schemaVersion: 1 },\n    buildings: { schemaVersion: 2, instances: [] },\n    rci: { schemaVersion: 1 },"),
               ],
           }
 

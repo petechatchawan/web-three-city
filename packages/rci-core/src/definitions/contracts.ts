@@ -54,8 +54,17 @@ export interface DemandFactorDefinitionContract {
   readonly id: string;
 }
 
+export interface AnnualRateBandDefinition {
+  readonly minAge: number;
+  readonly maxAge: number | null;
+  readonly annualRateMillionth: number;
+}
+
 export interface PopulationRateProfileDefinition {
   readonly id: string;
+  readonly fertilityEligibleSexDefinitionIds: readonly string[];
+  readonly fertilityBands: readonly AnnualRateBandDefinition[];
+  readonly mortalityBands: readonly AnnualRateBandDefinition[];
 }
 
 export interface RciDefinitionRegistries {

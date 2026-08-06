@@ -43,6 +43,15 @@ function ratioPressure(numerator: number, denominator: number): number {
   return clampDemandMilli((numerator * 100_000) / denominator);
 }
 
+function targetCountPressure(currentCount: number, targetCount: number): number {
+  return clampDemandMilli(((targetCount - currentCount) * 100_000) / targetCount);
+}
+
+function vacantPositionBufferPressure(vacantCount: number, positionCapacity: number): number {
+  const desiredVacantBuffer = Math.max(1, Math.ceil(positionCapacity * 0.2));
+  return targetCountPressure(vacantCount, desiredVacantBuffer);
+}
+
 export const FOUNDATION_RCI_DEMAND_FACTORS: readonly RciDemandFactorDefinition[] = Object.freeze([
   Object.freeze({
     id: 'demand.commercial.labor-shortage',
@@ -65,12 +74,9 @@ export const FOUNDATION_RCI_DEMAND_FACTORS: readonly RciDemandFactorDefinition[]
     channel: 'commercial' as const,
     weightMilli: 700,
     evaluate: (context: RciDemandFactorContext) =>
-      clampDemandMilli(
-        20_000 -
-          ratioPressure(
-            context.commercialVacantPositionCount,
-            Math.max(1, context.commercialPositionCapacity),
-          ),
+      vacantPositionBufferPressure(
+        context.commercialVacantPositionCount,
+        context.commercialPositionCapacity,
       ),
   }),
   Object.freeze({
@@ -94,12 +100,9 @@ export const FOUNDATION_RCI_DEMAND_FACTORS: readonly RciDemandFactorDefinition[]
     channel: 'industrial' as const,
     weightMilli: 700,
     evaluate: (context: RciDemandFactorContext) =>
-      clampDemandMilli(
-        20_000 -
-          ratioPressure(
-            context.industrialVacantPositionCount,
-            Math.max(1, context.industrialPositionCapacity),
-          ),
+      vacantPositionBufferPressure(
+        context.industrialVacantPositionCount,
+        context.industrialPositionCapacity,
       ),
   }),
   Object.freeze({
@@ -122,10 +125,7 @@ export const FOUNDATION_RCI_DEMAND_FACTORS: readonly RciDemandFactorDefinition[]
     weightMilli: 500,
     evaluate: (context: RciDemandFactorContext) => {
       const desiredVacantDwellingBuffer = Math.max(1, Math.ceil(context.householdCount * 0.1));
-      return clampDemandMilli(
-        ((desiredVacantDwellingBuffer - context.vacantDwellingCount) * 100_000) /
-          desiredVacantDwellingBuffer,
-      );
+      return targetCountPressure(context.vacantDwellingCount, desiredVacantDwellingBuffer);
     },
   }),
 ]);

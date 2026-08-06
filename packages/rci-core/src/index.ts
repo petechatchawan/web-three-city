@@ -48,15 +48,19 @@ export type {
   DefinitionRegistry,
   DemandFactorDefinitionContract,
   EmploymentRequirementDefinition,
+  MigrationAgeRangeDefinition,
   MigrationArchetypeDefinition,
   OccupationDefinition,
   PopulationRateProfileDefinition,
+  PositionGroupCapacityDefinition,
   PositionGroupDefinition,
   QualificationDefinition,
   RciDefinitionExtensions,
   RciDefinitionRegistries,
   RelationshipTypeDefinition,
+  ResidentialCapacityProfileDefinition,
   SexDefinition,
+  WorkplaceCapacityProfileDefinition,
 } from './definitions/contracts.js';
 export { orderRciDomainEvents } from './events/event-ordering.js';
 export type {
@@ -74,6 +78,38 @@ export {
   planEndHouseholdMembership,
   planStartHouseholdMembership,
 } from './households/membership-plan.js';
+export {
+  isResidentialCapacityProfile,
+  residentialCapacityProfileForId,
+} from './housing/capacity-profile.js';
+export { synchronizeDwellingInventory } from './housing/dwelling-inventory.js';
+export type { DwellingInventorySynchronizationResult } from './housing/dwelling-inventory.js';
+export {
+  endHousingAssignments,
+  planStartHousingAssignment,
+} from './housing/housing-assignment-plan.js';
+export { createHousingIndex } from './housing/housing-index.js';
+export type { HousingIndex, HousingProjection } from './housing/housing-index.js';
+export { planHousingReconciliation } from './housing/housing-reconciliation.js';
+export type { HousingReconciliationPlan } from './housing/housing-reconciliation.js';
+export {
+  orderDisplacedHouseholds,
+  planDisplaceHousehold,
+} from './migration/displaced-queue.js';
+export {
+  FOUNDATION_HOUSING_EMIGRATION_FACTORS,
+  evaluateHouseholdEmigrationPressure,
+} from './migration/emigration-pressure.js';
+export type {
+  EmigrationPressureContext,
+  EmigrationPressureFactorDefinition,
+} from './migration/emigration-pressure.js';
+export { planEmigrateHousehold } from './migration/household-emigration.js';
+export { planMaterializeIncomingHousehold } from './migration/household-materialization.js';
+export { orderIncomingHouseholdRequests } from './migration/incoming-queue.js';
+export { createFoundationMigrationRequestPolicy } from './migration/request-policy.js';
+export type { MigrationRequestPolicy } from './migration/request-policy.js';
+export { createRciMigrationInventory } from './persistence/migration-inventory.js';
 export { decodeRciSaveV1, encodeRciSaveV1 } from './persistence/serialization.js';
 export type { RciSaveError, RciSaveErrorCode, RciSaveV1 } from './persistence/serialization.js';
 export {

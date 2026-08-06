@@ -15,12 +15,7 @@ export {
   encodeWorldSaveV3,
   encodeWorldSaveV4,
 } from './world-save-legacy.js';
-export type {
-  WorldSaveV1,
-  WorldSaveV2,
-  WorldSaveV3,
-  WorldSaveV4,
-} from './world-save-legacy.js';
+export type { WorldSaveV1, WorldSaveV2, WorldSaveV3, WorldSaveV4 } from './world-save-legacy.js';
 
 export interface WorldSaveV5 {
   readonly kind: 'world-save';

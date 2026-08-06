@@ -7,7 +7,7 @@ import {
 import { prepareDeterministicGrowthClock, stepLogicalTicks } from './helpers/growth-fixture.js';
 import { GAME_URL, readEvidence } from './helpers/interaction.js';
 
-const SAVE_KEY = 'web-three-city:world-save:v3';
+const SAVE_KEY = 'web-three-city:world-save:v5';
 const EXPECTED_DEFINITION_IDS = Object.freeze([
   'commercial-office-2x2',
   'industrial-warehouse-2x2',
@@ -66,7 +66,7 @@ test('headless Growth fails closed before eligible Zones exist', async ({ page }
   await expect(page.getByTestId('game-status')).not.toHaveText('Zones developed');
 });
 
-test('grows deterministic R/C/I content and preserves authority across guards, Undo, and Save V3', async ({
+test('grows deterministic R/C/I content and preserves authority across guards, Undo, and Save V5', async ({
   page,
 }) => {
   await openGame(page);
@@ -122,10 +122,10 @@ test('grows deterministic R/C/I content and preserves authority across guards, U
   const saved = await page.evaluate((key) => localStorage.getItem(key), SAVE_KEY);
   expect(JSON.parse(saved ?? '{}')).toMatchObject({
     kind: 'world-save',
-    schemaVersion: 3,
+    schemaVersion: 5,
     buildings: {
       kind: 'building-save',
-      schemaVersion: 1,
+      schemaVersion: 2,
       instances: expect.arrayContaining([
         expect.objectContaining({ buildingDefinitionId: 'commercial-office-2x2' }),
         expect.objectContaining({ buildingDefinitionId: 'industrial-warehouse-2x2' }),

@@ -18,7 +18,7 @@ import {
   type TerrainCellScreenPoint,
 } from './helpers/interaction.js';
 
-const SAVE_KEY = 'web-three-city:world-save:v3';
+const SAVE_KEY = 'web-three-city:world-save:v5';
 const TERRAIN = (() => {
   const result = generateCoastalTerrain({ seed: 1_464_156_977, config: WORLD_CONFIG });
   if (!result.ok) throw new Error(result.error.code);
@@ -173,7 +173,7 @@ async function paint(
   await expect(page.getByTestId('game-status')).toHaveText('Zone painted');
 }
 
-test('paints R/C/I at committed-Road depths 1–3 and round-trips WorldSaveV3', async ({ page }) => {
+test('paints R/C/I at committed-Road depths 1–3 and round-trips WorldSaveV5', async ({ page }) => {
   await openGame(page);
   const points = await locate(page, [
     FIXTURE.road,
@@ -201,9 +201,10 @@ test('paints R/C/I at committed-Road depths 1–3 and round-trips WorldSaveV3', 
   const saved = await page.evaluate((key) => localStorage.getItem(key), SAVE_KEY);
   expect(JSON.parse(saved ?? '{}')).toMatchObject({
     kind: 'world-save',
-    schemaVersion: 3,
+    schemaVersion: 5,
     zones: { schemaVersion: 1 },
-    buildings: { schemaVersion: 1, instances: [] },
+    buildings: { schemaVersion: 2, instances: [] },
+    rci: { schemaVersion: 1 },
   });
 
   await page.getByRole('button', { name: 'Remove Zone' }).click();

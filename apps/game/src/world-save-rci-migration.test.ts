@@ -40,6 +40,7 @@ describe('WorldSaveV5 RCI foundation', () => {
     expect(decoded.ok).toBe(true);
     if (decoded.ok) {
       expect(decoded.value.rci).toEqual(fixture.rci);
+      expect(Object.isFrozen(decoded.value.rci)).toBe(true);
     }
   });
 

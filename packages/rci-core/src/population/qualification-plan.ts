@@ -8,14 +8,16 @@ import type { CitizenQualificationRecord } from '../contracts/records.js';
 import type { RciDefinitionRegistries } from '../definitions/contracts.js';
 import { canonicalizeRciSnapshot, type RciSnapshot } from '../rci-snapshot.js';
 
-export function planAwardCitizenQualification(input: Readonly<{
-  snapshot: RciSnapshot;
-  citizenId: CitizenId;
-  qualificationDefinitionId: string;
-  awardedAtTick: number;
-  sourceDefinitionId: string;
-  registries: RciDefinitionRegistries;
-}>): RciRecordMutationPlan {
+export function planAwardCitizenQualification(
+  input: Readonly<{
+    snapshot: RciSnapshot;
+    citizenId: CitizenId;
+    qualificationDefinitionId: string;
+    awardedAtTick: number;
+    sourceDefinitionId: string;
+    registries: RciDefinitionRegistries;
+  }>,
+): RciRecordMutationPlan {
   const { snapshot } = input;
   const citizen = snapshot.population.citizens.find(
     (candidate) => candidate.citizenId === input.citizenId,

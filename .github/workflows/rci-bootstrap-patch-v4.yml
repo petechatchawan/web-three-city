@@ -1,0 +1,66 @@
+name: RCI bootstrap integration patch v4
+
+on:
+  push:
+    branches:
+      - feat/rci-game-integration-v0-1
+    paths:
+      - .github/workflows/rci-bootstrap-patch-v4.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/rci-game-integration-v0-1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Run corrected section-scoped patch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          import textwrap
+
+          workflow = Path('.github/workflows/rci-bootstrap-patch-v3.yml').read_text()
+          body = workflow.split("          python - <<'PY'\n", 1)[1].split("\n          PY", 1)[0]
+          script = textwrap.dedent(body)
+          pattern = re.compile(
+              r"replace_in_section\(\n"
+              r"\s+'  ui\.saveButton\.addEventListener\(',\n"
+              r"\s+'\\n  ui\.rotateLeftButton\.addEventListener\(',\n"
+              r"\s+\"\"\"\s*localStorage\.getItem\(WORLD_SAVE_KEY\) \?\?\n"
+              r"\s*localStorage\.getItem\(LEGACY_WORLD_SAVE_V2_KEY\) \?\?\"\"\",\n"
+              r"\s+\"\"\"\s*localStorage\.getItem\(WORLD_SAVE_KEY\) \?\?\n"
+              r"\s*localStorage\.getItem\(LEGACY_WORLD_SAVE_V3_KEY\) \?\?\n"
+              r"\s*localStorage\.getItem\(LEGACY_WORLD_SAVE_V2_KEY\) \?\?\"\"\",\n"
+              r"\s+\)"
+          )
+          replacement = '''replace_in_section(
+              '  ui.saveButton.addEventListener(',
+              '\\n  ui.rotateLeftButton.addEventListener(',
+              "        localStorage.getItem(WORLD_SAVE_KEY) ??",
+              """        localStorage.getItem(WORLD_SAVE_KEY) ??
+                    localStorage.getItem(LEGACY_WORLD_SAVE_V3_KEY) ??""",
+          )'''
+          script, count = pattern.subn(replacement, script, count=1)
+          if count != 1:
+              raise SystemExit(f'failed to correct fallback replacement: {count}')
+          exec(compile(script, '<rci-bootstrap-patch>', 'exec'), {'__name__': '__main__'})
+          PY
+      - name: Commit bootstrap integration
+        run: |
+          rm .github/workflows/rci-bootstrap-patch.yml
+          rm .github/workflows/rci-bootstrap-patch-v2.yml
+          rm .github/workflows/rci-bootstrap-patch-v3.yml
+          rm .github/workflows/rci-bootstrap-patch-v4.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/game/src/game-bootstrap.ts .github/workflows/rci-bootstrap-patch.yml .github/workflows/rci-bootstrap-patch-v2.yml .github/workflows/rci-bootstrap-patch-v3.yml .github/workflows/rci-bootstrap-patch-v4.yml
+          git commit -m "feat(game): integrate atomic RCI runtime"
+          git push origin HEAD:feat/rci-game-integration-v0-1

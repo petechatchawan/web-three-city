@@ -169,6 +169,15 @@ Registries and policies support new relationship, qualification, occupation, cap
 - HUD is intentionally compact and read-only.
 - Scale baseline covers `5,000` Citizens; larger performance budgets are not yet hard release gates.
 
+## Documentation Authority
+
+For future handoff and maintenance, use this order:
+
+1. This System README for current runtime behavior and delivery status.
+2. Verification records for exact test evidence and closure boundaries.
+3. The design specification for approved architectural intent and historical decisions.
+4. TDD plans for implementation history, not current task status.
+
 ## Handoff Index
 
 - Design: [RCI Demand & Occupancy Foundation v0.1](specs/2026-08-06-rci-demand-occupancy-foundation-v0-1.md)

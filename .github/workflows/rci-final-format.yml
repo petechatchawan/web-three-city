@@ -1,0 +1,83 @@
+name: Format completed RCI implementation
+
+on:
+  push:
+    branches:
+      - feat/rci-game-integration-v0-1
+    paths:
+      - .github/workflows/rci-final-format.yml
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/rci-game-integration-v0-1
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Format files reported by the integration verification head
+        run: |
+          pnpm exec prettier --write \
+            apps/game/src/game-bootstrap.ts \
+            apps/game/src/game-world-state.test.ts \
+            apps/game/src/game-world-state.ts \
+            apps/game/src/game-world-tick.test.ts \
+            apps/game/src/game-world-tick.ts \
+            apps/game/src/rci-hud.test.ts \
+            apps/game/src/rci-hud.ts \
+            apps/game/src/world-save-v5.test.ts \
+            packages/building-core/src/building-definitions.ts \
+            packages/building-core/src/building-growth.ts \
+            packages/building-core/src/building-selection.ts \
+            packages/building-core/src/contracts.ts \
+            packages/building-core/test/growth-policy.test.ts \
+            packages/rci-core/src/definitions/contracts.ts \
+            packages/rci-core/src/definitions/foundation-definitions.ts \
+            packages/rci-core/src/demand/building-growth-policy.ts \
+            packages/rci-core/src/demand/demand-evaluator.ts \
+            packages/rci-core/src/demand/demand-factor.ts \
+            packages/rci-core/src/demand/growth-gate.ts \
+            packages/rci-core/src/employment/employment-index.ts \
+            packages/rci-core/src/employment/employment-pressure.ts \
+            packages/rci-core/src/employment/employment-reconciliation.ts \
+            packages/rci-core/src/employment/workplace-inventory.ts \
+            packages/rci-core/src/housing/dwelling-inventory.ts \
+            packages/rci-core/src/housing/housing-assignment-plan.ts \
+            packages/rci-core/src/housing/housing-index.ts \
+            packages/rci-core/src/housing/housing-reconciliation.ts \
+            packages/rci-core/src/index.ts \
+            packages/rci-core/src/migration/displaced-queue.ts \
+            packages/rci-core/src/migration/household-emigration.ts \
+            packages/rci-core/src/migration/household-materialization.ts \
+            packages/rci-core/src/migration/request-policy.ts \
+            packages/rci-core/src/persistence/migration-inventory.ts \
+            packages/rci-core/src/projection/rci-projection.ts \
+            packages/rci-core/src/rci-tick.ts \
+            packages/rci-core/test/demand-foundation.test.ts \
+            packages/rci-core/test/displaced-queue.test.ts \
+            packages/rci-core/test/dwelling-inventory.test.ts \
+            packages/rci-core/test/employment-foundation.test.ts \
+            packages/rci-core/test/housing-assignment.test.ts \
+            packages/rci-core/test/housing-determinism.test.ts \
+            packages/rci-core/test/housing-fixtures.ts \
+            packages/rci-core/test/incoming-queue.test.ts \
+            packages/rci-core/test/rci-tick-housing.test.ts \
+            packages/rci-core/test/residential-capacity-profile.test.ts
+      - name: Commit deterministic formatting
+        run: |
+          rm .github/workflows/rci-final-format.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "style: format RCI implementation stack"
+          git push origin HEAD:feat/rci-game-integration-v0-1

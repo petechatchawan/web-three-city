@@ -10,6 +10,7 @@ import {
 
 const context = {
   residentCount: 100,
+  householdCount: 50,
   residentCapacity: 96,
   vacantDwellingCount: 0,
   incomingHouseholdCount: 2,
@@ -34,6 +35,50 @@ describe('RCI Demand foundation', () => {
     expect(forward.contributions.map((value) => value.factorDefinitionId)).toEqual(
       [...forward.contributions.map((value) => value.factorDefinitionId)].sort(),
     );
+  });
+
+  it('recovers residential growth when every dwelling is occupied despite spare bed capacity', () => {
+    const evaluation = evaluateRciDemand(
+      {
+        ...context,
+        residentCount: 4,
+        householdCount: 3,
+        residentCapacity: 12,
+        vacantDwellingCount: 0,
+        incomingHouseholdCount: 0,
+        displacedHouseholdCount: 0,
+      },
+      FOUNDATION_RCI_DEMAND_FACTORS,
+    );
+    expect(
+      evaluation.contributions.find(
+        (value) => value.factorDefinitionId === 'demand.residential.target-buffer',
+      )?.valueMilli,
+    ).toBe(100_000);
+    expect(evaluation.rawResidentialMilli).toBe(50_000);
+
+    let demand = {
+      residentialMilli: -32_000,
+      commercialMilli: -29_000,
+      industrialMilli: -47_000,
+      evaluatedAtTick: 248,
+    };
+    let growthGates = {
+      residentialOpen: false,
+      commercialOpen: false,
+      industrialOpen: false,
+      evaluatedAtTick: 248,
+    };
+    for (const evaluationTick of [272, 296, 320]) {
+      demand = smoothRciDemand({ previous: demand, evaluation, evaluationTick });
+      growthGates = updateRciGrowthGates({
+        previous: growthGates,
+        demand,
+        evaluationTick,
+      });
+    }
+    expect(demand.residentialMilli).toBeGreaterThanOrEqual(15_000);
+    expect(growthGates.residentialOpen).toBe(true);
   });
 
   it('smooths with integer arithmetic and persists hysteresis in the neutral band', () => {

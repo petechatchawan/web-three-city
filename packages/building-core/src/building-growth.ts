@@ -12,6 +12,7 @@ import { occupiedCellsForBuilding } from './building-footprint.js';
 import { activateCompletedBuilding, normalizeBuildingInstance } from './building-lifecycle.js';
 import { selectGrowthBuildingPlacement } from './building-selection.js';
 import { createBuildingSnapshot } from './building-snapshot.js';
+import type { BuildingGrowthPolicy } from './growth-policy.js';
 import {
   BuildingContractError,
   type AuthoritativeBuildingInstance,
@@ -25,7 +26,6 @@ import {
 function frozenStrings(values: Iterable<string>): readonly string[] {
   return Object.freeze([...values].sort((a, b) => a.localeCompare(b)));
 }
-
 function frozenChunks(chunks: Iterable<ChunkCoord>): readonly ChunkCoord[] {
   const unique = new Map<string, ChunkCoord>();
   for (const chunk of chunks) unique.set(`${chunk.x}:${chunk.z}`, chunk);
@@ -35,7 +35,6 @@ function frozenChunks(chunks: Iterable<ChunkCoord>): readonly ChunkCoord[] {
       .map((chunk) => Object.freeze({ ...chunk })),
   );
 }
-
 function environmentValid(environment: BuildingDevelopmentEnvironment): boolean {
   return (
     Number.isSafeInteger(environment.terrainRevision) &&
@@ -47,14 +46,13 @@ function environmentValid(environment: BuildingDevelopmentEnvironment): boolean 
     environment.zoneRevision >= 0
   );
 }
-
 function invalidPlan(
   buildings: BuildingSnapshot,
   simulation: SimulationSnapshot,
   environment: BuildingDevelopmentEnvironment,
   reason: BuildingGrowthInvalidReason,
 ): BuildingGrowthPlan {
-  const plan: BuildingGrowthPlan = {
+  return Object.freeze({
     baseBuildingRevision: buildings.revision,
     baseSimulationRevision: simulation.revision,
     baseTerrainRevision: environment.terrainRevision,
@@ -70,8 +68,7 @@ function invalidPlan(
     dirtyChunks: Object.freeze([]),
     valid: false,
     invalidReason: reason,
-  };
-  return Object.freeze(plan);
+  });
 }
 
 export function planBuildingGrowthTick(input: {
@@ -80,38 +77,23 @@ export function planBuildingGrowthTick(input: {
   readonly environment: BuildingDevelopmentEnvironment;
   readonly config: WorldConfig;
   readonly reservedCells?: readonly CellCoord[];
+  readonly growthPolicy?: BuildingGrowthPolicy;
 }): BuildingGrowthPlan {
   let buildings: BuildingSnapshot;
   let simulation: SimulationSnapshot;
   try {
     buildings = createBuildingSnapshot(input.buildings, input.config);
   } catch {
-    return invalidPlan(
-      input.buildings,
-      input.simulation,
-      input.environment,
-      'building-growth:invalid-building-state',
-    );
+    return invalidPlan(input.buildings, input.simulation, input.environment, 'building-growth:invalid-building-state');
   }
   try {
     simulation = createSimulationSnapshot(input.simulation);
   } catch {
-    return invalidPlan(
-      buildings,
-      input.simulation,
-      input.environment,
-      'building-growth:invalid-simulation-state',
-    );
+    return invalidPlan(buildings, input.simulation, input.environment, 'building-growth:invalid-simulation-state');
   }
   if (!environmentValid(input.environment)) {
-    return invalidPlan(
-      buildings,
-      simulation,
-      input.environment,
-      'building-growth:invalid-environment',
-    );
+    return invalidPlan(buildings, simulation, input.environment, 'building-growth:invalid-environment');
   }
-
   const tickPlan = planSimulationTick(simulation);
   if (!tickPlan.valid) {
     return invalidPlan(buildings, simulation, input.environment, 'building-growth:tick-overflow');
@@ -127,9 +109,7 @@ export function planBuildingGrowthTick(input: {
       authoritative.constructionCompletesAtTick <= afterAbsoluteTick
     ) {
       completedIds.push(authoritative.instanceId);
-      for (const cell of occupiedCellsForBuilding(authoritative)) {
-        dirty.push(chunkForCell(cell, input.config));
-      }
+      for (const cell of occupiedCellsForBuilding(authoritative)) dirty.push(chunkForCell(cell, input.config));
       return activateCompletedBuilding(authoritative, afterAbsoluteTick);
     }
     return authoritative;
@@ -149,6 +129,7 @@ export function planBuildingGrowthTick(input: {
       absoluteTick: afterAbsoluteTick,
       growthSequence: simulation.growthSequence,
       ...(input.reservedCells === undefined ? {} : { reservedCells: input.reservedCells }),
+      ...(input.growthPolicy === undefined ? {} : { growthPolicy: input.growthPolicy }),
     });
     if (selected !== null) {
       nextGrowthSequence += 1;
@@ -165,9 +146,7 @@ export function planBuildingGrowthTick(input: {
       });
       proposed.push(construction);
       startedIds.push(construction.instanceId);
-      for (const cell of occupiedCellsForBuilding(construction)) {
-        dirty.push(chunkForCell(cell, input.config));
-      }
+      for (const cell of occupiedCellsForBuilding(construction)) dirty.push(chunkForCell(cell, input.config));
     }
   }
 
@@ -202,51 +181,24 @@ export function commitBuildingGrowthTick(input: {
   readonly receipt: BuildingGrowthReceipt;
 }> {
   const { plan } = input;
-  if (!plan.valid || plan.invalidReason !== null) {
-    throw new BuildingContractError('building-growth:invalid-plan');
-  }
-  if (input.buildings.revision !== plan.baseBuildingRevision) {
-    throw new BuildingContractError('building:stale-building-plan');
-  }
-  if (
-    input.simulation.revision !== plan.baseSimulationRevision ||
-    input.simulation.absoluteTick !== plan.beforeAbsoluteTick
-  ) {
+  if (!plan.valid || plan.invalidReason !== null) throw new BuildingContractError('building-growth:invalid-plan');
+  if (input.buildings.revision !== plan.baseBuildingRevision) throw new BuildingContractError('building:stale-building-plan');
+  if (input.simulation.revision !== plan.baseSimulationRevision || input.simulation.absoluteTick !== plan.beforeAbsoluteTick) {
     throw new BuildingContractError('building-growth:stale-simulation-plan');
   }
-  if (input.environment.terrainRevision !== plan.baseTerrainRevision) {
-    throw new BuildingContractError('building:stale-terrain-plan');
-  }
-  if (input.environment.waterSourceTerrainRevision !== plan.baseWaterSourceTerrainRevision) {
-    throw new BuildingContractError('building:stale-water-plan');
-  }
-  if (input.environment.roadRevision !== plan.baseRoadRevision) {
-    throw new BuildingContractError('building:stale-road-plan');
-  }
-  if (input.environment.zoneRevision !== plan.baseZoneRevision) {
-    throw new BuildingContractError('building:stale-zone-plan');
-  }
-
+  if (input.environment.terrainRevision !== plan.baseTerrainRevision) throw new BuildingContractError('building:stale-terrain-plan');
+  if (input.environment.waterSourceTerrainRevision !== plan.baseWaterSourceTerrainRevision) throw new BuildingContractError('building:stale-water-plan');
+  if (input.environment.roadRevision !== plan.baseRoadRevision) throw new BuildingContractError('building:stale-road-plan');
+  if (input.environment.zoneRevision !== plan.baseZoneRevision) throw new BuildingContractError('building:stale-zone-plan');
   const tickPlan = planSimulationTick(input.simulation);
   if (!tickPlan.valid || tickPlan.afterAbsoluteTick !== plan.afterAbsoluteTick) {
     throw new BuildingContractError('building-growth:stale-simulation-plan');
   }
-  const simulationCommit = commitSimulationTick(
-    input.simulation,
-    tickPlan,
-    plan.nextGrowthSequence,
-  );
+  const simulationCommit = commitSimulationTick(input.simulation, tickPlan, plan.nextGrowthSequence);
   const changed = plan.startedInstanceIds.length > 0 || plan.completedInstanceIds.length > 0;
   const buildings = changed
-    ? createBuildingSnapshot(
-        {
-          revision: input.buildings.revision + 1,
-          instances: plan.proposedInstances,
-        },
-        input.config,
-      )
+    ? createBuildingSnapshot({ revision: input.buildings.revision + 1, instances: plan.proposedInstances }, input.config)
     : input.buildings;
-
   return Object.freeze({
     buildings,
     simulation: simulationCommit.snapshot,

@@ -54,15 +54,16 @@ export function evaluateRciDemand(
   const residential = evaluateChannel('residential', context, factors);
   const commercial = evaluateChannel('commercial', context, factors);
   const industrial = evaluateChannel('industrial', context, factors);
+  const contributions = [
+    ...residential.contributions,
+    ...commercial.contributions,
+    ...industrial.contributions,
+  ].sort((a, b) => compareStableId(a.factorDefinitionId, b.factorDefinitionId));
   return Object.freeze({
     rawResidentialMilli: residential.valueMilli,
     rawCommercialMilli: commercial.valueMilli,
     rawIndustrialMilli: industrial.valueMilli,
-    contributions: Object.freeze([
-      ...residential.contributions,
-      ...commercial.contributions,
-      ...industrial.contributions,
-    ]),
+    contributions: Object.freeze(contributions),
   });
 }
 

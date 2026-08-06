@@ -92,10 +92,7 @@ export function planRciTick(input: RciTickInput): RciTickPlan {
     events: Object.freeze([]),
   });
   if (
-    isDailyLifecycleTick(
-      input.simulationBefore.absoluteTick,
-      input.simulationAfter.absoluteTick,
-    )
+    isDailyLifecycleTick(input.simulationBefore.absoluteTick, input.simulationAfter.absoluteTick)
   ) {
     lifecycle = evaluateDailyPopulationLifecycle({
       snapshot: input.rci,

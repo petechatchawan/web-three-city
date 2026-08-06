@@ -47,6 +47,7 @@ describe('RCI definition registry', () => {
   it('constructs the validated foundation content registries', () => {
     const registries = createFoundationRciRegistries();
 
+    expect(Object.isFrozen(registries)).toBe(true);
     expect(registries.sexes.values().map((definition) => definition.id)).toEqual([
       'sex.female',
       'sex.male',

@@ -37,7 +37,7 @@ describe('RCI Demand foundation', () => {
     );
   });
 
-  it('recovers residential growth when every dwelling is occupied despite spare bed capacity', () => {
+  it('recovers every closed growth channel when housing and workplaces are fully occupied', () => {
     const evaluation = evaluateRciDemand(
       {
         ...context,
@@ -47,15 +47,33 @@ describe('RCI Demand foundation', () => {
         vacantDwellingCount: 0,
         incomingHouseholdCount: 0,
         displacedHouseholdCount: 0,
+        workingAgeResidentCount: 4,
+        employedResidentCount: 4,
+        unemployedResidentCount: 0,
+        totalPositionCapacity: 4,
+        vacantPositionCount: 0,
+        compatibleVacantPositionCount: 0,
+        commercialPositionCapacity: 2,
+        commercialVacantPositionCount: 0,
+        industrialPositionCapacity: 2,
+        industrialVacantPositionCount: 0,
       },
       FOUNDATION_RCI_DEMAND_FACTORS,
     );
-    expect(
-      evaluation.contributions.find(
-        (value) => value.factorDefinitionId === 'demand.residential.target-buffer',
-      )?.valueMilli,
-    ).toBe(100_000);
+    for (const factorDefinitionId of [
+      'demand.residential.target-buffer',
+      'demand.commercial.target-buffer',
+      'demand.industrial.target-buffer',
+    ]) {
+      expect(
+        evaluation.contributions.find(
+          (value) => value.factorDefinitionId === factorDefinitionId,
+        )?.valueMilli,
+      ).toBe(100_000);
+    }
     expect(evaluation.rawResidentialMilli).toBe(50_000);
+    expect(evaluation.rawCommercialMilli).toBe(70_000);
+    expect(evaluation.rawIndustrialMilli).toBe(70_000);
 
     let demand = {
       residentialMilli: -32_000,
@@ -78,7 +96,13 @@ describe('RCI Demand foundation', () => {
       });
     }
     expect(demand.residentialMilli).toBeGreaterThanOrEqual(15_000);
-    expect(growthGates.residentialOpen).toBe(true);
+    expect(demand.commercialMilli).toBeGreaterThanOrEqual(15_000);
+    expect(demand.industrialMilli).toBeGreaterThanOrEqual(15_000);
+    expect(growthGates).toMatchObject({
+      residentialOpen: true,
+      commercialOpen: true,
+      industrialOpen: true,
+    });
   });
 
   it('smooths with integer arithmetic and persists hysteresis in the neutral band', () => {

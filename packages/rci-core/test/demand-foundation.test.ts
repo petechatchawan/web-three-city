@@ -83,6 +83,16 @@ describe('RCI Demand foundation', () => {
     expect(neutral.commercialOpen).toBe(true);
   });
 
+  it('keeps all zone channels eligible until the first Demand evaluation', () => {
+    const policy = createBuildingGrowthPolicy(createInitialRciSnapshot({ absoluteTick: 8 }));
+    expect(policy.allowsZone('residential')).toBe(true);
+    expect(policy.allowsZone('commercial')).toBe(true);
+    expect(policy.allowsZone('industrial')).toBe(true);
+    expect(policy.zoneWeightMilli('residential')).toBe(100_000);
+    expect(policy.zoneWeightMilli('commercial')).toBe(100_000);
+    expect(policy.zoneWeightMilli('industrial')).toBe(100_000);
+  });
+
   it('derives a caller policy without mutating Building state', () => {
     const initial = createInitialRciSnapshot({ absoluteTick: 32 });
     const snapshot = {

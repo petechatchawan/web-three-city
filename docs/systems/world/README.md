@@ -1,57 +1,68 @@
 # World System
 
-**Status:** Implemented  
-**Last verified against:** `feat/rci-core-contracts-v0-1@4fde0f366aeceac1266465040eb3f852b186ca75`  
-**Primary ownership:** `packages/world-core`, `apps/game/src/world-save.ts`, game transaction orchestration  
+**Status:** Implemented — final stacked verification pending  
+**Primary ownership:** `packages/world-core`, `apps/game/src/world-save.ts`, `game-world-state.ts`, and `game-world-tick.ts`  
 **Persistence:** versioned `world-save` envelope through `WorldSaveV5`
 
 ## Purpose
 
-Provide shared world configuration, coordinates, result contracts, cross-system Save composition, and the application-level boundary that keeps Terrain, Water, Roads, Zones, Buildings, Simulation, and persisted RCI authority coherent.
+Provide shared world configuration, coordinates, result contracts, cross-system Save composition, and the application boundary that keeps Terrain, Water, Roads, Zones, Buildings, Simulation, and RCI coherent.
 
 ## Does Not Own
 
-- Domain rules for Terrain, Roads, Zones, Buildings, Simulation, or RCI.
-- Three.js rendering or UI state.
-- Citizen lifecycle, housing matching, Employment matching, or Demand evaluation.
+- Domain rules inside Terrain, Roads, Zones, Buildings, Simulation, or RCI.
+- Three.js presentation, tool state, pointer state, or undo history.
+- Citizen, housing, Employment, migration, or Demand policy.
 
 ## Current Capabilities
 
 - Canonical map configuration and coordinate contracts.
-- Shared `Result` and contract-error patterns used by core packages.
+- Shared `Result` and contract-error patterns.
 - `WorldSaveV1` through `WorldSaveV5` decode and deterministic migration.
 - Cross-domain environment reconstruction after load.
-- Validation of persisted Roads, Zones, Buildings, Water derivation, Simulation lifecycle, and RCI references.
-- Fail-closed V5 decode when `RciSaveV1` is invalid or incompatible.
+- Fail-closed validation of Roads, Zones, Buildings, Simulation, and RCI references.
+- `GameWorldStateStore` atomically owns the currently published Simulation, Building, and RCI snapshots.
+- `planGameWorldTick` stages Building Growth, Simulation advancement, RCI reconciliation, validation, and receipts before one world revision is published.
+- Invalid or stale staged work leaves the committed world unchanged.
 
 ## Ownership and State
 
-Each domain owns its snapshot. `apps/game` owns Save composition and migration order. Water and placement occupancy are derived and are not persisted as independent authority.
-
-The V5 facade keeps the existing V1–V4 decoder byte-for-byte in `world-save-legacy.ts`, reducing regression risk while adding RCI composition in `world-save.ts`.
+Each domain owns its snapshot. `apps/game` owns composition, migration order, atomic publication, and the handoff to renderers/HUD. Water, occupancy maps, indexes, projections, and policy objects remain derived.
 
 ## Main Workflows
 
+### World tick
+
+1. Read one committed `GameWorldState`.
+2. Plan Building Growth using the current RCI policy.
+3. Stage Simulation and Building snapshots.
+4. Plan RCI against the exact before/after Building and Simulation revisions.
+5. Validate the complete staged state.
+6. Replace the store once with the next world revision.
+7. Update Building presentation and RCI HUD from committed snapshots only.
+
+### Save/load
+
 1. Decode Terrain and derive Water.
-2. Decode and validate Roads, Zones, Buildings, and Simulation in dependency order.
+2. Decode Roads, Zones, Buildings, and Simulation in dependency order.
 3. Rebuild placement environments and derived occupancy.
-4. For V5, decode and validate `RciSaveV1` against the decoded Building and Simulation snapshots.
-5. For V1–V4, create an empty deterministic RCI snapshot at the decoded Simulation tick.
-6. Reject the complete load if any domain or cross-domain invariant fails.
-7. Return one coherent decoded world state.
+4. Decode `RciSaveV1` for V5, or deterministically migrate V1–V4 from decoded Simulation and active Building inventory.
+5. Reject the complete load if any domain or cross-domain invariant fails.
+6. Replace the complete application world and synchronize the atomic state store.
 
 ## Integrations
 
 ```mermaid
 flowchart LR
-  Terrain --> Water
-  Terrain --> WorldSave
-  Roads --> WorldSave
-  Zoning --> WorldSave
-  Buildings --> WorldSave
-  Simulation --> WorldSave
-  RCI --> WorldSave
-  WorldSave --> DecodedWorld[Coherent decoded world]
+  Terrain --> WorldSaveV5
+  Roads --> WorldSaveV5
+  Zoning --> WorldSaveV5
+  Buildings --> GameWorldTick
+  Simulation --> GameWorldTick
+  RCI --> GameWorldTick
+  GameWorldTick --> StateStore[GameWorldStateStore]
+  StateStore --> WorldSaveV5
+  StateStore --> Presentation
 ```
 
 ## Persistence
@@ -62,27 +73,30 @@ flowchart LR
 - `WorldSaveV4`: Buildings V2 + Simulation V1
 - `WorldSaveV5`: adds RCI V1
 
-Legacy migration preserves existing domain snapshots and initializes empty RCI authority without inventing Citizens, Households, assignments, or history. Later RCI PRs extend deterministic migration with active Building inventory only when those capacity systems exist.
+Legacy migration preserves existing authority and derives empty RCI inventory from active Buildings without inventing Citizens, Households, occupancy, or Employment history.
 
 ## Invariants and Failure Behavior
 
-- Save decode is all-or-nothing.
-- Domain revisions used in an environment must describe the same world state.
-- Derived Water revision must match Terrain.
-- Persisted occupied cells must remain valid against reconstructed environments.
-- Completed construction cannot remain encoded as under construction at or before the saved tick.
-- V5 RCI definitions, references, revisions, sequences, and evaluated ticks must validate against decoded Building and Simulation authority.
+- Save decode and world-tick publication are all-or-nothing.
+- Domain revisions in a staged plan describe one coherent world transition.
+- Derived Water revision matches Terrain.
+- Persisted occupied cells remain valid against reconstructed environments.
+- RCI evaluated ticks and references validate against decoded Building/Simulation authority.
+- State replacement requires the expected world revision and exactly one next revision.
+- Background ticks do not mutate active tools, previews, pointer sessions, or undo history.
 
 ## Extension Points
 
-A new persisted system extends the world envelope with an explicit schema version, decoder validation, deterministic migration default, decoded-state field, system documentation update, and compatibility tests. Domain rules remain outside `world-core`.
+A new persisted system extends the world envelope with an explicit schema version, deterministic migration, decoded-state field, validation, atomic tick composition where applicable, system documentation, and compatibility tests.
 
 ## Current Limitations
 
-`WorldSaveV5` persists the RCI foundation, but PR 1 does not create population, Dwelling inventory, Workplace inventory, or active assignments. Atomic world-tick orchestration is delivered by RCI PR 6.
+The atomic store currently composes Simulation, Buildings, and RCI because those domains participate in background ticks. Terrain, Roads, Zones, and Water continue through their existing explicit world transactions and complete-world replacement boundary.
 
 ## Handoff Checklist
 
-- Start reading: `packages/world-core/src/index.ts`, `apps/game/src/world-save.ts`, `apps/game/src/world-save-legacy.ts`
-- RCI persistence: [RCI System](../rci/README.md)
-- Related systems: [Terrain](../terrain/README.md), [Water](../water/README.md), [Roads](../roads/README.md), [Zoning](../zoning/README.md), [Buildings](../buildings/README.md), [Simulation Time](../simulation-time/README.md)
+- Core contracts: `packages/world-core/src/index.ts`
+- Save: `apps/game/src/world-save.ts`, `world-save-legacy.ts`
+- Atomic state: `apps/game/src/game-world-state.ts`
+- Tick orchestration: `apps/game/src/game-world-tick.ts`
+- Related systems: [Terrain](../terrain/README.md), [Water](../water/README.md), [Roads](../roads/README.md), [Zoning](../zoning/README.md), [Buildings](../buildings/README.md), [Simulation Time](../simulation-time/README.md), [RCI](../rci/README.md)

@@ -40,14 +40,47 @@ export interface OccupationDefinition {
   readonly label: string;
 }
 
+export interface PositionGroupCapacityDefinition {
+  readonly positionGroupDefinitionId: string;
+  readonly capacity: number;
+  readonly employmentRequirementDefinitionId: string;
+  readonly occupationDefinitionId: string | null;
+}
+
+export interface ResidentialCapacityProfileDefinition {
+  readonly id: string;
+  readonly kind: 'residential';
+  readonly dwellingUnitCount: number;
+  readonly residentCapacityPerUnit: number;
+}
+
+export interface WorkplaceCapacityProfileDefinition {
+  readonly id: string;
+  readonly kind: 'commercial' | 'industrial';
+  readonly positionGroups: readonly PositionGroupCapacityDefinition[];
+}
+
+export type CapacityProfileDefinition =
+  | ResidentialCapacityProfileDefinition
+  | WorkplaceCapacityProfileDefinition;
+
+export interface MigrationAgeRangeDefinition {
+  readonly minimumYears: number;
+  readonly maximumYears: number;
+}
+
 export interface MigrationArchetypeDefinition {
   readonly id: string;
   readonly version: number;
-}
-
-export interface CapacityProfileDefinition {
-  readonly id: string;
-  readonly kind: 'residential' | 'commercial' | 'industrial';
+  readonly memberCount: number;
+  readonly adultCount: number;
+  readonly childCount: number;
+  readonly partneredAdults: boolean;
+  readonly minimumResidentCapacity: number;
+  readonly weight: number;
+  readonly adultAgeRange: MigrationAgeRangeDefinition;
+  readonly childAgeRange: MigrationAgeRangeDefinition;
+  readonly femaleProbabilityMillionth: number;
 }
 
 export interface DemandFactorDefinitionContract {

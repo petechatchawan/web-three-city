@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  planStartHousingAssignment,
-  synchronizeDwellingInventory,
-} from '../src/index.js';
+import { planStartHousingAssignment, synchronizeDwellingInventory } from '../src/index.js';
 import {
   activeCottageBuildings,
   housingRegistries,
@@ -24,9 +21,7 @@ describe('housing assignments', () => {
       dwellingUnitId: 'dwelling:building:growth:1:0',
       startedAtTick: 32,
     });
-    expect(assigned.housing.assignments[0]?.housingAssignmentId).toBe(
-      'housing-assignment:1',
-    );
+    expect(assigned.housing.assignments[0]?.housingAssignmentId).toBe('housing-assignment:1');
     expect(() =>
       planStartHousingAssignment({
         snapshot: assigned,

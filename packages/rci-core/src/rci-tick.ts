@@ -141,10 +141,7 @@ export function planRciTick(input: RciTickInput): RciTickPlan {
         migration: {
           ...snapshot.migration,
           revision: snapshot.migration.revision + 1,
-          incomingRequests: [
-            ...snapshot.migration.incomingRequests,
-            ...requestPlan.requests,
-          ],
+          incomingRequests: [...snapshot.migration.incomingRequests, ...requestPlan.requests],
           attractionMilli: requestPlan.nextAttractionMilli,
         },
         sequences: {

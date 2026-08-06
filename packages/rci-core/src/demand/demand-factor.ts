@@ -2,6 +2,7 @@ export type RciDemandChannel = 'residential' | 'commercial' | 'industrial';
 
 export interface RciDemandFactorContext {
   readonly residentCount: number;
+  readonly householdCount: number;
   readonly residentCapacity: number;
   readonly vacantDwellingCount: number;
   readonly incomingHouseholdCount: number;
@@ -120,10 +121,13 @@ export const FOUNDATION_RCI_DEMAND_FACTORS: readonly RciDemandFactorDefinition[]
     channel: 'residential' as const,
     weightMilli: 500,
     evaluate: (context: RciDemandFactorContext) => {
-      const capacityGap = context.residentCapacity - context.residentCount;
-      const desiredBuffer = Math.max(4, Math.ceil(context.residentCount * 0.1));
+      const desiredVacantDwellingBuffer = Math.max(
+        1,
+        Math.ceil(context.householdCount * 0.1),
+      );
       return clampDemandMilli(
-        ((desiredBuffer - capacityGap) * 100_000) / Math.max(1, desiredBuffer),
+        ((desiredVacantDwellingBuffer - context.vacantDwellingCount) * 100_000) /
+          desiredVacantDwellingBuffer,
       );
     },
   }),

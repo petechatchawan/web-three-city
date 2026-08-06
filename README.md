@@ -4,7 +4,7 @@ A mobile-first, browser-native 3D city-building game inspired by the accessibili
 
 ## Current state
 
-The playable world foundations on `master` include:
+The playable world foundations include:
 
 - deterministic `128 × 128` Terrain and derived Water;
 - orthographic isometric camera, picking, and mobile interaction;
@@ -13,9 +13,10 @@ The playable world foundations on `master` include:
 - Residential, Commercial, and Industrial zoning with Road access, occupancy guards, Save/Load, and Undo;
 - data-driven Residential, Commercial, and Industrial Buildings;
 - deterministic lot allocation, Road frontage, construction lifecycle, automatic growth, bulldoze, and Save/Load;
-- deterministic game time with Pause, `1×`, `2×`, `4×`, and single-tick Step.
+- deterministic game time with Pause, `1×`, `2×`, `4×`, and single-tick Step;
+- RCI Demand & Occupancy Foundation implementation across Citizens, Relationships, Households, Housing, Workplaces, Employment, Migration, Demand, Growth gates, WorldSaveV5, and compact HUD.
 
-The active planning milestone is **RCI Demand & Occupancy Foundation v0.1**. Its approved design introduces Citizen records, relationships, Households, Dwelling Units, Workplaces, Employment, Migration, R/C/I Demand, and demand-controlled Building growth. Production implementation has not started.
+RCI PR 2–6 are currently maintained as a stacked implementation while final exact-head verification is completed. The current authoritative behavior and explicit limitations are documented in [RCI Demand & Occupancy](docs/systems/rci/README.md).
 
 ## System documentation
 

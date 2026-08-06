@@ -67,7 +67,7 @@ export function planHousingReconciliation(
     registries: RciDefinitionRegistries;
   }>,
 ): HousingReconciliationPlan {
-  let snapshot = canonicalizeRciSnapshot(input.snapshot);
+  let snapshot = input.snapshot;
   const relocatedHouseholdIds: string[] = [];
   const materializedRequestIds: string[] = [];
   const emigratedHouseholdIds: string[] = [];

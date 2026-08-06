@@ -2,6 +2,9 @@ import type { BuildingSnapshot } from '@web-three-city/building-core';
 import type { SimulationSnapshot } from '@web-three-city/simulation-core';
 import { RciContractError, type RciContractErrorCode } from './contracts/errors.js';
 import type { RciDefinitionRegistries } from './definitions/contracts.js';
+import { createEmploymentIndex } from './employment/employment-index.js';
+import { planEmploymentReconciliation } from './employment/employment-reconciliation.js';
+import { synchronizeWorkplaceInventory } from './employment/workplace-inventory.js';
 import type { RciDomainEvent } from './events/rci-domain-event.js';
 import { synchronizeDwellingInventory } from './housing/dwelling-inventory.js';
 import { planHousingReconciliation } from './housing/housing-reconciliation.js';
@@ -25,7 +28,6 @@ export interface RciTickInput {
   readonly registries: RciDefinitionRegistries;
   readonly configuration: RciConfiguration;
   readonly qualificationResolver?: QualificationResolver;
-  readonly suitableVacantJobCount?: number;
 }
 
 export interface RciTickPlan {
@@ -36,6 +38,7 @@ export interface RciTickPlan {
   readonly afterAbsoluteTick: number;
   readonly proposedSnapshot: RciSnapshot;
   readonly emittedEvents: readonly RciDomainEvent[];
+  readonly suitableVacantJobCount: number;
   readonly valid: boolean;
   readonly invalidReason: RciContractErrorCode | null;
 }
@@ -66,6 +69,7 @@ function invalidPlan(input: RciTickInput, invalidReason: RciContractErrorCode): 
     afterAbsoluteTick: input.simulationAfter.absoluteTick,
     proposedSnapshot: input.rci,
     emittedEvents: Object.freeze([]),
+    suitableVacantJobCount: 0,
     valid: false,
     invalidReason,
   });
@@ -99,6 +103,14 @@ export function planRciTick(input: RciTickInput): RciTickPlan {
     evaluationTick: input.simulationAfter.absoluteTick,
     displacedExpiryTicks: input.configuration.displacedExpiryTicks,
   }).proposedSnapshot;
+  snapshot = synchronizeWorkplaceInventory({
+    snapshot,
+    buildingsBefore: input.buildingsBefore,
+    buildingsAfter: input.buildingsAfter,
+    registries: input.registries,
+    evaluationTick: input.simulationAfter.absoluteTick,
+  }).proposedSnapshot;
+
   const emittedEvents: RciDomainEvent[] = [];
   const daily = isDailyLifecycleTick(
     input.simulationBefore.absoluteTick,
@@ -123,11 +135,26 @@ export function planRciTick(input: RciTickInput): RciTickPlan {
     });
     snapshot = lifecycle.snapshot;
     emittedEvents.push(...lifecycle.events);
+  }
 
+  const employment = planEmploymentReconciliation({
+    snapshot,
+    evaluationTick: input.simulationAfter.absoluteTick,
+    registries: input.registries,
+    allowControlledUpgrade: daily,
+  });
+  snapshot = employment.proposedSnapshot;
+  const suitableVacantJobCount = createEmploymentIndex(
+    snapshot,
+    input.registries,
+    input.simulationAfter.absoluteTick,
+  ).projection.compatibleVacantPositionCount;
+
+  if (daily) {
     const requestPlan = createFoundationMigrationRequestPolicy().planRequests({
       snapshot,
       evaluationTick: input.simulationAfter.absoluteTick,
-      suitableVacantJobCount: input.suitableVacantJobCount ?? 0,
+      suitableVacantJobCount,
       registries: input.registries,
       configuration: input.configuration,
     });
@@ -179,6 +206,7 @@ export function planRciTick(input: RciTickInput): RciTickPlan {
     afterAbsoluteTick: input.simulationAfter.absoluteTick,
     proposedSnapshot: snapshot,
     emittedEvents: Object.freeze(emittedEvents),
+    suitableVacantJobCount,
     valid: true,
     invalidReason: null,
   });

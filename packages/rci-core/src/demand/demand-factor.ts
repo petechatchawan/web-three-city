@@ -47,8 +47,11 @@ function targetCountPressure(currentCount: number, targetCount: number): number 
   return clampDemandMilli(((targetCount - currentCount) * 100_000) / targetCount);
 }
 
-function vacantPositionBufferPressure(vacantCount: number, positionCapacity: number): number {
-  const desiredVacantBuffer = Math.max(1, Math.ceil(positionCapacity * 0.2));
+function vacantPositionBufferPressure(
+  vacantCount: number,
+  positionCapacity: number,
+): number {
+  const desiredVacantBuffer = Math.max(1, Math.ceil(positionCapacity / 5));
   return targetCountPressure(vacantCount, desiredVacantBuffer);
 }
 
@@ -124,7 +127,10 @@ export const FOUNDATION_RCI_DEMAND_FACTORS: readonly RciDemandFactorDefinition[]
     channel: 'residential' as const,
     weightMilli: 500,
     evaluate: (context: RciDemandFactorContext) => {
-      const desiredVacantDwellingBuffer = Math.max(1, Math.ceil(context.householdCount * 0.1));
+      const desiredVacantDwellingBuffer = Math.max(
+        1,
+        Math.ceil(context.householdCount / 10),
+      );
       return targetCountPressure(context.vacantDwellingCount, desiredVacantDwellingBuffer);
     },
   }),

@@ -1,0 +1,48 @@
+name: Align game time runtime with WorldSaveV5
+
+on:
+  push:
+    branches: [feat/rci-game-integration-v0-1]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/rci-game-integration-v0-1
+      - uses: actions/setup-python@v5
+      - name: Remove legacy Save rewrite and read V5 first
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('apps/game/src/main.ts')
+          text = path.read_text()
+          replacements = [
+              ("import { decodeWorldSave, encodeWorldSaveV4 } from './world-save.js';", "import { decodeWorldSave } from './world-save.js';"),
+              ("const CURRENT_WORLD_SAVE_KEY = 'web-three-city:world-save:v3';", "const CURRENT_WORLD_SAVE_KEY = 'web-three-city:world-save:v5';"),
+              ("  CURRENT_WORLD_SAVE_KEY,\n  'web-three-city:world-save:v2',", "  CURRENT_WORLD_SAVE_KEY,\n  'web-three-city:world-save:v3',\n  'web-three-city:world-save:v2',"),
+              ("const saveButton = requireButton('save');\n", ""),
+          ]
+          for old, new in replacements:
+              if old not in text:
+                  raise SystemExit(f'missing expected main contract: {old!r}')
+              text = text.replace(old, new)
+
+          start = text.index("saveButton.addEventListener(\n")
+          end = text.index("loadButton.addEventListener(\n", start)
+          text = text[:start] + text[end:]
+          path.write_text(text)
+          PY
+      - name: Commit runtime alignment and remove workflow
+        run: |
+          rm .github/workflows/rci-main-v5-runtime.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix(game): synchronize time runtime from WorldSaveV5"
+          git push origin HEAD:feat/rci-game-integration-v0-1

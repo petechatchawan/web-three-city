@@ -67,6 +67,17 @@ export {
   isDailyLifecycleTick,
 } from './population/age.js';
 export type { AgeBandDefinitionId } from './population/age.js';
+export {
+  DETERMINISTIC_SAMPLE_ALGORITHM,
+  PROBABILITY_SCALE,
+  deterministicSample,
+} from './population/deterministic-sample.js';
+export type { ProbabilityUnit } from './population/deterministic-sample.js';
+export {
+  ANNUAL_RATE_SCALE,
+  compileAnnualRateToDailyHazard,
+  sampleSucceeds,
+} from './population/hazard.js';
 export { createRciCurrentStateIndex } from './projection/population-index.js';
 export type { RciCurrentStateIndex } from './projection/population-index.js';
 export {

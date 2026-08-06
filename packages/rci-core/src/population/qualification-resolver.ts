@@ -3,37 +3,31 @@ import type { RciDefinitionRegistries } from '../definitions/contracts.js';
 import { deterministicSample, type ProbabilityUnit } from './deterministic-sample.js';
 
 export type QualificationResolverContext =
-  'working-age-immigrant' | 'resident-reaching-working-age';
+  | 'working-age-immigrant'
+  | 'resident-reaching-working-age';
+
+export interface QualificationResolverInput {
+  readonly citizenId: CitizenId;
+  readonly context: QualificationResolverContext;
+  readonly evaluationTick: number;
+  readonly deterministicSeed: number;
+}
 
 export interface QualificationResolver {
-  resolve(
-    input: Readonly<{
-      citizenId: CitizenId;
-      context: QualificationResolverContext;
-      evaluationTick: number;
-      deterministicSeed: number;
-    }>,
-  ): string;
+  resolve(input: Readonly<QualificationResolverInput>): string;
 }
 
 export interface QualificationResolverOptions {
-  readonly sample?: (
-    input: Readonly<{
-      citizenId: CitizenId;
-      context: QualificationResolverContext;
-      evaluationTick: number;
-      deterministicSeed: number;
-    }>,
-  ) => ProbabilityUnit;
+  readonly sample?: (input: Readonly<QualificationResolverInput>) => ProbabilityUnit;
 }
 
 export function createFoundationQualificationResolver(
   registries: RciDefinitionRegistries,
   options: QualificationResolverOptions = {},
 ): QualificationResolver {
-  const sampleFor =
+  const sampleFor: (input: Readonly<QualificationResolverInput>) => ProbabilityUnit =
     options.sample ??
-    ((input) =>
+    ((input: Readonly<QualificationResolverInput>) =>
       deterministicSample({
         seed: input.deterministicSeed,
         eventType: `qualification:${input.context}`,
@@ -43,7 +37,7 @@ export function createFoundationQualificationResolver(
       }));
 
   return Object.freeze({
-    resolve(input): string {
+    resolve(input: Readonly<QualificationResolverInput>): string {
       const sample = sampleFor(input);
       const immigrant = input.context === 'working-age-immigrant';
       const entryThreshold = immigrant ? 550_000_000 : 700_000_000;

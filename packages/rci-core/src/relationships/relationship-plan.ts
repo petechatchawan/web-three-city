@@ -3,11 +3,7 @@ import {
   validRecordMutationPlan,
   type RciRecordMutationPlan,
 } from '../contracts/mutation-plan.js';
-import {
-  canonicalCitizenPair,
-  compareStableId,
-  type CitizenId,
-} from '../contracts/ids.js';
+import { canonicalCitizenPair, compareStableId, type CitizenId } from '../contracts/ids.js';
 import type {
   DirectionalRelationshipRecord,
   RelationshipRecord,
@@ -42,12 +38,14 @@ function appendRelationship(
   return validRecordMutationPlan(snapshot, proposed);
 }
 
-export function planCreatePartnerRelationship(input: Readonly<{
-  snapshot: RciSnapshot;
-  firstCitizenId: CitizenId;
-  secondCitizenId: CitizenId;
-  startedAtTick: number;
-}>): RciRecordMutationPlan {
+export function planCreatePartnerRelationship(
+  input: Readonly<{
+    snapshot: RciSnapshot;
+    firstCitizenId: CitizenId;
+    secondCitizenId: CitizenId;
+    startedAtTick: number;
+  }>,
+): RciRecordMutationPlan {
   const { snapshot } = input;
   const first = citizenFor(snapshot, input.firstCitizenId);
   const second = citizenFor(snapshot, input.secondCitizenId);
@@ -92,11 +90,13 @@ export function planCreatePartnerRelationship(input: Readonly<{
   return appendRelationship(snapshot, relationship);
 }
 
-export function planEndPartnerRelationship(input: Readonly<{
-  snapshot: RciSnapshot;
-  citizenId: CitizenId;
-  endedAtTick: number;
-}>): RciRecordMutationPlan {
+export function planEndPartnerRelationship(
+  input: Readonly<{
+    snapshot: RciSnapshot;
+    citizenId: CitizenId;
+    endedAtTick: number;
+  }>,
+): RciRecordMutationPlan {
   const { snapshot } = input;
   const target = snapshot.relationships.relationships.find(
     (relationship) =>
@@ -129,13 +129,15 @@ export function planEndPartnerRelationship(input: Readonly<{
   return validRecordMutationPlan(snapshot, proposed);
 }
 
-export function planCreateDirectionalRelationship(input: Readonly<{
-  snapshot: RciSnapshot;
-  typeDefinitionId: string;
-  sourceCitizenId: CitizenId;
-  targetCitizenId: CitizenId;
-  startedAtTick: number;
-}>): RciRecordMutationPlan {
+export function planCreateDirectionalRelationship(
+  input: Readonly<{
+    snapshot: RciSnapshot;
+    typeDefinitionId: string;
+    sourceCitizenId: CitizenId;
+    targetCitizenId: CitizenId;
+    startedAtTick: number;
+  }>,
+): RciRecordMutationPlan {
   const { snapshot } = input;
   const source = citizenFor(snapshot, input.sourceCitizenId);
   const target = citizenFor(snapshot, input.targetCitizenId);

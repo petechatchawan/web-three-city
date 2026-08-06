@@ -1,9 +1,7 @@
 import { compareStableId } from '../contracts/ids.js';
 import type { RciDomainEvent } from './rci-domain-event.js';
 
-export function orderRciDomainEvents(
-  events: readonly RciDomainEvent[],
-): readonly RciDomainEvent[] {
+export function orderRciDomainEvents(events: readonly RciDomainEvent[]): readonly RciDomainEvent[] {
   return Object.freeze(
     events
       .map((event) => Object.freeze({ ...event }) as RciDomainEvent)

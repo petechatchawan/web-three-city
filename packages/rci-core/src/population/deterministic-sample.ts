@@ -10,13 +10,15 @@ function assertComponent(value: number): void {
   }
 }
 
-export function deterministicSample(input: Readonly<{
-  seed: number;
-  eventType: string;
-  evaluationTick: number;
-  entityStableId: string;
-  attemptIndex: number;
-}>): ProbabilityUnit {
+export function deterministicSample(
+  input: Readonly<{
+    seed: number;
+    eventType: string;
+    evaluationTick: number;
+    entityStableId: string;
+    attemptIndex: number;
+  }>,
+): ProbabilityUnit {
   assertComponent(input.seed);
   assertComponent(input.evaluationTick);
   assertComponent(input.attemptIndex);

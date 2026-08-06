@@ -4,9 +4,7 @@ import { PROBABILITY_SCALE, type ProbabilityUnit } from './deterministic-sample.
 
 export const ANNUAL_RATE_SCALE = 1_000_000;
 
-export function compileAnnualRateToDailyHazard(
-  annualRateMillionth: number,
-): ProbabilityUnit {
+export function compileAnnualRateToDailyHazard(annualRateMillionth: number): ProbabilityUnit {
   if (
     !Number.isSafeInteger(annualRateMillionth) ||
     annualRateMillionth < 0 ||

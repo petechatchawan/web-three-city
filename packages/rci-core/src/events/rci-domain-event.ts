@@ -17,35 +17,31 @@ export interface RciDomainEventBase {
   readonly sequence: number;
 }
 
-export interface CitizenReachedAgeBandEvent extends RciDomainEventBase {
+export interface RciDomainEvent extends RciDomainEventBase {
+  readonly ageBandDefinitionId?: AgeBandDefinitionId;
+}
+
+export interface CitizenReachedAgeBandEvent extends RciDomainEvent {
   readonly type: 'citizen.reached-age-band';
   readonly ageBandDefinitionId: AgeBandDefinitionId;
 }
 
-export interface CitizenBornEvent extends RciDomainEventBase {
+export interface CitizenBornEvent extends RciDomainEvent {
   readonly type: 'citizen.born';
 }
 
-export interface CitizenDiedEvent extends RciDomainEventBase {
+export interface CitizenDiedEvent extends RciDomainEvent {
   readonly type: 'citizen.died';
 }
 
-export interface QualificationAwardedEvent extends RciDomainEventBase {
+export interface QualificationAwardedEvent extends RciDomainEvent {
   readonly type: 'qualification.awarded';
 }
 
-export interface RelationshipEndedEvent extends RciDomainEventBase {
+export interface RelationshipEndedEvent extends RciDomainEvent {
   readonly type: 'relationship.ended';
 }
 
-export interface HouseholdDissolvedEvent extends RciDomainEventBase {
+export interface HouseholdDissolvedEvent extends RciDomainEvent {
   readonly type: 'household.dissolved';
 }
-
-export type RciDomainEvent =
-  | CitizenReachedAgeBandEvent
-  | CitizenBornEvent
-  | CitizenDiedEvent
-  | QualificationAwardedEvent
-  | RelationshipEndedEvent
-  | HouseholdDissolvedEvent;

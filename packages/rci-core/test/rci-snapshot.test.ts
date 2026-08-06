@@ -42,6 +42,7 @@ describe('RCI snapshots', () => {
       evaluatedAtTick: 120,
     });
     expect(Object.values(snapshot.sequences).every((value) => value === 1)).toBe(true);
+    expect(Object.isFrozen(snapshot.sequences)).toBe(true);
     expect(Object.isFrozen(snapshot)).toBe(true);
   });
 

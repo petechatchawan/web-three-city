@@ -33,16 +33,22 @@ function gateFor(
       : snapshot.demand.growthGates.industrialOpen;
 }
 
+function bootstrapOpen(snapshot: RciSnapshot): boolean {
+  return snapshot.demand.revision === 0;
+}
+
 export function createBuildingGrowthPolicy(snapshot: RciSnapshot): BuildingGrowthPolicy {
   return Object.freeze({
     policyRevision: snapshot.demand.revision,
     allowsZone(zoneDefinitionId: string): boolean {
       const channel = channelForZone(zoneDefinitionId);
-      return channel !== null && gateFor(snapshot, channel);
+      return channel !== null && (bootstrapOpen(snapshot) || gateFor(snapshot, channel));
     },
     zoneWeightMilli(zoneDefinitionId: string): number {
       const channel = channelForZone(zoneDefinitionId);
-      if (channel === null || !gateFor(snapshot, channel)) return 0;
+      if (channel === null) return 0;
+      if (bootstrapOpen(snapshot)) return 100_000;
+      if (!gateFor(snapshot, channel)) return 0;
       return Math.max(1_000, Math.min(100_000, demandFor(snapshot, channel)));
     },
   });

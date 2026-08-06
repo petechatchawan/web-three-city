@@ -147,14 +147,14 @@ Demand R +43 open | C +22 open | I +22 open
 
 ## Documentation Normalization
 
-The same correction is reflected in:
+The correction is reflected in the complete RCI handoff set:
 
-- [`../README.md`](../README.md) — living system status and runtime contract.
+- [`../README.md`](../README.md) — current runtime behavior, delivery state, and documentation precedence.
 - [`../specs/README.md`](../specs/README.md) — implemented specification status and post-closure clarification.
 - [`../tdd/README.md`](../tdd/README.md) — completed execution packet and retained binding contracts.
-- [`2026-08-06-rci-foundation-v0-1-closure.md`](2026-08-06-rci-foundation-v0-1-closure.md) — closed foundation baseline and separate post-closure correction boundary.
+- [`2026-08-06-rci-foundation-v0-1-closure.md`](2026-08-06-rci-foundation-v0-1-closure.md) — final foundation baseline and separate post-closure correction boundary.
 
-The original design specification remains a planning-time historical record; current delivery status is maintained by those living documents.
+The original design specification remains a planning-time historical record. Current status is maintained by the living System README and verification records.
 
 ## CI Infrastructure Note
 

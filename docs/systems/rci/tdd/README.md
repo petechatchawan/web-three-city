@@ -9,7 +9,7 @@
 
 This packet decomposed RCI Foundation v0.1 into six sequential TDD implementation boundaries. Every production change followed RED → GREEN → REFACTOR → focused verification before merge.
 
-The packet is retained as implementation history and handoff context. It is no longer an active plan.
+The packet is retained as implementation history and handoff context. It is no longer an active plan; current runtime and delivery status are maintained in the owning System README.
 
 ## Execution Outcome
 
@@ -60,4 +60,4 @@ The packet's original Demand target-buffer implementation permitted a fully-occu
 
 - [Fully-occupied R/C/I Growth deadlock](../verification/2026-08-06-rci-occupied-dwelling-demand-deadlock.md)
 
-This correction does not change the normalized entity model, package boundaries, tick pipeline, or Save schema.
+This correction does not change the normalized entity model, package boundaries, tick pipeline, or Save schema. The original saved city passed manual recovery acceptance; exact-head automated verification remains the final merge gate for PR #32.

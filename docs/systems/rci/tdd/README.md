@@ -61,3 +61,7 @@ The packet's original Demand target-buffer implementation permitted a fully-occu
 - [Fully-occupied R/C/I Growth deadlock](../verification/2026-08-06-rci-occupied-dwelling-demand-deadlock.md)
 
 This correction does not change the normalized entity model, package boundaries, tick pipeline, or Save schema. The original saved city passed manual recovery acceptance; exact-head automated verification remains the final merge gate for PR #32.
+
+## Status Authority
+
+This packet records completed implementation history. For the current state, consult [`../README.md`](../README.md) and the linked verification records.

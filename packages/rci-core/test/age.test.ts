@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  RCI_DAYS_PER_YEAR,
   RCI_TICKS_PER_DAY,
   RCI_TICKS_PER_YEAR,
   RciContractError,
@@ -10,6 +11,7 @@ import {
 
 describe('RCI age and daily lifecycle boundaries', () => {
   it('derives immigrant age from negative birth ticks', () => {
+    expect(RCI_DAYS_PER_YEAR).toBe(360);
     expect(ageYearsAtTick(-18 * RCI_TICKS_PER_YEAR, 0)).toBe(18);
   });
 

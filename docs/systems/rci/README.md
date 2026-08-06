@@ -1,6 +1,6 @@
 # RCI Demand & Occupancy System
 
-**Status:** Implemented — Foundation v0.1 with occupied-Dwelling Demand deadlock hotfix  
+**Status:** Implemented — Foundation v0.1 with fully-occupied Growth deadlock hotfix  
 **Current implementation baseline:** `master`  
 **Primary ownership:** `packages/rci-core`; `apps/game` owns atomic world orchestration, Save composition, and HUD presentation  
 **Persistence:** `RciSaveV1` inside `WorldSaveV5`
@@ -45,7 +45,8 @@ Provide deterministic authority for Citizens, Relationships, Households, housing
 - Integer smoothing into authoritative Demand state.
 - Persisted hysteresis gates: `>=15_000` opens, `<=5_000` closes, and the neutral band retains prior state.
 - Residential target-buffer Demand is based on wholly vacant Dwelling Units relative to active Households; unused resident capacity inside an assigned Dwelling Unit is not vacant housing.
-- A city with no vacant Dwelling Unit can recover a closed Residential Growth gate through subsequent daily Demand evaluations without Save migration or world reset.
+- Commercial and Industrial target-buffer Demand normalizes vacancy pressure against a 20% vacant-position target with a minimum target of one vacant position.
+- A fully occupied city can recover closed Residential, Commercial, and Industrial Growth gates through subsequent daily Demand evaluations without Save migration or world reset.
 - Negative Demand suppresses future growth but never abandons existing Buildings or Zones.
 - RCI derives a caller-supplied `BuildingGrowthPolicy`; Building Core never imports RCI.
 - Demand magnitude affects eligible-zone selection weight deterministically.
@@ -117,7 +118,7 @@ Dependency direction remains acyclic: `building-core` and `simulation-core` do n
 
 `RciSaveV1` stores normalized histories, queues, accumulator, Demand, gates, seed, revisions, and every sequence. Registry definitions, indexes, projections, events, policy objects, renderer state, active tools, pointer sessions, and HUD DOM are rebuilt.
 
-`WorldSaveV5` is the current envelope. V1–V4 decode in dependency order and initialize deterministic RCI authority from decoded Simulation and active Building inventory. Decode is all-or-nothing. The occupied-Dwelling Demand hotfix changes a derived factor context only and requires no Save schema migration.
+`WorldSaveV5` is the current envelope. V1–V4 decode in dependency order and initialize deterministic RCI authority from decoded Simulation and active Building inventory. Decode is all-or-nothing. The fully-occupied Growth hotfix changes derived factor inputs and evaluation only and requires no Save schema migration.
 
 ## Invariants and Failure Behavior
 
@@ -129,6 +130,7 @@ Dependency direction remains acyclic: `building-core` and `simulation-core` do n
 - Housing and position capacities cannot be exceeded by reconciliation.
 - Relocation and incoming materialization require adequate vacant housing.
 - Demand must use the same wholly vacant Dwelling Unit authority required by Household materialization.
+- A target-buffer factor at full occupancy must produce a reachable score above its Growth-gate opening threshold.
 - Valid workers are not displaced; upgrades require an already-vacant better fit.
 - Order-sensitive work uses explicit stable comparators and integer arithmetic.
 - Growth gates persist because neutral-band behavior depends on prior state.
@@ -157,5 +159,5 @@ Registries and policies support new relationship, qualification, occupation, cap
 - PR 5: [Demand and Growth policy](verification/2026-08-06-rci-pr5-demand-growth.md)
 - PR 6: [Game integration](verification/2026-08-06-rci-pr6-game-integration.md)
 - Closure: [RCI Foundation v0.1](verification/2026-08-06-rci-foundation-v0-1-closure.md)
-- Hotfix: [Occupied-Dwelling Demand deadlock](verification/2026-08-06-rci-occupied-dwelling-demand-deadlock.md)
+- Hotfix: [Fully-occupied Growth deadlock](verification/2026-08-06-rci-occupied-dwelling-demand-deadlock.md)
 - Related systems: [World](../world/README.md), [Buildings](../buildings/README.md), [Simulation Time](../simulation-time/README.md), [Economy](../economy/README.md)

@@ -1,2 +1,42 @@
-// Public exports are introduced only after their test-first implementation exists.
-export {};
+export { RciContractError } from './contracts/errors.js';
+export type { RciContractErrorCode } from './contracts/errors.js';
+export type {
+  CapacityProfileDefinitionId,
+  CitizenId,
+  CitizenQualificationId,
+  DefinitionId,
+  DemandFactorDefinitionId,
+  DwellingUnitId,
+  EmploymentAssignmentId,
+  EmploymentRequirementDefinitionId,
+  HouseholdId,
+  HouseholdMembershipId,
+  HousingAssignmentId,
+  IncomingHouseholdRequestId,
+  MigrationArchetypeDefinitionId,
+  OccupationDefinitionId,
+  PositionGroupDefinitionId,
+  QualificationDefinitionId,
+  RelationshipId,
+  RelationshipTypeDefinitionId,
+  SexDefinitionId,
+  WorkplaceId,
+} from './contracts/ids.js';
+export type {
+  CitizenQualificationRecord,
+  CitizenRecord,
+  DemandMilliPoint,
+  DirectionalRelationshipRecord,
+  DisplacedHouseholdEntry,
+  DwellingUnitRecord,
+  EmploymentAssignmentRecord,
+  HouseholdMembershipRecord,
+  HouseholdRecord,
+  HousingAssignmentRecord,
+  IncomingHouseholdRequest,
+  RciDemandState,
+  RciGrowthGateState,
+  RelationshipRecord,
+  UndirectedRelationshipRecord,
+  WorkplaceRecord,
+} from './contracts/records.js';

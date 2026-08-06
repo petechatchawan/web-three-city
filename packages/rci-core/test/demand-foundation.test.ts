@@ -95,6 +95,8 @@ describe('RCI Demand foundation', () => {
         evaluationTick,
       });
     }
+    expect(demand.evaluatedAtTick).toBe(320);
+    expect(growthGates.evaluatedAtTick).toBe(320);
     expect(demand.residentialMilli).toBeGreaterThanOrEqual(15_000);
     expect(demand.commercialMilli).toBeGreaterThanOrEqual(15_000);
     expect(demand.industrialMilli).toBeGreaterThanOrEqual(15_000);

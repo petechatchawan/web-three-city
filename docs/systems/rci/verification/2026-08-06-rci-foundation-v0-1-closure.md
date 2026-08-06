@@ -1,6 +1,6 @@
 # RCI Demand & Occupancy Foundation v0.1 — Closure Record
 
-**Status:** Implementation complete; final verification and sequential merge pending  
+**Status:** Implementation complete; final verification and sequential merge in progress  
 **Stack:** PR 2 Population → PR 3 Housing/Migration → PR 4 Employment → PR 5 Demand/Growth → PR 6 Game Integration
 
 ## Implemented Scope
@@ -19,6 +19,15 @@
 
 Economy, taxes, wages, profitability, utilities, city services, traffic, Land Value, abandonment, density upgrades, Education gameplay, Citizen movement AI, and final art content.
 
+## Verification Corrections Applied
+
+- Canonical Demand contribution ordering is independent of factor input order.
+- Growth weights preserve relative positive Demand instead of saturating every open channel.
+- Before the first Demand evaluation, all three zone channels use a deterministic bootstrap-open policy; persisted 15/5 hysteresis becomes authoritative immediately after the first evaluation.
+- No-op Housing reconciliation and atomic Game World publication preserve snapshot identity.
+- Strict optional-property typing is preserved for displacement expiry configuration.
+- Browser Save/Load acceptance reads the current WorldSaveV5 key and top-level schema while retaining each domain's own nested schema version.
+
 ## Closure Gates
 
 - [ ] All stacked branches are formatted and type-safe.
@@ -33,4 +42,4 @@ Economy, taxes, wages, profitability, utilities, city services, traffic, Land Va
 
 ## Verification Evidence
 
-Pending the final stacked verification cycle requested by the owner. This section will be replaced with exact commands, counts, workflow runs, commit SHAs, and final verdict before closure is declared.
+Exact passing commit SHAs, workflow run IDs, command coverage, merge SHAs, and the final verdict are recorded only after the current Lean and Full browser verification cycle completes. This avoids treating superseded or partially passing runs as closure evidence.

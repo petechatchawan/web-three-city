@@ -64,6 +64,7 @@ export function createRciProjection(
   });
   const factorContext: RciDemandFactorContext = Object.freeze({
     residentCount,
+    householdCount,
     residentCapacity: housing.residentCapacity,
     vacantDwellingCount: housing.vacantDwellingCount,
     incomingHouseholdCount: population.incomingHouseholdCount,

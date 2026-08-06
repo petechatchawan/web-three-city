@@ -65,6 +65,7 @@ describe('RCI tick plan and commit foundation', () => {
     expect(result.snapshot).toBe(rci);
     expect(result.receipt.beforeRevision).toBe(rci.revision);
     expect(result.receipt.afterRevision).toBe(rci.revision);
+    expect(Object.isFrozen(result.receipt)).toBe(true);
   });
 
   it('rejects stale RCI, Simulation, and Building inputs', () => {

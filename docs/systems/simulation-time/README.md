@@ -1,19 +1,19 @@
 # Simulation Time System
 
-**Status:** Implemented  
-**Last verified against:** `master@012a644391d13e7d47135a1c0e9e3394be667871`  
-**Primary ownership:** `packages/simulation-core`, `apps/game/src/simulation-runtime.ts`, time HUD integration  
-**Persistence:** `SimulationSaveV1`
+**Status:** Implemented — final stacked verification pending  
+**Primary ownership:** `packages/simulation-core`, `apps/game/src/simulation-runtime.ts`, and time HUD integration  
+**Persistence:** `SimulationSaveV1` inside `WorldSaveV5`
 
 ## Purpose
 
-Own deterministic in-game time, calendar derivation, tick planning/commit, time-speed presentation, and the sequencing state currently used by automatic Building growth.
+Own deterministic in-game time, calendar derivation, tick planning/commit, time-speed presentation, and the sequencing state used by Building Growth. Domain-specific lifecycle and Demand rules remain outside `simulation-core`.
 
 ## Does Not Own
 
 - Real-time rendering frame loops.
 - Building, RCI, Economy, or population rules.
 - Wall-clock catch-up while the page is hidden.
+- Atomic cross-domain publication.
 
 ## Current Capabilities
 
@@ -22,36 +22,43 @@ Own deterministic in-game time, calendar derivation, tick planning/commit, time-
 - Initial time: Year 1, Month 1, Day 1, `08:00` (`absoluteTick = 8`).
 - Speeds: Paused `0×`, Normal `1×`, Fast `2×`, Faster `4×`.
 - Step advances exactly one tick while paused.
-- Development evaluation hours: `00`, `06`, `12`, and `18`.
+- Building development evaluation hours: `00`, `06`, `12`, and `18`.
+- RCI daily lifecycle/Demand boundary: crossing into `08:00`.
 - Runtime clamps frame delta and resets accumulated time on speed or visibility changes.
-- Simulation revision, absolute tick, and Building growth sequence persist across Save/Load.
+- Revision, absolute tick, and Building growth sequence persist across Save/Load.
+- Application orchestration stages the next Simulation snapshot with Building and RCI results before atomic publication.
 
 ## Ownership and State
 
-`SimulationSnapshot` is authoritative for revision, `absoluteTick`, and `growthSequence`. Calendar labels, age/date projections, elapsed days, speed-button state, and accumulated real milliseconds are derived or runtime-only.
+`SimulationSnapshot` is authoritative for revision, `absoluteTick`, and `growthSequence`. Calendar labels, age/date projections, lifecycle boundary checks, speed-button state, and accumulated real milliseconds are derived or runtime-only.
 
 ## Main Workflow
 
 1. Runtime accepts a bounded real-time delta and current speed.
-2. Each completed simulated second emits one game tick callback.
-3. Domain planners calculate changes from the current Simulation snapshot.
-4. Tick commit validates the plan, increments revision and absolute tick, and applies the supplied next growth sequence.
-5. UI derives calendar and lifecycle summaries from committed state.
+2. Each completed simulated second requests one game tick.
+3. Application planners calculate Building and RCI changes from the current Simulation snapshot.
+4. Simulation commit validates the one-tick plan and supplied next growth sequence.
+5. The application validates the complete staged world and publishes one atomic world revision.
+6. Time HUD and RCI HUD derive values from committed state.
 
 ## Integrations
 
 ```mermaid
 flowchart LR
-  Runtime[game runtime] --> Simulation
-  Simulation --> Buildings
-  Simulation -. planned .-> RCI
-  Simulation --> TimeHUD[Time HUD]
-  Simulation --> WorldSave
+  Runtime --> GameWorldTick
+  Simulation --> GameWorldTick
+  Buildings --> GameWorldTick
+  RCI --> GameWorldTick
+  GameWorldTick --> StateStore[GameWorldStateStore]
+  StateStore --> TimeHUD
+  StateStore --> WorldSaveV5
 ```
+
+`simulation-core` does not import Building or RCI packages. `apps/game` owns orchestration and dependency direction.
 
 ## Persistence
 
-`SimulationSaveV1` stores revision, absolute tick, and growth sequence. Runtime speed and accumulated real milliseconds are not persisted. Older World Saves create a deterministic initial Simulation snapshot and seed growth sequence from existing Building count.
+`SimulationSaveV1` stores revision, absolute tick, and growth sequence. Runtime speed and accumulated real milliseconds are not persisted. Older World Saves create a deterministic initial Simulation snapshot and seed growth sequence from existing Building count. V5 restores Simulation and RCI evaluated ticks together.
 
 ## Invariants and Failure Behavior
 
@@ -59,20 +66,22 @@ flowchart LR
 - A tick plan advances exactly one absolute tick.
 - Stale or invalid plans do not commit.
 - Paused runtime emits no automatic ticks; Step emits one tick only while paused.
-- Frame rate and callback batching must not change committed domain results.
-- Save/load/resume must match continuous execution from the same committed tick.
+- Frame rate and callback batching do not change committed domain results.
+- Save/load/resume matches continuous execution from the same committed tick.
+- A failed Building or RCI stage prevents publication of the staged Simulation snapshot.
 
 ## Extension Points
 
-Additional systems should schedule work from `absoluteTick` and calendar projections, not wall-clock time. RCI may add daily lifecycle evaluation and end-of-tick reconciliation while `simulation-core` remains unaware of domain-specific events.
+Additional systems schedule work from `absoluteTick` and calendar projections, never wall-clock time. New daily/monthly policies belong in their domain packages and join the application-level staged tick without adding domain dependencies to `simulation-core`.
 
 ## Current Limitations
 
-No seasonal calendar, leap years, offline progress, event scheduler, variable-length ticks, or persisted runtime speed.
+No seasonal calendar, leap years, offline progress, general event scheduler, variable-length ticks, or persisted runtime speed.
 
 ## Handoff Checklist
 
-- Start reading: `packages/simulation-core/src/contracts.ts`, `calendar.ts`, `simulation-mutation.ts`, `serialization.ts`
+- Core: `packages/simulation-core/src/contracts.ts`, `calendar.ts`, `simulation-mutation.ts`, `serialization.ts`
 - Runtime: `apps/game/src/simulation-runtime.ts`
+- Atomic orchestration: `apps/game/src/game-world-tick.ts`
 - UI: `apps/game/src/game-time-ui.ts`, `game-time-presentation.ts`
-- Related systems: [Buildings](../buildings/README.md), [RCI](../rci/README.md)
+- Related systems: [Buildings](../buildings/README.md), [RCI](../rci/README.md), [World](../world/README.md)

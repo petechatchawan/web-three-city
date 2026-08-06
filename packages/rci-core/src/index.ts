@@ -40,3 +40,19 @@ export type {
   UndirectedRelationshipRecord,
   WorkplaceRecord,
 } from './contracts/records.js';
+export { createFoundationRciRegistries } from './definitions/foundation-definitions.js';
+export type {
+  CapacityProfileDefinition,
+  DefinitionRegistry,
+  DemandFactorDefinitionContract,
+  EmploymentRequirementDefinition,
+  MigrationArchetypeDefinition,
+  OccupationDefinition,
+  PopulationRateProfileDefinition,
+  PositionGroupDefinition,
+  QualificationDefinition,
+  RciDefinitionExtensions,
+  RciDefinitionRegistries,
+  RelationshipTypeDefinition,
+  SexDefinition,
+} from './definitions/contracts.js';

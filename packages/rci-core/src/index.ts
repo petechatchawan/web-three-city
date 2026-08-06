@@ -74,9 +74,6 @@ export type {
   RelationshipSnapshot,
 } from './rci-snapshot.js';
 export { validateRciSnapshot } from './validation/rci-validation.js';
-export type {
-  RciValidationIssue,
-  RciValidationResult,
-} from './validation/rci-validation.js';
+export type { RciValidationIssue, RciValidationResult } from './validation/rci-validation.js';
 export { decodeRciSaveV1, encodeRciSaveV1 } from './persistence/serialization.js';
 export type { RciSaveError, RciSaveErrorCode, RciSaveV1 } from './persistence/serialization.js';

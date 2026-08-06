@@ -110,17 +110,18 @@ function freezeSorted<T extends object>(
   );
 }
 
-function canonicalRelationships(values: readonly RelationshipRecord[]): readonly RelationshipRecord[] {
+function canonicalRelationships(
+  values: readonly RelationshipRecord[],
+): readonly RelationshipRecord[] {
   return Object.freeze(
     values
       .map((relationship) =>
         relationship.orientation === 'undirected'
           ? Object.freeze({
               ...relationship,
-              participantCitizenIds: Object.freeze([...relationship.participantCitizenIds]) as readonly [
-                string,
-                string,
-              ],
+              participantCitizenIds: Object.freeze([
+                ...relationship.participantCitizenIds,
+              ]) as readonly [string, string],
             })
           : Object.freeze({ ...relationship }),
       )

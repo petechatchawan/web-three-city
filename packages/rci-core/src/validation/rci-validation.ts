@@ -171,17 +171,26 @@ export function validateRciSnapshot(
     snapshot.households.memberships.map((value) => value.membershipId),
     issues,
   );
-  checkUnique(snapshot.housing.dwellingUnits.map((value) => value.dwellingUnitId), issues);
+  checkUnique(
+    snapshot.housing.dwellingUnits.map((value) => value.dwellingUnitId),
+    issues,
+  );
   checkUnique(
     snapshot.housing.assignments.map((value) => value.housingAssignmentId),
     issues,
   );
-  checkUnique(snapshot.employment.workplaces.map((value) => value.workplaceId), issues);
+  checkUnique(
+    snapshot.employment.workplaces.map((value) => value.workplaceId),
+    issues,
+  );
   checkUnique(
     snapshot.employment.assignments.map((value) => value.employmentAssignmentId),
     issues,
   );
-  checkUnique(snapshot.migration.incomingRequests.map((value) => value.requestId), issues);
+  checkUnique(
+    snapshot.migration.incomingRequests.map((value) => value.requestId),
+    issues,
+  );
 
   const citizens = new Map(snapshot.population.citizens.map((value) => [value.citizenId, value]));
   const households = new Map(
@@ -232,12 +241,7 @@ export function validateRciSnapshot(
       addIssue(issues, 'rci:dangling-citizen', membership.membershipId, membership.citizenId);
     }
     if (!households.has(membership.householdId)) {
-      addIssue(
-        issues,
-        'rci:dangling-household',
-        membership.membershipId,
-        membership.householdId,
-      );
+      addIssue(issues, 'rci:dangling-household', membership.membershipId, membership.householdId);
     }
     if (membership.endedAtTick === null) {
       activeMembershipCount.set(
@@ -249,7 +253,10 @@ export function validateRciSnapshot(
   for (const citizen of snapshot.population.citizens) {
     const count = activeMembershipCount.get(citizen.citizenId) ?? 0;
     if (count > 1) addIssue(issues, 'rci:duplicate-active-membership', citizen.citizenId);
-    if ((citizen.presence === 'resident' && count !== 1) || (citizen.presence !== 'resident' && count !== 0)) {
+    if (
+      (citizen.presence === 'resident' && count !== 1) ||
+      (citizen.presence !== 'resident' && count !== 0)
+    ) {
       addIssue(issues, 'rci:invalid-state', citizen.citizenId);
     }
   }
@@ -278,8 +285,10 @@ export function validateRciSnapshot(
     }
     if (
       relationship.orientation === 'undirected' &&
-      compareStableId(relationship.participantCitizenIds[0], relationship.participantCitizenIds[1]) >=
-        0
+      compareStableId(
+        relationship.participantCitizenIds[0],
+        relationship.participantCitizenIds[1],
+      ) >= 0
     ) {
       addIssue(issues, 'rci:invalid-relationship', relationship.relationshipId);
     }
@@ -341,7 +350,12 @@ export function validateRciSnapshot(
       );
     }
     if (!dwellingUnits.has(assignment.dwellingUnitId)) {
-      addIssue(issues, 'rci:invalid-state', assignment.housingAssignmentId, assignment.dwellingUnitId);
+      addIssue(
+        issues,
+        'rci:invalid-state',
+        assignment.housingAssignmentId,
+        assignment.dwellingUnitId,
+      );
     }
     if (assignment.endedAtTick === null) {
       if (
@@ -357,7 +371,12 @@ export function validateRciSnapshot(
 
   for (const workplace of snapshot.employment.workplaces) {
     if (!buildingIds.has(workplace.buildingInstanceId)) {
-      addIssue(issues, 'rci:dangling-building', workplace.workplaceId, workplace.buildingInstanceId);
+      addIssue(
+        issues,
+        'rci:dangling-building',
+        workplace.workplaceId,
+        workplace.buildingInstanceId,
+      );
     }
     if (!registries.capacityProfiles.has(workplace.capacityProfileDefinitionId)) {
       addIssue(

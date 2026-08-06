@@ -12,15 +12,17 @@ import { deterministicSample, PROBABILITY_SCALE } from '../population/determinis
 import type { QualificationResolver } from '../population/qualification-resolver.js';
 import { canonicalizeRciSnapshot, type RciSnapshot } from '../rci-snapshot.js';
 
-function sampleAge(input: Readonly<{
-  seed: number;
-  requestId: string;
-  evaluationTick: number;
-  attemptIndex: number;
-  minimumYears: number;
-  maximumYears: number;
-  namespace: string;
-}>): number {
+function sampleAge(
+  input: Readonly<{
+    seed: number;
+    requestId: string;
+    evaluationTick: number;
+    attemptIndex: number;
+    minimumYears: number;
+    maximumYears: number;
+    namespace: string;
+  }>,
+): number {
   const span = input.maximumYears - input.minimumYears + 1;
   return (
     input.minimumYears +
@@ -30,18 +32,21 @@ function sampleAge(input: Readonly<{
       evaluationTick: input.evaluationTick,
       entityStableId: input.requestId,
       attemptIndex: input.attemptIndex,
-    }) % span)
+    }) %
+      span)
   );
 }
 
-export function planMaterializeIncomingHousehold(input: Readonly<{
-  snapshot: RciSnapshot;
-  requestId: IncomingHouseholdRequestId;
-  dwellingUnitId: DwellingUnitId;
-  evaluationTick: number;
-  registries: RciDefinitionRegistries;
-  qualificationResolver: QualificationResolver;
-}>): RciSnapshot {
+export function planMaterializeIncomingHousehold(
+  input: Readonly<{
+    snapshot: RciSnapshot;
+    requestId: IncomingHouseholdRequestId;
+    dwellingUnitId: DwellingUnitId;
+    evaluationTick: number;
+    registries: RciDefinitionRegistries;
+    qualificationResolver: QualificationResolver;
+  }>,
+): RciSnapshot {
   const request = input.snapshot.migration.incomingRequests.find(
     (value) => value.requestId === input.requestId,
   );
@@ -217,8 +222,7 @@ export function planMaterializeIncomingHousehold(input: Readonly<{
       qualifications,
     },
     relationships: {
-      revision:
-        input.snapshot.relationships.revision + (relationships.length > 0 ? 1 : 0),
+      revision: input.snapshot.relationships.revision + (relationships.length > 0 ? 1 : 0),
       relationships: [...input.snapshot.relationships.relationships, ...relationships],
     },
     households: {

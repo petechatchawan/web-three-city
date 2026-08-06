@@ -52,9 +52,7 @@ export function residentHouseholdSnapshot(absoluteTick = 32): RciSnapshot {
     },
     households: {
       revision: 1,
-      households: [
-        { householdId: 'household:1', foundedAtTick: 0, dissolvedAtTick: null },
-      ],
+      households: [{ householdId: 'household:1', foundedAtTick: 0, dissolvedAtTick: null }],
       memberships: [
         {
           membershipId: 'household-membership:1',

@@ -1,7 +1,4 @@
-import {
-  buildingDefinitionForId,
-  type BuildingSnapshot,
-} from '@web-three-city/building-core';
+import { buildingDefinitionForId, type BuildingSnapshot } from '@web-three-city/building-core';
 import { compareStableId } from '../contracts/ids.js';
 import type { EmploymentAssignmentId, WorkplaceId } from '../contracts/ids.js';
 import type { WorkplaceRecord } from '../contracts/records.js';
@@ -16,13 +13,15 @@ export interface WorkplaceInventorySynchronizationResult {
   readonly endedEmploymentAssignmentIds: readonly EmploymentAssignmentId[];
 }
 
-export function synchronizeWorkplaceInventory(input: Readonly<{
-  snapshot: RciSnapshot;
-  buildingsBefore: BuildingSnapshot;
-  buildingsAfter: BuildingSnapshot;
-  registries: RciDefinitionRegistries;
-  evaluationTick: number;
-}>): WorkplaceInventorySynchronizationResult {
+export function synchronizeWorkplaceInventory(
+  input: Readonly<{
+    snapshot: RciSnapshot;
+    buildingsBefore: BuildingSnapshot;
+    buildingsAfter: BuildingSnapshot;
+    registries: RciDefinitionRegistries;
+    evaluationTick: number;
+  }>,
+): WorkplaceInventorySynchronizationResult {
   const existingById = new Map(
     input.snapshot.employment.workplaces.map((workplace) => [workplace.workplaceId, workplace]),
   );
@@ -97,8 +96,6 @@ export function synchronizeWorkplaceInventory(input: Readonly<{
     }),
     activatedWorkplaceIds: Object.freeze(activatedWorkplaceIds.sort(compareStableId)),
     retiredWorkplaceIds: Object.freeze(retiredWorkplaceIds.sort(compareStableId)),
-    endedEmploymentAssignmentIds: Object.freeze(
-      endedEmploymentAssignmentIds.sort(compareStableId),
-    ),
+    endedEmploymentAssignmentIds: Object.freeze(endedEmploymentAssignmentIds.sort(compareStableId)),
   });
 }

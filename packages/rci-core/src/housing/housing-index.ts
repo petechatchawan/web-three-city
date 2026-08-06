@@ -45,10 +45,7 @@ export function createHousingIndex(
   for (const assignment of snapshot.housing.assignments) {
     if (assignment.endedAtTick !== null) continue;
     activeAssignmentByHouseholdId.set(assignment.householdId, assignment.housingAssignmentId);
-    activeAssignmentByDwellingUnitId.set(
-      assignment.dwellingUnitId,
-      assignment.housingAssignmentId,
-    );
+    activeAssignmentByDwellingUnitId.set(assignment.dwellingUnitId, assignment.housingAssignmentId);
   }
 
   let residentCapacity = 0;

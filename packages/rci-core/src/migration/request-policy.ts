@@ -5,13 +5,15 @@ import type { RciConfiguration } from '../rci-configuration.js';
 import type { RciSnapshot } from '../rci-snapshot.js';
 
 export interface MigrationRequestPolicy {
-  planRequests(input: Readonly<{
-    snapshot: RciSnapshot;
-    evaluationTick: number;
-    suitableVacantJobCount: number;
-    registries: RciDefinitionRegistries;
-    configuration: RciConfiguration;
-  }>): Readonly<{
+  planRequests(
+    input: Readonly<{
+      snapshot: RciSnapshot;
+      evaluationTick: number;
+      suitableVacantJobCount: number;
+      registries: RciDefinitionRegistries;
+      configuration: RciConfiguration;
+    }>,
+  ): Readonly<{
     requests: readonly IncomingHouseholdRequest[];
     nextAttractionMilli: number;
     nextIncomingRequestSequence: number;

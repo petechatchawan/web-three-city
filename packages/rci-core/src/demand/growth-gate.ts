@@ -6,24 +6,17 @@ function nextGate(previousOpen: boolean, demandMilli: number): boolean {
   return previousOpen;
 }
 
-export function updateRciGrowthGates(input: Readonly<{
-  previous: RciGrowthGateState;
-  demand: RciDemandState;
-  evaluationTick: number;
-}>): RciGrowthGateState {
+export function updateRciGrowthGates(
+  input: Readonly<{
+    previous: RciGrowthGateState;
+    demand: RciDemandState;
+    evaluationTick: number;
+  }>,
+): RciGrowthGateState {
   return Object.freeze({
-    residentialOpen: nextGate(
-      input.previous.residentialOpen,
-      input.demand.residentialMilli,
-    ),
-    commercialOpen: nextGate(
-      input.previous.commercialOpen,
-      input.demand.commercialMilli,
-    ),
-    industrialOpen: nextGate(
-      input.previous.industrialOpen,
-      input.demand.industrialMilli,
-    ),
+    residentialOpen: nextGate(input.previous.residentialOpen, input.demand.residentialMilli),
+    commercialOpen: nextGate(input.previous.commercialOpen, input.demand.commercialMilli),
+    industrialOpen: nextGate(input.previous.industrialOpen, input.demand.industrialMilli),
     evaluatedAtTick: input.evaluationTick,
   });
 }

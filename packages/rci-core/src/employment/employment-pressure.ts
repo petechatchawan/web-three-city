@@ -27,8 +27,7 @@ export const FOUNDATION_EMPLOYMENT_EMIGRATION_FACTORS: readonly EmigrationPressu
       id: 'emigration.employment.unemployed-members',
       category: 'employment' as const,
       weightMilli: 350,
-      evaluate: (context: EmigrationPressureContext) =>
-        clamp(context.unemployedMembers * 35_000),
+      evaluate: (context: EmigrationPressureContext) => clamp(context.unemployedMembers * 35_000),
     }),
     Object.freeze({
       id: 'emigration.employment.unemployment-duration',

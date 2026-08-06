@@ -73,8 +73,7 @@ export function createRciProjection(
     unemployedResidentCount: employmentIndex.projection.unemployedResidentCount,
     totalPositionCapacity: employmentIndex.projection.totalPositionCapacity,
     vacantPositionCount: employmentIndex.projection.vacantPositionCount,
-    compatibleVacantPositionCount:
-      employmentIndex.projection.compatibleVacantPositionCount,
+    compatibleVacantPositionCount: employmentIndex.projection.compatibleVacantPositionCount,
     commercialPositionCapacity,
     commercialVacantPositionCount: Math.max(
       0,

@@ -1,7 +1,9 @@
 import type { BuildingGrowthPolicy } from '@web-three-city/building-core';
 import type { RciSnapshot } from '../rci-snapshot.js';
 
-function channelForZone(zoneDefinitionId: string): 'residential' | 'commercial' | 'industrial' | null {
+function channelForZone(
+  zoneDefinitionId: string,
+): 'residential' | 'commercial' | 'industrial' | null {
   return zoneDefinitionId === 'residential' ||
     zoneDefinitionId === 'commercial' ||
     zoneDefinitionId === 'industrial'
@@ -9,7 +11,10 @@ function channelForZone(zoneDefinitionId: string): 'residential' | 'commercial' 
     : null;
 }
 
-function demandFor(snapshot: RciSnapshot, channel: 'residential' | 'commercial' | 'industrial'): number {
+function demandFor(
+  snapshot: RciSnapshot,
+  channel: 'residential' | 'commercial' | 'industrial',
+): number {
   return channel === 'residential'
     ? snapshot.demand.demand.residentialMilli
     : channel === 'commercial'
@@ -17,7 +22,10 @@ function demandFor(snapshot: RciSnapshot, channel: 'residential' | 'commercial' 
       : snapshot.demand.demand.industrialMilli;
 }
 
-function gateFor(snapshot: RciSnapshot, channel: 'residential' | 'commercial' | 'industrial'): boolean {
+function gateFor(
+  snapshot: RciSnapshot,
+  channel: 'residential' | 'commercial' | 'industrial',
+): boolean {
   return channel === 'residential'
     ? snapshot.demand.growthGates.residentialOpen
     : channel === 'commercial'

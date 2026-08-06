@@ -50,9 +50,8 @@ function positionCandidates(
           workplaceId: workplace.workplaceId,
           positionGroupDefinitionId: group.positionGroupDefinitionId,
           capacity: group.capacity,
-          requiredRank: registries.qualifications.get(
-            requirement.minimumQualificationDefinitionId,
-          ).rank,
+          requiredRank: registries.qualifications.get(requirement.minimumQualificationDefinitionId)
+            .rank,
         }),
       );
     }
@@ -93,12 +92,14 @@ function eligibleCitizen(
   );
 }
 
-export function planEmploymentReconciliation(input: Readonly<{
-  snapshot: RciSnapshot;
-  evaluationTick: number;
-  registries: RciDefinitionRegistries;
-  allowControlledUpgrade?: boolean;
-}>): EmploymentReconciliationPlan {
+export function planEmploymentReconciliation(
+  input: Readonly<{
+    snapshot: RciSnapshot;
+    evaluationTick: number;
+    registries: RciDefinitionRegistries;
+    allowControlledUpgrade?: boolean;
+  }>,
+): EmploymentReconciliationPlan {
   let assignments = [...input.snapshot.employment.assignments];
   const candidates = positionCandidates(input.snapshot, input.registries);
   const candidateByKey = new Map(
@@ -161,9 +162,8 @@ export function planEmploymentReconciliation(input: Readonly<{
     if (rank === null) continue;
     const candidate = candidates
       .filter((position) => {
-        const used = usedByKey.get(
-          positionKey(position.workplaceId, position.positionGroupDefinitionId),
-        ) ?? 0;
+        const used =
+          usedByKey.get(positionKey(position.workplaceId, position.positionGroupDefinitionId)) ?? 0;
         return used < position.capacity && rank >= position.requiredRank;
       })
       .sort(
@@ -195,11 +195,7 @@ export function planEmploymentReconciliation(input: Readonly<{
       .filter((assignment) => assignment.endedAtTick === null)
       .sort((a, b) => compareStableId(a.citizenId, b.citizenId));
     for (const assignment of activeAssignments) {
-      const rank = activeQualificationRank(
-        input.snapshot,
-        assignment.citizenId,
-        input.registries,
-      );
+      const rank = activeQualificationRank(input.snapshot, assignment.citizenId, input.registries);
       const current = candidateByKey.get(
         positionKey(assignment.workplaceId, assignment.positionGroupDefinitionId),
       );
@@ -207,9 +203,10 @@ export function planEmploymentReconciliation(input: Readonly<{
       const currentDistance = rank - current.requiredRank;
       const better = candidates
         .filter((candidate) => {
-          const used = usedByKey.get(
-            positionKey(candidate.workplaceId, candidate.positionGroupDefinitionId),
-          ) ?? 0;
+          const used =
+            usedByKey.get(
+              positionKey(candidate.workplaceId, candidate.positionGroupDefinitionId),
+            ) ?? 0;
           return (
             used < candidate.capacity &&
             rank >= candidate.requiredRank &&
@@ -273,11 +270,8 @@ export function planEmploymentReconciliation(input: Readonly<{
   return Object.freeze({
     baseRciRevision: input.snapshot.revision,
     proposedSnapshot,
-    projection: createEmploymentIndex(
-      proposedSnapshot,
-      input.registries,
-      input.evaluationTick,
-    ).projection,
+    projection: createEmploymentIndex(proposedSnapshot, input.registries, input.evaluationTick)
+      .projection,
     startedAssignmentIds: Object.freeze(startedAssignmentIds.sort(compareStableId)),
     endedAssignmentIds: Object.freeze(endedAssignmentIds.sort(compareStableId)),
     upgradedCitizenIds: Object.freeze(upgradedCitizenIds.sort(compareStableId)),

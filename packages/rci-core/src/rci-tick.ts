@@ -178,10 +178,7 @@ export function planRciTick(input: RciTickInput): RciTickPlan {
         migration: {
           ...snapshot.migration,
           revision: snapshot.migration.revision + 1,
-          incomingRequests: [
-            ...snapshot.migration.incomingRequests,
-            ...requestPlan.requests,
-          ],
+          incomingRequests: [...snapshot.migration.incomingRequests, ...requestPlan.requests],
           attractionMilli: requestPlan.nextAttractionMilli,
         },
         sequences: {
@@ -204,10 +201,7 @@ export function planRciTick(input: RciTickInput): RciTickPlan {
       input.registries,
       input.simulationAfter.absoluteTick,
     );
-    const evaluation = evaluateRciDemand(
-      projection.factorContext,
-      FOUNDATION_RCI_DEMAND_FACTORS,
-    );
+    const evaluation = evaluateRciDemand(projection.factorContext, FOUNDATION_RCI_DEMAND_FACTORS);
     const demand = smoothRciDemand({
       previous: snapshot.demand.demand,
       evaluation,

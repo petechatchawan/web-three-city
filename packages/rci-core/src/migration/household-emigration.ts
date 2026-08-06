@@ -2,12 +2,14 @@ import { RciContractError } from '../contracts/errors.js';
 import type { HouseholdId } from '../contracts/ids.js';
 import { canonicalizeRciSnapshot, type RciSnapshot } from '../rci-snapshot.js';
 
-export function planEmigrateHousehold(input: Readonly<{
-  snapshot: RciSnapshot;
-  householdId: HouseholdId;
-  evaluationTick: number;
-  endReasonDefinitionId: string;
-}>): RciSnapshot {
+export function planEmigrateHousehold(
+  input: Readonly<{
+    snapshot: RciSnapshot;
+    householdId: HouseholdId;
+    evaluationTick: number;
+    endReasonDefinitionId: string;
+  }>,
+): RciSnapshot {
   const memberIds = new Set(
     input.snapshot.households.memberships
       .filter(
@@ -28,8 +30,7 @@ export function planEmigrateHousehold(input: Readonly<{
   const activeEmploymentIds = new Set(
     input.snapshot.employment.assignments
       .filter(
-        (assignment) =>
-          memberIds.has(assignment.citizenId) && assignment.endedAtTick === null,
+        (assignment) => memberIds.has(assignment.citizenId) && assignment.endedAtTick === null,
       )
       .map((assignment) => assignment.employmentAssignmentId),
   );

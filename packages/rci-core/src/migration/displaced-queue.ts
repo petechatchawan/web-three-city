@@ -17,12 +17,14 @@ export function orderDisplacedHouseholds(
   );
 }
 
-export function planDisplaceHousehold(input: Readonly<{
-  snapshot: RciSnapshot;
-  householdId: HouseholdId;
-  displacedAtTick: number;
-  expiresAfterTicks?: number;
-}>): RciSnapshot {
+export function planDisplaceHousehold(
+  input: Readonly<{
+    snapshot: RciSnapshot;
+    householdId: HouseholdId;
+    displacedAtTick: number;
+    expiresAfterTicks?: number;
+  }>,
+): RciSnapshot {
   if (
     input.snapshot.migration.displacedHouseholds.some(
       (entry) => entry.householdId === input.householdId,
@@ -37,8 +39,7 @@ export function planDisplaceHousehold(input: Readonly<{
     throw new RciContractError('rci:dangling-household');
   }
   const minimumResidentCapacity = input.snapshot.households.memberships.filter(
-    (membership) =>
-      membership.householdId === input.householdId && membership.endedAtTick === null,
+    (membership) => membership.householdId === input.householdId && membership.endedAtTick === null,
   ).length;
   return canonicalizeRciSnapshot({
     ...input.snapshot,

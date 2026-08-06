@@ -2,41 +2,57 @@
 
 A mobile-first, browser-native 3D city-building game inspired by the accessibility of TheoTown and implemented as an original TypeScript + Three.js architecture.
 
-## Current phase
+## Current state
 
-The project is implementing its playable world foundations. The following systems are established on `master`:
+The playable world foundations on `master` include:
 
-- `128 × 128` deterministic terrain and water
-- orthographic isometric camera, picking, and mobile interaction
-- Raise, Lower, and Flatten terraforming with preview and Undo
-- deterministic Road placement, connectivity, bulldoze, Save/Load, and rendering
-- Residential, Commercial, and Industrial zoning with paint, remove, Road access, occupancy guards, Save/Load, and Undo
+- deterministic `128 × 128` Terrain and derived Water;
+- orthographic isometric camera, picking, and mobile interaction;
+- Raise, Lower, and Flatten terraforming with preview and Undo;
+- deterministic Road placement, connectivity, bulldoze, Save/Load, and rendering;
+- Residential, Commercial, and Industrial zoning with Road access, occupancy guards, Save/Load, and Undo;
+- data-driven Residential, Commercial, and Industrial Buildings;
+- deterministic lot allocation, Road frontage, construction lifecycle, automatic growth, bulldoze, and Save/Load;
+- deterministic game time with Pause, `1×`, `2×`, `4×`, and single-tick Step.
 
-The current milestone is **Building Content & Occupancy Foundation v0.1**:
+The active planning milestone is **RCI Demand & Occupancy Foundation v0.1**. Its approved design introduces Citizen records, relationships, Households, Dwelling Units, Workplaces, Employment, Migration, R/C/I Demand, and demand-controlled Building growth. Production implementation has not started.
 
-- data-driven Building Definitions and authoritative Building Instances
-- canonical rectangular footprints with quarter-turn rotation
-- deterministic lot allocation, content selection, orientation, and Road frontage
-- explicit Zone development and Building bulldoze while preserving the underlying Zone
-- derived Building occupancy shared by Road, Zone, and Terraform guards
-- WorldSaveV3 migration and Building Undo
-- cube-composed low-poly Residential, Commercial, and Industrial prototypes
+## System documentation
 
-Economy, demand, population, jobs, utilities, services, traffic, upgrades, abandonment, and final artwork remain outside this milestone.
+Start with the [System Documentation Registry](docs/systems/README.md) for concise current-state handoffs, ownership, integrations, persistence, limitations, and links to each system's Specs, ADRs, TDD plans, and verification.
 
-## Specifications
+Key entries:
 
-- [Web Terrain Foundation v0.1](docs/superpowers/specs/2026-07-27-web-terrain-foundation-v0-1-design.md)
-- [Building Content & Occupancy Foundation v0.1](docs/superpowers/specs/2026-08-03-building-content-occupancy-foundation-v0-1-design.md)
+- [Terrain](docs/systems/terrain/README.md)
+- [Roads](docs/systems/roads/README.md)
+- [Zoning](docs/systems/zoning/README.md)
+- [Buildings](docs/systems/buildings/README.md)
+- [Simulation Time](docs/systems/simulation-time/README.md)
+- [RCI Demand & Occupancy](docs/systems/rci/README.md)
+- [Economy boundary](docs/systems/economy/README.md)
+
+Older workflow documents under `docs/superpowers/` remain readable during phased migration. New system artifacts use the system-centric structure.
 
 ## Design principles
 
 - World data is authoritative; rendering is derived presentation.
 - Core simulation and mutation logic is independent of Three.js and browser APIs.
 - Cross-domain changes are immutable, deterministic, atomic, and revision-fenced.
+- Facts have one canonical authority; derived projections are reproducible.
+- System behavior and living documentation change in the same PR.
 - WebGL2 is the baseline; WebGPU is a later enhancement.
 - Mobile interaction and constrained devices are first-class targets.
 - The implementation does not copy source code or assets from `lo-th/3d.city` or Micropolis-derived projects.
+
+## Development
+
+```bash
+pnpm install --frozen-lockfile
+pnpm verify
+pnpm test:browser
+```
+
+See [Development Workflow](docs/development-workflow.md) for repository checks and contribution flow.
 
 ## License
 

@@ -88,10 +88,7 @@ describe('RCI snapshots', () => {
   it('rejects unsafe revisions and sequence reuse', () => {
     const initial = createInitialRciSnapshot({ absoluteTick: simulation.absoluteTick });
     expect(() =>
-      createRciSnapshot(
-        { ...initial, revision: -1 },
-        { buildings, simulation, registries },
-      ),
+      createRciSnapshot({ ...initial, revision: -1 }, { buildings, simulation, registries }),
     ).toThrowError(new RciContractError('rci:invalid-state'));
 
     expect(() =>

@@ -44,9 +44,7 @@ describe('RCI validation', () => {
       },
       households: {
         ...initial.households,
-        households: [
-          { householdId: 'household:1', foundedAtTick: 0, dissolvedAtTick: null },
-        ],
+        households: [{ householdId: 'household:1', foundedAtTick: 0, dissolvedAtTick: null }],
         memberships: [
           {
             membershipId: 'household-membership:1',

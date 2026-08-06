@@ -64,11 +64,16 @@ describe('RciSaveV1', () => {
   });
 
   it('returns structured errors for invalid schema and definitions', () => {
-    expect(decodeRciSaveV1({ kind: 'rci-save', schemaVersion: 2 }, {
-      buildings,
-      simulation,
-      registries,
-    })).toEqual({ ok: false, error: { code: 'rci-save:invalid-schema' } });
+    expect(
+      decodeRciSaveV1(
+        { kind: 'rci-save', schemaVersion: 2 },
+        {
+          buildings,
+          simulation,
+          registries,
+        },
+      ),
+    ).toEqual({ ok: false, error: { code: 'rci-save:invalid-schema' } });
 
     const encoded = encodeRciSaveV1(
       createInitialRciSnapshot({ absoluteTick: simulation.absoluteTick }),

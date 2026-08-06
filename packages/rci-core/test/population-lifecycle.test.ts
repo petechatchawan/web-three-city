@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  RCI_TICKS_PER_YEAR,
-  createFoundationRciRegistries,
-  planRciTick,
-} from '../src/index.js';
+import { RCI_TICKS_PER_YEAR, createFoundationRciRegistries, planRciTick } from '../src/index.js';
 import {
   createPartneredHouseholdSnapshot,
   createSingleResidentSnapshot,

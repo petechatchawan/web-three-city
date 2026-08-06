@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  planEndHouseholdMembership,
-  planStartHouseholdMembership,
-} from '../src/index.js';
+import { planEndHouseholdMembership, planStartHouseholdMembership } from '../src/index.js';
 import {
   createPartneredHouseholdSnapshot,
   createSingleResidentSnapshot,

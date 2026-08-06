@@ -7,12 +7,14 @@ import type { CitizenId, HouseholdId } from '../contracts/ids.js';
 import type { HouseholdMembershipRecord } from '../contracts/records.js';
 import { canonicalizeRciSnapshot, type RciSnapshot } from '../rci-snapshot.js';
 
-export function planStartHouseholdMembership(input: Readonly<{
-  snapshot: RciSnapshot;
-  householdId: HouseholdId;
-  citizenId: CitizenId;
-  startedAtTick: number;
-}>): RciRecordMutationPlan {
+export function planStartHouseholdMembership(
+  input: Readonly<{
+    snapshot: RciSnapshot;
+    householdId: HouseholdId;
+    citizenId: CitizenId;
+    startedAtTick: number;
+  }>,
+): RciRecordMutationPlan {
   const { snapshot } = input;
   const citizen = snapshot.population.citizens.find(
     (candidate) => candidate.citizenId === input.citizenId,
@@ -61,12 +63,14 @@ export function planStartHouseholdMembership(input: Readonly<{
   return validRecordMutationPlan(snapshot, proposed);
 }
 
-export function planEndHouseholdMembership(input: Readonly<{
-  snapshot: RciSnapshot;
-  citizenId: CitizenId;
-  endedAtTick: number;
-  endReasonDefinitionId: string;
-}>): RciRecordMutationPlan {
+export function planEndHouseholdMembership(
+  input: Readonly<{
+    snapshot: RciSnapshot;
+    citizenId: CitizenId;
+    endedAtTick: number;
+    endReasonDefinitionId: string;
+  }>,
+): RciRecordMutationPlan {
   const { snapshot } = input;
   const active = snapshot.households.memberships.find(
     (membership) => membership.citizenId === input.citizenId && membership.endedAtTick === null,

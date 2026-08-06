@@ -51,9 +51,14 @@ describe('RCI definition registry', () => {
       'sex.female',
       'sex.male',
     ]);
-    expect(registries.qualifications.values().map((definition) => definition.rank)).toEqual([
-      10, 20, 30,
+    expect(registries.qualifications.values().map((definition) => definition.id)).toEqual([
+      'qualification.entry',
+      'qualification.professional',
+      'qualification.skilled',
     ]);
+    expect(registries.qualifications.get('qualification.entry').rank).toBe(10);
+    expect(registries.qualifications.get('qualification.skilled').rank).toBe(20);
+    expect(registries.qualifications.get('qualification.professional').rank).toBe(30);
     for (const requirement of registries.employmentRequirements.values()) {
       expect(registries.qualifications.has(requirement.minimumQualificationDefinitionId)).toBe(
         true,

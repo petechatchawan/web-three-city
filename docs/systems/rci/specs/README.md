@@ -32,3 +32,7 @@ For handoff and future maintenance, use this precedence:
 3. The design specification for approved architectural intent and historical decisions.
 
 The TDD packet is implementation history and must not be used as the current work-status source after closure.
+
+## Current correction state
+
+The PR #32 runtime/test change has passed manual gameplay acceptance on the original saved city. Exact-head Lean CI and Full browser verification remain required before merge.

@@ -14,18 +14,14 @@ describe('RCI age and daily lifecycle boundaries', () => {
   });
 
   it('uses the canonical age-band boundaries', () => {
-    expect(ageBandAtTick(0, 6 * RCI_TICKS_PER_YEAR - 1)).toBe(
-      'age-band.early-childhood',
-    );
+    expect(ageBandAtTick(0, 6 * RCI_TICKS_PER_YEAR - 1)).toBe('age-band.early-childhood');
     expect(ageBandAtTick(0, 6 * RCI_TICKS_PER_YEAR)).toBe('age-band.school-age');
     expect(ageBandAtTick(0, 18 * RCI_TICKS_PER_YEAR)).toBe('age-band.working-age');
     expect(ageBandAtTick(0, 65 * RCI_TICKS_PER_YEAR)).toBe('age-band.senior');
   });
 
   it('rejects future births and unsafe arithmetic', () => {
-    expect(() => ageYearsAtTick(9, 8)).toThrowError(
-      new RciContractError('rci:invalid-state'),
-    );
+    expect(() => ageYearsAtTick(9, 8)).toThrowError(new RciContractError('rci:invalid-state'));
     expect(() => ageYearsAtTick(Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER)).toThrowError(
       new RciContractError('rci:invalid-state'),
     );

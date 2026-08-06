@@ -85,4 +85,16 @@ The final `master` commit `9409e301d2710db856b584fc555d5c4f714bba62` has the sam
 
 Manual gameplay later exposed a fully-occupied R/C/I Growth deadlock. The correction is tracked independently in PR #32 and in [the hotfix verification record](2026-08-06-rci-occupied-dwelling-demand-deadlock.md).
 
-The original saved city has passed manual recovery acceptance on the correction branch: Population, Households, Employment, Buildings, and all three Growth gates resumed naturally without a world reset or Save migration. PR #32 is not part of the closed foundation baseline until its own exact-head automated verification passes and it is merged.
+The original saved city passed manual recovery acceptance on the correction branch:
+
+```text
+Population 67 | Households 32 | Housing 32/34 | Employment 50/50
+Buildings 37
+Demand R +43 open | C +22 open | I +22 open
+```
+
+Population, Households, Employment, Buildings, and all three Growth gates resumed naturally without a world reset or Save migration. PR #32 is not part of the closed foundation baseline until its own exact-head automated verification passes and it is merged.
+
+## Documentation Authority
+
+The foundation closure evidence in this record is final. Current runtime and post-closure delivery status are maintained by [`../README.md`](../README.md); focused correction evidence is maintained by the linked hotfix record.

@@ -84,15 +84,30 @@ export function planBuildingGrowthTick(input: {
   try {
     buildings = createBuildingSnapshot(input.buildings, input.config);
   } catch {
-    return invalidPlan(input.buildings, input.simulation, input.environment, 'building-growth:invalid-building-state');
+    return invalidPlan(
+      input.buildings,
+      input.simulation,
+      input.environment,
+      'building-growth:invalid-building-state',
+    );
   }
   try {
     simulation = createSimulationSnapshot(input.simulation);
   } catch {
-    return invalidPlan(buildings, input.simulation, input.environment, 'building-growth:invalid-simulation-state');
+    return invalidPlan(
+      buildings,
+      input.simulation,
+      input.environment,
+      'building-growth:invalid-simulation-state',
+    );
   }
   if (!environmentValid(input.environment)) {
-    return invalidPlan(buildings, simulation, input.environment, 'building-growth:invalid-environment');
+    return invalidPlan(
+      buildings,
+      simulation,
+      input.environment,
+      'building-growth:invalid-environment',
+    );
   }
   const tickPlan = planSimulationTick(simulation);
   if (!tickPlan.valid) {
@@ -109,7 +124,8 @@ export function planBuildingGrowthTick(input: {
       authoritative.constructionCompletesAtTick <= afterAbsoluteTick
     ) {
       completedIds.push(authoritative.instanceId);
-      for (const cell of occupiedCellsForBuilding(authoritative)) dirty.push(chunkForCell(cell, input.config));
+      for (const cell of occupiedCellsForBuilding(authoritative))
+        dirty.push(chunkForCell(cell, input.config));
       return activateCompletedBuilding(authoritative, afterAbsoluteTick);
     }
     return authoritative;
@@ -146,7 +162,8 @@ export function planBuildingGrowthTick(input: {
       });
       proposed.push(construction);
       startedIds.push(construction.instanceId);
-      for (const cell of occupiedCellsForBuilding(construction)) dirty.push(chunkForCell(cell, input.config));
+      for (const cell of occupiedCellsForBuilding(construction))
+        dirty.push(chunkForCell(cell, input.config));
     }
   }
 
@@ -181,23 +198,39 @@ export function commitBuildingGrowthTick(input: {
   readonly receipt: BuildingGrowthReceipt;
 }> {
   const { plan } = input;
-  if (!plan.valid || plan.invalidReason !== null) throw new BuildingContractError('building-growth:invalid-plan');
-  if (input.buildings.revision !== plan.baseBuildingRevision) throw new BuildingContractError('building:stale-building-plan');
-  if (input.simulation.revision !== plan.baseSimulationRevision || input.simulation.absoluteTick !== plan.beforeAbsoluteTick) {
+  if (!plan.valid || plan.invalidReason !== null)
+    throw new BuildingContractError('building-growth:invalid-plan');
+  if (input.buildings.revision !== plan.baseBuildingRevision)
+    throw new BuildingContractError('building:stale-building-plan');
+  if (
+    input.simulation.revision !== plan.baseSimulationRevision ||
+    input.simulation.absoluteTick !== plan.beforeAbsoluteTick
+  ) {
     throw new BuildingContractError('building-growth:stale-simulation-plan');
   }
-  if (input.environment.terrainRevision !== plan.baseTerrainRevision) throw new BuildingContractError('building:stale-terrain-plan');
-  if (input.environment.waterSourceTerrainRevision !== plan.baseWaterSourceTerrainRevision) throw new BuildingContractError('building:stale-water-plan');
-  if (input.environment.roadRevision !== plan.baseRoadRevision) throw new BuildingContractError('building:stale-road-plan');
-  if (input.environment.zoneRevision !== plan.baseZoneRevision) throw new BuildingContractError('building:stale-zone-plan');
+  if (input.environment.terrainRevision !== plan.baseTerrainRevision)
+    throw new BuildingContractError('building:stale-terrain-plan');
+  if (input.environment.waterSourceTerrainRevision !== plan.baseWaterSourceTerrainRevision)
+    throw new BuildingContractError('building:stale-water-plan');
+  if (input.environment.roadRevision !== plan.baseRoadRevision)
+    throw new BuildingContractError('building:stale-road-plan');
+  if (input.environment.zoneRevision !== plan.baseZoneRevision)
+    throw new BuildingContractError('building:stale-zone-plan');
   const tickPlan = planSimulationTick(input.simulation);
   if (!tickPlan.valid || tickPlan.afterAbsoluteTick !== plan.afterAbsoluteTick) {
     throw new BuildingContractError('building-growth:stale-simulation-plan');
   }
-  const simulationCommit = commitSimulationTick(input.simulation, tickPlan, plan.nextGrowthSequence);
+  const simulationCommit = commitSimulationTick(
+    input.simulation,
+    tickPlan,
+    plan.nextGrowthSequence,
+  );
   const changed = plan.startedInstanceIds.length > 0 || plan.completedInstanceIds.length > 0;
   const buildings = changed
-    ? createBuildingSnapshot({ revision: input.buildings.revision + 1, instances: plan.proposedInstances }, input.config)
+    ? createBuildingSnapshot(
+        { revision: input.buildings.revision + 1, instances: plan.proposedInstances },
+        input.config,
+      )
     : input.buildings;
   return Object.freeze({
     buildings,

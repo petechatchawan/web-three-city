@@ -46,8 +46,10 @@ function frontageOrder(direction: BuildingFrontage['direction']): number {
   return direction === 'north' ? 0 : direction === 'east' ? 1 : direction === 'south' ? 2 : 3;
 }
 function candidateOrder(a: BuildingSelectionCandidate, b: BuildingSelectionCandidate): number {
-  const aMisaligned = buildingEntranceDirection(a.instance.rotationQuarterTurns) === a.frontage.direction ? 0 : 1;
-  const bMisaligned = buildingEntranceDirection(b.instance.rotationQuarterTurns) === b.frontage.direction ? 0 : 1;
+  const aMisaligned =
+    buildingEntranceDirection(a.instance.rotationQuarterTurns) === a.frontage.direction ? 0 : 1;
+  const bMisaligned =
+    buildingEntranceDirection(b.instance.rotationQuarterTurns) === b.frontage.direction ? 0 : 1;
   return (
     aMisaligned - bMisaligned ||
     a.frontage.distance - b.frontage.distance ||
@@ -75,11 +77,16 @@ export function selectBuildingCandidate(
   context: BuildingSelectionContext,
 ): BuildingSelectionCandidate | null {
   if (candidates.length === 0) return null;
-  const highestPriority = Math.max(...candidates.map((candidate) => candidate.definition.selectionPriority));
-  const priorityTier = candidates.filter((candidate) => candidate.definition.selectionPriority === highestPriority);
+  const highestPriority = Math.max(
+    ...candidates.map((candidate) => candidate.definition.selectionPriority),
+  );
+  const priorityTier = candidates.filter(
+    (candidate) => candidate.definition.selectionPriority === highestPriority,
+  );
   const bestByDefinition = new Map<BuildingDefinitionId, BuildingSelectionCandidate>();
   for (const candidate of [...priorityTier].sort(candidateOrder)) {
-    if (!bestByDefinition.has(candidate.definition.id)) bestByDefinition.set(candidate.definition.id, candidate);
+    if (!bestByDefinition.has(candidate.definition.id))
+      bestByDefinition.set(candidate.definition.id, candidate);
   }
   const bestCandidates = [...bestByDefinition.values()];
   const nonAdjacent = bestCandidates.filter(
@@ -88,7 +95,10 @@ export function selectBuildingCandidate(
   const eligibleTier = (nonAdjacent.length > 0 ? nonAdjacent : bestCandidates).sort((a, b) =>
     a.definition.id.localeCompare(b.definition.id),
   );
-  const totalWeight = eligibleTier.reduce((total, candidate) => total + candidate.definition.selectionWeight, 0);
+  const totalWeight = eligibleTier.reduce(
+    (total, candidate) => total + candidate.definition.selectionWeight,
+    0,
+  );
   let cursor = stableBuildingSelectionHash(context) % totalWeight;
   for (const candidate of eligibleTier) {
     if (cursor < candidate.definition.selectionWeight) return candidate;
@@ -169,9 +179,14 @@ export function selectGrowthBuildingPlacement(input: {
                 !input.environment.isDry(cell) ||
                 input.environment.surfaceAt(cell).shape !== 'flat',
             )
-          ) continue;
+          )
+            continue;
           const frontage = resolveBuildingFrontage(instance, input.environment);
-          if (frontage !== null && !reserved.has(key(frontage.frontageCell)) && !reserved.has(key(frontage.roadCell))) {
+          if (
+            frontage !== null &&
+            !reserved.has(key(frontage.frontageCell)) &&
+            !reserved.has(key(frontage.roadCell))
+          ) {
             candidates.push(Object.freeze({ definition, instance, frontage }));
           }
         }
@@ -187,7 +202,8 @@ export function selectGrowthBuildingPlacement(input: {
           input.buildings,
         ),
       });
-      if (selected !== null) policyCandidates.push({ candidate: selected, zoneDefinitionId, policyWeightMilli });
+      if (selected !== null)
+        policyCandidates.push({ candidate: selected, zoneDefinitionId, policyWeightMilli });
     }
   }
 

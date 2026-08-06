@@ -48,11 +48,7 @@ function demandLabel(value: number, open: boolean): string {
 
 export interface RciHudAdapter {
   readonly element: HTMLElement;
-  update(
-    snapshot: RciSnapshot,
-    registries: RciDefinitionRegistries,
-    evaluationTick: number,
-  ): void;
+  update(snapshot: RciSnapshot, registries: RciDefinitionRegistries, evaluationTick: number): void;
   dispose(): void;
 }
 
@@ -101,18 +97,9 @@ export function mountRciHud(panel: HTMLElement): RciHudAdapter {
       households.textContent = String(model.households);
       housing.textContent = model.housing;
       employment.textContent = model.employment;
-      residential.textContent = demandLabel(
-        model.residentialDemand,
-        model.residentialGateOpen,
-      );
-      commercial.textContent = demandLabel(
-        model.commercialDemand,
-        model.commercialGateOpen,
-      );
-      industrial.textContent = demandLabel(
-        model.industrialDemand,
-        model.industrialGateOpen,
-      );
+      residential.textContent = demandLabel(model.residentialDemand, model.residentialGateOpen);
+      commercial.textContent = demandLabel(model.commercialDemand, model.commercialGateOpen);
+      industrial.textContent = demandLabel(model.industrialDemand, model.industrialGateOpen);
     },
     dispose(): void {
       section.remove();

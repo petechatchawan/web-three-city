@@ -31,11 +31,13 @@ export class GameWorldStateStore {
     return this.#state;
   }
 
-  synchronizeExternal(input: Readonly<{
-    simulation: SimulationSnapshot;
-    buildings: BuildingSnapshot;
-    rci?: RciSnapshot;
-  }>): GameWorldState {
+  synchronizeExternal(
+    input: Readonly<{
+      simulation: SimulationSnapshot;
+      buildings: BuildingSnapshot;
+      rci?: RciSnapshot;
+    }>,
+  ): GameWorldState {
     const unchanged =
       this.#state.simulation === input.simulation &&
       this.#state.buildings === input.buildings &&

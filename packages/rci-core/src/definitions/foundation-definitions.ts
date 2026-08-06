@@ -18,9 +18,24 @@ const FOUNDATION_SEXES = Object.freeze([
 ]);
 
 const FOUNDATION_RELATIONSHIP_TYPES = Object.freeze([
-  Object.freeze({ id: 'relationship.parent.biological.father', orientation: 'directional' as const, historicalPolicy: 'permanent' as const, cardinalityPolicyDefinitionId: 'cardinality.parent.biological.father.v1' }),
-  Object.freeze({ id: 'relationship.parent.biological.mother', orientation: 'directional' as const, historicalPolicy: 'permanent' as const, cardinalityPolicyDefinitionId: 'cardinality.parent.biological.mother.v1' }),
-  Object.freeze({ id: 'relationship.partner', orientation: 'undirected' as const, historicalPolicy: 'endable' as const, cardinalityPolicyDefinitionId: 'cardinality.partner.single-active.v1' }),
+  Object.freeze({
+    id: 'relationship.parent.biological.father',
+    orientation: 'directional' as const,
+    historicalPolicy: 'permanent' as const,
+    cardinalityPolicyDefinitionId: 'cardinality.parent.biological.father.v1',
+  }),
+  Object.freeze({
+    id: 'relationship.parent.biological.mother',
+    orientation: 'directional' as const,
+    historicalPolicy: 'permanent' as const,
+    cardinalityPolicyDefinitionId: 'cardinality.parent.biological.mother.v1',
+  }),
+  Object.freeze({
+    id: 'relationship.partner',
+    orientation: 'undirected' as const,
+    historicalPolicy: 'endable' as const,
+    cardinalityPolicyDefinitionId: 'cardinality.partner.single-active.v1',
+  }),
 ]);
 
 const FOUNDATION_QUALIFICATIONS: readonly QualificationDefinition[] = Object.freeze([
@@ -29,16 +44,44 @@ const FOUNDATION_QUALIFICATIONS: readonly QualificationDefinition[] = Object.fre
   Object.freeze({ id: 'qualification.professional', label: 'Professional', rank: 30 }),
 ]);
 
-const FOUNDATION_EMPLOYMENT_REQUIREMENTS: readonly EmploymentRequirementDefinition[] = Object.freeze([
-  Object.freeze({ id: 'requirement.qualification.entry', kind: 'minimum-qualification-rank' as const, minimumQualificationDefinitionId: 'qualification.entry' }),
-  Object.freeze({ id: 'requirement.qualification.skilled', kind: 'minimum-qualification-rank' as const, minimumQualificationDefinitionId: 'qualification.skilled' }),
-  Object.freeze({ id: 'requirement.qualification.professional', kind: 'minimum-qualification-rank' as const, minimumQualificationDefinitionId: 'qualification.professional' }),
-]);
+const FOUNDATION_EMPLOYMENT_REQUIREMENTS: readonly EmploymentRequirementDefinition[] =
+  Object.freeze([
+    Object.freeze({
+      id: 'requirement.qualification.entry',
+      kind: 'minimum-qualification-rank' as const,
+      minimumQualificationDefinitionId: 'qualification.entry',
+    }),
+    Object.freeze({
+      id: 'requirement.qualification.skilled',
+      kind: 'minimum-qualification-rank' as const,
+      minimumQualificationDefinitionId: 'qualification.skilled',
+    }),
+    Object.freeze({
+      id: 'requirement.qualification.professional',
+      kind: 'minimum-qualification-rank' as const,
+      minimumQualificationDefinitionId: 'qualification.professional',
+    }),
+  ]);
 
 const FOUNDATION_POSITION_GROUPS: readonly PositionGroupDefinition[] = Object.freeze([
-  Object.freeze({ id: 'position.entry', label: 'Entry', employmentRequirementDefinitionId: 'requirement.qualification.entry', occupationDefinitionId: null }),
-  Object.freeze({ id: 'position.skilled', label: 'Skilled', employmentRequirementDefinitionId: 'requirement.qualification.skilled', occupationDefinitionId: null }),
-  Object.freeze({ id: 'position.professional', label: 'Professional', employmentRequirementDefinitionId: 'requirement.qualification.professional', occupationDefinitionId: null }),
+  Object.freeze({
+    id: 'position.entry',
+    label: 'Entry',
+    employmentRequirementDefinitionId: 'requirement.qualification.entry',
+    occupationDefinitionId: null,
+  }),
+  Object.freeze({
+    id: 'position.skilled',
+    label: 'Skilled',
+    employmentRequirementDefinitionId: 'requirement.qualification.skilled',
+    occupationDefinitionId: null,
+  }),
+  Object.freeze({
+    id: 'position.professional',
+    label: 'Professional',
+    employmentRequirementDefinitionId: 'requirement.qualification.professional',
+    occupationDefinitionId: null,
+  }),
 ]);
 
 function workplace(
@@ -68,10 +111,30 @@ function workplace(
 }
 
 const FOUNDATION_CAPACITY_PROFILES: readonly CapacityProfileDefinition[] = Object.freeze([
-  Object.freeze({ id: 'capacity.residential.cottage.v1', kind: 'residential' as const, dwellingUnitCount: 1, residentCapacityPerUnit: 4 }),
-  Object.freeze({ id: 'capacity.residential.rowhouse.v1', kind: 'residential' as const, dwellingUnitCount: 1, residentCapacityPerUnit: 5 }),
-  Object.freeze({ id: 'capacity.residential.duplex.v1', kind: 'residential' as const, dwellingUnitCount: 2, residentCapacityPerUnit: 4 }),
-  Object.freeze({ id: 'capacity.residential.apartment.v1', kind: 'residential' as const, dwellingUnitCount: 6, residentCapacityPerUnit: 3 }),
+  Object.freeze({
+    id: 'capacity.residential.cottage.v1',
+    kind: 'residential' as const,
+    dwellingUnitCount: 1,
+    residentCapacityPerUnit: 4,
+  }),
+  Object.freeze({
+    id: 'capacity.residential.rowhouse.v1',
+    kind: 'residential' as const,
+    dwellingUnitCount: 1,
+    residentCapacityPerUnit: 5,
+  }),
+  Object.freeze({
+    id: 'capacity.residential.duplex.v1',
+    kind: 'residential' as const,
+    dwellingUnitCount: 2,
+    residentCapacityPerUnit: 4,
+  }),
+  Object.freeze({
+    id: 'capacity.residential.apartment.v1',
+    kind: 'residential' as const,
+    dwellingUnitCount: 6,
+    residentCapacityPerUnit: 3,
+  }),
   workplace('capacity.commercial.shop.v1', 'commercial', [3, 1, 0]),
   workplace('capacity.commercial.cafe.v1', 'commercial', [4, 2, 0]),
   workplace('capacity.commercial.market.v1', 'commercial', [7, 4, 1]),
@@ -101,7 +164,10 @@ function archetype(
     partneredAdults,
     minimumResidentCapacity: memberCount,
     weight,
-    adultAgeRange: Object.freeze({ minimumYears: adultMinimumYears, maximumYears: adultMaximumYears }),
+    adultAgeRange: Object.freeze({
+      minimumYears: adultMinimumYears,
+      maximumYears: adultMaximumYears,
+    }),
     childAgeRange: Object.freeze({ minimumYears: 0, maximumYears: 17 }),
     femaleProbabilityMillionth: 500_000,
   });
@@ -161,10 +227,14 @@ function freezeBand(band: AnnualRateBandDefinition): AnnualRateBandDefinition {
   return Object.freeze({ ...band });
 }
 
-function freezeRateProfile(profile: PopulationRateProfileDefinition): PopulationRateProfileDefinition {
+function freezeRateProfile(
+  profile: PopulationRateProfileDefinition,
+): PopulationRateProfileDefinition {
   return Object.freeze({
     ...profile,
-    fertilityEligibleSexDefinitionIds: Object.freeze([...profile.fertilityEligibleSexDefinitionIds]),
+    fertilityEligibleSexDefinitionIds: Object.freeze([
+      ...profile.fertilityEligibleSexDefinitionIds,
+    ]),
     fertilityBands: Object.freeze(profile.fertilityBands.map(freezeBand)),
     mortalityBands: Object.freeze(profile.mortalityBands.map(freezeBand)),
   });
@@ -188,24 +258,40 @@ function freezeCapacityProfile(profile: CapacityProfileDefinition): CapacityProf
     }
     return Object.freeze({ ...group });
   });
-  if (groups.length === 0 || new Set(groups.map((group) => group.positionGroupDefinitionId)).size !== groups.length) {
+  if (
+    groups.length === 0 ||
+    new Set(groups.map((group) => group.positionGroupDefinitionId)).size !== groups.length
+  ) {
     throw new RciContractError('rci:unknown-definition');
   }
   return Object.freeze({ ...profile, positionGroups: Object.freeze(groups) });
 }
 
-function freezeMigrationArchetype(archetype: MigrationArchetypeDefinition): MigrationArchetypeDefinition {
+function freezeMigrationArchetype(
+  archetype: MigrationArchetypeDefinition,
+): MigrationArchetypeDefinition {
   if (
-    !Number.isSafeInteger(archetype.version) || archetype.version < 1 ||
-    !Number.isSafeInteger(archetype.memberCount) || archetype.memberCount < 1 ||
-    !Number.isSafeInteger(archetype.adultCount) || archetype.adultCount < 1 ||
-    !Number.isSafeInteger(archetype.childCount) || archetype.childCount < 0 ||
+    !Number.isSafeInteger(archetype.version) ||
+    archetype.version < 1 ||
+    !Number.isSafeInteger(archetype.memberCount) ||
+    archetype.memberCount < 1 ||
+    !Number.isSafeInteger(archetype.adultCount) ||
+    archetype.adultCount < 1 ||
+    !Number.isSafeInteger(archetype.childCount) ||
+    archetype.childCount < 0 ||
     archetype.adultCount + archetype.childCount !== archetype.memberCount ||
-    !Number.isSafeInteger(archetype.minimumResidentCapacity) || archetype.minimumResidentCapacity < archetype.memberCount ||
-    !Number.isSafeInteger(archetype.weight) || archetype.weight < 1 ||
-    !Number.isSafeInteger(archetype.femaleProbabilityMillionth) || archetype.femaleProbabilityMillionth < 0 || archetype.femaleProbabilityMillionth > 1_000_000 ||
-    archetype.adultAgeRange.minimumYears < 18 || archetype.adultAgeRange.maximumYears < archetype.adultAgeRange.minimumYears ||
-    archetype.childAgeRange.minimumYears < 0 || archetype.childAgeRange.maximumYears > 17 || archetype.childAgeRange.maximumYears < archetype.childAgeRange.minimumYears
+    !Number.isSafeInteger(archetype.minimumResidentCapacity) ||
+    archetype.minimumResidentCapacity < archetype.memberCount ||
+    !Number.isSafeInteger(archetype.weight) ||
+    archetype.weight < 1 ||
+    !Number.isSafeInteger(archetype.femaleProbabilityMillionth) ||
+    archetype.femaleProbabilityMillionth < 0 ||
+    archetype.femaleProbabilityMillionth > 1_000_000 ||
+    archetype.adultAgeRange.minimumYears < 18 ||
+    archetype.adultAgeRange.maximumYears < archetype.adultAgeRange.minimumYears ||
+    archetype.childAgeRange.minimumYears < 0 ||
+    archetype.childAgeRange.maximumYears > 17 ||
+    archetype.childAgeRange.maximumYears < archetype.childAgeRange.minimumYears
   ) {
     throw new RciContractError('rci:unknown-definition');
   }
@@ -220,15 +306,21 @@ export function createFoundationRciRegistries(
   extensions: RciDefinitionExtensions = {},
 ): RciDefinitionRegistries {
   const sexes = createDefinitionRegistry(combined(FOUNDATION_SEXES, extensions.sexes));
-  const relationshipTypes = createDefinitionRegistry(combined(FOUNDATION_RELATIONSHIP_TYPES, extensions.relationshipTypes));
-  const qualifications = createDefinitionRegistry(combined(FOUNDATION_QUALIFICATIONS, extensions.qualifications));
+  const relationshipTypes = createDefinitionRegistry(
+    combined(FOUNDATION_RELATIONSHIP_TYPES, extensions.relationshipTypes),
+  );
+  const qualifications = createDefinitionRegistry(
+    combined(FOUNDATION_QUALIFICATIONS, extensions.qualifications),
+  );
   for (const qualification of qualifications.values()) {
     if (!Number.isSafeInteger(qualification.rank) || qualification.rank < 0) {
       throw new RciContractError('rci:unknown-definition');
     }
   }
 
-  const employmentRequirements = createDefinitionRegistry(combined(FOUNDATION_EMPLOYMENT_REQUIREMENTS, extensions.employmentRequirements));
+  const employmentRequirements = createDefinitionRegistry(
+    combined(FOUNDATION_EMPLOYMENT_REQUIREMENTS, extensions.employmentRequirements),
+  );
   for (const requirement of employmentRequirements.values()) {
     if (!qualifications.has(requirement.minimumQualificationDefinitionId)) {
       throw new RciContractError('rci:unknown-definition');
@@ -236,10 +328,14 @@ export function createFoundationRciRegistries(
   }
 
   const occupations = createDefinitionRegistry(extensions.occupations ?? []);
-  const positionGroups = createDefinitionRegistry(combined(FOUNDATION_POSITION_GROUPS, extensions.positionGroups));
+  const positionGroups = createDefinitionRegistry(
+    combined(FOUNDATION_POSITION_GROUPS, extensions.positionGroups),
+  );
   for (const group of positionGroups.values()) {
-    if (!employmentRequirements.has(group.employmentRequirementDefinitionId) ||
-        (group.occupationDefinitionId !== null && !occupations.has(group.occupationDefinitionId))) {
+    if (
+      !employmentRequirements.has(group.employmentRequirementDefinitionId) ||
+      (group.occupationDefinitionId !== null && !occupations.has(group.occupationDefinitionId))
+    ) {
       throw new RciContractError('rci:unknown-definition');
     }
   }
@@ -250,19 +346,26 @@ export function createFoundationRciRegistries(
   for (const profile of capacityProfiles.values()) {
     if (profile.kind === 'residential') continue;
     for (const group of profile.positionGroups) {
-      if (!positionGroups.has(group.positionGroupDefinitionId) ||
-          !employmentRequirements.has(group.employmentRequirementDefinitionId) ||
-          (group.occupationDefinitionId !== null && !occupations.has(group.occupationDefinitionId))) {
+      if (
+        !positionGroups.has(group.positionGroupDefinitionId) ||
+        !employmentRequirements.has(group.employmentRequirementDefinitionId) ||
+        (group.occupationDefinitionId !== null && !occupations.has(group.occupationDefinitionId))
+      ) {
         throw new RciContractError('rci:unknown-definition');
       }
     }
   }
 
   const migrationArchetypes = createDefinitionRegistry(
-    combined(FOUNDATION_MIGRATION_ARCHETYPES, extensions.migrationArchetypes).map(freezeMigrationArchetype),
+    combined(FOUNDATION_MIGRATION_ARCHETYPES, extensions.migrationArchetypes).map(
+      freezeMigrationArchetype,
+    ),
   );
   const populationRateProfiles = createDefinitionRegistry(
-    combined([FOUNDATION_POPULATION_RATE_PROFILE], extensions.populationRateProfiles?.map(freezeRateProfile)),
+    combined(
+      [FOUNDATION_POPULATION_RATE_PROFILE],
+      extensions.populationRateProfiles?.map(freezeRateProfile),
+    ),
   );
   for (const profile of populationRateProfiles.values()) {
     for (const sexId of profile.fertilityEligibleSexDefinitionIds) {

@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  encodeRciSaveV1,
-  synchronizeDwellingInventory,
-} from '../src/index.js';
+import { encodeRciSaveV1, synchronizeDwellingInventory } from '../src/index.js';
 import {
   activeCottageBuildings,
   housingRegistries,

@@ -1,7 +1,4 @@
-import {
-  buildingDefinitionForId,
-  type BuildingSnapshot,
-} from '@web-three-city/building-core';
+import { buildingDefinitionForId, type BuildingSnapshot } from '@web-three-city/building-core';
 import { compareStableId } from '../contracts/ids.js';
 import type { DwellingUnitId, HousingAssignmentId } from '../contracts/ids.js';
 import type { DisplacedHouseholdEntry, DwellingUnitRecord } from '../contracts/records.js';
@@ -16,14 +13,16 @@ export interface DwellingInventorySynchronizationResult {
   readonly endedHousingAssignmentIds: readonly HousingAssignmentId[];
 }
 
-export function synchronizeDwellingInventory(input: Readonly<{
-  snapshot: RciSnapshot;
-  buildingsBefore: BuildingSnapshot;
-  buildingsAfter: BuildingSnapshot;
-  registries: RciDefinitionRegistries;
-  evaluationTick: number;
-  displacedExpiryTicks?: number;
-}>): DwellingInventorySynchronizationResult {
+export function synchronizeDwellingInventory(
+  input: Readonly<{
+    snapshot: RciSnapshot;
+    buildingsBefore: BuildingSnapshot;
+    buildingsAfter: BuildingSnapshot;
+    registries: RciDefinitionRegistries;
+    evaluationTick: number;
+    displacedExpiryTicks?: number;
+  }>,
+): DwellingInventorySynchronizationResult {
   const existingById = new Map(
     input.snapshot.housing.dwellingUnits.map((unit) => [unit.dwellingUnitId, unit]),
   );
@@ -34,9 +33,7 @@ export function synchronizeDwellingInventory(input: Readonly<{
   )) {
     if (building.lifecycle !== 'active') continue;
     const definition = buildingDefinitionForId(building.buildingDefinitionId);
-    const profile = input.registries.capacityProfiles.get(
-      definition.capacityProfileDefinitionId,
-    );
+    const profile = input.registries.capacityProfiles.get(definition.capacityProfileDefinitionId);
     if (profile.kind !== 'residential') continue;
     const residential = residentialCapacityProfileForId(
       input.registries.capacityProfiles,
@@ -142,12 +139,8 @@ export function synchronizeDwellingInventory(input: Readonly<{
   });
   return Object.freeze({
     proposedSnapshot,
-    activatedDwellingUnitIds: Object.freeze(
-      activatedDwellingUnitIds.sort(compareStableId),
-    ),
+    activatedDwellingUnitIds: Object.freeze(activatedDwellingUnitIds.sort(compareStableId)),
     retiredDwellingUnitIds: Object.freeze(retiredDwellingUnitIds.sort(compareStableId)),
-    endedHousingAssignmentIds: Object.freeze(
-      endedHousingAssignmentIds.sort(compareStableId),
-    ),
+    endedHousingAssignmentIds: Object.freeze(endedHousingAssignmentIds.sort(compareStableId)),
   });
 }

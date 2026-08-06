@@ -28,8 +28,22 @@ describe('displaced Household queue', () => {
 
   it('uses stable expiry order independently of input order', () => {
     const entries = [
-      { householdId: 'household:2', displacedAtTick: 20, expiresAtTick: 50, minimumResidentCapacity: 1, displacementPressure: 1, deterministicSequence: 2 },
-      { householdId: 'household:1', displacedAtTick: 10, expiresAtTick: 40, minimumResidentCapacity: 1, displacementPressure: 1, deterministicSequence: 1 },
+      {
+        householdId: 'household:2',
+        displacedAtTick: 20,
+        expiresAtTick: 50,
+        minimumResidentCapacity: 1,
+        displacementPressure: 1,
+        deterministicSequence: 2,
+      },
+      {
+        householdId: 'household:1',
+        displacedAtTick: 10,
+        expiresAtTick: 40,
+        minimumResidentCapacity: 1,
+        displacementPressure: 1,
+        deterministicSequence: 1,
+      },
     ] as const;
     expect(orderDisplacedHouseholds(entries).map((entry) => entry.householdId)).toEqual([
       'household:1',

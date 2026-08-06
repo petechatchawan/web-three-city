@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  createFoundationRciRegistries,
-  residentialCapacityProfileForId,
-} from '../src/index.js';
+import { createFoundationRciRegistries, residentialCapacityProfileForId } from '../src/index.js';
 
 describe('residential capacity profiles', () => {
   it.each([

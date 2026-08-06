@@ -73,12 +73,14 @@ function smooth(previous: number, target: number, smoothingMilli: number): numbe
   return clampDemandMilli(previous + Math.round(((target - previous) * smoothingMilli) / 1_000));
 }
 
-export function smoothRciDemand(input: Readonly<{
-  previous: RciDemandState;
-  evaluation: RciDemandEvaluation;
-  evaluationTick: number;
-  smoothingMilli?: number;
-}>): RciDemandState {
+export function smoothRciDemand(
+  input: Readonly<{
+    previous: RciDemandState;
+    evaluation: RciDemandEvaluation;
+    evaluationTick: number;
+    smoothingMilli?: number;
+  }>,
+): RciDemandState {
   const smoothingMilli = input.smoothingMilli ?? 250;
   return Object.freeze({
     residentialMilli: smooth(

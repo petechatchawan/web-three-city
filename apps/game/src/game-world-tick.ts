@@ -25,13 +25,15 @@ export interface GameWorldTickPlan {
   readonly invalidReason: string | null;
 }
 
-export function planGameWorldTick(input: Readonly<{
-  state: GameWorldState;
-  environment: BuildingDevelopmentEnvironment;
-  config: WorldConfig;
-  registries: RciDefinitionRegistries;
-  reservedCells?: readonly CellCoord[];
-}>): GameWorldTickPlan {
+export function planGameWorldTick(
+  input: Readonly<{
+    state: GameWorldState;
+    environment: BuildingDevelopmentEnvironment;
+    config: WorldConfig;
+    registries: RciDefinitionRegistries;
+    reservedCells?: readonly CellCoord[];
+  }>,
+): GameWorldTickPlan {
   const buildingPlan = planBuildingGrowthTick({
     buildings: input.state.buildings,
     simulation: input.state.simulation,
@@ -131,13 +133,15 @@ export function commitGameWorldTick(
   return store.replace(plan.baseWorldRevision, plan.proposedState);
 }
 
-export function executeGameWorldTick(input: Readonly<{
-  store: GameWorldStateStore;
-  environment: BuildingDevelopmentEnvironment;
-  config: WorldConfig;
-  registries: RciDefinitionRegistries;
-  reservedCells?: readonly CellCoord[];
-}>): Readonly<{
+export function executeGameWorldTick(
+  input: Readonly<{
+    store: GameWorldStateStore;
+    environment: BuildingDevelopmentEnvironment;
+    config: WorldConfig;
+    registries: RciDefinitionRegistries;
+    reservedCells?: readonly CellCoord[];
+  }>,
+): Readonly<{
   state: GameWorldState;
   buildingReceipt: BuildingGrowthReceipt;
   rciReceipt: RciTickReceipt;

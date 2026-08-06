@@ -44,10 +44,7 @@ export type {
 export { createBuildingGrowthPolicy } from './demand/building-growth-policy.js';
 export { evaluateRciDemand, smoothRciDemand } from './demand/demand-evaluator.js';
 export type { RciDemandEvaluation } from './demand/demand-evaluator.js';
-export {
-  FOUNDATION_RCI_DEMAND_FACTORS,
-  clampDemandMilli,
-} from './demand/demand-factor.js';
+export { FOUNDATION_RCI_DEMAND_FACTORS, clampDemandMilli } from './demand/demand-factor.js';
 export type {
   RciDemandChannel,
   RciDemandFactorContext,
@@ -117,10 +114,7 @@ export { createHousingIndex } from './housing/housing-index.js';
 export type { HousingIndex, HousingProjection } from './housing/housing-index.js';
 export { planHousingReconciliation } from './housing/housing-reconciliation.js';
 export type { HousingReconciliationPlan } from './housing/housing-reconciliation.js';
-export {
-  orderDisplacedHouseholds,
-  planDisplaceHousehold,
-} from './migration/displaced-queue.js';
+export { orderDisplacedHouseholds, planDisplaceHousehold } from './migration/displaced-queue.js';
 export {
   FOUNDATION_HOUSING_EMIGRATION_FACTORS,
   evaluateHouseholdEmigrationPressure,

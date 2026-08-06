@@ -1,9 +1,6 @@
 import type { SimulationSnapshot } from '@web-three-city/simulation-core';
 import { describe, expect, it } from 'vitest';
-import {
-  FOUNDATION_RCI_CONFIGURATION,
-  planRciTick,
-} from '../src/index.js';
+import { FOUNDATION_RCI_CONFIGURATION, planRciTick } from '../src/index.js';
 import {
   activeCottageBuildings,
   housingRegistries,

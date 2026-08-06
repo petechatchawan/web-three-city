@@ -6,11 +6,7 @@ import { createTerrainMap } from '@web-three-city/terrain-core';
 import { createZoneSnapshot } from '@web-three-city/zone-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { describe, expect, it } from 'vitest';
-import {
-  decodeWorldSave,
-  encodeWorldSaveV4,
-  encodeWorldSaveV5,
-} from './world-save.js';
+import { decodeWorldSave, encodeWorldSaveV4, encodeWorldSaveV5 } from './world-save.js';
 
 const CELL_COUNT = WORLD_CONFIG.mapWidth * WORLD_CONFIG.mapHeight;
 const LATTICE_COUNT = (WORLD_CONFIG.mapWidth + 1) * (WORLD_CONFIG.mapHeight + 1);
@@ -93,13 +89,7 @@ describe('WorldSaveV5 RCI integration', () => {
   it('migrates WorldSaveV4 to deterministic empty RCI authority', () => {
     const world = emptyWorld();
     const decoded = decodeWorldSave(
-      encodeWorldSaveV4(
-        world.terrain,
-        world.roads,
-        world.zones,
-        world.buildings,
-        world.simulation,
-      ),
+      encodeWorldSaveV4(world.terrain, world.roads, world.zones, world.buildings, world.simulation),
       WORLD_CONFIG,
     );
     expect(decoded.ok).toBe(true);
@@ -107,9 +97,7 @@ describe('WorldSaveV5 RCI integration', () => {
     expect(decoded.value.rci.population.citizens).toEqual([]);
     expect(decoded.value.rci.housing.assignments).toEqual([]);
     expect(decoded.value.rci.employment.assignments).toEqual([]);
-    expect(decoded.value.rci.demand.demand.evaluatedAtTick).toBe(
-      world.simulation.absoluteTick,
-    );
+    expect(decoded.value.rci.demand.demand.evaluatedAtTick).toBe(world.simulation.absoluteTick);
   });
 
   it('rejects malformed RCI payload without exposing partial world state', () => {

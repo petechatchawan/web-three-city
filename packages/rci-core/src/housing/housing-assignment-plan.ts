@@ -3,12 +3,14 @@ import type { DwellingUnitId, HouseholdId } from '../contracts/ids.js';
 import type { HousingAssignmentRecord } from '../contracts/records.js';
 import { canonicalizeRciSnapshot, type RciSnapshot } from '../rci-snapshot.js';
 
-export function planStartHousingAssignment(input: Readonly<{
-  snapshot: RciSnapshot;
-  householdId: HouseholdId;
-  dwellingUnitId: DwellingUnitId;
-  startedAtTick: number;
-}>): RciSnapshot {
+export function planStartHousingAssignment(
+  input: Readonly<{
+    snapshot: RciSnapshot;
+    householdId: HouseholdId;
+    dwellingUnitId: DwellingUnitId;
+    startedAtTick: number;
+  }>,
+): RciSnapshot {
   const household = input.snapshot.households.households.find(
     (value) => value.householdId === input.householdId,
   );

@@ -31,12 +31,42 @@ function workforce() {
     population: {
       revision: 1,
       citizens: [
-        { citizenId: 'citizen:1', presence: 'resident' as const, sexDefinitionId: 'sex.female', bornAtTick: 32 - 30 * 8_640, movedIntoCityAtTick: 0, movedOutOfCityAtTick: null, diedAtTick: null },
-        { citizenId: 'citizen:2', presence: 'resident' as const, sexDefinitionId: 'sex.male', bornAtTick: 32 - 40 * 8_640, movedIntoCityAtTick: 0, movedOutOfCityAtTick: null, diedAtTick: null },
+        {
+          citizenId: 'citizen:1',
+          presence: 'resident' as const,
+          sexDefinitionId: 'sex.female',
+          bornAtTick: 32 - 30 * 8_640,
+          movedIntoCityAtTick: 0,
+          movedOutOfCityAtTick: null,
+          diedAtTick: null,
+        },
+        {
+          citizenId: 'citizen:2',
+          presence: 'resident' as const,
+          sexDefinitionId: 'sex.male',
+          bornAtTick: 32 - 40 * 8_640,
+          movedIntoCityAtTick: 0,
+          movedOutOfCityAtTick: null,
+          diedAtTick: null,
+        },
       ],
       qualifications: [
-        { citizenQualificationId: 'citizen-qualification:1', citizenId: 'citizen:1', qualificationDefinitionId: 'qualification.professional', awardedAtTick: 0, endedAtTick: null, sourceDefinitionId: 'fixture' },
-        { citizenQualificationId: 'citizen-qualification:2', citizenId: 'citizen:2', qualificationDefinitionId: 'qualification.entry', awardedAtTick: 0, endedAtTick: null, sourceDefinitionId: 'fixture' },
+        {
+          citizenQualificationId: 'citizen-qualification:1',
+          citizenId: 'citizen:1',
+          qualificationDefinitionId: 'qualification.professional',
+          awardedAtTick: 0,
+          endedAtTick: null,
+          sourceDefinitionId: 'fixture',
+        },
+        {
+          citizenQualificationId: 'citizen-qualification:2',
+          citizenId: 'citizen:2',
+          qualificationDefinitionId: 'qualification.entry',
+          awardedAtTick: 0,
+          endedAtTick: null,
+          sourceDefinitionId: 'fixture',
+        },
       ],
     },
     sequences: { ...initial.sequences, nextCitizen: 3, nextCitizenQualification: 3 },
@@ -81,9 +111,16 @@ describe('Workplace and Employment foundation', () => {
       allowControlledUpgrade: true,
     });
     expect(plan.startedAssignmentIds).toHaveLength(2);
-    expect(plan.proposedSnapshot.employment.assignments.find((value) => value.citizenId === 'citizen:1')).toMatchObject({ positionGroupDefinitionId: 'position.professional' });
-    expect(plan.proposedSnapshot.employment.assignments.find((value) => value.citizenId === 'citizen:2')).toMatchObject({ positionGroupDefinitionId: 'position.entry' });
-    expect(createEmploymentIndex(plan.proposedSnapshot, registries, 32).projection).toMatchObject({ employedResidentCount: 2, unemployedResidentCount: 0 });
+    expect(
+      plan.proposedSnapshot.employment.assignments.find((value) => value.citizenId === 'citizen:1'),
+    ).toMatchObject({ positionGroupDefinitionId: 'position.professional' });
+    expect(
+      plan.proposedSnapshot.employment.assignments.find((value) => value.citizenId === 'citizen:2'),
+    ).toMatchObject({ positionGroupDefinitionId: 'position.entry' });
+    expect(createEmploymentIndex(plan.proposedSnapshot, registries, 32).projection).toMatchObject({
+      employedResidentCount: 2,
+      unemployedResidentCount: 0,
+    });
   });
 
   it('is permutation deterministic and never displaces a valid worker', () => {
@@ -94,11 +131,19 @@ describe('Workplace and Employment foundation', () => {
       registries,
       evaluationTick: 32,
     }).proposedSnapshot;
-    const forward = planEmploymentReconciliation({ snapshot: withWorkplace, evaluationTick: 32, registries });
+    const forward = planEmploymentReconciliation({
+      snapshot: withWorkplace,
+      evaluationTick: 32,
+      registries,
+    });
     const reversed = planEmploymentReconciliation({
       snapshot: {
         ...withWorkplace,
-        population: { ...withWorkplace.population, citizens: [...withWorkplace.population.citizens].reverse(), qualifications: [...withWorkplace.population.qualifications].reverse() },
+        population: {
+          ...withWorkplace.population,
+          citizens: [...withWorkplace.population.citizens].reverse(),
+          qualifications: [...withWorkplace.population.qualifications].reverse(),
+        },
       },
       evaluationTick: 32,
       registries,

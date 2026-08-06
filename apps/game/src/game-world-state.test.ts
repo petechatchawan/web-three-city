@@ -1,6 +1,4 @@
-import {
-  createEmptyBuildingSnapshot,
-} from '@web-three-city/building-core';
+import { createEmptyBuildingSnapshot } from '@web-three-city/building-core';
 import { createInitialRciSnapshot } from '@web-three-city/rci-core';
 import { createInitialSimulationSnapshot } from '@web-three-city/simulation-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
@@ -23,7 +21,11 @@ describe('GameWorldStateStore', () => {
     const before = store.snapshot();
     const next = Object.freeze({
       revision: 1,
-      simulation: Object.freeze({ ...before.simulation, revision: 1, absoluteTick: before.simulation.absoluteTick + 1 }),
+      simulation: Object.freeze({
+        ...before.simulation,
+        revision: 1,
+        absoluteTick: before.simulation.absoluteTick + 1,
+      }),
       buildings: before.buildings,
       rci: before.rci,
     });
@@ -58,8 +60,8 @@ describe('GameWorldStateStore', () => {
     });
     expect(synchronized.revision).toBe(1);
     expect(synchronized.simulation).toBe(simulation);
-    expect(store.synchronizeExternal({ simulation, buildings: before.buildings, rci: before.rci })).toBe(
-      synchronized,
-    );
+    expect(
+      store.synchronizeExternal({ simulation, buildings: before.buildings, rci: before.rci }),
+    ).toBe(synchronized);
   });
 });

@@ -2,17 +2,11 @@ import {
   createEmptyBuildingSnapshot,
   type BuildingDevelopmentEnvironment,
 } from '@web-three-city/building-core';
-import {
-  createFoundationRciRegistries,
-  createInitialRciSnapshot,
-} from '@web-three-city/rci-core';
+import { createFoundationRciRegistries, createInitialRciSnapshot } from '@web-three-city/rci-core';
 import { createInitialSimulationSnapshot } from '@web-three-city/simulation-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { describe, expect, it } from 'vitest';
-import {
-  commitGameWorldTick,
-  planGameWorldTick,
-} from './game-world-tick.js';
+import { commitGameWorldTick, planGameWorldTick } from './game-world-tick.js';
 import { GameWorldStateStore } from './game-world-state.js';
 
 const environment = Object.freeze({

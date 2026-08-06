@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  OPEN_BUILDING_GROWTH_POLICY,
-  validateBuildingGrowthPolicy,
-} from '../src/index.js';
+import { OPEN_BUILDING_GROWTH_POLICY, validateBuildingGrowthPolicy } from '../src/index.js';
 
 describe('Building Growth policy', () => {
   it('preserves open-growth compatibility by default', () => {

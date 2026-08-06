@@ -61,8 +61,7 @@ export interface WorkplaceCapacityProfileDefinition {
 }
 
 export type CapacityProfileDefinition =
-  | ResidentialCapacityProfileDefinition
-  | WorkplaceCapacityProfileDefinition;
+  ResidentialCapacityProfileDefinition | WorkplaceCapacityProfileDefinition;
 
 export interface MigrationAgeRangeDefinition {
   readonly minimumYears: number;

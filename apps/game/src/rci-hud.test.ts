@@ -1,7 +1,4 @@
-import {
-  createFoundationRciRegistries,
-  createInitialRciSnapshot,
-} from '@web-three-city/rci-core';
+import { createFoundationRciRegistries, createInitialRciSnapshot } from '@web-three-city/rci-core';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createRciHudModel, mountRciHud } from './rci-hud.js';
 
@@ -32,9 +29,7 @@ describe('RCI HUD', () => {
       },
       households: {
         revision: 1,
-        households: [
-          { householdId: 'household:1', foundedAtTick: 0, dissolvedAtTick: null },
-        ],
+        households: [{ householdId: 'household:1', foundedAtTick: 0, dissolvedAtTick: null }],
         memberships: [
           {
             membershipId: 'household-membership:1',

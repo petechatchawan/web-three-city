@@ -29,10 +29,7 @@ const context = {
 describe('RCI Demand foundation', () => {
   it('evaluates stable fixed-point factors independently of input order', () => {
     const forward = evaluateRciDemand(context, FOUNDATION_RCI_DEMAND_FACTORS);
-    const reverse = evaluateRciDemand(
-      context,
-      [...FOUNDATION_RCI_DEMAND_FACTORS].reverse(),
-    );
+    const reverse = evaluateRciDemand(context, [...FOUNDATION_RCI_DEMAND_FACTORS].reverse());
     expect(reverse).toEqual(forward);
     expect(forward.contributions.map((value) => value.factorDefinitionId)).toEqual(
       [...forward.contributions.map((value) => value.factorDefinitionId)].sort(),

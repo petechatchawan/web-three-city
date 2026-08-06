@@ -1,6 +1,12 @@
 import type { BuildingSnapshot } from '@web-three-city/building-core';
 import type { SimulationSnapshot } from '@web-three-city/simulation-core';
 import { RciContractError, type RciContractErrorCode } from './contracts/errors.js';
+import { evaluateRciDemand, smoothRciDemand } from './demand/demand-evaluator.js';
+import {
+  FOUNDATION_RCI_DEMAND_FACTORS,
+  type RciDemandFactorContribution,
+} from './demand/demand-factor.js';
+import { updateRciGrowthGates } from './demand/growth-gate.js';
 import type { RciDefinitionRegistries } from './definitions/contracts.js';
 import { createEmploymentIndex } from './employment/employment-index.js';
 import { planEmploymentReconciliation } from './employment/employment-reconciliation.js';
@@ -15,6 +21,7 @@ import {
   type PopulationLifecycleResult,
 } from './population/daily-lifecycle.js';
 import type { QualificationResolver } from './population/qualification-resolver.js';
+import { createRciProjection } from './projection/rci-projection.js';
 import type { RciConfiguration } from './rci-configuration.js';
 import { canonicalizeRciSnapshot, type RciSnapshot } from './rci-snapshot.js';
 import { validateRciSnapshot } from './validation/rci-validation.js';
@@ -38,6 +45,7 @@ export interface RciTickPlan {
   readonly afterAbsoluteTick: number;
   readonly proposedSnapshot: RciSnapshot;
   readonly emittedEvents: readonly RciDomainEvent[];
+  readonly demandContributions: readonly RciDemandFactorContribution[];
   readonly suitableVacantJobCount: number;
   readonly valid: boolean;
   readonly invalidReason: RciContractErrorCode | null;
@@ -69,6 +77,7 @@ function invalidPlan(input: RciTickInput, invalidReason: RciContractErrorCode): 
     afterAbsoluteTick: input.simulationAfter.absoluteTick,
     proposedSnapshot: input.rci,
     emittedEvents: Object.freeze([]),
+    demandContributions: Object.freeze([]),
     suitableVacantJobCount: 0,
     valid: false,
     invalidReason,
@@ -114,6 +123,7 @@ export function planRciTick(input: RciTickInput): RciTickPlan {
   }).proposedSnapshot;
 
   const emittedEvents: RciDomainEvent[] = [];
+  let demandContributions: readonly RciDemandFactorContribution[] = Object.freeze([]);
   const daily = isDailyLifecycleTick(
     input.simulationBefore.absoluteTick,
     input.simulationAfter.absoluteTick,
@@ -187,6 +197,45 @@ export function planRciTick(input: RciTickInput): RciTickPlan {
     registries: input.registries,
   }).proposedSnapshot;
 
+  if (daily) {
+    const projection = createRciProjection(
+      snapshot,
+      input.registries,
+      input.simulationAfter.absoluteTick,
+    );
+    const evaluation = evaluateRciDemand(projection.factorContext, FOUNDATION_RCI_DEMAND_FACTORS);
+    const demand = smoothRciDemand({
+      previous: snapshot.demand.demand,
+      evaluation,
+      evaluationTick: input.simulationAfter.absoluteTick,
+    });
+    const growthGates = updateRciGrowthGates({
+      previous: snapshot.demand.growthGates,
+      demand,
+      evaluationTick: input.simulationAfter.absoluteTick,
+    });
+    demandContributions = evaluation.contributions;
+    if (
+      demand.residentialMilli !== snapshot.demand.demand.residentialMilli ||
+      demand.commercialMilli !== snapshot.demand.demand.commercialMilli ||
+      demand.industrialMilli !== snapshot.demand.demand.industrialMilli ||
+      growthGates.residentialOpen !== snapshot.demand.growthGates.residentialOpen ||
+      growthGates.commercialOpen !== snapshot.demand.growthGates.commercialOpen ||
+      growthGates.industrialOpen !== snapshot.demand.growthGates.industrialOpen ||
+      demand.evaluatedAtTick !== snapshot.demand.demand.evaluatedAtTick
+    ) {
+      snapshot = canonicalizeRciSnapshot({
+        ...snapshot,
+        revision: snapshot.revision + 1,
+        demand: {
+          revision: snapshot.demand.revision + 1,
+          demand,
+          growthGates,
+        },
+      });
+    }
+  }
+
   const validation = validateRciSnapshot(
     snapshot,
     input.buildingsAfter,
@@ -205,6 +254,7 @@ export function planRciTick(input: RciTickInput): RciTickPlan {
     afterAbsoluteTick: input.simulationAfter.absoluteTick,
     proposedSnapshot: snapshot,
     emittedEvents: Object.freeze(emittedEvents),
+    demandContributions,
     suitableVacantJobCount,
     valid: true,
     invalidReason: null,

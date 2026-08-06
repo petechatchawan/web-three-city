@@ -10,6 +10,11 @@ import type {
   BuildingInstance,
   BuildingSnapshot,
 } from './contracts.js';
+import {
+  OPEN_BUILDING_GROWTH_POLICY,
+  validateBuildingGrowthPolicy,
+  type BuildingGrowthPolicy,
+} from './growth-policy.js';
 
 export interface BuildingSelectionCandidate {
   readonly definition: BuildingDefinition;
@@ -25,18 +30,21 @@ export interface BuildingSelectionContext {
   readonly adjacentDefinitionIds: ReadonlySet<BuildingDefinitionId>;
 }
 
+interface PolicyCandidate {
+  readonly candidate: BuildingSelectionCandidate;
+  readonly zoneDefinitionId: string;
+  readonly policyWeightMilli: number;
+}
+
 function key(cell: CellCoord): string {
   return `${cell.x}:${cell.z}`;
 }
-
 function inside(cell: CellCoord, config: WorldConfig): boolean {
   return cell.x >= 0 && cell.z >= 0 && cell.x < config.mapWidth && cell.z < config.mapHeight;
 }
-
 function frontageOrder(direction: BuildingFrontage['direction']): number {
   return direction === 'north' ? 0 : direction === 'east' ? 1 : direction === 'south' ? 2 : 3;
 }
-
 function candidateOrder(a: BuildingSelectionCandidate, b: BuildingSelectionCandidate): number {
   const aMisaligned =
     buildingEntranceDirection(a.instance.rotationQuarterTurns) === a.frontage.direction ? 0 : 1;
@@ -77,9 +85,8 @@ export function selectBuildingCandidate(
   );
   const bestByDefinition = new Map<BuildingDefinitionId, BuildingSelectionCandidate>();
   for (const candidate of [...priorityTier].sort(candidateOrder)) {
-    if (!bestByDefinition.has(candidate.definition.id)) {
+    if (!bestByDefinition.has(candidate.definition.id))
       bestByDefinition.set(candidate.definition.id, candidate);
-    }
   }
   const bestCandidates = [...bestByDefinition.values()];
   const nonAdjacent = bestCandidates.filter(
@@ -101,7 +108,6 @@ export function selectBuildingCandidate(
 }
 
 function adjacentDefinitionIds(
-  origin: CellCoord,
   footprintCells: readonly CellCoord[],
   buildings: BuildingSnapshot,
 ): ReadonlySet<BuildingDefinitionId> {
@@ -121,7 +127,6 @@ function adjacentDefinitionIds(
       }
     }
   }
-  void origin;
   return adjacent;
 }
 
@@ -132,19 +137,25 @@ export function selectGrowthBuildingPlacement(input: {
   readonly absoluteTick: number;
   readonly growthSequence: number;
   readonly reservedCells?: readonly CellCoord[];
+  readonly growthPolicy?: BuildingGrowthPolicy;
 }): BuildingSelectionCandidate | null {
+  const policy = input.growthPolicy ?? OPEN_BUILDING_GROWTH_POLICY;
+  validateBuildingGrowthPolicy(policy);
   const occupied = new Set<string>();
   for (const instance of input.buildings.instances) {
     for (const cell of occupiedCellsForBuilding(instance)) occupied.add(key(cell));
   }
   const reserved = new Set((input.reservedCells ?? []).map(key));
+  const policyCandidates: PolicyCandidate[] = [];
 
   for (let z = 0; z < input.config.mapHeight; z += 1) {
     for (let x = 0; x < input.config.mapWidth; x += 1) {
       const originCell = Object.freeze({ x, z });
       if (occupied.has(key(originCell))) continue;
       const zoneDefinitionId = input.environment.zoneDefinitionIdAt(originCell);
-      if (zoneDefinitionId === null) continue;
+      if (zoneDefinitionId === null || !policy.allowsZone(zoneDefinitionId)) continue;
+      const policyWeightMilli = policy.zoneWeightMilli(zoneDefinitionId);
+      if (policyWeightMilli <= 0) continue;
       const candidates: BuildingSelectionCandidate[] = [];
       for (const definition of buildingDefinitions()) {
         if (!definition.compatibleZoneDefinitionIds.includes(zoneDefinitionId)) continue;
@@ -168,9 +179,8 @@ export function selectGrowthBuildingPlacement(input: {
                 !input.environment.isDry(cell) ||
                 input.environment.surfaceAt(cell).shape !== 'flat',
             )
-          ) {
+          )
             continue;
-          }
           const frontage = resolveBuildingFrontage(instance, input.environment);
           if (
             frontage !== null &&
@@ -182,15 +192,39 @@ export function selectGrowthBuildingPlacement(input: {
         }
       }
       if (candidates.length === 0) continue;
-      const sampleCells = occupiedCellsForBuilding(candidates[0]!.instance);
-      return selectBuildingCandidate(candidates, {
+      const selected = selectBuildingCandidate(candidates, {
         absoluteTick: input.absoluteTick,
         growthSequence: input.growthSequence,
         originCell,
         zoneDefinitionId,
-        adjacentDefinitionIds: adjacentDefinitionIds(originCell, sampleCells, input.buildings),
+        adjacentDefinitionIds: adjacentDefinitionIds(
+          occupiedCellsForBuilding(candidates[0]!.instance),
+          input.buildings,
+        ),
       });
+      if (selected !== null)
+        policyCandidates.push({ candidate: selected, zoneDefinitionId, policyWeightMilli });
     }
   }
-  return null;
+
+  if (policyCandidates.length === 0) return null;
+  const ordered = policyCandidates.sort(
+    (a, b) =>
+      a.candidate.instance.originCell.z - b.candidate.instance.originCell.z ||
+      a.candidate.instance.originCell.x - b.candidate.instance.originCell.x ||
+      a.candidate.definition.id.localeCompare(b.candidate.definition.id),
+  );
+  const totalWeight = ordered.reduce((sum, value) => sum + value.policyWeightMilli, 0);
+  const seed = stableBuildingSelectionHash({
+    absoluteTick: input.absoluteTick,
+    growthSequence: input.growthSequence,
+    originCell: ordered[0]!.candidate.instance.originCell,
+    zoneDefinitionId: `policy:${policy.policyRevision}`,
+  });
+  let cursor = seed % totalWeight;
+  for (const value of ordered) {
+    if (cursor < value.policyWeightMilli) return value.candidate;
+    cursor -= value.policyWeightMilli;
+  }
+  return ordered[ordered.length - 1]!.candidate;
 }

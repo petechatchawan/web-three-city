@@ -5,6 +5,7 @@ export * from './building-frontage.js';
 export * from './building-lifecycle.js';
 export * from './building-selection.js';
 export * from './building-snapshot.js';
+export * from './growth-policy.js';
 export { planBuildingBulldoze } from './building-mutation.js';
 export {
   automaticGrowthProbeCell,

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as rci from '../src/index.js';
 
-// PR 4 intentionally exposes Population, Housing/Migration, and Employment APIs only.
 describe('@web-three-city/rci-core public boundary', () => {
   it('exports only intentional foundation entry points', () => {
     expect(Object.keys(rci).sort()).toEqual([
@@ -11,6 +10,7 @@ describe('@web-three-city/rci-core public boundary', () => {
       'FOUNDATION_EMPLOYMENT_EMIGRATION_FACTORS',
       'FOUNDATION_HOUSING_EMIGRATION_FACTORS',
       'FOUNDATION_RCI_CONFIGURATION',
+      'FOUNDATION_RCI_DEMAND_FACTORS',
       'PROBABILITY_SCALE',
       'RCI_DAYS_PER_YEAR',
       'RCI_TICKS_PER_DAY',
@@ -18,8 +18,10 @@ describe('@web-three-city/rci-core public boundary', () => {
       'RciContractError',
       'ageBandAtTick',
       'ageYearsAtTick',
+      'clampDemandMilli',
       'commitRciTick',
       'compileAnnualRateToDailyHazard',
+      'createBuildingGrowthPolicy',
       'createEmploymentIndex',
       'createFoundationMigrationRequestPolicy',
       'createFoundationQualificationResolver',
@@ -28,12 +30,14 @@ describe('@web-three-city/rci-core public boundary', () => {
       'createInitialRciSnapshot',
       'createRciCurrentStateIndex',
       'createRciMigrationInventory',
+      'createRciProjection',
       'createRciSnapshot',
       'decodeRciSaveV1',
       'deterministicSample',
       'encodeRciSaveV1',
       'endHousingAssignments',
       'evaluateHouseholdEmigrationPressure',
+      'evaluateRciDemand',
       'isDailyLifecycleTick',
       'isResidentialCapacityProfile',
       'isWorkplaceCapacityProfile',
@@ -56,8 +60,10 @@ describe('@web-three-city/rci-core public boundary', () => {
       'positionKey',
       'residentialCapacityProfileForId',
       'sampleSucceeds',
+      'smoothRciDemand',
       'synchronizeDwellingInventory',
       'synchronizeWorkplaceInventory',
+      'updateRciGrowthGates',
       'validateRciSnapshot',
       'workplaceCapacityProfileForId',
     ]);

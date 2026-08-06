@@ -1,9 +1,6 @@
 import type { BuildingSnapshot } from '@web-three-city/building-core';
 import { describe, expect, it } from 'vitest';
-import {
-  createInitialRciSnapshot,
-  synchronizeDwellingInventory,
-} from '../src/index.js';
+import { createInitialRciSnapshot, synchronizeDwellingInventory } from '../src/index.js';
 import { activeCottageBuildings, housingRegistries } from './housing-fixtures.js';
 
 const emptyBuildings: BuildingSnapshot = Object.freeze({

@@ -103,10 +103,7 @@ export { createHousingIndex } from './housing/housing-index.js';
 export type { HousingIndex, HousingProjection } from './housing/housing-index.js';
 export { planHousingReconciliation } from './housing/housing-reconciliation.js';
 export type { HousingReconciliationPlan } from './housing/housing-reconciliation.js';
-export {
-  orderDisplacedHouseholds,
-  planDisplaceHousehold,
-} from './migration/displaced-queue.js';
+export { orderDisplacedHouseholds, planDisplaceHousehold } from './migration/displaced-queue.js';
 export {
   FOUNDATION_HOUSING_EMIGRATION_FACTORS,
   evaluateHouseholdEmigrationPressure,

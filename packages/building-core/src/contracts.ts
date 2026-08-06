@@ -61,7 +61,9 @@ export interface BuildingInstanceBase {
   readonly originCell: CellCoord;
   readonly rotationQuarterTurns: BuildingRotationQuarterTurns;
 }
-export interface LegacyBuildingInstance extends BuildingInstanceBase { readonly lifecycle?: never }
+export interface LegacyBuildingInstance extends BuildingInstanceBase {
+  readonly lifecycle?: never;
+}
 export interface ConstructionBuildingInstance extends BuildingInstanceBase {
   readonly lifecycle: 'construction';
   readonly constructionStartedAtTick: number;
@@ -71,10 +73,17 @@ export interface ActiveBuildingInstance extends BuildingInstanceBase {
   readonly lifecycle: 'active';
   readonly activatedAtTick: number;
 }
-export type BuildingInstance = LegacyBuildingInstance | ConstructionBuildingInstance | ActiveBuildingInstance;
+export type BuildingInstance =
+  LegacyBuildingInstance | ConstructionBuildingInstance | ActiveBuildingInstance;
 export type AuthoritativeBuildingInstance = ConstructionBuildingInstance | ActiveBuildingInstance;
-export interface BuildingSnapshot { readonly revision: number; readonly instances: readonly BuildingInstance[] }
-export interface RotatedBuildingFootprint { readonly width: number; readonly depth: number }
+export interface BuildingSnapshot {
+  readonly revision: number;
+  readonly instances: readonly BuildingInstance[];
+}
+export interface RotatedBuildingFootprint {
+  readonly width: number;
+  readonly depth: number;
+}
 export interface BuildingFrontage {
   readonly direction: ZoneRoadDirection;
   readonly distance: 1 | 2 | 3;

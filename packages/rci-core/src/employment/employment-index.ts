@@ -92,7 +92,10 @@ export function createEmploymentIndex(
   }
 
   const assignmentById = new Map(
-    snapshot.employment.assignments.map((assignment) => [assignment.employmentAssignmentId, assignment]),
+    snapshot.employment.assignments.map((assignment) => [
+      assignment.employmentAssignmentId,
+      assignment,
+    ]),
   );
   const workplaceById = new Map(
     snapshot.employment.workplaces.map((workplace) => [workplace.workplaceId, workplace]),
@@ -102,7 +105,8 @@ export function createEmploymentIndex(
     const qualificationId = activeQualificationByCitizenId.get(citizen.citizenId);
     if (assignmentId === undefined || qualificationId === undefined) continue;
     const assignment = assignmentById.get(assignmentId);
-    const workplace = assignment === undefined ? undefined : workplaceById.get(assignment.workplaceId);
+    const workplace =
+      assignment === undefined ? undefined : workplaceById.get(assignment.workplaceId);
     if (assignment === undefined || workplace === undefined) continue;
     const profile = workplaceCapacityProfileForId(
       registries.capacityProfiles,

@@ -60,11 +60,13 @@ function suitableVacantUnits(
   );
 }
 
-export function planHousingReconciliation(input: Readonly<{
-  snapshot: RciSnapshot;
-  evaluationTick: number;
-  registries: RciDefinitionRegistries;
-}>): HousingReconciliationPlan {
+export function planHousingReconciliation(
+  input: Readonly<{
+    snapshot: RciSnapshot;
+    evaluationTick: number;
+    registries: RciDefinitionRegistries;
+  }>,
+): HousingReconciliationPlan {
   let snapshot = canonicalizeRciSnapshot(input.snapshot);
   const relocatedHouseholdIds: string[] = [];
   const materializedRequestIds: string[] = [];

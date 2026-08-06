@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import * as rci from '../src/index.js';
 
+// PR 4 intentionally exposes Population, Housing/Migration, and Employment APIs only.
 describe('@web-three-city/rci-core public boundary', () => {
   it('exports only intentional foundation entry points', () => {
     expect(Object.keys(rci).sort()).toEqual([
       'ANNUAL_RATE_SCALE',
       'DEFAULT_RCI_DETERMINISTIC_SEED',
       'DETERMINISTIC_SAMPLE_ALGORITHM',
+      'FOUNDATION_EMPLOYMENT_EMIGRATION_FACTORS',
       'FOUNDATION_HOUSING_EMIGRATION_FACTORS',
       'FOUNDATION_RCI_CONFIGURATION',
       'PROBABILITY_SCALE',
@@ -18,6 +20,7 @@ describe('@web-three-city/rci-core public boundary', () => {
       'ageYearsAtTick',
       'commitRciTick',
       'compileAnnualRateToDailyHazard',
+      'createEmploymentIndex',
       'createFoundationMigrationRequestPolicy',
       'createFoundationQualificationResolver',
       'createFoundationRciRegistries',
@@ -33,6 +36,7 @@ describe('@web-three-city/rci-core public boundary', () => {
       'evaluateHouseholdEmigrationPressure',
       'isDailyLifecycleTick',
       'isResidentialCapacityProfile',
+      'isWorkplaceCapacityProfile',
       'orderDisplacedHouseholds',
       'orderIncomingHouseholdRequests',
       'orderRciDomainEvents',
@@ -41,6 +45,7 @@ describe('@web-three-city/rci-core public boundary', () => {
       'planCreatePartnerRelationship',
       'planDisplaceHousehold',
       'planEmigrateHousehold',
+      'planEmploymentReconciliation',
       'planEndHouseholdMembership',
       'planEndPartnerRelationship',
       'planHousingReconciliation',
@@ -48,10 +53,13 @@ describe('@web-three-city/rci-core public boundary', () => {
       'planRciTick',
       'planStartHouseholdMembership',
       'planStartHousingAssignment',
+      'positionKey',
       'residentialCapacityProfileForId',
       'sampleSucceeds',
       'synchronizeDwellingInventory',
+      'synchronizeWorkplaceInventory',
       'validateRciSnapshot',
+      'workplaceCapacityProfileForId',
     ]);
   });
 });

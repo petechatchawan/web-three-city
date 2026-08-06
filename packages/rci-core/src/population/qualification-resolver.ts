@@ -3,25 +3,28 @@ import type { RciDefinitionRegistries } from '../definitions/contracts.js';
 import { deterministicSample, type ProbabilityUnit } from './deterministic-sample.js';
 
 export type QualificationResolverContext =
-  | 'working-age-immigrant'
-  | 'resident-reaching-working-age';
+  'working-age-immigrant' | 'resident-reaching-working-age';
 
 export interface QualificationResolver {
-  resolve(input: Readonly<{
-    citizenId: CitizenId;
-    context: QualificationResolverContext;
-    evaluationTick: number;
-    deterministicSeed: number;
-  }>): string;
+  resolve(
+    input: Readonly<{
+      citizenId: CitizenId;
+      context: QualificationResolverContext;
+      evaluationTick: number;
+      deterministicSeed: number;
+    }>,
+  ): string;
 }
 
 export interface QualificationResolverOptions {
-  readonly sample?: (input: Readonly<{
-    citizenId: CitizenId;
-    context: QualificationResolverContext;
-    evaluationTick: number;
-    deterministicSeed: number;
-  }>) => ProbabilityUnit;
+  readonly sample?: (
+    input: Readonly<{
+      citizenId: CitizenId;
+      context: QualificationResolverContext;
+      evaluationTick: number;
+      deterministicSeed: number;
+    }>,
+  ) => ProbabilityUnit;
 }
 
 export function createFoundationQualificationResolver(

@@ -43,7 +43,7 @@ export function createBuildingGrowthPolicy(snapshot: RciSnapshot): BuildingGrowt
     zoneWeightMilli(zoneDefinitionId: string): number {
       const channel = channelForZone(zoneDefinitionId);
       if (channel === null || !gateFor(snapshot, channel)) return 0;
-      return Math.max(1_000, Math.min(100_000, demandFor(snapshot, channel) + 100_000));
+      return Math.max(1_000, Math.min(100_000, demandFor(snapshot, channel)));
     },
   });
 }

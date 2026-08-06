@@ -108,6 +108,7 @@ describe('RCI current-state indexes', () => {
     const snapshot = populatedSnapshot();
     const index = createRciCurrentStateIndex(snapshot);
 
+    expect(index.activeMembershipByCitizenId.size).toBe(2);
     expect(index.activeMembershipByCitizenId.get('citizen:1')?.membershipId).toBe(
       'household-membership:1',
     );

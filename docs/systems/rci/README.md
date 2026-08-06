@@ -2,6 +2,7 @@
 
 **Status:** Approved design — not implemented  
 **Last verified against:** `docs/rci-demand-occupancy-v0-1-planning`  
+**Design approval:** Owner-approved on 2026-08-06  
 **Planned ownership:** `packages/rci-core`, `apps/game` world-tick orchestration and HUD integration  
 **Planned persistence:** `RciSaveV1` inside `WorldSaveV5`
 
@@ -88,7 +89,7 @@ flowchart LR
 
 ## Persistence
 
-`RciSaveV1` is planned as a lossless normalized record store inside `WorldSaveV5`. Prior World Saves initialize an empty RCI state without inventing historical Citizens. Save decode must validate all cross-record references and produce the same future results as continuous execution.
+`RciSaveV1` is planned as a lossless normalized record store inside `WorldSaveV5`. Prior World Saves initialize an empty RCI state without inventing historical Citizens, then materialize deterministic active-Building inventory as the Housing and Employment PRs land. Save decode must validate all cross-record references and produce the same future results as continuous execution.
 
 ## Invariants and Failure Behavior
 
@@ -109,10 +110,23 @@ Definition registries keep relationship types, qualifications, employment requir
 
 The system is not implemented. The approved v0.1 also excludes marriage-market simulation, adoption, full occupations, salaries, commute/pathfinding, rendered Citizens, homelessness gameplay, building abandonment, and density upgrades.
 
+## Implementation Planning
+
+The approved design is decomposed into six sequential TDD PR plans. Start at the [TDD packet index](tdd/README.md):
+
+1. [Core contracts, registries, snapshots, and Save V1](tdd/2026-08-06-rci-pr1-core-contracts-snapshots-save-v1.md)
+2. [Population, relationships, Households, and daily lifecycle](tdd/2026-08-06-rci-pr2-population-relationships-lifecycle.md)
+3. [Housing, migration, relocation, and displacement](tdd/2026-08-06-rci-pr3-housing-migration-displacement.md)
+4. [Workplaces and Employment reconciliation](tdd/2026-08-06-rci-pr4-workplaces-employment.md)
+5. [Demand and Building-growth policy](tdd/2026-08-06-rci-pr5-demand-growth-policy.md)
+6. [Atomic game integration, HUD, browser acceptance, and final verification](tdd/2026-08-06-rci-pr6-game-integration-hud-verification.md)
+
+Each implementation PR must update this living overview and add fresh evidence under `verification/` before closure.
+
 ## Handoff Checklist
 
 - Canonical design: [RCI Demand & Occupancy Foundation v0.1](specs/2026-08-06-rci-demand-occupancy-foundation-v0-1.md)
 - Authority decision: [ADR-0001](adrs/0001-citizen-records-as-population-authority.md)
-- Implementation plan: to be written under `tdd/` after written-spec approval
+- TDD implementation packet: [index and execution order](tdd/README.md)
 - Related systems: [Buildings](../buildings/README.md), [Simulation Time](../simulation-time/README.md), [Zoning](../zoning/README.md), [Economy](../economy/README.md)
 - Planning PR: #25

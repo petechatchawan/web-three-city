@@ -7,7 +7,7 @@ const EXPECTED_DEFINITION_IDS = Object.freeze([
   'commercial-cafe-1x1',
   'commercial-shop-1x1',
   'industrial-depot-1x1',
-  'residential-cottage-1x1',
+  'residential-duplex-2x1',
 ]);
 
 test('captures deterministic Residential, Commercial, and Industrial prototypes', async ({
@@ -26,7 +26,7 @@ test('captures deterministic Residential, Commercial, and Industrial prototypes'
 
   const evidence = await readEvidence(page);
   expect(evidence.building.count).toBe(4);
-  expect(evidence.building.occupiedCellCount).toBe(4);
+  expect(evidence.building.occupiedCellCount).toBe(5);
   expect(evidence.building.definitionIds).toEqual(EXPECTED_DEFINITION_IDS);
   await page.screenshot({
     path: testInfo.outputPath('building-foundation-rci-prototypes.png'),

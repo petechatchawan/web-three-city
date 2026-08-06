@@ -1,37 +1,45 @@
 # RCI Demand & Occupancy System
 
-**Status:** Partial — PR 1 contracts/save and PR 2 population lifecycle implemented  
-**Last implementation head:** `feat/rci-population-lifecycle-v0-1`  
-**Primary ownership:** `packages/rci-core`; `apps/game` owns world-envelope composition and future runtime orchestration  
+**Status:** Partial — PR 1–3 contracts, population, housing, and migration implementation written  
+**Current stacked head:** `feat/rci-housing-migration-v0-1`  
+**Primary ownership:** `packages/rci-core`; `apps/game` owns world-envelope composition and later runtime orchestration  
 **Persistence:** `RciSaveV1` inside `WorldSaveV5`
 
 ## Purpose
 
-Provide deterministic authority for Citizens, Relationships, Households, housing, Workplaces, Employment, migration, R/C/I demand, and growth gates without coupling those domains to rendering or UI.
+Provide deterministic authority for Citizens, Relationships, Households, housing, Workplaces, Employment, migration, R/C/I demand, and growth gates without coupling domain state to rendering or UI.
 
 ## Implemented Capabilities
 
 ### Core contracts and persistence
 
 - Framework-free `@web-three-city/rci-core` package.
-- Stable IDs and normalized immutable records.
-- Extensible validated registries for definitions used across RCI domains.
-- Revisioned bounded snapshots and persisted monotonic sequences.
-- Canonical stable ordering, complete-state validation, and structured Save errors.
-- Lossless `RciSaveV1` encode/decode inside `WorldSaveV5`.
-- Deterministic migration from prior world saves to a valid empty RCI state.
+- Stable IDs, normalized immutable records, bounded revisions, and persisted monotonic sequences.
+- Extensible validated registries and canonical Save ordering.
+- `RciSaveV1` inside `WorldSaveV5` with structured decode errors.
+- Prior V1–V4 world saves migrate to valid RCI state and derive empty Dwelling inventory from active Residential Buildings without inventing Citizens.
 
 ### Population, Household, and relationship lifecycle
 
-- Citizen age and age bands derive from deterministic Simulation ticks; age is not duplicated in Save.
-- Daily lifecycle evaluates only across the canonical 08:00 boundary.
-- Household membership is normalized history, independent from family relationships.
-- Biological-parent edges are directional and permanent; partner history is canonical undirected and endable.
-- Working-age qualification bootstrap is deterministic and persisted as assignment history.
-- Fertility and mortality use versioned annual-rate profiles compiled to integer daily hazards.
-- Birth creates Citizen, Household membership, mother edge, optional father edge, sequences, and events atomically.
-- Death retains Citizen history while ending active residence, qualifications, and partner state according to lifecycle policy.
-- Ordered domain events and plan/commit revision fences make lifecycle replayable and stale-plan safe.
+- Tick-derived age and age bands; daily lifecycle at canonical 08:00.
+- Normalized Household membership and independent family/partner graph.
+- Deterministic working-age qualifications.
+- Versioned fertility/mortality profiles compiled to integer daily hazards.
+- Atomic birth/death/history mutation, ordered events, and stale-plan fences.
+
+### Housing and migration
+
+- Building definitions publish versioned capacity-profile references without importing RCI.
+- Active Residential Buildings materialize deterministic `dwelling:<buildingInstanceId>:<unitIndex>` records; construction exposes no capacity.
+- Retired Buildings retire Units, end active housing assignments, and enqueue displaced Households atomically.
+- One active home per Household and one active Household per Unit.
+- Housing reconciliation uses minimum adequate capacity and stable Unit ID; relocation never creates new overcrowding.
+- Birth may retain an existing Household in overcrowded housing and exposes that pressure as a projection.
+- Displaced Households receive priority over incoming requests and expire exactly 720 ticks after displacement.
+- Expiry performs a final relocation attempt and otherwise emigrates the entire Household while retaining historical records.
+- Incoming queue generation uses a fixed-point accumulator, daily/queue caps, deterministic archetype selection, and no Citizen preallocation.
+- Successful materialization creates Citizens, qualifications, Household, memberships, relationships, and one housing assignment atomically.
+- Housing-side emigration factors are ordered by stable factor ID and evaluated in fixed-point units.
 
 ## Authority
 
@@ -41,39 +49,41 @@ Provide deterministic authority for Citizens, Relationships, Households, housing
 - Relationship records.
 - Household and membership history.
 - Qualification history.
-- Dwelling, housing-assignment, Workplace, and Employment-assignment records.
-- Incoming and displaced queues.
-- Demand and growth-gate state.
+- Dwelling Unit and housing-assignment history.
+- Incoming and displaced Household queues.
+- Workplace and Employment-assignment schemas.
+- Demand and persisted growth-gate state.
 - Deterministic seed, fixed-point accumulators, revisions, and ID sequences.
 
-Schemas for all of these authorities exist. PR 1–2 currently mutate Population, Relationship, Household, and Qualification authorities. PR 3–5 add Housing, Migration, Employment, and Demand behavior.
+PR 1–3 currently mutate Population, Relationship, Household, Qualification, Housing, and Migration authorities. PR 4–5 add Employment and Demand behavior.
 
 ### Derived
 
-Current Household, home, work, qualifications, age bands, histograms, capacity totals, vacancies, Employment totals, family projections, and HUD values are reconstructed and are not persisted as duplicate authority.
+Current Household, home, work, qualification, age bands, resident counts, capacity, vacancy, overcrowding, employment totals, compatible vacancies, family projections, and HUD values are rebuilt and not persisted as duplicate authority.
 
 ## Current Tick Workflow
 
 ```text
 validate Simulation/Building/RCI revisions
+→ synchronize Dwelling inventory from Building lifecycle
 → detect daily 08:00 boundary
-→ evaluate age-band transitions
-→ award deterministic working-age qualifications
-→ evaluate fertility and mortality
-→ apply normalized history changes
-→ order domain events
+→ evaluate aging, qualification, fertility, and mortality
+→ accumulate deterministic incoming requests
+→ relocate displaced Households
+→ materialize incoming Households into adequate vacant Units
+→ expire unresolved displacement into Household emigration
 → validate complete proposed RCI snapshot
 → commit planned snapshot with stale-revision fences
 ```
 
-Housing, Employment, Demand, and app-level atomic world composition are added by PR 3–6 without changing the authority model above.
+Employment, Demand, and app-level atomic world composition are added by PR 4–6 without changing the normalized authority model.
 
 ## Integrations
 
 ```mermaid
 flowchart LR
   Simulation --> RCI
-  Buildings --> RCI
+  Buildings -->|lifecycle + capacity profile| RCI
   RCI --> RciSaveV1
   RciSaveV1 --> WorldSaveV5
   RCI -. planned growth policy .-> Buildings
@@ -84,37 +94,38 @@ flowchart LR
 
 ## Persistence
 
-`RciSaveV1` stores bounded revisions, normalized record arrays, queues, Demand/gates, deterministic state, and every ID sequence. Runtime indexes, projections, processed events, registry definitions, renderer state, and UI state are excluded.
+`RciSaveV1` stores bounded revisions, normalized authority arrays, queues, Demand/gates, deterministic state, and every ID sequence. Definitions, indexes, projections, processed events, renderer state, and UI state are excluded.
 
-Historical Citizens, memberships, relationships, and qualifications round-trip canonically. Continuous lifecycle execution and encode/decode/resume are required to produce equal snapshots and event results.
+Historical Citizens, memberships, relationships, qualifications, Dwelling Units, housing assignments, displaced entries, and incoming requests round-trip canonically. Continuous execution and encode/decode/resume must produce equal snapshots.
 
 ## Invariants and Failure Behavior
 
 - One authoritative source for each fact.
 - Stable IDs are never reused; failed plans consume no sequence values.
-- Input arrays are copied, sorted canonically, and frozen.
 - Definitions and cross-registry references must resolve.
 - A resident has exactly one active Household membership.
-- A Citizen has at most one active partner and at most one biological mother/father edge per child.
-- Death is terminal; historical records remain addressable.
-- Daily decisions are based on the pre-mutation candidate set and explicit stable ordering.
+- A Household and Unit each have at most one active housing assignment.
+- Incoming requests contain no Citizen IDs and materialize only with sufficient capacity.
+- Displaced Households remain resident until relocation or atomic Household emigration.
+- Relocation does not create new overcrowding.
+- Death/emigration are terminal current-presence transitions; historical records remain addressable.
+- Order-sensitive work uses explicit stable comparators.
 - Untrusted Save decode returns structured errors; invalid or stale plans never partially publish state.
 
 ## Extension Points
 
-Registries and strategy interfaces allow new relationship types, qualifications, requirements, occupations, capacity profiles, migration archetypes, population-rate profiles, demand factors, qualification resolvers, and rate policies without changing historical entity schemas.
+Registries and strategies allow new relationship types, qualifications, requirements, occupations, Residential/Workplace capacity profiles, migration archetypes, population-rate profiles, pressure factors, demand factors, and matching policies without changing historical entity schemas.
 
 ## Current Limitations
 
-Not yet implemented on this branch:
+Not yet written on this branch:
 
-- Dwelling inventory, housing assignment, relocation, and displacement,
-- incoming migration materialization and household emigration pressure,
 - Workplace inventory and Employment reconciliation,
+- Employment-side emigration pressure,
 - R/C/I Demand, growth gates, and caller-supplied Building Growth policy,
-- atomic game runtime composition, HUD, and browser acceptance.
+- atomic game runtime composition, HUD, browser acceptance, and final benchmarks.
 
-These are delivered by stacked PR 3–6 branches and verified together at the final integration gate.
+These are delivered by stacked PR 4–6 branches and verified together at the final integration gate.
 
 ## Handoff Checklist
 
@@ -122,6 +133,7 @@ These are delivered by stacked PR 3–6 branches and verified together at the fi
 - Authority ADR: [Citizen records as population authority](adrs/0001-citizen-records-as-population-authority.md)
 - TDD packet: [execution index](tdd/README.md)
 - PR 1 evidence: [Core contracts and Save V1](verification/2026-08-06-rci-pr1-core-contracts-save-v1.md)
-- PR 2 evidence: [Population lifecycle implementation](verification/2026-08-06-rci-pr2-population-lifecycle.md)
-- Next plan: [PR 3 — Housing, Migration, Relocation, and Displacement](tdd/2026-08-06-rci-pr3-housing-migration-displacement.md)
+- PR 2 evidence: [Population lifecycle](verification/2026-08-06-rci-pr2-population-lifecycle.md)
+- PR 3 evidence: [Housing and migration](verification/2026-08-06-rci-pr3-housing-migration.md)
+- Next plan: [PR 4 — Workplaces and Employment](tdd/2026-08-06-rci-pr4-workplaces-employment.md)
 - Related systems: [World](../world/README.md), [Buildings](../buildings/README.md), [Simulation Time](../simulation-time/README.md), [Economy](../economy/README.md)

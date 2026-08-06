@@ -28,8 +28,26 @@ describe('building definitions', () => {
       expect(definition.constructionDurationTicks).toBe(
         24 * definition.footprintWidth * definition.footprintDepth,
       );
+      expect(definition.capacityProfileDefinitionId).toMatch(
+        /^capacity\.(residential|commercial|industrial)\.[a-z0-9-]+\.v1$/,
+      );
       expect(Object.isFrozen(definition)).toBe(true);
     }
+  });
+
+  it('maps the approved residential capacity profiles', () => {
+    expect(buildingDefinitionForId('residential-cottage-1x1').capacityProfileDefinitionId).toBe(
+      'capacity.residential.cottage.v1',
+    );
+    expect(buildingDefinitionForId('residential-rowhouse-1x2').capacityProfileDefinitionId).toBe(
+      'capacity.residential.rowhouse.v1',
+    );
+    expect(buildingDefinitionForId('residential-duplex-2x1').capacityProfileDefinitionId).toBe(
+      'capacity.residential.duplex.v1',
+    );
+    expect(buildingDefinitionForId('residential-apartment-2x2').capacityProfileDefinitionId).toBe(
+      'capacity.residential.apartment.v1',
+    );
   });
 
   it('fails closed for an unknown definition', () => {

@@ -3,6 +3,9 @@ import type { SimulationSnapshot } from '@web-three-city/simulation-core';
 import { RciContractError, type RciContractErrorCode } from './contracts/errors.js';
 import type { RciDefinitionRegistries } from './definitions/contracts.js';
 import type { RciDomainEvent } from './events/rci-domain-event.js';
+import { synchronizeDwellingInventory } from './housing/dwelling-inventory.js';
+import { planHousingReconciliation } from './housing/housing-reconciliation.js';
+import { createFoundationMigrationRequestPolicy } from './migration/request-policy.js';
 import { isDailyLifecycleTick } from './population/age.js';
 import {
   evaluateDailyPopulationLifecycle,
@@ -10,7 +13,7 @@ import {
 } from './population/daily-lifecycle.js';
 import type { QualificationResolver } from './population/qualification-resolver.js';
 import type { RciConfiguration } from './rci-configuration.js';
-import type { RciSnapshot } from './rci-snapshot.js';
+import { canonicalizeRciSnapshot, type RciSnapshot } from './rci-snapshot.js';
 import { validateRciSnapshot } from './validation/rci-validation.js';
 
 export interface RciTickInput {
@@ -22,6 +25,7 @@ export interface RciTickInput {
   readonly registries: RciDefinitionRegistries;
   readonly configuration: RciConfiguration;
   readonly qualificationResolver?: QualificationResolver;
+  readonly suitableVacantJobCount?: number;
 }
 
 export interface RciTickPlan {
@@ -87,15 +91,29 @@ function tickInputsValid(input: RciTickInput): boolean {
 export function planRciTick(input: RciTickInput): RciTickPlan {
   if (!tickInputsValid(input)) return invalidPlan(input, 'rci:invalid-plan');
 
-  let lifecycle: PopulationLifecycleResult = Object.freeze({
+  let snapshot = synchronizeDwellingInventory({
     snapshot: input.rci,
-    events: Object.freeze([]),
-  });
-  if (
-    isDailyLifecycleTick(input.simulationBefore.absoluteTick, input.simulationAfter.absoluteTick)
-  ) {
+    buildingsBefore: input.buildingsBefore,
+    buildingsAfter: input.buildingsAfter,
+    registries: input.registries,
+    evaluationTick: input.simulationAfter.absoluteTick,
+    ...(input.configuration.displacedExpiryTicks === undefined
+      ? {}
+      : { displacedExpiryTicks: input.configuration.displacedExpiryTicks }),
+  }).proposedSnapshot;
+  const emittedEvents: RciDomainEvent[] = [];
+  const daily = isDailyLifecycleTick(
+    input.simulationBefore.absoluteTick,
+    input.simulationAfter.absoluteTick,
+  );
+
+  if (daily) {
+    let lifecycle: PopulationLifecycleResult = Object.freeze({
+      snapshot,
+      events: Object.freeze([]),
+    });
     lifecycle = evaluateDailyPopulationLifecycle({
-      snapshot: input.rci,
+      snapshot,
       evaluationTick: input.simulationAfter.absoluteTick,
       registries: input.registries,
       populationRateProfile: input.registries.populationRateProfiles.get(
@@ -105,15 +123,51 @@ export function planRciTick(input: RciTickInput): RciTickPlan {
         ? {}
         : { qualificationResolver: input.qualificationResolver }),
     });
-    const validation = validateRciSnapshot(
-      lifecycle.snapshot,
-      input.buildingsAfter,
-      input.simulationAfter,
-      input.registries,
-    );
-    if (!validation.valid) {
-      return invalidPlan(input, validation.issues[0]?.code ?? 'rci:invalid-state');
+    snapshot = lifecycle.snapshot;
+    emittedEvents.push(...lifecycle.events);
+
+    const requestPlan = createFoundationMigrationRequestPolicy().planRequests({
+      snapshot,
+      evaluationTick: input.simulationAfter.absoluteTick,
+      suitableVacantJobCount: input.suitableVacantJobCount ?? 0,
+      registries: input.registries,
+      configuration: input.configuration,
+    });
+    if (
+      requestPlan.requests.length > 0 ||
+      requestPlan.nextAttractionMilli !== snapshot.migration.attractionMilli
+    ) {
+      snapshot = canonicalizeRciSnapshot({
+        ...snapshot,
+        revision: snapshot.revision + 1,
+        migration: {
+          ...snapshot.migration,
+          revision: snapshot.migration.revision + 1,
+          incomingRequests: [...snapshot.migration.incomingRequests, ...requestPlan.requests],
+          attractionMilli: requestPlan.nextAttractionMilli,
+        },
+        sequences: {
+          ...snapshot.sequences,
+          nextIncomingRequest: requestPlan.nextIncomingRequestSequence,
+        },
+      });
     }
+  }
+
+  snapshot = planHousingReconciliation({
+    snapshot,
+    evaluationTick: input.simulationAfter.absoluteTick,
+    registries: input.registries,
+  }).proposedSnapshot;
+
+  const validation = validateRciSnapshot(
+    snapshot,
+    input.buildingsAfter,
+    input.simulationAfter,
+    input.registries,
+  );
+  if (!validation.valid) {
+    return invalidPlan(input, validation.issues[0]?.code ?? 'rci:invalid-state');
   }
 
   return Object.freeze({
@@ -122,8 +176,8 @@ export function planRciTick(input: RciTickInput): RciTickPlan {
     baseBuildingRevision: input.buildingsBefore.revision,
     beforeAbsoluteTick: input.simulationBefore.absoluteTick,
     afterAbsoluteTick: input.simulationAfter.absoluteTick,
-    proposedSnapshot: lifecycle.snapshot,
-    emittedEvents: lifecycle.events,
+    proposedSnapshot: snapshot,
+    emittedEvents: Object.freeze(emittedEvents),
     valid: true,
     invalidReason: null,
   });

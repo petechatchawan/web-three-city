@@ -7,6 +7,7 @@
     "@web-three-city/building-core": "workspace:*",
     "@web-three-city/building-three": "workspace:*",
     "@web-three-city/camera-input": "workspace:*",
+    "@web-three-city/rci-core": "workspace:*",
     "@web-three-city/road-core": "workspace:*",
     "@web-three-city/road-three": "workspace:*",
     "@web-three-city/simulation-core": "workspace:*",

@@ -59,6 +59,9 @@ importers:
       '@web-three-city/camera-input':
         specifier: workspace:*
         version: link:../../packages/camera-input
+      '@web-three-city/rci-core':
+        specifier: workspace:*
+        version: link:../../packages/rci-core
       '@web-three-city/road-core':
         specifier: workspace:*
         version: link:../../packages/road-core
@@ -179,6 +182,21 @@ importers:
       '@types/three':
         specifier: 0.185.0
         version: 0.185.0
+
+  packages/rci-core:
+    dependencies:
+      '@web-three-city/building-core':
+        specifier: workspace:*
+        version: link:../building-core
+      '@web-three-city/simulation-core':
+        specifier: workspace:*
+        version: link:../simulation-core
+      '@web-three-city/world-core':
+        specifier: workspace:*
+        version: link:../world-core
+      '@web-three-city/zone-core':
+        specifier: workspace:*
+        version: link:../zone-core
 
   packages/road-core:
     dependencies:

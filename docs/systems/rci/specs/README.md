@@ -6,8 +6,11 @@ Canonical approved and historical RCI design specifications are stored in this d
 
 - [`2026-08-06-rci-demand-occupancy-foundation-v0-1.md`](2026-08-06-rci-demand-occupancy-foundation-v0-1.md) — owner-approved on 2026-08-06, implemented through PR #26–#31, verified, and merged to `master` at `9409e301d2710db856b584fc555d5c4f714bba62`.
 
+The design document is retained as the planning-time specification. Its original metadata records the stage at which it was written; current delivery status is authoritative in this index, the living System README, and the closure record.
+
 Implementation history and final evidence are maintained in:
 
+- [`../README.md`](../README.md)
 - [`../tdd/README.md`](../tdd/README.md)
 - [`../verification/2026-08-06-rci-foundation-v0-1-closure.md`](../verification/2026-08-06-rci-foundation-v0-1-closure.md)
 

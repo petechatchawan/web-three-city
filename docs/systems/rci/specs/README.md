@@ -22,3 +22,11 @@ PR #32 corrects the Demand target-buffer interpretation without changing the ent
 - Commercial and Industrial target buffers must produce a reachable Growth-gate score when their positions are fully occupied.
 
 The correction and its manual/automated evidence are tracked in [`../verification/2026-08-06-rci-occupied-dwelling-demand-deadlock.md`](../verification/2026-08-06-rci-occupied-dwelling-demand-deadlock.md).
+
+## Status authority
+
+For handoff and future maintenance, use this precedence:
+
+1. [`../README.md`](../README.md) for current runtime behavior and delivery state.
+2. Verification records for exact evidence and closure boundaries.
+3. The design specification for approved architectural intent and historical decisions.

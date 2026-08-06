@@ -28,11 +28,12 @@ import { bindGameToolHud } from './game-tool-hud-binding.js';
 import type { GameToolMode } from './game-tool-mode.js';
 import { expandGameSecondaryControls } from './game-secondary-controls.js';
 import { undoTransaction } from './game-transaction-presentation.js';
-import { decodeWorldSave, encodeWorldSaveV4 } from './world-save.js';
+import { decodeWorldSave } from './world-save.js';
 
-const CURRENT_WORLD_SAVE_KEY = 'web-three-city:world-save:v3';
+const CURRENT_WORLD_SAVE_KEY = 'web-three-city:world-save:v5';
 const WORLD_SAVE_KEYS = Object.freeze([
   CURRENT_WORLD_SAVE_KEY,
+  'web-three-city:world-save:v3',
   'web-three-city:world-save:v2',
   'web-three-city:world-save:v1',
   'web-three-city:terrain-save:v1',
@@ -85,7 +86,6 @@ const brushActions = Object.freeze({ 1: 'brush-1', 3: 'brush-3', 5: 'brush-5' })
 const navigateButton = requireButton('tool-navigate');
 const closeToolButton = requireButton('tool-close');
 const undoButton = requireButton('undo');
-const saveButton = requireButton('save');
 const loadButton = requireButton('load');
 const bindings = new AbortController();
 const automatedBrowser = navigator.webdriver === true;
@@ -217,28 +217,6 @@ function readStoredWorld(): unknown | null {
   }
   return null;
 }
-
-saveButton.addEventListener(
-  'click',
-  () => {
-    if (!automaticGrowthEnabled) return;
-    const decoded = decodeWorldSave(readStoredWorld(), WORLD_CONFIG);
-    if (!decoded.ok) return;
-    localStorage.setItem(
-      CURRENT_WORLD_SAVE_KEY,
-      JSON.stringify(
-        encodeWorldSaveV4(
-          decoded.value.terrain,
-          decoded.value.roads,
-          decoded.value.zones,
-          decoded.value.buildings,
-          simulation,
-        ),
-      ),
-    );
-  },
-  { signal: bindings.signal },
-);
 
 loadButton.addEventListener(
   'click',

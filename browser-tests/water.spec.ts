@@ -10,7 +10,7 @@ import {
 } from './helpers/interaction.js';
 
 const READY_TIMEOUT = 15_000;
-const SAVE_KEY = 'web-three-city:world-save:v3';
+const SAVE_KEY = 'web-three-city:world-save:v5';
 
 async function openGame(page: import('@playwright/test').Page): Promise<void> {
   await page.goto(GAME_URL);

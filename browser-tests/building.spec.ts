@@ -7,12 +7,38 @@ import {
 import { prepareDeterministicGrowthClock, stepLogicalTicks } from './helpers/growth-fixture.js';
 import { GAME_URL, readEvidence } from './helpers/interaction.js';
 
-const SAVE_KEY = 'web-three-city:world-save:v3';
+const SAVE_KEY = 'web-three-city:world-save:v5';
 const EXPECTED_DEFINITION_IDS = Object.freeze([
-  'commercial-office-2x2',
-  'industrial-warehouse-2x2',
-  'residential-apartment-2x2',
+  'commercial-cafe-1x1',
+  'commercial-shop-1x1',
+  'industrial-depot-1x1',
 ]);
+
+type SavedBuildingInstance = Readonly<{
+  buildingDefinitionId: string;
+  originCell: Readonly<{ x: number; z: number }>;
+}>;
+
+type SavedWorldFixture = Readonly<{
+  buildings?: Readonly<{
+    instances?: readonly SavedBuildingInstance[];
+  }>;
+}>;
+
+function findTerraformSupportCell(
+  originCell: SavedBuildingInstance['originCell'],
+): SavedBuildingInstance['originCell'] {
+  const zoneCells = BUILDING_FIXTURES.commercial.zoneCells;
+  const backRowZ = Math.max(...zoneCells.map((cell) => cell.z));
+  const supportCell =
+    originCell.z === backRowZ
+      ? zoneCells.find((cell) => cell.z === backRowZ && cell.x !== originCell.x)
+      : zoneCells.find((cell) => cell.z === backRowZ && cell.x === originCell.x);
+  if (supportCell === undefined) {
+    throw new Error(`building:missing-terraform-support:${originCell.x}:${originCell.z}`);
+  }
+  return supportCell;
+}
 
 async function openGame(page: Page): Promise<void> {
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -41,6 +67,12 @@ async function setAutomaticGrowthEnabled(page: Page, enabled: boolean): Promise<
   }, enabled);
 }
 
+async function saveWorldFixture(page: Page): Promise<SavedWorldFixture> {
+  await page.getByRole('button', { name: 'Save world' }).click();
+  const saved = await page.evaluate((key) => localStorage.getItem(key), SAVE_KEY);
+  return JSON.parse(saved ?? '{}') as SavedWorldFixture;
+}
+
 test('exposes headless Building Growth and interactive Bulldoze evidence', async ({ page }) => {
   await openGame(page);
   await expect(page.getByRole('button', { name: 'Develop Zones' })).toHaveCount(0);
@@ -66,7 +98,7 @@ test('headless Growth fails closed before eligible Zones exist', async ({ page }
   await expect(page.getByTestId('game-status')).not.toHaveText('Zones developed');
 });
 
-test('grows deterministic R/C/I content and preserves authority across guards, Undo, and Save V3', async ({
+test('grows deterministic R/C/I content and preserves authority across guards, Undo, and Save V5', async ({
   page,
 }) => {
   await openGame(page);
@@ -81,27 +113,52 @@ test('grows deterministic R/C/I content and preserves authority across guards, U
     total: 12,
   });
   expect(evidence.building.count).toBe(3);
-  expect(evidence.building.occupiedCellCount).toBe(12);
+  expect(evidence.building.occupiedCellCount).toBe(3);
   expect(evidence.building.definitionIds).toEqual(EXPECTED_DEFINITION_IDS);
   expect(evidence.building.commitCount).toBe(3);
   expect(evidence.sceneRootCounts.buildingCommitted).toBe(1);
   await expect(page.getByTestId('building-count')).toHaveText('3');
 
-  const commercialFrontCell = pointFor(points, BUILDING_FIXTURES.commercial.zoneCells[0]);
-  const commercialBackCell = pointFor(points, BUILDING_FIXTURES.commercial.zoneCells[2]);
+  await setAutomaticGrowthEnabled(page, false);
+  const parsedSave = await saveWorldFixture(page);
+  expect(parsedSave).toMatchObject({
+    kind: 'world-save',
+    schemaVersion: 5,
+    buildings: {
+      kind: 'building-save',
+      schemaVersion: 2,
+      instances: expect.arrayContaining([
+        expect.objectContaining({ buildingDefinitionId: 'commercial-cafe-1x1' }),
+        expect.objectContaining({ buildingDefinitionId: 'commercial-shop-1x1' }),
+        expect.objectContaining({ buildingDefinitionId: 'industrial-depot-1x1' }),
+      ]),
+    },
+  });
+  const commercialInstance = parsedSave.buildings?.instances?.find((instance) =>
+    instance.buildingDefinitionId.startsWith('commercial-'),
+  );
+  if (commercialInstance === undefined) {
+    throw new Error('building:missing-commercial-instance');
+  }
+  const commercialOccupiedCell = pointFor(points, commercialInstance.originCell);
+  const commercialSupportCell = pointFor(
+    points,
+    findTerraformSupportCell(commercialInstance.originCell),
+  );
+  const bulldozedDefinitionId = commercialInstance.buildingDefinitionId;
 
   await page.getByRole('button', { name: 'Build Road' }).click();
-  await page.mouse.click(commercialFrontCell.x, commercialFrontCell.y);
+  await page.mouse.click(commercialOccupiedCell.x, commercialOccupiedCell.y);
   await expect(page.getByTestId('game-status')).toHaveText('Road blocked by building');
 
   await page.getByRole('button', { name: 'Remove Zone' }).click();
-  await page.mouse.click(commercialFrontCell.x, commercialFrontCell.y);
+  await page.mouse.click(commercialOccupiedCell.x, commercialOccupiedCell.y);
   await expect(page.getByTestId('game-status')).toHaveText('Zone blocked by building');
 
-  // Use the back row of the 2x2 footprint so the Terraform vertex set touches the Building
-  // without also touching its frontage Road. Road occupancy has intentionally higher precedence.
+  // Always use a rear-row fixture cell whose Terraform vertex support touches the occupied 1x1
+  // Building without also touching the frontage Road. Road occupancy has higher precedence.
   await page.getByRole('button', { name: 'Raise' }).click();
-  await page.mouse.click(commercialBackCell.x, commercialBackCell.y);
+  await page.mouse.click(commercialSupportCell.x, commercialSupportCell.y);
   await expect(page.getByTestId('game-status')).toHaveText('Terraform blocked by building');
 
   await page.getByRole('button', { name: 'Bulldoze Road' }).click();
@@ -117,30 +174,13 @@ test('grows deterministic R/C/I content and preserves authority across guards, U
   expect(evidence.building.count).toBe(3);
   expect(evidence.zone.counts.commercial).toBe(4);
 
-  await setAutomaticGrowthEnabled(page, false);
-  await page.getByRole('button', { name: 'Save world' }).click();
-  const saved = await page.evaluate((key) => localStorage.getItem(key), SAVE_KEY);
-  expect(JSON.parse(saved ?? '{}')).toMatchObject({
-    kind: 'world-save',
-    schemaVersion: 3,
-    buildings: {
-      kind: 'building-save',
-      schemaVersion: 1,
-      instances: expect.arrayContaining([
-        expect.objectContaining({ buildingDefinitionId: 'commercial-office-2x2' }),
-        expect.objectContaining({ buildingDefinitionId: 'industrial-warehouse-2x2' }),
-        expect.objectContaining({ buildingDefinitionId: 'residential-apartment-2x2' }),
-      ]),
-    },
-  });
-
   await page.getByRole('button', { name: 'Bulldoze Building' }).click();
-  await page.mouse.click(commercialFrontCell.x, commercialFrontCell.y);
+  await page.mouse.click(commercialOccupiedCell.x, commercialOccupiedCell.y);
   await expect(page.getByTestId('game-status')).toHaveText('Building bulldozed');
   evidence = await readEvidence(page);
   expect(evidence.building.count).toBe(2);
-  expect(evidence.building.occupiedCellCount).toBe(8);
-  expect(evidence.building.definitionIds).not.toContain('commercial-office-2x2');
+  expect(evidence.building.occupiedCellCount).toBe(2);
+  expect(evidence.building.definitionIds).not.toContain(bulldozedDefinitionId);
   expect(evidence.zone.counts.commercial).toBe(4);
 
   await page.getByRole('button', { name: 'Undo latest world change' }).click();
@@ -151,7 +191,7 @@ test('grows deterministic R/C/I content and preserves authority across guards, U
   expect(evidence.building.undoCount).toBe(1);
 
   await page.getByRole('button', { name: 'Bulldoze Building' }).click();
-  await page.mouse.click(commercialFrontCell.x, commercialFrontCell.y);
+  await page.mouse.click(commercialOccupiedCell.x, commercialOccupiedCell.y);
   await expect(page.getByTestId('game-status')).toHaveText('Building bulldozed');
   await page.getByRole('button', { name: 'Load world' }).click();
   await expect(page.getByTestId('game-status')).toHaveText('Loaded');

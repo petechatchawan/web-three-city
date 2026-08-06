@@ -121,10 +121,7 @@ export const FOUNDATION_RCI_DEMAND_FACTORS: readonly RciDemandFactorDefinition[]
     channel: 'residential' as const,
     weightMilli: 500,
     evaluate: (context: RciDemandFactorContext) => {
-      const desiredVacantDwellingBuffer = Math.max(
-        1,
-        Math.ceil(context.householdCount * 0.1),
-      );
+      const desiredVacantDwellingBuffer = Math.max(1, Math.ceil(context.householdCount * 0.1));
       return clampDemandMilli(
         ((desiredVacantDwellingBuffer - context.vacantDwellingCount) * 100_000) /
           desiredVacantDwellingBuffer,

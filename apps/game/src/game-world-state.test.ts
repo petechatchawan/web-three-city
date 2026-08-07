@@ -3,7 +3,7 @@ import { createInitialRciSnapshot } from '@web-three-city/rci-core';
 import { createInitialSimulationSnapshot } from '@web-three-city/simulation-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { describe, expect, it } from 'vitest';
-import { GameWorldStateStore } from './game-world-state.js';
+import { GameWorldStateStore, gameWorldStateFromCommittedWorld } from './game-world-state.js';
 
 function initialState() {
   const simulation = createInitialSimulationSnapshot();
@@ -16,6 +16,19 @@ function initialState() {
 }
 
 describe('GameWorldStateStore', () => {
+  it('projects a committed world through the legacy compatibility shape', () => {
+    const legacy = initialState();
+    const committed = { ...legacy, revision: 4 } as Parameters<
+      typeof gameWorldStateFromCommittedWorld
+    >[0];
+    expect(gameWorldStateFromCommittedWorld(committed)).toEqual({
+      revision: 4,
+      simulation: legacy.simulation,
+      buildings: legacy.buildings,
+      rci: legacy.rci,
+    });
+  });
+
   it('publishes Simulation, Buildings, and RCI in one revision replacement', () => {
     const store = new GameWorldStateStore(initialState());
     const before = store.snapshot();

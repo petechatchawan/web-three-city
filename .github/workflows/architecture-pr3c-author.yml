@@ -24,4 +24,4 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-      - run: bash tooling/architecture-pr3c-author.sh
+      - run: bash tooling/architecture-pr3c-repair.sh

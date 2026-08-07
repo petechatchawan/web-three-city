@@ -1,6 +1,6 @@
 name: Bug report
 description: Report a reproducible game or system defect
-title: "[Bug]: "
+title: '[Bug]: '
 body:
   - type: dropdown
     id: system
@@ -55,7 +55,7 @@ body:
     id: state
     attributes:
       label: Save, game time, and environment
-      description:
+      description: >-
         Include save version/state, in-game date/time, browser, Node/pnpm, or other
         relevant context.
 

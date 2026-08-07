@@ -1,8 +1,9 @@
 # RCI Demand & Occupancy System
 
 **Foundation status:** Implemented, verified, and merged  
-**Foundation baseline:** `master` at `9409e301d2710db856b584fc555d5c4f714bba62`  
-**Post-closure correction:** PR #32 manually accepted; exact-head automated verification and merge pending  
+**Foundation baseline:** `9409e301d2710db856b584fc555d5c4f714bba62`  
+**Current runtime baseline:** `master` at `03cf6a1d1702ec75d532e0f428b2044914156bba`  
+**Post-closure correction:** PR #32 verified and merged  
 **Primary ownership:** `packages/rci-core`; `apps/game` owns atomic world orchestration, Save composition, and HUD presentation  
 **Persistence:** `RciSaveV1` inside `WorldSaveV5`
 
@@ -12,9 +13,11 @@ Provide deterministic authority for Citizens, Relationships, Households, housing
 
 ## Delivery Status
 
-RCI Foundation v0.1 was delivered through PR #26–#31 and closed on the exact verified source tree `75a04d244a3e27a7f6a89d46f90bd676d60626d4`. The final squash-merged `master` commit has the same tree.
+RCI Foundation v0.1 was delivered through PR #26–#31 and closed on exact verified source tree `75a04d244a3e27a7f6a89d46f90bd676d60626d4`. Foundation squash-merge commit `9409e301d2710db856b584fc555d5c4f714bba62` has that same tree.
 
-Manual gameplay later identified a fully-occupied Growth deadlock. PR #32 corrects the Demand target-buffer definitions. The original saved city now recovers naturally without a reset or Save migration:
+Manual gameplay later identified a fully-occupied Growth deadlock. PR #32 corrected the Demand target-buffer definitions and was squash-merged as `03cf6a1d1702ec75d532e0f428b2044914156bba`. The hotfix merge tree `3c3daf8c7c50ed685116b6968c2df0f9e0e46322` is byte-identical to the source tree tested by the final PR merge-ref verification.
+
+The original saved city recovered naturally without a reset or Save migration:
 
 ```text
 Initial deadlock
@@ -27,7 +30,7 @@ Buildings 37
 Demand R +43 open | C +22 open | I +22 open
 ```
 
-This manual result is accepted. PR #32 remains outside the `master` baseline until its own exact-head Lean CI and Full browser verification complete.
+Final hotfix verification on implementation head `e33ef19c6eef4d593251d133913860a5416923e5` used workflow run `31147264885`: Lean CI passed, RCI Core passed `85/85`, Game passed `197/197`, deployment passed `16/16`, Full browser verification passed `121/121`, and the worktree remained clean.
 
 ## Current Capabilities
 
@@ -71,7 +74,7 @@ This manual result is accepted. PR #32 remains outside the `master` baseline unt
 - RCI derives a caller-supplied `BuildingGrowthPolicy`; Building Core never imports RCI.
 - Demand magnitude affects eligible-zone selection weight deterministically.
 
-The corrected target-buffer behavior above is implemented in PR #32 and becomes the authoritative runtime contract after that PR is merged.
+The corrected target-buffer behavior above is the authoritative runtime contract from PR #32 onward.
 
 ### Game integration and presentation
 
@@ -140,7 +143,7 @@ Dependency direction remains acyclic: `building-core` and `simulation-core` do n
 
 `RciSaveV1` stores normalized histories, queues, accumulator, Demand, gates, seed, revisions, and every sequence. Registry definitions, indexes, projections, events, policy objects, renderer state, active tools, pointer sessions, and HUD DOM are rebuilt.
 
-`WorldSaveV5` is the current envelope. V1–V4 decode in dependency order and initialize deterministic RCI authority from decoded Simulation and active Building inventory. Decode is all-or-nothing. PR #32 changes only derived Demand factor inputs and evaluation; it requires no Save schema migration.
+`WorldSaveV5` is the current envelope. V1–V4 decode in dependency order and initialize deterministic RCI authority from decoded Simulation and active Building inventory. Decode is all-or-nothing. The PR #32 correction changes only derived Demand factor inputs and evaluation; it requires no Save schema migration.
 
 ## Invariants and Failure Behavior
 

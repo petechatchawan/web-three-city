@@ -200,9 +200,6 @@ importers:
       '@web-three-city/world-core':
         specifier: workspace:*
         version: link:../world-core
-      '@web-three-city/zone-core':
-        specifier: workspace:*
-        version: link:../zone-core
 
   packages/road-core:
     dependencies:
@@ -237,12 +234,13 @@ importers:
       '@web-three-city/terrain-core':
         specifier: workspace:*
         version: link:../terrain-core
-      '@web-three-city/terrain-generator':
-        specifier: workspace:*
-        version: link:../terrain-generator
       '@web-three-city/world-core':
         specifier: workspace:*
         version: link:../world-core
+    devDependencies:
+      '@web-three-city/terrain-generator':
+        specifier: workspace:*
+        version: link:../terrain-generator
 
   packages/simulation-core: {}
 

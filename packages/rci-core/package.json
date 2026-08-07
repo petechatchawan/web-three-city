@@ -7,8 +7,7 @@
   "dependencies": {
     "@web-three-city/building-core": "workspace:*",
     "@web-three-city/simulation-core": "workspace:*",
-    "@web-three-city/world-core": "workspace:*",
-    "@web-three-city/zone-core": "workspace:*"
+    "@web-three-city/world-core": "workspace:*"
   },
   "scripts": {
     "test": "vitest run --passWithNoTests",

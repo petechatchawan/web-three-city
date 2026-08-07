@@ -4,6 +4,20 @@ import { createTerrainMap } from '../src/terrain-map.js';
 import { decodeTerrainSaveV1, encodeTerrainSaveV1 } from '../src/serialization.js';
 
 describe('terrain serialization', () => {
+  it('preserves the canonical TerrainSaveV1 base64 wire representation without DOM codecs', () => {
+    const levels = new Uint8Array(129 * 129).fill(2);
+    const map = createTerrainMap({
+      config: WORLD_CONFIG,
+      seed: 1,
+      generatorVersion: 'coastal-v1',
+      generationAttempt: 0,
+      revision: 0,
+      heightLevels: levels,
+    });
+
+    expect(encodeTerrainSaveV1(map).heightLevels).toBe('AgIC'.repeat((129 * 129) / 3));
+  });
+
   it('round-trips byte-identical lattice data', () => {
     const levels = new Uint8Array(129 * 129).fill(2);
     levels[0] = 1;

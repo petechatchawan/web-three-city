@@ -26,6 +26,23 @@ function roadSnapshot() {
 }
 
 describe('RoadSaveV1', () => {
+  it('preserves the canonical zero-byte RoadSaveV1 base64 wire representation without DOM codecs', () => {
+    const snapshot = createRoadSnapshot(
+      {
+        width: WORLD_CONFIG.mapWidth,
+        height: WORLD_CONFIG.mapHeight,
+        revision: 0,
+        definitionCodes: new Uint8Array(CELL_COUNT),
+      },
+      WORLD_CONFIG,
+    );
+
+    expect(CELL_COUNT % 3).toBe(1);
+    expect(encodeRoadSaveV1(snapshot).definitionCodes).toBe(
+      'AAAA'.repeat(Math.floor(CELL_COUNT / 3)) + 'AA==',
+    );
+  });
+
   it('round-trips authoritative road bytes without derived topology', () => {
     const original = roadSnapshot();
     const encoded = encodeRoadSaveV1(original);

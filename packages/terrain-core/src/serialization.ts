@@ -27,14 +27,23 @@ export interface TerrainSaveError {
   readonly details?: Readonly<Record<string, unknown>>;
 }
 
+const BASE64_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+
 function bytesToBase64(bytes: Uint8Array): string {
-  let binary = '';
-  const chunkSize = 8192;
-  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
-    const chunk = bytes.subarray(offset, Math.min(offset + chunkSize, bytes.length));
-    binary += String.fromCharCode(...chunk);
+  let encoded = '';
+  for (let index = 0; index < bytes.length; index += 3) {
+    const first = bytes[index] ?? 0;
+    const hasSecond = index + 1 < bytes.length;
+    const hasThird = index + 2 < bytes.length;
+    const second = bytes[index + 1] ?? 0;
+    const third = bytes[index + 2] ?? 0;
+    const value = (first << 16) | (second << 8) | third;
+    encoded += BASE64_ALPHABET[(value >>> 18) & 63];
+    encoded += BASE64_ALPHABET[(value >>> 12) & 63];
+    encoded += hasSecond ? BASE64_ALPHABET[(value >>> 6) & 63] : '=';
+    encoded += hasThird ? BASE64_ALPHABET[value & 63] : '=';
   }
-  return btoa(binary);
+  return encoded;
 }
 
 function base64ToBytes(value: string): Uint8Array | null {
@@ -46,16 +55,20 @@ function base64ToBytes(value: string): Uint8Array | null {
     return null;
   }
 
-  try {
-    const binary = atob(value);
-    const bytes = new Uint8Array(binary.length);
-    for (let index = 0; index < binary.length; index += 1) {
-      bytes[index] = binary.charCodeAt(index);
-    }
-    return bytes;
-  } catch {
-    return null;
+  const padding = value.endsWith('==') ? 2 : value.endsWith('=') ? 1 : 0;
+  const bytes = new Uint8Array((value.length / 4) * 3 - padding);
+  let output = 0;
+  for (let index = 0; index < value.length; index += 4) {
+    const first = BASE64_ALPHABET.indexOf(value[index]!);
+    const second = BASE64_ALPHABET.indexOf(value[index + 1]!);
+    const third = value[index + 2] === '=' ? 0 : BASE64_ALPHABET.indexOf(value[index + 2]!);
+    const fourth = value[index + 3] === '=' ? 0 : BASE64_ALPHABET.indexOf(value[index + 3]!);
+    const decoded = (first << 18) | (second << 12) | (third << 6) | fourth;
+    if (output < bytes.length) bytes[output++] = (decoded >>> 16) & 255;
+    if (output < bytes.length) bytes[output++] = (decoded >>> 8) & 255;
+    if (output < bytes.length) bytes[output++] = decoded & 255;
   }
+  return bytes;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

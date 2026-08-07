@@ -1,5 +1,15 @@
 {
   "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "rootDir": ".", "noEmit": true },
-  "include": ["src", "test", "vitest.config.ts"]
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "lib": [
+      "ES2022"
+    ]
+  },
+  "include": [
+    "src",
+    "test",
+    "vitest.config.ts"
+  ]
 }

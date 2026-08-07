@@ -1,6 +1,6 @@
 # Architecture and Infrastructure System
 
-**Status:** Approved design — not implemented  
+**Status:** Implementation in progress — boundary enforcement implemented  
 **Last verified against:** `master@c14d5eb34d7ccc61bfdd633a69e3649a26d54a13`  
 **Primary ownership:** repository architecture rules, `apps/game` application orchestration, repository verification tooling, CI/browser verification  
 **Persistence:** Git-tracked architecture and verification documentation; existing gameplay Save schemas remain unchanged
@@ -122,3 +122,7 @@ The Architecture and Infrastructure program introduces no Save wire-schema or pe
 - ADRs: [ADR-0001](adrs/0001-application-orchestration-seam.md), [ADR-0002](adrs/0002-complete-world-publication-and-dependent-undo.md), [ADR-0003](adrs/0003-repository-native-boundary-enforcement.md), [ADR-0004](adrs/0004-layered-targeted-verification-and-ci.md)
 - TDD plan: [Architecture and Infrastructure Upgrade v0.1](tdd/2026-08-07-architecture-infrastructure-upgrade-v0-1.md)
 - Verification: [Phase 1 baseline](verification/2026-08-07-architecture-infrastructure-phase-1-baseline.md)
+
+## Implementation Slice 1
+
+Repository-native architecture boundary checks enforce declared acyclic workspace imports, package-to-app/core-to-presentation separation, runtime dependency classification, and non-DOM core TypeScript libraries. Confirmed manifest drift is corrected without runtime behavior change, and the architecture gate runs before recursive package tests.

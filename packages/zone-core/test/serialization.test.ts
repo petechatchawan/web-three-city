@@ -29,6 +29,23 @@ function sourceSnapshot() {
 }
 
 describe('ZoneSaveV1', () => {
+  it('preserves the canonical zero-byte ZoneSaveV1 base64 wire representation without DOM codecs', () => {
+    const snapshot = createZoneSnapshot(
+      {
+        width: WORLD_CONFIG.mapWidth,
+        height: WORLD_CONFIG.mapHeight,
+        revision: 0,
+        definitionCodes: new Uint8Array(CELL_COUNT),
+      },
+      WORLD_CONFIG,
+    );
+
+    expect(CELL_COUNT % 3).toBe(1);
+    expect(encodeZoneSaveV1(snapshot).definitionCodes).toBe(
+      'AAAA'.repeat(Math.floor(CELL_COUNT / 3)) + 'AA==',
+    );
+  });
+
   it('round-trips Zone bytes and revision exactly', () => {
     const source = sourceSnapshot();
     const encoded = encodeZoneSaveV1(source);

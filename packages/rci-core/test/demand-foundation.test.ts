@@ -37,7 +37,7 @@ describe('RCI Demand foundation', () => {
     );
   });
 
-  it('recovers every closed growth channel when housing and workplaces are fully occupied', () => {
+  it('recovers every closed growth channel through the final daily evaluation boundary', () => {
     const evaluation = evaluateRciDemand(
       {
         ...context,

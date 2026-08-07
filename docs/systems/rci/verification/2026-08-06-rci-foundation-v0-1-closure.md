@@ -3,7 +3,8 @@
 **Status:** Closed and merged to `master`  
 **Closed:** 2026-08-06  
 **Final foundation commit:** `9409e301d2710db856b584fc555d5c4f714bba62`  
-**Final foundation tree:** `75a04d244a3e27a7f6a89d46f90bd676d60626d4`
+**Final foundation tree:** `75a04d244a3e27a7f6a89d46f90bd676d60626d4`  
+**Current runtime after post-closure correction:** `03cf6a1d1702ec75d532e0f428b2044914156bba`
 
 ## Implemented Scope
 
@@ -66,7 +67,7 @@ Workspace builds                     PASS
 Working tree                         clean
 ```
 
-The final `master` commit `9409e301d2710db856b584fc555d5c4f714bba62` has the same tree SHA as the verified implementation head. The sequential squash merges therefore changed commit ancestry but not the verified source tree.
+The final foundation commit `9409e301d2710db856b584fc555d5c4f714bba62` has the same tree SHA as the verified implementation head. The sequential squash merges therefore changed commit ancestry but not the verified source tree.
 
 ## Closure Gates
 
@@ -78,14 +79,14 @@ The final `master` commit `9409e301d2710db856b584fc555d5c4f714bba62` has the sam
 - [x] 5,000-Citizen deterministic baseline passes.
 - [x] No active-tool, pointer-session, or undo regression exists.
 - [x] PR #26–#31 were merged sequentially.
-- [x] Final `master` tree is identical to the fully verified tree.
+- [x] Final foundation `master` tree is identical to the fully verified tree.
 - [x] Living System Docs point to the final foundation baseline.
 
-## Post-Closure Correction
+## Post-Closure Correction — Closed
 
-Manual gameplay later exposed a fully-occupied R/C/I Growth deadlock. The correction is tracked independently in PR #32 and in [the hotfix verification record](2026-08-06-rci-occupied-dwelling-demand-deadlock.md).
+Manual gameplay later exposed a fully-occupied R/C/I Growth deadlock. PR #32 corrected the target-buffer definitions and is documented in [the focused hotfix verification record](2026-08-06-rci-occupied-dwelling-demand-deadlock.md).
 
-The original saved city passed manual recovery acceptance on the correction branch:
+The original saved city recovered without reset or Save migration:
 
 ```text
 Population 67 | Households 32 | Housing 32/34 | Employment 50/50
@@ -93,8 +94,26 @@ Buildings 37
 Demand R +43 open | C +22 open | I +22 open
 ```
 
-Population, Households, Employment, Buildings, and all three Growth gates resumed naturally without a world reset or Save migration. PR #32 is not part of the closed foundation baseline until its own exact-head automated verification passes and it is merged.
+Final correction verification:
+
+```text
+Implementation head:       e33ef19c6eef4d593251d133913860a5416923e5
+Tested PR merge ref:        5ab659bf63583a31c7442c865a1c0135e42ffc08
+Tested source tree:         3c3daf8c7c50ed685116b6968c2df0f9e0e46322
+Workflow run:               31147264885
+Lean CI job:                92769224753 — PASS
+Full browser job:           92769224712 — PASS
+RCI Core:                   85/85 PASS
+Game:                       197/197 PASS
+Deployment:                 16/16 PASS
+Playwright:                 121/121 PASS
+Working tree:               clean
+Browser artifact:           8982287711
+Artifact SHA256:             90ac0af6d7918388b0131f422297885c87a7e992622182142381452042c9cc18
+```
+
+PR #32 was squash-merged as `03cf6a1d1702ec75d532e0f428b2044914156bba`. Its tree is `3c3daf8c7c50ed685116b6968c2df0f9e0e46322`, exactly matching the tested source tree. The correction is therefore part of the current runtime baseline with no unverified runtime delta introduced by squash merge.
 
 ## Documentation Authority
 
-The foundation closure evidence in this record is final. Current runtime and post-closure delivery status are maintained by [`../README.md`](../README.md); focused correction evidence is maintained by the linked hotfix record.
+The original foundation closure evidence remains final. Current runtime and post-closure delivery status are maintained by [`../README.md`](../README.md); focused correction evidence is maintained by the linked hotfix record.

@@ -1,11 +1,13 @@
 # Verification — RCI Fully-Occupied Growth Deadlock
 
-**Status:** Manual acceptance PASS; exact-head automated verification pending  
+**Status:** Closed — manual and automated acceptance PASS; merged to `master`  
 **Reported:** 2026-08-06  
 **Manual acceptance completed:** 2026-08-07  
+**Automated acceptance completed:** 2026-08-07  
 **Scope:** RCI Demand & Occupancy Foundation v0.1 post-closure correction  
 **Pull request:** #32  
-**Runtime/test implementation head:** `e79e127dfded75df097d11aa60ce5253d04a5d51`
+**Final implementation head:** `e33ef19c6eef4d593251d133913860a5416923e5`  
+**Squash-merge commit:** `03cf6a1d1702ec75d532e0f428b2044914156bba`
 
 ## Symptom
 
@@ -35,7 +37,7 @@ That value represents spare resident capacity inside existing homes. It does not
 
 ### Commercial and Industrial unreachable gates
 
-The original Workplace target-buffer factors produced `+20,000` at full occupancy and then applied a `700/1,000` weight. With no unemployed residents, each raw channel could reach only:
+The original Workplace target-buffer factors produced `+20,000` at full occupancy and then applied a `700/1_000` weight. With no unemployed residents, each raw channel could reach only:
 
 ```text
 20,000 × 700 / 1,000 = 14,000
@@ -83,28 +85,6 @@ Growth gate opening threshold:                  +15,000
 
 The final regression requires all three Demand channels to recover to at least `15,000`, all three Growth gates to reopen within three daily evaluations, and the authoritative evaluation tick to reach the final boundary.
 
-## Intermediate Automated Evidence
-
-The Residential-only correction passed the complete Lean pipeline before the Commercial/Industrial reachability defect was added:
-
-```text
-Head:          df79df073ffda741752f736f592ef83f22641bc7
-Workflow run:  31120384592
-Lean CI job:   92679748395
-Result:        PASS
-
-Prettier                                     PASS
-ESLint                                       PASS
-TypeScript workspace + browser               PASS
-Provenance                                   469 source files PASS
-RCI Core                                     35 files / 85 tests PASS
-Game                                         47 files / 197 tests PASS
-Deployment                                   16/16 PASS
-Workspace builds                             PASS
-```
-
-This run is supporting evidence only; it does not replace final exact-head verification of the complete R/C/I correction.
-
 ## Manual Recovery Evidence
 
 The original saved city was loaded on the complete correction and continued at `4×` without resetting the world or migrating the save.
@@ -145,6 +125,83 @@ Demand R +43 open | C +22 open | I +22 open
 - The original all-closed deadlock is no longer reproducible.
 - Save compatibility is confirmed at the gameplay level because the original saved city resumed directly.
 
+## Final Exact-Head Automated Verification
+
+The final implementation was verified through the PR merge ref generated from exact head `e33ef19c6eef4d593251d133913860a5416923e5` and foundation base `9409e301d2710db856b584fc555d5c4f714bba62`.
+
+```text
+Implementation head:       e33ef19c6eef4d593251d133913860a5416923e5
+Tested PR merge ref:        5ab659bf63583a31c7442c865a1c0135e42ffc08
+Tested source tree:         3c3daf8c7c50ed685116b6968c2df0f9e0e46322
+Workflow run:               31147264885
+Lean CI job:                92769224753 — PASS
+Full browser job:           92769224712 — PASS
+```
+
+Lean/full verification evidence:
+
+```text
+Prettier                               PASS
+ESLint                                 PASS
+TypeScript workspace + browser         PASS
+Provenance                             469 source files PASS
+RCI Core                               35 files / 85 tests PASS
+Game                                   47 files / 197 tests PASS
+Deployment                             16/16 PASS
+Workspace builds                       PASS
+Playwright browser acceptance          121/121 PASS (16.4m)
+Working tree                           clean
+```
+
+Browser evidence artifact:
+
+```text
+Artifact ID:      8982287711
+Artifact name:    browser-evidence
+Artifact size:    42,601,669 bytes
+SHA256:           90ac0af6d7918388b0131f422297885c87a7e992622182142381452042c9cc18
+```
+
+### Visual fixture correction
+
+The pre-fix visual acceptance expected four Buildings at logical tick 48. The corrected Demand model legitimately allows additional deterministic Growth before that boundary. Diagnostic evidence established the new exact fixture contract, then all diagnostics were removed before final verification:
+
+```text
+absoluteTick:              48
+growthSequence:            7
+buildingCount:             7
+committedBuildingRevision: 7
+buildingCommitCount:       7
+occupiedCellCount:         9
+
+definitionIds:
+- commercial-cafe-1x1
+- commercial-cafe-1x1
+- commercial-shop-1x1
+- industrial-depot-1x1
+- industrial-depot-1x1
+- industrial-workshop-1x2
+- residential-duplex-2x1
+```
+
+The browser acceptance was updated to assert this exact deterministic outcome rather than weakening the assertion. The final `121/121` run includes this corrected fixture.
+
+## Merge and Tree Equality
+
+PR #32 was squash-merged to `master` as:
+
+```text
+Merge commit:       03cf6a1d1702ec75d532e0f428b2044914156bba
+Merge tree:         3c3daf8c7c50ed685116b6968c2df0f9e0e46322
+Tested source tree: 3c3daf8c7c50ed685116b6968c2df0f9e0e46322
+```
+
+The squash-merged runtime tree is exactly the tree exercised by the passing CI run. The merge therefore introduced no unverified runtime delta.
+
+## CI Infrastructure Note
+
+Earlier GitHub Actions runs during the incident window were cancelled or skipped before execution while hosted runners were unavailable. For example, run `31122086766` ended with Lean CI cancelled and Full browser verification skipped. Those runs provide no code verdict and are superseded by successful final run `31147264885`.
+
 ## Documentation Normalization
 
 The correction is reflected in the complete RCI handoff set:
@@ -152,21 +209,10 @@ The correction is reflected in the complete RCI handoff set:
 - [`../README.md`](../README.md) — current runtime behavior, delivery state, and documentation precedence.
 - [`../specs/README.md`](../specs/README.md) — implemented specification status and post-closure clarification.
 - [`../tdd/README.md`](../tdd/README.md) — completed execution packet and retained binding contracts.
-- [`2026-08-06-rci-foundation-v0-1-closure.md`](2026-08-06-rci-foundation-v0-1-closure.md) — final foundation baseline and separate post-closure correction boundary.
+- [`2026-08-06-rci-foundation-v0-1-closure.md`](2026-08-06-rci-foundation-v0-1-closure.md) — final foundation baseline and closed post-closure correction boundary.
 
 The original design specification remains a planning-time historical record. Current status is maintained by the living System README and verification records.
 
-## CI Infrastructure Note
+## Closure Verdict
 
-GitHub Actions runs created during the incident window were cancelled or skipped before execution while hosted runners were unavailable. For example, run `31122086766` ended with Lean CI cancelled and Full browser verification skipped; this is not a test failure and provides no code verdict.
-
-## Remaining Closure Gate
-
-PR #32 may be merged only after one final head passes both:
-
-```text
-Lean CI                    PASS
-Full browser verification  PASS
-```
-
-After that run, record the exact final head, job IDs, browser count, artifact, merge commit, and final `master` tree equality here. Until then, the correction is manually accepted but not yet part of the `master` baseline.
+**PASS — closed.** The fully-occupied R/C/I Growth deadlock is fixed, the original save recovers without migration, exact-head Lean and Full browser verification pass, all `121` browser scenarios pass, and the squash-merged `master` runtime tree is identical to the tested source tree.

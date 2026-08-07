@@ -56,11 +56,11 @@ browser        121 passed
 
 ## Post-Closure Correction
 
-The packet's original Demand target-buffer implementation permitted a fully-occupied Growth deadlock. PR #32 corrects that behavior under a focused regression and separate verification record:
+The packet's original Demand target-buffer implementation permitted a fully-occupied Growth deadlock. PR #32 corrected that behavior under a focused RED/GREEN regression and separate verification record:
 
 - [Fully-occupied R/C/I Growth deadlock](../verification/2026-08-06-rci-occupied-dwelling-demand-deadlock.md)
 
-This correction does not change the normalized entity model, package boundaries, tick pipeline, or Save schema. The original saved city passed manual recovery acceptance; exact-head automated verification remains the final merge gate for PR #32.
+The correction does not change the normalized entity model, package boundaries, tick pipeline, or Save schema. The original saved city passed manual recovery acceptance. Final verification then passed on exact implementation head `e33ef19c6eef4d593251d133913860a5416923e5` with workflow run `31147264885`, including Lean CI and `121/121` browser tests. PR #32 was squash-merged as `03cf6a1d1702ec75d532e0f428b2044914156bba`; its runtime tree is identical to the tested source tree.
 
 ## Status Authority
 

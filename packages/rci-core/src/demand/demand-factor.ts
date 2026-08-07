@@ -43,7 +43,10 @@ function ratioPressure(numerator: number, denominator: number): number {
   return clampDemandMilli((numerator * 100_000) / denominator);
 }
 
-function targetCountPressure(currentCount: number, targetCount: number): number {
+function targetCountPressure(
+  currentCount: number,
+  targetCount: number,
+): number {
   return clampDemandMilli(((targetCount - currentCount) * 100_000) / targetCount);
 }
 
@@ -55,83 +58,87 @@ function vacantPositionBufferPressure(
   return targetCountPressure(vacantCount, desiredVacantBuffer);
 }
 
-export const FOUNDATION_RCI_DEMAND_FACTORS: readonly RciDemandFactorDefinition[] = Object.freeze([
-  Object.freeze({
-    id: 'demand.commercial.labor-shortage',
-    channel: 'commercial' as const,
-    weightMilli: 300,
-    evaluate: (context: RciDemandFactorContext) =>
-      clampDemandMilli(
-        ratioPressure(
-          context.unemployedResidentCount,
-          Math.max(1, context.workingAgeResidentCount),
-        ) -
+export const FOUNDATION_RCI_DEMAND_FACTORS: readonly RciDemandFactorDefinition[] =
+  Object.freeze([
+    Object.freeze({
+      id: 'demand.commercial.labor-shortage',
+      channel: 'commercial' as const,
+      weightMilli: 300,
+      evaluate: (context: RciDemandFactorContext) =>
+        clampDemandMilli(
           ratioPressure(
-            context.commercialVacantPositionCount,
-            Math.max(1, context.commercialPositionCapacity),
-          ),
-      ),
-  }),
-  Object.freeze({
-    id: 'demand.commercial.target-buffer',
-    channel: 'commercial' as const,
-    weightMilli: 700,
-    evaluate: (context: RciDemandFactorContext) =>
-      vacantPositionBufferPressure(
-        context.commercialVacantPositionCount,
-        context.commercialPositionCapacity,
-      ),
-  }),
-  Object.freeze({
-    id: 'demand.industrial.labor-shortage',
-    channel: 'industrial' as const,
-    weightMilli: 300,
-    evaluate: (context: RciDemandFactorContext) =>
-      clampDemandMilli(
-        ratioPressure(
-          context.unemployedResidentCount,
-          Math.max(1, context.workingAgeResidentCount),
-        ) -
+            context.unemployedResidentCount,
+            Math.max(1, context.workingAgeResidentCount),
+          ) -
+            ratioPressure(
+              context.commercialVacantPositionCount,
+              Math.max(1, context.commercialPositionCapacity),
+            ),
+        ),
+    }),
+    Object.freeze({
+      id: 'demand.commercial.target-buffer',
+      channel: 'commercial' as const,
+      weightMilli: 700,
+      evaluate: (context: RciDemandFactorContext) =>
+        vacantPositionBufferPressure(
+          context.commercialVacantPositionCount,
+          context.commercialPositionCapacity,
+        ),
+    }),
+    Object.freeze({
+      id: 'demand.industrial.labor-shortage',
+      channel: 'industrial' as const,
+      weightMilli: 300,
+      evaluate: (context: RciDemandFactorContext) =>
+        clampDemandMilli(
           ratioPressure(
-            context.industrialVacantPositionCount,
-            Math.max(1, context.industrialPositionCapacity),
-          ),
-      ),
-  }),
-  Object.freeze({
-    id: 'demand.industrial.target-buffer',
-    channel: 'industrial' as const,
-    weightMilli: 700,
-    evaluate: (context: RciDemandFactorContext) =>
-      vacantPositionBufferPressure(
-        context.industrialVacantPositionCount,
-        context.industrialPositionCapacity,
-      ),
-  }),
-  Object.freeze({
-    id: 'demand.residential.displacement',
-    channel: 'residential' as const,
-    weightMilli: 250,
-    evaluate: (context: RciDemandFactorContext) =>
-      clampDemandMilli(context.displacedHouseholdCount * 25_000),
-  }),
-  Object.freeze({
-    id: 'demand.residential.incoming-queue',
-    channel: 'residential' as const,
-    weightMilli: 250,
-    evaluate: (context: RciDemandFactorContext) =>
-      clampDemandMilli(context.incomingHouseholdCount * 12_500),
-  }),
-  Object.freeze({
-    id: 'demand.residential.target-buffer',
-    channel: 'residential' as const,
-    weightMilli: 500,
-    evaluate: (context: RciDemandFactorContext) => {
-      const desiredVacantDwellingBuffer = Math.max(
-        1,
-        Math.ceil(context.householdCount / 10),
-      );
-      return targetCountPressure(context.vacantDwellingCount, desiredVacantDwellingBuffer);
-    },
-  }),
-]);
+            context.unemployedResidentCount,
+            Math.max(1, context.workingAgeResidentCount),
+          ) -
+            ratioPressure(
+              context.industrialVacantPositionCount,
+              Math.max(1, context.industrialPositionCapacity),
+            ),
+        ),
+    }),
+    Object.freeze({
+      id: 'demand.industrial.target-buffer',
+      channel: 'industrial' as const,
+      weightMilli: 700,
+      evaluate: (context: RciDemandFactorContext) =>
+        vacantPositionBufferPressure(
+          context.industrialVacantPositionCount,
+          context.industrialPositionCapacity,
+        ),
+    }),
+    Object.freeze({
+      id: 'demand.residential.displacement',
+      channel: 'residential' as const,
+      weightMilli: 250,
+      evaluate: (context: RciDemandFactorContext) =>
+        clampDemandMilli(context.displacedHouseholdCount * 25_000),
+    }),
+    Object.freeze({
+      id: 'demand.residential.incoming-queue',
+      channel: 'residential' as const,
+      weightMilli: 250,
+      evaluate: (context: RciDemandFactorContext) =>
+        clampDemandMilli(context.incomingHouseholdCount * 12_500),
+    }),
+    Object.freeze({
+      id: 'demand.residential.target-buffer',
+      channel: 'residential' as const,
+      weightMilli: 500,
+      evaluate: (context: RciDemandFactorContext) => {
+        const desiredVacantDwellingBuffer = Math.max(
+          1,
+          Math.ceil(context.householdCount / 10),
+        );
+        return targetCountPressure(
+          context.vacantDwellingCount,
+          desiredVacantDwellingBuffer,
+        );
+      },
+    }),
+  ]);

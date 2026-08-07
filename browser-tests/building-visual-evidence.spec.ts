@@ -20,11 +20,12 @@ test('captures deterministic Residential, Commercial, and Industrial prototypes'
   await prepareBuildingFixtureWorld(page);
 
   const snapshot = await stepLogicalTicks(page, 40);
+  const evidence = await readEvidence(page);
+  console.log(`RCI_VISUAL_EVIDENCE=${JSON.stringify({ snapshot, building: evidence.building })}`);
   expect(snapshot.simulation.absoluteTick).toBe(48);
   expect(snapshot.buildingCount).toBe(4);
   await expect(page.getByRole('button', { name: 'Develop Zones' })).toHaveCount(0);
 
-  const evidence = await readEvidence(page);
   expect(evidence.building.count).toBe(4);
   expect(evidence.building.occupiedCellCount).toBe(5);
   expect(evidence.building.definitionIds).toEqual(EXPECTED_DEFINITION_IDS);

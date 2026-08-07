@@ -1,6 +1,6 @@
 # Development Workflow System
 
-**Status:** Approved design — not implemented  
+**Status:** Approved design — implementation plan ready; not implemented  
 **System:** Development Workflow  
 **Primary ownership:** repository root configuration, `.github/`, `AGENTS.md`, and development documentation  
 **Persistence:** Git-tracked repository configuration and documentation only
@@ -13,7 +13,7 @@ The system owns development commands, verification escalation policy, pre-commit
 
 ## Current State
 
-The v0.1 design is approved but not yet implemented. The current repository still has the legacy workflow characteristics that motivated this milestone:
+The v0.1 design and TDD implementation plan are approved and ready for execution, but the workflow behavior is not yet implemented. The current repository still has the legacy workflow characteristics that motivated this milestone:
 
 - root verification defaults to repository-wide commands;
 - there is no root `AGENTS.md`;
@@ -37,14 +37,19 @@ Development Workflow System Improvement v0.1 will establish:
 7. `master` as the always-releasable trunk with short-lived branches;
 8. repair of stale workflow and system-registry documentation.
 
+## Execution Boundary
+
+Planning PR #34 remains documentation-only. After it is approved and merged, implementation must use one short-lived branch and one implementation PR containing workflow configuration, tests, templates, `AGENTS.md`, living documentation, and the stable verification record. Final CI run IDs and artifact metadata belong in the implementation PR evidence rather than in a post-verification metadata-only commit.
+
 ## Non-Responsibilities
 
 v0.1 intentionally does not refactor `apps/game/src/game-bootstrap.ts`, add an application layer, add Nx/Turborepo, implement automatic affected-graph tooling, shard the browser suite, redesign package boundaries, or add gameplay systems.
 
 ## Documentation Authority
 
-- Approved design: [Development Workflow System Improvement v0.1](specs/2026-08-07-development-workflow-system-improvement-v0-1.md)
-- Current legacy workflow until implementation: [`docs/development-workflow.md`](../../development-workflow.md)
-- System registry: [`docs/systems/README.md`](../README.md)
+1. Approved design: [Development Workflow System Improvement v0.1](specs/2026-08-07-development-workflow-system-improvement-v0-1.md)
+2. TDD implementation plan: [Development Workflow System Improvement v0.1 Implementation Plan](tdd/2026-08-07-development-workflow-system-improvement-v0-1.md)
+3. Current legacy workflow until implementation: [`docs/development-workflow.md`](../../development-workflow.md)
+4. System registry: [`docs/systems/README.md`](../README.md)
 
 After v0.1 implementation, this README becomes the concise current-state handoff and the legacy workflow document must be updated or reduced to a compatible entry point rather than retaining contradictory branch or verification rules.

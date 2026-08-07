@@ -43,6 +43,7 @@ No runtime architecture enforcement or bootstrap extraction is implemented by th
 
 - Water, occupancy, placement environments, indexes, projections, HUD values, and renderer objects remain derived.
 - Application read models may compose authoritative snapshots and derived environments, but may not become a second domain store.
+- Candidate Road/Zone/Building placement environments are derived and provenance-validated before atomic publication when they travel with the committed-world view; they are not post-publication authoritative caches.
 - Browser evidence and CI metadata remain verification outputs, not runtime authority.
 
 ## Main Workflows
@@ -79,11 +80,12 @@ The Architecture and Infrastructure program introduces no Save wire-schema or pe
 
 - Every authoritative fact has one owner.
 - A committed-world publication contains mutually valid snapshots and derived environments.
-- Cross-system plans validate all required before/after revisions before publication.
-- Failed or stale work publishes no partial state and consumes no deterministic sequence values.
+- Cross-system plans derive required placement environments from the candidate snapshots and validate all required before/after revisions and environment provenance before publication.
+- Failed or stale pre-publication work publishes no partial state and consumes no deterministic sequence values.
+- A publication result of `rejected` means authority is unchanged; `committed` means authority changed and presentation status is reported separately as synchronized or degraded.
 - Save reads only committed, coherent state.
 - Undo restores a coherent dependent world or executes a complete reverse command; it does not restore one snapshot while leaving dependent state stale.
-- Presentation and HUD update only after authoritative publication.
+- Presentation and HUD update only after authoritative publication; post-publication presentation failure never rolls back domain authority.
 - Tick ordering, fixed-point arithmetic, Save migration, and browser determinism remain unchanged unless an ADR explicitly replaces a rule.
 
 ## Extension Points

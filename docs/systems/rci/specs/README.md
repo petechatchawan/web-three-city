@@ -16,12 +16,12 @@ Implementation history and final evidence are maintained in:
 
 ## Post-closure clarification
 
-PR #32 corrects the Demand target-buffer interpretation without changing the entity model, package boundaries, tick pipeline, or Save schema:
+PR #32 corrected the Demand target-buffer interpretation without changing the entity model, package boundaries, tick pipeline, or Save schema:
 
 - Residential availability means a wholly vacant Dwelling Unit, not spare resident capacity inside an occupied Unit.
 - Commercial and Industrial target buffers must produce a reachable Growth-gate score when their positions are fully occupied.
 
-The correction and its manual/automated evidence are tracked in [`../verification/2026-08-06-rci-occupied-dwelling-demand-deadlock.md`](../verification/2026-08-06-rci-occupied-dwelling-demand-deadlock.md).
+The correction was verified and squash-merged to `master` as `03cf6a1d1702ec75d532e0f428b2044914156bba`. Its exact manual and automated evidence is tracked in [`../verification/2026-08-06-rci-occupied-dwelling-demand-deadlock.md`](../verification/2026-08-06-rci-occupied-dwelling-demand-deadlock.md).
 
 ## Status authority
 
@@ -35,4 +35,4 @@ The TDD packet is implementation history and must not be used as the current wor
 
 ## Current correction state
 
-The PR #32 runtime/test change has passed manual gameplay acceptance on the original saved city. Exact-head Lean CI and Full browser verification remain required before merge.
+PR #32 is closed and merged. Final exact-head verification passed on implementation head `e33ef19c6eef4d593251d133913860a5416923e5` with workflow run `31147264885`: Lean CI passed and Full browser verification passed `121/121`. The resulting runtime merge commit has the same tree as the tested PR merge ref, and existing `WorldSaveV5` saves require no migration.

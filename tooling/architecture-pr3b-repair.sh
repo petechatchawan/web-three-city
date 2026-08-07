@@ -208,7 +208,7 @@ text = text.replace(old_validation, new_validation, 1)
 
 text = text.replace(
     "git rm .github/workflows/architecture-pr3b-author.yml tooling/architecture-pr3b-author.sh",
-    "git rm .github/workflows/architecture-pr3b-author.yml tooling/architecture-pr3b-author.sh tooling/architecture-pr3b-repair.sh",
+    "git rm -f .github/workflows/architecture-pr3b-author.yml tooling/architecture-pr3b-author.sh tooling/architecture-pr3b-repair.sh",
     1,
 )
 p.write_text(text)

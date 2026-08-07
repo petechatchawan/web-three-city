@@ -1,3 +1,4 @@
+import type { CommittedWorld } from './application/committed-world.js';
 import type { BuildingSnapshot } from '@web-three-city/building-core';
 import type { RciSnapshot } from '@web-three-city/rci-core';
 import type { SimulationSnapshot } from '@web-three-city/simulation-core';
@@ -51,4 +52,14 @@ export class GameWorldStateStore {
     });
     return this.#state;
   }
+}
+
+/** Compatibility projection while legacy runtime wiring migrates to CommittedWorldStore. */
+export function gameWorldStateFromCommittedWorld(world: CommittedWorld): GameWorldState {
+  return Object.freeze({
+    revision: world.revision,
+    simulation: world.simulation,
+    buildings: world.buildings,
+    rci: world.rci,
+  });
 }

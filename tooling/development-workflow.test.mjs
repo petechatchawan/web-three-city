@@ -73,3 +73,62 @@ test('pre-commit setup is staged-only and excludes slow gates', async () => {
   const serializedPolicy = `${preCommit}\n${JSON.stringify(lintStaged)}`;
   assert.doesNotMatch(serializedPolicy, /typecheck|vitest|playwright|pnpm verify|eslint \.|pnpm lint/i);
 });
+
+test('AGENTS defines actionable repository navigation and verification policy', async () => {
+  const agents = await readRepoText('AGENTS.md');
+  for (const heading of [
+    '## Repository Map',
+    '## How to Locate Code',
+    '## Architecture Rules',
+    '## Fast Verification',
+    '## Verification Escalation Rules',
+    '## Static Level 2 Verification Map',
+    '## Branch Policy',
+    '## Documentation and Exact-Head Evidence',
+    '## Definition of Done',
+    '## Forbidden Shortcuts',
+  ]) {
+    assert.ok(agents.includes(heading), heading);
+  }
+  assert.match(agents, /pnpm --filter @web-three-city\/<pkg> test/);
+  assert.match(agents, /pnpm --filter @web-three-city\/<pkg> typecheck/);
+  for (const level of ['Level 0', 'Level 1', 'Level 2', 'Level 3', 'Level 4']) {
+    assert.ok(agents.includes(level), level);
+  }
+  assert.match(agents, /highest required level/i);
+  assert.match(agents, /conservative verification map/i);
+  assert.match(agents, /same PR/i);
+  assert.match(agents, /exact-head/i);
+  assert.match(agents, /pnpm verify.*not.*default|not.*default.*pnpm verify/is);
+  assert.match(agents, /master.*always-releasable/is);
+});
+
+test('AGENTS static Level 2 map contains every approved changed-owner row', async () => {
+  const agents = await readRepoText('AGENTS.md');
+  for (const owner of [
+    'world-core',
+    'terrain-core',
+    'simulation-core',
+    'zone-core',
+    'building-core',
+    'rci-core',
+    'road-core',
+    'water-core',
+    'terrain-generator',
+    'camera-input',
+    'building-three',
+    'road-three',
+    'terrain-three',
+    'water-three',
+    'zone-three',
+  ]) {
+    assert.ok(agents.includes('| `' + owner + '` |'), owner);
+  }
+});
+
+test('AGENTS makes the exact-head documentation exception normative', async () => {
+  const agents = await readRepoText('AGENTS.md');
+  assert.match(agents, /living.*documentation.*before.*exact-head/is);
+  assert.match(agents, /PR body|PR comment|pull request body|pull request comment/i);
+  assert.match(agents, /do not create.*commit.*run ID|do not.*commit.*CI.*metadata/is);
+});

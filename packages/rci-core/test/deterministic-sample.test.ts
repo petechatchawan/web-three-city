@@ -46,6 +46,18 @@ describe('RCI deterministic counter-based sampling', () => {
     ).toBe(235_341_119);
   });
 
+  it('matches TextEncoder replacement semantics for lone surrogates', () => {
+    expect(
+      deterministicSample({
+        seed: 1,
+        eventType: 'birth',
+        evaluationTick: 32,
+        entityStableId: '\uD800',
+        attemptIndex: 0,
+      }),
+    ).toBe(706_692_611);
+  });
+
   it('keeps samples inside the integer probability domain', () => {
     const sample = deterministicSample({
       seed: 0,

@@ -34,3 +34,11 @@ test('ESLint excludes generated browser evidence', () => {
 test('Playwright uses deterministic browser-worker concurrency', () => {
   assert.match(playwrightConfig, /workers:\s*2,/);
 });
+
+test('architecture contracts run before recursive package tests', async () => {
+  const packageJson = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+  const deployment = packageJson.scripts['test:deployment'];
+  const steps = packageJson.scripts.check.split(' && ');
+  assert.ok(deployment.indexOf('tooling/architecture-boundary.test.mjs') < deployment.indexOf('tooling/development-workflow.test.mjs'));
+  assert.ok(steps.indexOf('pnpm test:deployment') < steps.indexOf('pnpm test'));
+});

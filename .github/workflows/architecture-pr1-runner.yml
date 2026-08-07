@@ -23,4 +23,6 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-      - run: bash tooling/architecture-pr1-author.sh
+      - run: |
+          rm -f .github/workflows/architecture-pr1-finalize2.yml
+          bash tooling/architecture-pr1-author.sh

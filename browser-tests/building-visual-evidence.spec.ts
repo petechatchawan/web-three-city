@@ -5,8 +5,11 @@ import { GAME_URL, readEvidence } from './helpers/interaction.js';
 
 const EXPECTED_DEFINITION_IDS = Object.freeze([
   'commercial-cafe-1x1',
+  'commercial-cafe-1x1',
   'commercial-shop-1x1',
   'industrial-depot-1x1',
+  'industrial-depot-1x1',
+  'industrial-workshop-1x2',
   'residential-duplex-2x1',
 ]);
 
@@ -20,14 +23,16 @@ test('captures deterministic Residential, Commercial, and Industrial prototypes'
   await prepareBuildingFixtureWorld(page);
 
   const snapshot = await stepLogicalTicks(page, 40);
-  const evidence = await readEvidence(page);
-  console.log(`RCI_VISUAL_EVIDENCE=${JSON.stringify({ snapshot, building: evidence.building })}`);
   expect(snapshot.simulation.absoluteTick).toBe(48);
-  expect(snapshot.buildingCount).toBe(4);
+  expect(snapshot.simulation.growthSequence).toBe(7);
+  expect(snapshot.buildingCount).toBe(7);
   await expect(page.getByRole('button', { name: 'Develop Zones' })).toHaveCount(0);
 
-  expect(evidence.building.count).toBe(4);
-  expect(evidence.building.occupiedCellCount).toBe(5);
+  const evidence = await readEvidence(page);
+  expect(evidence.building.committedBuildingRevision).toBe(7);
+  expect(evidence.building.commitCount).toBe(7);
+  expect(evidence.building.count).toBe(7);
+  expect(evidence.building.occupiedCellCount).toBe(9);
   expect(evidence.building.definitionIds).toEqual(EXPECTED_DEFINITION_IDS);
   await page.screenshot({
     path: testInfo.outputPath('building-foundation-rci-prototypes.png'),

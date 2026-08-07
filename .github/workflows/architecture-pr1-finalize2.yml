@@ -24,11 +24,13 @@ jobs:
           node-version: 22
           cache: pnpm
       - name: Implement and verify final PR1 candidate
+        env:
+          TERRAIN_SERIALIZATION_B64: aW1wb3J0IHsgZXJyLCBvaywgV09STERfQ09ORklHIH0gZnJvbSAnQHdlYi10aHJlZS1jaXR5L3dvcmxkLWNvcmUnOwppbXBvcnQgdHlwZSB7IFJlc3VsdCB9IGZyb20gJ0B3ZWItdGhyZWUtY2l0eS93b3JsZC1jb3JlJzsKaW1wb3J0IHsgY3JlYXRlVGVycmFpbk1hcCB9IGZyb20gJy4vdGVycmFpbi1tYXAuanMnOwppbXBvcnQgdHlwZSB7IFRlcnJhaW5NYXAgfSBmcm9tICcuL3RlcnJhaW4tbWFwLmpzJzsKCmV4cG9ydCBpbnRlcmZhY2UgVGVycmFpblNhdmVWMSB7CiAgcmVhZG9ubHkgc2NoZW1hVmVyc2lvbjogMTsKICByZWFkb25seSBnZW5lcmF0b3JWZXJzaW9uOiAnY29hc3RhbC12MSc7CiAgcmVhZG9ubHkgd2lkdGg6IG51bWJlcjsKICByZWFkb25seSBoZWlnaHQ6IG51bWJlcjsKICByZWFkb25seSBzZWVkOiBudW1iZXI7CiAgcmVhZG9ubHkgZ2VuZXJhdGlvbkF0dGVtcHQ6IG51bWJlcjsKICByZWFkb25seSByZXZpc2lvbjogbnVtYmVyOwogIHJlYWRvbmx5IGhlaWdodExldmVsczogc3RyaW5nOwp9CgpleHBvcnQgdHlwZSBUZXJyYWluU2F2ZUVycm9yQ29kZSA9CiAgfCAndGVycmFpbi1zYXZlOmludmFsaWQtc2NoZW1hJwogIHwgJ3RlcnJhaW4tc2F2ZTppbnZhbGlkLWRpbWVuc2lvbnMnCiAgfCAndGVycmFpbi1zYXZlOmludmFsaWQtbWV0YWRhdGEnCiAgfCAndGVycmFpbi1zYXZlOmludmFsaWQtYmFzZTY0JwogIHwgJ3RlcnJhaW4tc2F2ZTppbnZhbGlkLWJ5dGUtbGVuZ3RoJwogIHwgJ3RlcnJhaW4tc2F2ZTppbnZhbGlkLXRlcnJhaW4nOwoKZXhwb3J0IGludGVyZmFjZSBUZXJyYWluU2F2ZUVycm9yIHsKICByZWFkb25seSBjb2RlOiBUZXJyYWluU2F2ZUVycm9yQ29kZTsKICByZWFkb25seSBkZXRhaWxzPzogUmVhZG9ubHk8UmVjb3JkPHN0cmluZywgdW5rbm93bj4+Owp9Cgpjb25zdCBCQVNFNjRfQUxQSEFCRVQgPSAnQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVphYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5ejAxMjM0NTY3ODkrLyc7CgpmdW5jdGlvbiBieXRlc1RvQmFzZTY0KGJ5dGVzOiBVaW50OEFycmF5KTogc3RyaW5nIHsKICBsZXQgZW5jb2RlZCA9ICcnOwogIGZvciAobGV0IGluZGV4ID0gMDsgaW5kZXggPCBieXRlcy5sZW5ndGg7IGluZGV4ICs9IDMpIHsKICAgIGNvbnN0IGZpcnN0ID0gYnl0ZXNbaW5kZXhdID8/IDA7CiAgICBjb25zdCBoYXNTZWNvbmQgPSBpbmRleCArIDEgPCBieXRlcy5sZW5ndGg7CiAgICBjb25zdCBoYXNUaGlyZCA9IGluZGV4ICsgMiA8IGJ5dGVzLmxlbmd0aDsKICAgIGNvbnN0IHNlY29uZCA9IGJ5dGVzW2luZGV4ICsgMV0gPz8gMDsKICAgIGNvbnN0IHRoaXJkID0gYnl0ZXNbaW5kZXggKyAyXSA/PyAwOwogICAgY29uc3QgdmFsdWUgPSAoZmlyc3QgPDwgMTYpIHwgKHNlY29uZCA8PCA4KSB8IHRoaXJkOwogICAgZW5jb2RlZCArPSBCQVNFNjRfQUxQSEFCRVRbKHZhbHVlID4+PiAxOCkgJiA2M107CiAgICBlbmNvZGVkICs9IEJBU0U2NF9BTFBIQUJFVFsodmFsdWUgPj4+IDEyKSAmIDYzXTsKICAgIGVuY29kZWQgKz0gaGFzU2Vjb25kID8gQkFTRTY0X0FMUEhBQkVUWyh2YWx1ZSA+Pj4gNikgJiA2M10gOiAnPSc7CiAgICBlbmNvZGVkICs9IGhhc1RoaXJkID8gQkFTRTY0X0FMUEhBQkVUW3ZhbHVlICYgNjNdIDogJz0nOwogIH0KICByZXR1cm4gZW5jb2RlZDsKfQoKZnVuY3Rpb24gYmFzZTY0VG9CeXRlcyh2YWx1ZTogc3RyaW5nKTogVWludDhBcnJheSB8IG51bGwgewogIGlmICgKICAgIHZhbHVlLmxlbmd0aCA9PT0gMCB8fAogICAgdmFsdWUubGVuZ3RoICUgNCAhPT0gMCB8fAogICAgIS9eKD86W0EtWmEtejAtOSsvXXs0fSkqKD86W0EtWmEtejAtOSsvXXsyfT09fFtBLVphLXowLTkrL117M309KT8kLy50ZXN0KHZhbHVlKQogICkgewogICAgcmV0dXJuIG51bGw7CiAgfQoKICBjb25zdCBwYWRkaW5nID0gdmFsdWUuZW5kc1dpdGgoJz09JykgPyAyIDogdmFsdWUuZW5kc1dpdGgoJz0nKSA/IDEgOiAwOwogIGNvbnN0IGJ5dGVzID0gbmV3IFVpbnQ4QXJyYXkoKHZhbHVlLmxlbmd0aCAvIDQpICogMyAtIHBhZGRpbmcpOwogIGxldCBvdXRwdXQgPSAwOwogIGZvciAobGV0IGluZGV4ID0gMDsgaW5kZXggPCB2YWx1ZS5sZW5ndGg7IGluZGV4ICs9IDQpIHsKICAgIGNvbnN0IGZpcnN0ID0gQkFTRTY0X0FMUEhBQkVULmluZGV4T2YodmFsdWVbaW5kZXhdISk7CiAgICBjb25zdCBzZWNvbmQgPSBCQVNFNjRfQUxQSEFCRVQuaW5kZXhPZih2YWx1ZVtpbmRleCArIDFdISk7CiAgICBjb25zdCB0aGlyZCA9IHZhbHVlW2luZGV4ICsgMl0gPT09ICc9JyA/IDAgOiBCQVNFNjRfQUxQSEFCRVQuaW5kZXhPZih2YWx1ZVtpbmRleCArIDJdISk7CiAgICBjb25zdCBmb3VydGggPSB2YWx1ZVtpbmRleCArIDNdID09PSAnPScgPyAwIDogQkFTRTY0X0FMUEhBQkVULmluZGV4T2YodmFsdWVbaW5kZXggKyAzXSEpOwogICAgY29uc3QgZGVjb2RlZCA9IChmaXJzdCA8PCAxOCkgfCAoc2Vjb25kIDw8IDEyKSB8ICh0aGlyZCA8PCA2KSB8IGZvdXJ0aDsKICAgIGlmIChvdXRwdXQgPCBieXRlcy5sZW5ndGgpIGJ5dGVzW291dHB1dCsrXSA9IChkZWNvZGVkID4+PiAxNikgJiAyNTU7CiAgICBpZiAob3V0cHV0IDwgYnl0ZXMubGVuZ3RoKSBieXRlc1tvdXRwdXQrK10gPSAoZGVjb2RlZCA+Pj4gOCkgJiAyNTU7CiAgICBpZiAob3V0cHV0IDwgYnl0ZXMubGVuZ3RoKSBieXRlc1tvdXRwdXQrK10gPSBkZWNvZGVkICYgMjU1OwogIH0KICByZXR1cm4gYnl0ZXM7Cn0KCmZ1bmN0aW9uIGlzUmVjb3JkKHZhbHVlOiB1bmtub3duKTogdmFsdWUgaXMgUmVjb3JkPHN0cmluZywgdW5rbm93bj4gewogIHJldHVybiB0eXBlb2YgdmFsdWUgPT09ICdvYmplY3QnICYmIHZhbHVlICE9PSBudWxsOwp9CgpmdW5jdGlvbiBpc0ludGVnZXIodmFsdWU6IHVua25vd24pOiB2YWx1ZSBpcyBudW1iZXIgewogIHJldHVybiB0eXBlb2YgdmFsdWUgPT09ICdudW1iZXInICYmIE51bWJlci5pc0ludGVnZXIodmFsdWUpOwp9CgpleHBvcnQgZnVuY3Rpb24gZW5jb2RlVGVycmFpblNhdmVWMShtYXA6IFRlcnJhaW5NYXApOiBUZXJyYWluU2F2ZVYxIHsKICByZXR1cm4gewogICAgc2NoZW1hVmVyc2lvbjogMSwKICAgIGdlbmVyYXRvclZlcnNpb246ICdjb2FzdGFsLXYxJywKICAgIHdpZHRoOiBtYXAud2lkdGgsCiAgICBoZWlnaHQ6IG1hcC5oZWlnaHQsCiAgICBzZWVkOiBtYXAuc2VlZCwKICAgIGdlbmVyYXRpb25BdHRlbXB0OiBtYXAuZ2VuZXJhdGlvbkF0dGVtcHQsCiAgICByZXZpc2lvbjogbWFwLnJldmlzaW9uLAogICAgaGVpZ2h0TGV2ZWxzOiBieXRlc1RvQmFzZTY0KG1hcC5oZWlnaHRMZXZlbHMpLAogIH07Cn0KCmV4cG9ydCBmdW5jdGlvbiBkZWNvZGVUZXJyYWluU2F2ZVYxKGlucHV0OiB1bmtub3duKTogUmVzdWx0PFRlcnJhaW5NYXAsIFRlcnJhaW5TYXZlRXJyb3I+IHsKICBpZiAoIWlzUmVjb3JkKGlucHV0KSB8fCBpbnB1dC5zY2hlbWFWZXJzaW9uICE9PSAxIHx8IGlucHV0LmdlbmVyYXRvclZlcnNpb24gIT09ICdjb2FzdGFsLXYxJykgewogICAgcmV0dXJuIGVycih7IGNvZGU6ICd0ZXJyYWluLXNhdmU6aW52YWxpZC1zY2hlbWEnIH0pOwogIH0KCiAgaWYgKGlucHV0LndpZHRoICE9PSBXT1JMRF9DT05GSUcubWFwV2lkdGggfHwgaW5wdXQuaGVpZ2h0ICE9PSBXT1JMRF9DT05GSUcubWFwSGVpZ2h0KSB7CiAgICByZXR1cm4gZXJyKHsgY29kZTogJ3RlcnJhaW4tc2F2ZTppbnZhbGlkLWRpbWVuc2lvbnMnIH0pOwogIH0KCiAgaWYgKAogICAgIWlzSW50ZWdlcihpbnB1dC5zZWVkKSB8fAogICAgIWlzSW50ZWdlcihpbnB1dC5nZW5lcmF0aW9uQXR0ZW1wdCkgfHwKICAgIGlucHV0LmdlbmVyYXRpb25BdHRlbXB0IDwgMCB8fAogICAgIWlzSW50ZWdlcihpbnB1dC5yZXZpc2lvbikgfHwKICAgIGlucHV0LnJldmlzaW9uIDwgMCB8fAogICAgdHlwZW9mIGlucHV0LmhlaWdodExldmVscyAhPT0gJ3N0cmluZycKICApIHsKICAgIHJldHVybiBlcnIoeyBjb2RlOiAndGVycmFpbi1zYXZlOmludmFsaWQtbWV0YWRhdGEnIH0pOwogIH0KCiAgY29uc3QgYnl0ZXMgPSBiYXNlNjRUb0J5dGVzKGlucHV0LmhlaWdodExldmVscyk7CiAgaWYgKGJ5dGVzID09PSBudWxsKSByZXR1cm4gZXJyKHsgY29kZTogJ3RlcnJhaW4tc2F2ZTppbnZhbGlkLWJhc2U2NCcgfSk7CgogIGNvbnN0IGV4cGVjdGVkTGVuZ3RoID0gKFdPUkxEX0NPTkZJRy5tYXBXaWR0aCArIDEpICogKFdPUkxEX0NPTkZJRy5tYXBIZWlnaHQgKyAxKTsKICBpZiAoYnl0ZXMubGVuZ3RoICE9PSBleHBlY3RlZExlbmd0aCkgewogICAgcmV0dXJuIGVycih7CiAgICAgIGNvZGU6ICd0ZXJyYWluLXNhdmU6aW52YWxpZC1ieXRlLWxlbmd0aCcsCiAgICAgIGRldGFpbHM6IHsgZXhwZWN0ZWQ6IGV4cGVjdGVkTGVuZ3RoLCBhY3R1YWw6IGJ5dGVzLmxlbmd0aCB9LAogICAgfSk7CiAgfQoKICB0cnkgewogICAgcmV0dXJuIG9rKAogICAgICBjcmVhdGVUZXJyYWluTWFwKHsKICAgICAgICBjb25maWc6IFdPUkxEX0NPTkZJRywKICAgICAgICBoZWlnaHRMZXZlbHM6IGJ5dGVzLAogICAgICAgIHNlZWQ6IGlucHV0LnNlZWQsCiAgICAgICAgZ2VuZXJhdG9yVmVyc2lvbjogJ2NvYXN0YWwtdjEnLAogICAgICAgIGdlbmVyYXRpb25BdHRlbXB0OiBpbnB1dC5nZW5lcmF0aW9uQXR0ZW1wdCwKICAgICAgICByZXZpc2lvbjogaW5wdXQucmV2aXNpb24sCiAgICAgIH0pLAogICAgKTsKICB9IGNhdGNoIHsKICAgIHJldHVybiBlcnIoeyBjb2RlOiAndGVycmFpbi1zYXZlOmludmFsaWQtdGVycmFp bicgfSk7CiAgfQp9Cg==
+          TERRAIN_SERIALIZATION_TEST_B64: aW1wb3J0IHsgZGVzY3JpYmUsIGV4cGVjdCwgaXQgfSBmcm9tICd2aXRlc3QnOwppbXBvcnQgeyBXT1JMRF9DT05GSUcgfSBmcm9tICdAd2ViLXRocmVlLWNpdHkvd29ybGQtY29yZSc7CmltcG9ydCB7IGNyZWF0ZVRlcnJhaW5NYXAgfSBmcm9tICcuLi9zcmMvdGVycmFpbi1tYXAuanMnOwppbXBvcnQgeyBkZWNvZGVUZXJyYWluU2F2ZVYxLCBlbmNvZGVUZXJyYWluU2F2ZVYxIH0gZnJvbSAnLi4vc3JjL3NlcmlhbGl6YXRpb24uanMnOwoKZGVzY3JpYmUoJ3RlcnJhaW4gc2VyaWFsaXphdGlvbicsICgpID0+IHsKICBpdCgncHJlc2VydmVzIHRoZSBjYW5vbmljYWwgVGVycmFpblNhdmVWMSBiYXNlNjQgd2lyZSByZXByZXNlbnRhdGlvbiB3aXRob3V0IERPTSBjb2RlY3MnLCAoKSA9PiB7CiAgICBjb25zdCBsZXZlbHMgPSBuZXcgVWludDhBcnJheSgxMjkgKiAxMjkpLmZpbGwoMik7CiAgICBjb25zdCBtYXAgPSBjcmVhdGVUZXJyYWluTWFwKHsKICAgICAgY29uZmlnOiBXT1JMRF9DT05GSUcsCiAgICAgIHNlZWQ6IDEsCiAgICAgIGdlbmVyYXRvclZlcnNpb246ICdjb2FzdGFsLXYxJywKICAgICAgZ2VuZXJhdGlvbkF0dGVtcHQ6IDAsCiAgICAgIHJldmlzaW9uOiAwLAogICAgICBoZWlnaHRMZXZlbHM6IGxldmVscywKICAgIH0pOwoKICAgIGV4cGVjdChlbmNvZGVUZXJyYWluU2F2ZVYxKG1hcCkuaGVpZ2h0TGV2ZWxzKS50b0JlKCdBZ0lDJy5yZXBlYXQoKDEyOSAqIDEyOSkgLyAzKSk7CiAgfSk7CgogIGl0KCdyb3VuZC10cmlwcyBieXRlLWlkZW50aWNhbCBsYXR0aWNlIGRhdGEnLCAoKSA9PiB7CiAgICBjb25zdCBsZXZlbHMgPSBuZXcgVWludDhBcnJheSgxMjkgKiAxMjkpLmZpbGwoMik7CiAgICBsZXZlbHNbMF0gPSAxOwogICAgbGV2ZWxzWzEyOF0gPSAzOwogICAgY29uc3QgbWFwID0gY3JlYXRlVGVycmFpbk1hcCh7CiAgICAgIGNvbmZpZzogV09STERfQ09ORklHLAogICAgICBzZWVkOiAxNDY0MTU2OTc3LAogICAgICBnZW5lcmF0b3JWZXJzaW9uOiAnY29hc3RhbC12MScsCiAgICAgIGdlbmVyYXRpb25BdHRlbXB0OiAwLAogICAgICByZXZpc2lvbjogNywKICAgICAgaGVpZ2h0TGV2ZWxzOiBsZXZlbHMsCiAgICB9KTsKCiAgICBjb25zdCBkZWNvZGVkID0gZGVjb2RlVGVycmFpblNhdmVWMShlbmNvZGVUZXJyYWluU2F2ZVYxKG1hcCkpOwoKICAgIGV4cGVjdChkZWNvZGVkLm9rKS50b0JlKHRydWUpOwogICAgaWYgKCFkZWNvZGVkLm9rKSByZXR1cm47CiAgICBleHBlY3QoZGVjb2RlZC52YWx1ZS5oZWlnaHRMZXZlbHMpLnRvRXF1YWwobWFwLmhlaWdodExldmVscyk7CiAgICBleHBlY3QoZGVjb2RlZC52YWx1ZS5yZXZpc2lvbikudG9CZSg3KTsKICB9KTsKCiAgaXQoJ2NvcGllcyBjYWxsZXItb3duZWQgc291cmNlIGJ5dGVzIHdoZW4gY3JlYXRpbmcgYSBtYXAnLCAoKSA9PiB7CiAgICBjb25zdCBsZXZlbHMgPSBuZXcgVWludDhBcnJheSgxMjkgKiAxMjkpLmZpbGwoMik7CiAgICBjb25zdCBtYXAgPSBjcmVhdGVUZXJyYWluTWFwKHsKICAgICAgY29uZmlnOiBXT1JMRF9DT05GSUcsCiAgICAgIHNlZWQ6IDEsCiAgICAgIGdlbmVyYXRvclZlcnNpb246ICdjb2FzdGFsLXYxJywKICAgICAgZ2VuZXJhdGlvbkF0dGVtcHQ6IDAsCiAgICAgIHJldmlzaW9uOiAwLAogICAgICBoZWlnaHRMZXZlbHM6IGxldmVscywKICAgIH0pOwogICAgbGV2ZWxzWzBdID0gNDsKCiAgICBleHBlY3QobWFwLmhlaWdodExldmVsc1swXSkudG9CZSgyKTsKICB9KTsKCiAgaXQoJ3JlamVjdHMgbWlzbWF0Y2hlZCBkaW1lbnNpb25zIGJlZm9yZSBkZWNvZGluZyBieXRlcycsICgpID0+IHsKICAgIGNvbnN0IHJlc3VsdCA9IGRlY29kZVRlcnJhaW5TYXZlVjEoewogICAgICBzY2hlbWFWZXJzaW9uOiAxLAogICAgICBnZW5lcmF0b3JWZXJzaW9uOiAnY29hc3RhbC12MScsCiAgICAgIHdpZHRoOiA2NCwKICAgICAgaGVpZ2h0OiAxMjgsCiAgICAgIHNlZWQ6IDEsCiAgICAgIGdlbmVyYXRpb25BdHRlbXB0OiAwLAogICAgICByZXZpc2lvbjogMCwKICAgICAgaGVpZ2h0TGV2ZWxzOiAnbm90LWJhc2U2NCcsCiAgICB9KTsKCiAgICBleHBlY3QocmVzdWx0KS50b0VxdWFsKHsKICAgICAgb2s6IGZhbHNlLAogICAgICBlcnJvcjogZXhwZWN0Lm9iamVjdENvbnRhaW5pbmcoeyBjb2RlOiAndGVycmFpbi1zYXZlOmludmFsaWQtZGltZW5zaW9ucycgfSksCiAgICB9KTsKICB9KTsKCiAgaXQoJ3JlamVjdHMgY29ycnVwdGVkIGVuY29kZWQgZGF0YSB3aXRob3V0IGNvbnN0cnVjdGluZyB0ZXJyYWluIHN0YXRlJywgKCkgPT4gewogICAgY29uc3QgcmVzdWx0ID0gZGVjb2RlVGVycmFpblNhdmVWMSh7CiAgICAgIHNjaGVtYVZlcnNpb246IDEsCiAgICAgIGdlbmVyYXRvclZlcnNpb246ICdjb2FzdGFsLXYxJywKICAgICAgd2lkdGg6IDEyOCwKICAgICAgaGVpZ2h0OiAxMjgsCiAgICAgIHNlZWQ6IDEsCiAgICAgIGdlbmVyYXRpb25BdHRlbXB0OiAwLAogICAgICByZXZpc2lvbjogMCwKICAgICAgaGVpZ2h0TGV2ZWxzOiAnbm90LWJhc2U2NCcsCiAgICB9KTsKCiAgICBleHBlY3QocmVzdWx0KS50b0VxdWFsKHsKICAgICAgb2s6IGZhbHNlLAogICAgICBlcnJvcjogZXhwZWN0Lm9iamVjdENvbnRhaW5pbmcoeyBjb2RlOiAndGVycmFpbi1zYXZlOmludmFsaWQtYmFzZTY0JyB9KSwKICAgIH0pOwogIH0pOwp9KTsK
         run: |
           set -euo pipefail
           git config user.name 'architecture-impl-agent'
           git config user.email 'architecture-impl-agent@users.noreply.github.com'
-
           python <<'PY'
           from pathlib import Path
           source = Path('.github/workflows/architecture-pr1-implement.yml').read_text().splitlines()
@@ -40,98 +42,16 @@ jobs:
               script_lines.append(line[10:] if len(line) >= 10 else '')
           script = '\n'.join(script_lines) + '\n'
           script = script.replace("import { fileURLToPath } from 'node:url';", "import { fileURLToPath, URL } from 'node:url';")
-
-          portable = r'''
-          python <<'PY2'
-          from pathlib import Path
-          p = Path('packages/terrain-core/src/serialization.ts')
-          text = p.read_text()
-          start = text.index('function bytesToBase64')
-          end = text.index('\nfunction isRecord', start)
-          replacement = r'''const BASE64_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-
-function bytesToBase64(bytes: Uint8Array): string {
-  let encoded = '';
-  for (let index = 0; index < bytes.length; index += 3) {
-    const first = bytes[index] ?? 0;
-    const hasSecond = index + 1 < bytes.length;
-    const hasThird = index + 2 < bytes.length;
-    const second = bytes[index + 1] ?? 0;
-    const third = bytes[index + 2] ?? 0;
-    const value = (first << 16) | (second << 8) | third;
-    encoded += BASE64_ALPHABET[(value >>> 18) & 63];
-    encoded += BASE64_ALPHABET[(value >>> 12) & 63];
-    encoded += hasSecond ? BASE64_ALPHABET[(value >>> 6) & 63] : '=';
-    encoded += hasThird ? BASE64_ALPHABET[value & 63] : '=';
-  }
-  return encoded;
-}
-
-function base64ToBytes(value: string): Uint8Array | null {
-  if (
-    value.length === 0 ||
-    value.length % 4 !== 0 ||
-    !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value)
-  ) {
-    return null;
-  }
-
-  const padding = value.endsWith('==') ? 2 : value.endsWith('=') ? 1 : 0;
-  const bytes = new Uint8Array((value.length / 4) * 3 - padding);
-  let output = 0;
-  for (let index = 0; index < value.length; index += 4) {
-    const first = BASE64_ALPHABET.indexOf(value[index]!);
-    const second = BASE64_ALPHABET.indexOf(value[index + 1]!);
-    const third = value[index + 2] === '=' ? 0 : BASE64_ALPHABET.indexOf(value[index + 2]!);
-    const fourth = value[index + 3] === '=' ? 0 : BASE64_ALPHABET.indexOf(value[index + 3]!);
-    const decoded = (first << 18) | (second << 12) | (third << 6) | fourth;
-    if (output < bytes.length) bytes[output++] = (decoded >>> 16) & 255;
-    if (output < bytes.length) bytes[output++] = (decoded >>> 8) & 255;
-    if (output < bytes.length) bytes[output++] = decoded & 255;
-  }
-  return bytes;
-}
-'''
-          p.write_text(text[:start] + replacement + text[end:])
-
-          t = Path('packages/terrain-core/test/serialization.test.ts')
-          text = t.read_text()
-          marker = "describe('terrain serialization', () => {\n"
-          test = r'''  it('preserves the canonical TerrainSaveV1 base64 wire representation without DOM codecs', () => {
-    const levels = new Uint8Array(129 * 129).fill(2);
-    const map = createTerrainMap({
-      config: WORLD_CONFIG,
-      seed: 1,
-      generatorVersion: 'coastal-v1',
-      generationAttempt: 0,
-      revision: 0,
-      heightLevels: levels,
-    });
-
-    expect(encodeTerrainSaveV1(map).heightLevels).toBe('AgIC'.repeat((129 * 129) / 3));
-  });
-
-'''
-          assert marker in text
-          t.write_text(text.replace(marker, marker + test, 1))
-          PY2
-
-          pnpm --filter @web-three-city/terrain-core test
-          pnpm --filter @web-three-city/terrain-core typecheck
-          pnpm --filter @web-three-city/terrain-core build
-          '''
+          portable = """
+echo \"$TERRAIN_SERIALIZATION_B64\" | base64 -d > packages/terrain-core/src/serialization.ts
+echo \"$TERRAIN_SERIALIZATION_TEST_B64\" | base64 -d > packages/terrain-core/test/serialization.test.ts
+pnpm --filter @web-three-city/terrain-core test
+pnpm --filter @web-three-city/terrain-core typecheck
+pnpm --filter @web-three-city/terrain-core build
+"""
           script = script.replace('\npnpm format\npnpm verify\n', '\n' + portable + '\npnpm format\npnpm verify\n', 1)
-          script = script.replace(
-              'git rm .github/workflows/architecture-pr1-implement.yml',
-              'git rm .github/workflows/architecture-pr1-implement.yml .github/workflows/architecture-pr1-finalize.yml .github/workflows/architecture-pr1-finalize2.yml',
-              1,
-          )
-          script = script.replace(
-              'git add package.json',
-              'git add packages/terrain-core/src/serialization.ts packages/terrain-core/test/serialization.test.ts package.json',
-              1,
-          )
+          script = script.replace('git rm .github/workflows/architecture-pr1-implement.yml', 'git rm .github/workflows/architecture-pr1-implement.yml .github/workflows/architecture-pr1-finalize.yml .github/workflows/architecture-pr1-finalize2.yml', 1)
+          script = script.replace('git add package.json', 'git add packages/terrain-core/src/serialization.ts packages/terrain-core/test/serialization.test.ts package.json', 1)
           Path('/tmp/architecture-pr1.sh').write_text(script)
           PY
-
           bash /tmp/architecture-pr1.sh

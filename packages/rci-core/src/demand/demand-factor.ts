@@ -2,6 +2,7 @@ export type RciDemandChannel = 'residential' | 'commercial' | 'industrial';
 
 export interface RciDemandFactorContext {
   readonly residentCount: number;
+  readonly householdCount: number;
   readonly residentCapacity: number;
   readonly vacantDwellingCount: number;
   readonly incomingHouseholdCount: number;
@@ -42,6 +43,15 @@ function ratioPressure(numerator: number, denominator: number): number {
   return clampDemandMilli((numerator * 100_000) / denominator);
 }
 
+function targetCountPressure(currentCount: number, targetCount: number): number {
+  return clampDemandMilli(((targetCount - currentCount) * 100_000) / targetCount);
+}
+
+function vacantPositionBufferPressure(vacantCount: number, positionCapacity: number): number {
+  const desiredVacantBuffer = Math.max(1, Math.ceil(positionCapacity / 5));
+  return targetCountPressure(vacantCount, desiredVacantBuffer);
+}
+
 export const FOUNDATION_RCI_DEMAND_FACTORS: readonly RciDemandFactorDefinition[] = Object.freeze([
   Object.freeze({
     id: 'demand.commercial.labor-shortage',
@@ -64,12 +74,9 @@ export const FOUNDATION_RCI_DEMAND_FACTORS: readonly RciDemandFactorDefinition[]
     channel: 'commercial' as const,
     weightMilli: 700,
     evaluate: (context: RciDemandFactorContext) =>
-      clampDemandMilli(
-        20_000 -
-          ratioPressure(
-            context.commercialVacantPositionCount,
-            Math.max(1, context.commercialPositionCapacity),
-          ),
+      vacantPositionBufferPressure(
+        context.commercialVacantPositionCount,
+        context.commercialPositionCapacity,
       ),
   }),
   Object.freeze({
@@ -93,12 +100,9 @@ export const FOUNDATION_RCI_DEMAND_FACTORS: readonly RciDemandFactorDefinition[]
     channel: 'industrial' as const,
     weightMilli: 700,
     evaluate: (context: RciDemandFactorContext) =>
-      clampDemandMilli(
-        20_000 -
-          ratioPressure(
-            context.industrialVacantPositionCount,
-            Math.max(1, context.industrialPositionCapacity),
-          ),
+      vacantPositionBufferPressure(
+        context.industrialVacantPositionCount,
+        context.industrialPositionCapacity,
       ),
   }),
   Object.freeze({
@@ -120,11 +124,8 @@ export const FOUNDATION_RCI_DEMAND_FACTORS: readonly RciDemandFactorDefinition[]
     channel: 'residential' as const,
     weightMilli: 500,
     evaluate: (context: RciDemandFactorContext) => {
-      const capacityGap = context.residentCapacity - context.residentCount;
-      const desiredBuffer = Math.max(4, Math.ceil(context.residentCount * 0.1));
-      return clampDemandMilli(
-        ((desiredBuffer - capacityGap) * 100_000) / Math.max(1, desiredBuffer),
-      );
+      const desiredVacantDwellingBuffer = Math.max(1, Math.ceil(context.householdCount / 10));
+      return targetCountPressure(context.vacantDwellingCount, desiredVacantDwellingBuffer);
     },
   }),
 ]);

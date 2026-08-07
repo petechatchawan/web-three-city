@@ -10,6 +10,7 @@ import {
 
 const context = {
   residentCount: 100,
+  householdCount: 50,
   residentCapacity: 96,
   vacantDwellingCount: 0,
   incomingHouseholdCount: 2,
@@ -34,6 +35,75 @@ describe('RCI Demand foundation', () => {
     expect(forward.contributions.map((value) => value.factorDefinitionId)).toEqual(
       [...forward.contributions.map((value) => value.factorDefinitionId)].sort(),
     );
+  });
+
+  it('recovers every closed growth channel through the final daily evaluation boundary', () => {
+    const evaluation = evaluateRciDemand(
+      {
+        ...context,
+        residentCount: 4,
+        householdCount: 3,
+        residentCapacity: 12,
+        vacantDwellingCount: 0,
+        incomingHouseholdCount: 0,
+        displacedHouseholdCount: 0,
+        workingAgeResidentCount: 4,
+        employedResidentCount: 4,
+        unemployedResidentCount: 0,
+        totalPositionCapacity: 4,
+        vacantPositionCount: 0,
+        compatibleVacantPositionCount: 0,
+        commercialPositionCapacity: 2,
+        commercialVacantPositionCount: 0,
+        industrialPositionCapacity: 2,
+        industrialVacantPositionCount: 0,
+      },
+      FOUNDATION_RCI_DEMAND_FACTORS,
+    );
+    for (const factorDefinitionId of [
+      'demand.residential.target-buffer',
+      'demand.commercial.target-buffer',
+      'demand.industrial.target-buffer',
+    ]) {
+      expect(
+        evaluation.contributions.find((value) => value.factorDefinitionId === factorDefinitionId)
+          ?.valueMilli,
+      ).toBe(100_000);
+    }
+    expect(evaluation.rawResidentialMilli).toBe(50_000);
+    expect(evaluation.rawCommercialMilli).toBe(70_000);
+    expect(evaluation.rawIndustrialMilli).toBe(70_000);
+
+    let demand = {
+      residentialMilli: -32_000,
+      commercialMilli: -29_000,
+      industrialMilli: -47_000,
+      evaluatedAtTick: 248,
+    };
+    let growthGates = {
+      residentialOpen: false,
+      commercialOpen: false,
+      industrialOpen: false,
+      evaluatedAtTick: 248,
+    };
+    for (const evaluationTick of [272, 296, 320]) {
+      demand = smoothRciDemand({ previous: demand, evaluation, evaluationTick });
+      growthGates = updateRciGrowthGates({
+        previous: growthGates,
+        demand,
+        evaluationTick,
+      });
+    }
+    expect(demand.evaluatedAtTick).toBe(320);
+    expect(growthGates.evaluatedAtTick).toBe(320);
+    expect(demand.residentialMilli).toBeGreaterThanOrEqual(15_000);
+    expect(demand.commercialMilli).toBeGreaterThanOrEqual(15_000);
+    expect(demand.industrialMilli).toBeGreaterThanOrEqual(15_000);
+    expect(growthGates).toMatchObject({
+      residentialOpen: true,
+      commercialOpen: true,
+      industrialOpen: true,
+    });
   });
 
   it('smooths with integer arithmetic and persists hysteresis in the neutral band', () => {

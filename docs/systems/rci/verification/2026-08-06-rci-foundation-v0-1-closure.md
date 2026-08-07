@@ -1,7 +1,9 @@
 # RCI Demand & Occupancy Foundation v0.1 — Closure Record
 
-**Status:** Implementation complete; final verification and sequential merge in progress  
-**Stack:** PR 2 Population → PR 3 Housing/Migration → PR 4 Employment → PR 5 Demand/Growth → PR 6 Game Integration
+**Status:** Closed and merged to `master`  
+**Closed:** 2026-08-06  
+**Final foundation commit:** `9409e301d2710db856b584fc555d5c4f714bba62`  
+**Final foundation tree:** `75a04d244a3e27a7f6a89d46f90bd676d60626d4`
 
 ## Implemented Scope
 
@@ -12,12 +14,23 @@
 - Workplace inventory, position capacities, Employment assignments, stability-first matching, and controlled upgrades.
 - Fixed-point R/C/I Demand, smoothing, persisted hysteresis gates, and caller-supplied Building Growth policy.
 - Atomic Simulation/Building/RCI game tick.
-- WorldSaveV5 persistence/migration.
-- Compact RCI HUD, browser acceptance, and 5,000-Citizen baseline harness.
+- `WorldSaveV5` persistence and V1–V4 migration.
+- Compact RCI HUD, browser acceptance, Save/resume coverage, and 5,000-Citizen deterministic baseline.
 
 ## Explicitly Outside v0.1
 
 Economy, taxes, wages, profitability, utilities, city services, traffic, Land Value, abandonment, density upgrades, Education gameplay, Citizen movement AI, and final art content.
+
+## Sequential Merge Record
+
+| Implementation boundary | Pull request | Squash-merge commit |
+|---|---:|---|
+| Core contracts, registries, snapshots, and Save V1 | #26 | `10bfa64bbb91e678f460b11ce2e022ee3ad1be14` |
+| Population, relationships, households, and lifecycle | #27 | `e44c98d70efcf614cebe9920931b3052e4129301` |
+| Housing, migration, relocation, and displacement | #28 | `b0b67c54e98691c92f217fcc360b44f4d9cb1e4d` |
+| Workplaces and Employment | #29 | `90ead5bd1145ff1497a92504fb4670d701b54be6` |
+| Demand and Building Growth policy | #30 | `c7f5bc5a8ba7ec86dd9e7879f0dfd15fd85a5f58` |
+| Atomic game integration, HUD, Save, and verification | #31 | `9409e301d2710db856b584fc555d5c4f714bba62` |
 
 ## Verification Corrections Applied
 
@@ -26,20 +39,62 @@ Economy, taxes, wages, profitability, utilities, city services, traffic, Land Va
 - Before the first Demand evaluation, all three zone channels use a deterministic bootstrap-open policy; persisted 15/5 hysteresis becomes authoritative immediately after the first evaluation.
 - No-op Housing reconciliation and atomic Game World publication preserve snapshot identity.
 - Strict optional-property typing is preserved for displacement expiry configuration.
-- Browser Save/Load acceptance reads the current WorldSaveV5 key and top-level schema while retaining each domain's own nested schema version.
+- Browser Save/Load acceptance reads the current `WorldSaveV5` key and top-level schema while retaining each domain's nested schema version.
+
+## Exact-Tree Verification Evidence
+
+The complete foundation was verified on:
+
+```text
+Implementation head: 5f14c3c5797928a7b3874d137014b8d981620b5a
+Tree:                75a04d244a3e27a7f6a89d46f90bd676d60626d4
+Workflow run:        31111324705
+Lean CI job:         92649574416 — PASS
+Full browser job:    92649573982 — PASS
+```
+
+Observed results:
+
+```text
+RCI Core                             84 tests PASS
+Game                                 197 tests PASS
+Deployment                           16/16 PASS
+Playwright browser acceptance        121 passed
+Formatting / ESLint / TypeScript     PASS
+Provenance                           469 source files PASS
+Workspace builds                     PASS
+Working tree                         clean
+```
+
+The final `master` commit `9409e301d2710db856b584fc555d5c4f714bba62` has the same tree SHA as the verified implementation head. The sequential squash merges therefore changed commit ancestry but not the verified source tree.
 
 ## Closure Gates
 
-- [ ] All stacked branches are formatted and type-safe.
-- [ ] All package and repository tests pass.
-- [ ] Deployment and build gates pass.
-- [ ] Full browser verification passes.
-- [ ] V1–V5 Save migration and continuous/resume equivalence pass.
-- [ ] 5,000-Citizen baseline passes.
-- [ ] No active-tool or undo regression exists.
-- [ ] PR 2–6 are merged sequentially and `master` is reverified.
-- [ ] Living System Docs point to final `master` commit.
+- [x] All implementation branches are formatted and type-safe.
+- [x] All package and repository tests pass.
+- [x] Deployment and build gates pass.
+- [x] Full browser verification passes.
+- [x] V1–V5 Save migration and continuous/resume equivalence pass.
+- [x] 5,000-Citizen deterministic baseline passes.
+- [x] No active-tool, pointer-session, or undo regression exists.
+- [x] PR #26–#31 were merged sequentially.
+- [x] Final `master` tree is identical to the fully verified tree.
+- [x] Living System Docs point to the final foundation baseline.
 
-## Verification Evidence
+## Post-Closure Correction
 
-Exact passing commit SHAs, workflow run IDs, command coverage, merge SHAs, and the final verdict are recorded only after the current Lean and Full browser verification cycle completes. This avoids treating superseded or partially passing runs as closure evidence.
+Manual gameplay later exposed a fully-occupied R/C/I Growth deadlock. The correction is tracked independently in PR #32 and in [the hotfix verification record](2026-08-06-rci-occupied-dwelling-demand-deadlock.md).
+
+The original saved city passed manual recovery acceptance on the correction branch:
+
+```text
+Population 67 | Households 32 | Housing 32/34 | Employment 50/50
+Buildings 37
+Demand R +43 open | C +22 open | I +22 open
+```
+
+Population, Households, Employment, Buildings, and all three Growth gates resumed naturally without a world reset or Save migration. PR #32 is not part of the closed foundation baseline until its own exact-head automated verification passes and it is merged.
+
+## Documentation Authority
+
+The foundation closure evidence in this record is final. Current runtime and post-closure delivery status are maintained by [`../README.md`](../README.md); focused correction evidence is maintained by the linked hotfix record.

@@ -1,0 +1,171 @@
+name: Architecture Planning ARB Fix
+
+on:
+  push:
+    branches:
+      - chore/architecture-infrastructure-audit
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'architecture-planning-agent'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chore/architecture-infrastructure-audit
+      - name: Apply ARB planning corrections
+        run: |
+          set -euo pipefail
+          git config user.name 'architecture-planning-agent'
+          git config user.email 'architecture-planning-agent@users.noreply.github.com'
+          python <<'PY'
+          from pathlib import Path
+
+          spec = Path('docs/systems/architecture-infrastructure/specs/2026-08-07-architecture-infrastructure-upgrade-v0-1.md')
+          text = spec.read_text()
+          text = text.replace(
+          '''input command
+          -> capture committed world revision
+          -> domain plan(s)
+          -> cross-system policy and dependent plans
+          -> validate every before/after revision and invariant
+          -> publish one coherent committed world
+          -> rebuild derived environments
+          -> update renderers and HUD
+          -> record a dependent-world Undo command''',
+          '''input command
+          -> capture committed world revision
+          -> domain plan(s)
+          -> cross-system policy and dependent plans
+          -> derive Road/Zone/Building environments from the candidate snapshots
+          -> validate every before/after revision, environment provenance, and invariant
+          -> publish one coherent committed world
+          -> synchronize renderers and HUD from the committed world
+          -> record a dependent-world Undo command''')
+          marker = '''type WorldPublication = Readonly<{
+            baseRevision: number;
+            baseFingerprint: string;
+            nextWorld: CommittedWorld;
+            nextFingerprint: string;
+          }>;
+          ```'''
+          replacement = '''type WorldPublication = Readonly<{
+            baseRevision: number;
+            baseFingerprint: string;
+            nextWorld: CommittedWorld;
+            nextFingerprint: string;
+          }>;
+
+          type WorldPublicationResult =
+            | Readonly<{
+                status: 'rejected';
+                world: CommittedWorld;
+                reason: WorldPublicationRejection;
+              }>
+            | Readonly<{
+                status: 'committed';
+                world: CommittedWorld;
+                presentation:
+                  | Readonly<{ status: 'synchronized' }>
+                  | Readonly<{ status: 'degraded'; recoveryRequired: true }>;
+              }>;
+          ```'''
+          assert marker in text
+          text = text.replace(marker, replacement, 1)
+          text = text.replace(
+          'Any validation or presentation failure before publication leaves the previous committed world unchanged. Presentation failure after publication must have a deterministic recovery path that rebuilds from the committed read model.',
+          'Any planning, derivation, or validation failure before publication leaves the previous committed world unchanged. Presentation is invoked only after publication; a post-publication adapter failure must have a deterministic recovery path that rebuilds from the committed read model and must never be represented as a rejected transaction.')
+          text = text.replace(
+          '- Publication is one replace operation or no replace operation.\n- Save and presentation consumers read the same committed object.',
+          '- Candidate Road/Zone/Building environments are immutable derived views created and provenance-validated before publication; they are part of the committed-world view, not post-publication caches.\n- Publication is one replace operation or no replace operation.\n- A rejected result always means authority is unchanged; a committed result remains committed even when presentation is degraded.\n- Save and presentation consumers read the same committed object.')
+          spec.write_text(text)
+
+          adr = Path('docs/systems/architecture-infrastructure/adrs/0002-complete-world-publication-and-dependent-undo.md')
+          text = adr.read_text()
+          text = text.replace(
+          '''capture committed world
+          -> plan domain changes
+          -> reconcile dependent state
+          -> validate before/after revisions and invariants
+          -> publish one next committed world
+          -> rebuild or synchronize derived presentation''',
+          '''capture committed world
+          -> plan domain changes
+          -> reconcile dependent state
+          -> derive Road/Zone/Building environments from the candidate snapshots
+          -> validate before/after revisions, environment provenance, and invariants
+          -> publish one next committed world
+          -> synchronize derived presentation from the committed world''')
+          decision_anchor = 'Save reads only the committed world. Undo restores a complete dependent-world state or executes a deterministic reverse command that recreates all dependent projections, inventories, assignments, and references. Restoring one snapshot while leaving dependent state stale is prohibited.'
+          assert decision_anchor in text
+          text = text.replace(decision_anchor, decision_anchor + "\n\nRoad, Zone, and Building placement environments are immutable derived views of a candidate world. They are constructed and provenance-validated before atomic publication and travel with the committed-world view. They are not rebuilt as authoritative caches after publication. Publication results are discriminated: `rejected` means authority is unchanged; `committed` means authority changed successfully, with presentation separately reported as `synchronized` or `degraded`. A degraded presentation must never be treated as a failed transaction or trigger domain rollback.")
+          adr.write_text(text)
+
+          tdd = Path('docs/systems/architecture-infrastructure/tdd/2026-08-07-architecture-infrastructure-upgrade-v0-1.md')
+          text = tdd.read_text()
+          old = '''it('post-publication presentation failure retains authority and rebuilds from committed world', () => {
+            const coordinator = createWorldTransactionCoordinator(fixtures.initialWorld, failingOncePresentation);
+            const result = coordinator.publish(fixtures.nextPublication);
+            expect(result.presentationStatus).toBe('degraded');
+            expect(result.world).toEqual(fixtures.nextPublication.nextWorld);
+            expect(coordinator.snapshot()).toEqual(fixtures.nextPublication.nextWorld);
+            expect(failingOncePresentation.rebuiltFrom).toEqual(fixtures.nextPublication.nextWorld);
+          });'''
+          new = '''it('post-publication presentation failure is committed but degraded and rebuilds from committed world', () => {
+            const coordinator = createWorldTransactionCoordinator(fixtures.initialWorld, failingOncePresentation);
+            const result = coordinator.publish(fixtures.nextPublication);
+            expect(result.status).toBe('committed');
+            if (result.status !== 'committed') throw new Error('expected committed publication');
+            expect(result.presentation).toEqual({ status: 'degraded', recoveryRequired: true });
+            expect(result.world).toEqual(fixtures.nextPublication.nextWorld);
+            expect(coordinator.snapshot()).toEqual(fixtures.nextPublication.nextWorld);
+            expect(failingOncePresentation.rebuiltFrom).toEqual(fixtures.nextPublication.nextWorld);
+          });'''
+          assert old in text
+          text = text.replace(old, new, 1)
+          text = text.replace('expect(result.ok).toBe(true);\n  expect(storage.readCount).toBe(1);', "expect(result.status).toBe('committed');\n  expect(storage.readCount).toBe(1);", 1)
+          old_iface = '''export interface WorldPublicationResult {
+            readonly ok: true;
+            readonly world: CommittedWorld;
+            readonly presentationStatus: 'ready' | 'degraded';
+          }'''
+          new_iface = '''export type WorldPublicationResult =
+            | Readonly<{
+                status: 'rejected';
+                world: CommittedWorld;
+                reason: WorldPublicationRejection;
+              }>
+            | Readonly<{
+                status: 'committed';
+                world: CommittedWorld;
+                presentation:
+                  | Readonly<{ status: 'synchronized' }>
+                  | Readonly<{ status: 'degraded'; recoveryRequired: true }>;
+              }>;
+
+          export type WorldPublicationRejection =
+            | 'world:stale-revision'
+            | 'world:stale-content'
+            | 'world:invalid-candidate';'''
+          assert old_iface in text
+          text = text.replace(old_iface, new_iface, 1)
+          text = text.replace(
+          '- stage all dependent snapshots before publication;\n- validate Terrain -> Water -> Road -> Zone -> Building -> Simulation -> RCI coherence;',
+          '- stage all dependent snapshots before publication;\n- derive Road/Zone/Building environments from the staged candidate snapshots before publication;\n- validate Terrain -> Water -> Road -> Zone -> Building -> Simulation -> RCI coherence plus exact environment provenance before publication;')
+          text = text.replace(
+          '- leave the previous committed world unchanged if any stage fails;\n- notify presentation only after successful publication.\n- if a presentation adapter fails after publication, retain the new authoritative world, report degraded state, and rebuild presentation from that committed world; never roll back domain authority after publication.',
+          "- return `{ status: 'rejected', world: previousWorld, reason }` for pre-publication rejection and leave the previous committed world unchanged;\n- notify presentation only after successful publication;\n- return `{ status: 'committed', ... }` after authority changes, with presentation reported separately as `synchronized` or `degraded`;\n- if a presentation adapter fails after publication, retain the new authoritative world, return committed/degraded, and rebuild presentation from that committed world; never roll back domain authority after publication.")
+          text = text.replace(
+          '`CommittedWorldStore.replace` accepts only `expectedRevision === current.revision` and `next.revision === current.revision + 1`; it rejects stale or skipped candidates without mutating the store. Derived-environment provenance fields must match the domain revisions in the candidate world.',
+          '`CommittedWorldStore.replace` accepts only `expectedRevision === current.revision` and `next.revision === current.revision + 1`; it rejects stale or skipped candidates without mutating the store. Road/Zone/Building environments are derived from the candidate snapshots before replacement, and their provenance fields must match the exact domain revisions in that candidate world.')
+          tdd.write_text(text)
+          PY
+
+          git diff --check
+          git rm .github/workflows/architecture-planning-arb-fix.yml
+          git add docs/systems/architecture-infrastructure/specs/2026-08-07-architecture-infrastructure-upgrade-v0-1.md docs/systems/architecture-infrastructure/adrs/0002-complete-world-publication-and-dependent-undo.md docs/systems/architecture-infrastructure/tdd/2026-08-07-architecture-infrastructure-upgrade-v0-1.md
+          git commit -m 'docs(architecture): resolve ARB publication semantics'
+          git push origin HEAD:chore/architecture-infrastructure-audit

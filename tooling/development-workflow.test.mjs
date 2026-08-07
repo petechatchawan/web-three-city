@@ -169,3 +169,23 @@ test('PR template delegates affected-consumer decisions to AGENTS and enforces s
   assert.match(template, /exact.*SHA/i);
   assert.match(template, /debug|temporary/i);
 });
+
+test('development workflow documents master trunk and package-targeted iteration instead of develop integration', async () => {
+  const workflow = await readRepoText('docs/development-workflow.md');
+  assert.match(workflow, /master.*always-releasable.*trunk/is);
+  assert.match(workflow, /short-lived.*branch.*pull request.*master/is);
+  assert.match(workflow, /Verification Ladder/i);
+  assert.match(workflow, /AGENTS\.md/);
+  assert.match(workflow, /pnpm --filter @web-three-city\/<pkg> test/);
+  assert.doesNotMatch(workflow, /develop is the active integration branch/i);
+  assert.doesNotMatch(workflow, /target `develop`/i);
+});
+
+test('system registry reports implemented RCI and the Development Workflow system', async () => {
+  const registry = await readRepoText('docs/systems/README.md');
+  assert.match(
+    registry,
+    /\[RCI Demand & Occupancy\]\(rci\/README\.md\).*Implemented.*`rci-core`.*`RciSaveV1`.*`WorldSaveV5`/i,
+  );
+  assert.match(registry, /\[Development Workflow\]\(development-workflow\/README\.md\).*Implemented/i);
+});

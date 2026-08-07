@@ -15,7 +15,7 @@
     "typecheck": "pnpm -r --if-present typecheck && pnpm typecheck:browser",
     "typecheck:browser": "tsc -p tsconfig.browser-tests.json --noEmit",
     "lint": "eslint .",
-    "format:check": "prettier --write packages/rci-core/src/demand/demand-factor.ts packages/rci-core/test/demand-foundation.test.ts && git diff -- packages/rci-core/src/demand/demand-factor.ts packages/rci-core/test/demand-foundation.test.ts && exit 1",
+    "format:check": "prettier --check \"**/*.{ts,js,yml,yaml}\"",
     "provenance:check": "node tooling/check-provenance.mjs",
     "test": "pnpm -r --if-present test",
     "test:coverage": "pnpm -r --if-present test:coverage",

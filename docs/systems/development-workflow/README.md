@@ -1,6 +1,6 @@
 # Development Workflow System
 
-**Status:** Approved design — implementation plan ready; not implemented  
+**Status:** Implemented  
 **System:** Development Workflow  
 **Primary ownership:** repository root configuration, `.github/`, `AGENTS.md`, and development documentation  
 **Persistence:** Git-tracked repository configuration and documentation only
@@ -9,47 +9,41 @@
 
 Define the repository-owned development loop for humans and AI agents so changes can be located, implemented, verified, documented, and merged with fast feedback without weakening final safety gates.
 
-The system owns development commands, verification escalation policy, pre-commit automation, AI onboarding guidance, GitHub contribution templates, trunk policy, and workflow documentation consistency.
-
 ## Current State
 
-The v0.1 design is approved and the TDD implementation plan is ready for execution, but the workflow behavior is not yet implemented. The current repository still has the legacy workflow characteristics that motivated this milestone:
+Development Workflow v0.1 is implemented on the implementation branch. Package-targeted Level 0/1 verification is the default inner loop; Level 2 uses the conservative static consumer map; Level 3 `pnpm verify` is the repository/tooling finalization gate; and Level 4 `pnpm verify:full` is reserved for browser/release/milestone closure according to `AGENTS.md` § Verification Escalation Rules.
 
-- root verification defaults to repository-wide commands;
-- there is no root `AGENTS.md`;
-- there is no Husky/lint-staged pre-commit guard;
-- there is no structured bug Issue Form or repository PR template;
-- `docs/development-workflow.md` still describes a `develop` integration branch that no longer exists;
-- `docs/systems/README.md` still contains stale RCI registry status.
+The repository exposes root `pnpm format`, root `test:watch`, and `test:watch` in the 17 workspaces that already use Vitest. Husky invokes lint-staged at pre-commit so staged TypeScript/JavaScript receives the approved Prettier/ESLint fixes and staged YAML receives Prettier. The hook does not run TypeScript, tests, builds, `pnpm verify`, or Playwright.
 
-Until the implementation PR is merged, existing repository commands and CI remain authoritative.
+Root `AGENTS.md` is the normative AI workflow authority. It owns code-location guidance, architecture boundaries, Level 0–4 conflict resolution, the explicit static Level 2 verification map, trunk policy, Definition of Done, and the exact-head documentation exception.
 
-## Approved Direction
+GitHub contribution surfaces include the YAML Bug Issue Form and PR template. The PR template delegates affected-consumer selection to `AGENTS.md` rather than redefining escalation rules.
 
-Development Workflow System Improvement v0.1 will establish:
+`master` is the always-releasable trunk by repository policy. Short-lived `feat/*`, `fix/*`, `docs/*`, and `chore/*` branches merge to `master` by pull request; there is no `develop` integration branch. This policy does not claim that GitHub branch protection is technically enabled.
 
-1. package-targeted verification as the default AI inner loop;
-2. an explicit Level 0–4 verification ladder with a static downstream escalation map;
-3. Prettier auto-fix plus Husky/lint-staged staged-file formatting and ESLint fixes;
-4. a single root `AGENTS.md` as the AI onboarding and execution authority;
-5. a GitHub YAML bug Issue Form and PR template tied directly to `AGENTS.md` verification rules;
-6. same-PR Definition of Done for behavior and living documentation, with an explicit exact-head CI evidence exception;
-7. `master` as the always-releasable trunk with short-lived branches;
-8. repair of stale workflow and system-registry documentation.
+Behavior/public-contract changes update their living system README in the same implementation PR. Required living docs are complete before exact-head verification; post-run CI identifiers belong in the PR body/comment when no tree mutation is required.
 
-## Execution Boundary
+## Static Map Maintenance
 
-Planning PR #34 remains documentation-only. After it is approved and merged, implementation must use one short-lived branch and one implementation PR containing workflow configuration, tests, templates, `AGENTS.md`, living documentation, and the stable verification record. Final CI run IDs and artifact metadata belong in the implementation PR evidence rather than in a post-verification metadata-only commit.
+The Level 2 table in `AGENTS.md` is conservative verification policy, not the architectural dependency graph. Workspace dependency changes that alter consumers must update that table in the same PR. Current package manifests remain the factual input used to review the map.
 
-## Non-Responsibilities
+## Current Limitations / Deferred v0.2
 
-v0.1 intentionally does not refactor `apps/game/src/game-bootstrap.ts`, add an application layer, add Nx/Turborepo, implement automatic affected-graph tooling, shard the browser suite, redesign package boundaries, or add gameplay systems.
+v0.1 intentionally does not:
+
+- refactor `apps/game/src/game-bootstrap.ts` or introduce an Application Layer;
+- replace the static downstream map with automatic affected/dependent graph tooling;
+- add Nx, Turborepo, or another build-graph framework;
+- redesign browser-suite tagging, sharding, or CI parallelization;
+- change gameplay/runtime behavior, Save formats, or package ownership boundaries.
 
 ## Documentation Authority
 
-1. Approved design: [Development Workflow System Improvement v0.1](specs/2026-08-07-development-workflow-system-improvement-v0-1.md)
-2. TDD implementation plan: [Development Workflow System Improvement v0.1 Implementation Plan](tdd/2026-08-07-development-workflow-system-improvement-v0-1.md)
-3. Current legacy workflow until implementation: [`docs/development-workflow.md`](../../development-workflow.md)
-4. System registry: [`docs/systems/README.md`](../README.md)
+1. Normative execution policy: [`AGENTS.md`](../../../AGENTS.md)
+2. Approved design: [Development Workflow System Improvement v0.1](specs/2026-08-07-development-workflow-system-improvement-v0-1.md)
+3. TDD implementation plan: [Development Workflow System Improvement v0.1 Implementation Plan](tdd/2026-08-07-development-workflow-system-improvement-v0-1.md)
+4. Stable verification record: [Development Workflow System Improvement v0.1 Verification](verification/2026-08-07-development-workflow-system-improvement-v0-1.md)
+5. Human workflow overview: [`docs/development-workflow.md`](../../development-workflow.md)
+6. System registry: [`docs/systems/README.md`](../README.md)
 
-After v0.1 implementation, this README becomes the concise current-state handoff and the legacy workflow document must be updated or reduced to a compatible entry point rather than retaining contradictory branch or verification rules.
+The approved specification and TDD plan remain historical design/execution records. Delivery status and final exact-head evidence are recorded by this living handoff, the stable verification record, and PR #35 without rewriting historical decisions after verification.

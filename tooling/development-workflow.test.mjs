@@ -1,0 +1,191 @@
+import assert from 'node:assert/strict';
+import { readdir, readFile } from 'node:fs/promises';
+import { URL } from 'node:url';
+import test from 'node:test';
+
+const rootUrl = new URL('../', import.meta.url);
+
+async function readRepoText(path) {
+  return readFile(new URL(path, rootUrl), 'utf8');
+}
+
+async function readRepoJson(path) {
+  return JSON.parse(await readRepoText(path));
+}
+
+async function readWorkspaceManifests() {
+  const manifests = [];
+  for (const root of ['apps', 'packages']) {
+    const rootDirectory = new URL(`${root}/`, rootUrl);
+    const entries = await readdir(rootDirectory, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      const path = `${root}/${entry.name}/package.json`;
+      try {
+        manifests.push({ path, packageJson: await readRepoJson(path) });
+      } catch (error) {
+        if (error?.code !== 'ENOENT') throw error;
+      }
+    }
+  }
+  return manifests;
+}
+
+const rootPackageJson = await readRepoJson('package.json');
+
+test('root exposes canonical fast-loop scripts', () => {
+  assert.equal(rootPackageJson.scripts.format, 'prettier --write "**/*.{ts,js,yml,yaml}"');
+  assert.equal(rootPackageJson.scripts['test:watch'], 'pnpm -r --if-present test:watch');
+});
+
+test('every Vitest workspace exposes watch mode and non-test workspaces do not get a fake test surface', async () => {
+  const manifests = await readWorkspaceManifests();
+  let vitestWorkspaceCount = 0;
+  for (const { path, packageJson } of manifests) {
+    const testScript = packageJson.scripts?.test;
+    if (typeof testScript === 'string' && testScript.includes('vitest')) {
+      vitestWorkspaceCount += 1;
+      assert.equal(packageJson.scripts['test:watch'], 'vitest', path);
+    }
+  }
+  assert.equal(vitestWorkspaceCount, 17);
+  const terrainLab = manifests.find(({ packageJson }) => packageJson.name === '@web-three-city/terrain-lab');
+  assert.ok(terrainLab);
+  assert.equal(terrainLab.packageJson.scripts?.test, undefined);
+  assert.equal(terrainLab.packageJson.scripts?.['test:watch'], undefined);
+});
+
+test('repository-wide tooling gate includes workflow contract tests', () => {
+  assert.match(rootPackageJson.scripts['test:deployment'], /development-workflow\.test\.mjs/);
+});
+
+test('pre-commit setup is staged-only and excludes slow gates', async () => {
+  const packageJson = await readRepoJson('package.json');
+  const preCommit = await readRepoText('.husky/pre-commit');
+  assert.equal(packageJson.scripts.prepare, 'husky');
+  assert.equal(typeof packageJson.devDependencies.husky, 'string');
+  assert.equal(typeof packageJson.devDependencies['lint-staged'], 'string');
+  assert.equal(preCommit.trim(), 'pnpm exec lint-staged');
+  const lintStaged = packageJson['lint-staged'];
+  assert.deepEqual(lintStaged['*.{ts,js}'], ['prettier --write', 'eslint --fix']);
+  assert.equal(lintStaged['*.{mjs,cjs}'], 'eslint --fix');
+  assert.equal(lintStaged['*.{yml,yaml}'], 'prettier --write');
+  const serializedPolicy = `${preCommit}\n${JSON.stringify(lintStaged)}`;
+  assert.doesNotMatch(serializedPolicy, /typecheck|vitest|playwright|pnpm verify|eslint \.|pnpm lint/i);
+});
+
+test('AGENTS defines actionable repository navigation and verification policy', async () => {
+  const agents = await readRepoText('AGENTS.md');
+  for (const heading of [
+    '## Repository Map',
+    '## How to Locate Code',
+    '## Architecture Rules',
+    '## Fast Verification',
+    '## Verification Escalation Rules',
+    '## Static Level 2 Verification Map',
+    '## Branch Policy',
+    '## Documentation and Exact-Head Evidence',
+    '## Definition of Done',
+    '## Forbidden Shortcuts',
+  ]) {
+    assert.ok(agents.includes(heading), heading);
+  }
+  assert.match(agents, /pnpm --filter @web-three-city\/<pkg> test/);
+  assert.match(agents, /pnpm --filter @web-three-city\/<pkg> typecheck/);
+  for (const level of ['Level 0', 'Level 1', 'Level 2', 'Level 3', 'Level 4']) {
+    assert.ok(agents.includes(level), level);
+  }
+  assert.match(agents, /highest required level/i);
+  assert.match(agents, /conservative verification map/i);
+  assert.match(agents, /same PR/i);
+  assert.match(agents, /exact-head/i);
+  assert.match(agents, /pnpm verify.*not.*default|not.*default.*pnpm verify/is);
+  assert.match(agents, /master.*always-releasable/is);
+});
+
+test('AGENTS static Level 2 map contains every approved changed-owner row', async () => {
+  const agents = await readRepoText('AGENTS.md');
+  for (const owner of [
+    'world-core',
+    'terrain-core',
+    'simulation-core',
+    'zone-core',
+    'building-core',
+    'rci-core',
+    'road-core',
+    'water-core',
+    'terrain-generator',
+    'camera-input',
+    'building-three',
+    'road-three',
+    'terrain-three',
+    'water-three',
+    'zone-three',
+  ]) {
+    assert.ok(agents.includes('| `' + owner + '` |'), owner);
+  }
+});
+
+test('AGENTS makes the exact-head documentation exception normative', async () => {
+  const agents = await readRepoText('AGENTS.md');
+  assert.match(agents, /living.*documentation.*before.*exact-head/is);
+  assert.match(agents, /PR body|PR comment|pull request body|pull request comment/i);
+  assert.match(agents, /do not create.*commit.*run ID|do not.*commit.*CI.*metadata/is);
+});
+
+test('bug Issue Form captures system, symptom, expectation, actual behavior, and reproduction', async () => {
+  const issueForm = await readRepoText('.github/ISSUE_TEMPLATE/bug_report.yml');
+  assert.match(issueForm, /name:\s*Bug report/i);
+  assert.match(issueForm, /type:\s*dropdown/);
+  assert.match(issueForm, /id:\s*system/);
+  for (const system of [
+    'World',
+    'Terrain',
+    'Water',
+    'Roads',
+    'Zoning',
+    'Buildings',
+    'Simulation Time',
+    'RCI Demand & Occupancy',
+    'Economy',
+    'Cross-system / Unknown',
+  ]) {
+    assert.ok(issueForm.includes(system), system);
+  }
+  for (const id of ['symptom', 'expected', 'actual', 'reproduction']) {
+    assert.match(issueForm, new RegExp(`id:\\s*${id}`));
+  }
+  assert.match(issueForm, /required:\s*true/);
+});
+
+test('PR template delegates affected-consumer decisions to AGENTS and enforces same-PR docs', async () => {
+  const template = await readRepoText('.github/pull_request_template.md');
+  assert.match(template, /AGENTS\.md.*Verification Escalation Rules/is);
+  assert.match(template, /Targeted package tests/i);
+  assert.match(template, /Targeted package typecheck/i);
+  assert.match(template, /Affected consumer verification/i);
+  assert.match(template, /docs\/systems\/<system>\/README\.md/i);
+  assert.match(template, /Behavior.*contracts.*unchanged|documentation update not required/is);
+  assert.match(template, /exact.*SHA/i);
+  assert.match(template, /debug|temporary/i);
+});
+
+test('development workflow documents master trunk and package-targeted iteration instead of develop integration', async () => {
+  const workflow = await readRepoText('docs/development-workflow.md');
+  assert.match(workflow, /master.*always-releasable.*trunk/is);
+  assert.match(workflow, /short-lived.*branch.*pull request.*master/is);
+  assert.match(workflow, /Verification Ladder/i);
+  assert.match(workflow, /AGENTS\.md/);
+  assert.match(workflow, /pnpm --filter @web-three-city\/<pkg> test/);
+  assert.doesNotMatch(workflow, /develop is the active integration branch/i);
+  assert.doesNotMatch(workflow, /target `develop`/i);
+});
+
+test('system registry reports implemented RCI and the Development Workflow system', async () => {
+  const registry = await readRepoText('docs/systems/README.md');
+  assert.match(
+    registry,
+    /\[RCI Demand & Occupancy\]\(rci\/README\.md\).*Implemented.*`rci-core`.*`RciSaveV1`.*`WorldSaveV5`/i,
+  );
+  assert.match(registry, /\[Development Workflow\]\(development-workflow\/README\.md\).*Implemented/i);
+});

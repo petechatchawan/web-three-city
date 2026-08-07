@@ -11,9 +11,9 @@
   },
   "scripts": {
     "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
     "test:coverage": "vitest run --coverage --passWithNoTests",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "build": "tsc -p tsconfig.build.json",
-    "test:watch": "vitest"
+    "build": "tsc -p tsconfig.build.json"
   }
 }

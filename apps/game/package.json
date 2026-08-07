@@ -28,8 +28,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
     "test:coverage": "vitest run --coverage --passWithNoTests",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test:watch": "vitest"
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   }
 }

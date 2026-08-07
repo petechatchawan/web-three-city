@@ -58,3 +58,18 @@ test('every Vitest workspace exposes watch mode and non-test workspaces do not g
 test('repository-wide tooling gate includes workflow contract tests', () => {
   assert.match(rootPackageJson.scripts['test:deployment'], /development-workflow\.test\.mjs/);
 });
+
+test('pre-commit setup is staged-only and excludes slow gates', async () => {
+  const packageJson = await readRepoJson('package.json');
+  const preCommit = await readRepoText('.husky/pre-commit');
+  assert.equal(packageJson.scripts.prepare, 'husky');
+  assert.equal(typeof packageJson.devDependencies.husky, 'string');
+  assert.equal(typeof packageJson.devDependencies['lint-staged'], 'string');
+  assert.equal(preCommit.trim(), 'pnpm exec lint-staged');
+  const lintStaged = packageJson['lint-staged'];
+  assert.deepEqual(lintStaged['*.{ts,js}'], ['prettier --write', 'eslint --fix']);
+  assert.equal(lintStaged['*.{mjs,cjs}'], 'eslint --fix');
+  assert.equal(lintStaged['*.{yml,yaml}'], 'prettier --write');
+  const serializedPolicy = `${preCommit}\n${JSON.stringify(lintStaged)}`;
+  assert.doesNotMatch(serializedPolicy, /typecheck|vitest|playwright|pnpm verify|eslint \.|pnpm lint/i);
+});

@@ -26,21 +26,32 @@
     "verify": "pnpm check",
     "verify:full": "pnpm install --frozen-lockfile && pnpm verify && pnpm exec playwright install chromium && pnpm test:browser:only && node tooling/verify-clean-worktree.mjs",
     "format": "prettier --write \"**/*.{ts,js,yml,yaml}\"",
-    "test:watch": "pnpm -r --if-present test:watch"
+    "test:watch": "pnpm -r --if-present test:watch",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",
     "@playwright/test": "1.61.1",
+    "@types/node": "26.1.1",
+    "@types/three": "0.185.0",
     "@vitest/coverage-v8": "4.1.10",
     "eslint": "9.39.5",
     "happy-dom": "20.11.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.3.0",
     "prettier": "3.9.6",
+    "three": "0.185.1",
     "typescript": "6.0.3",
     "typescript-eslint": "8.65.0",
     "vite": "8.1.5",
-    "vitest": "4.1.10",
-    "@types/node": "26.1.1",
-    "@types/three": "0.185.0",
-    "three": "0.185.1"
+    "vitest": "4.1.10"
+  },
+  "lint-staged": {
+    "*.{ts,js}": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "*.{mjs,cjs}": "eslint --fix",
+    "*.{yml,yaml}": "prettier --write"
   }
 }

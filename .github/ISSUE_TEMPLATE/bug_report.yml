@@ -55,7 +55,9 @@ body:
     id: state
     attributes:
       label: Save, game time, and environment
-      description: Include save version/state, in-game date/time, browser, Node/pnpm, or other relevant context.
+      description:
+        Include save version/state, in-game date/time, browser, Node/pnpm, or other
+        relevant context.
 
   - type: textarea
     id: evidence

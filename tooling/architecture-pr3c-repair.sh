@@ -16,6 +16,11 @@ text = text.replace(
     1,
 )
 text = text.replace(
+    "if ! printf '%s\\n' \"$RED_OUTPUT\" | grep -Eq 'rci-building-reconciliation|SaveCoordinator|publishCommittedDomain|Failed to resolve import|Cannot find module'; then",
+    "if ! grep -Eq 'rci-building-reconciliation|SaveCoordinator|publishCommittedDomain|Failed to resolve import|Cannot find module' <<< \"$RED_OUTPUT\"; then",
+    1,
+)
+text = text.replace(
     "git rm .github/workflows/architecture-pr3c-author.yml tooling/architecture-pr3c-author.sh",
     "git rm -f .github/workflows/architecture-pr3c-author.yml tooling/architecture-pr3c-author.sh tooling/architecture-pr3c-repair.sh",
     1,

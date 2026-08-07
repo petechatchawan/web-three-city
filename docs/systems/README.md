@@ -49,6 +49,7 @@ Git does not retain empty directories. Create a subdirectory when its first arti
 | [RCI Demand & Occupancy](rci/README.md) | Implemented | `rci-core` + `apps/game` orchestration | `RciSaveV1` / `WorldSaveV5` |
 | [Economy](economy/README.md) | Planned | not assigned | none |
 | [Development Workflow](development-workflow/README.md) | Implemented | root configuration, `.github/`, `AGENTS.md`, development docs | Git-tracked configuration and documentation |
+| [Architecture & Infrastructure](architecture-infrastructure/README.md) | Approved design — not implemented | repository architecture, application orchestration, verification infrastructure | Git-tracked planning; existing Save schemas unchanged |
 | [Documentation](documentation/README.md) | Implemented on this branch | repository documentation | Git history |
 
 ## Required handoff content

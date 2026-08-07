@@ -66,9 +66,8 @@ describe('RCI Demand foundation', () => {
       'demand.industrial.target-buffer',
     ]) {
       expect(
-        evaluation.contributions.find(
-          (value) => value.factorDefinitionId === factorDefinitionId,
-        )?.valueMilli,
+        evaluation.contributions.find((value) => value.factorDefinitionId === factorDefinitionId)
+          ?.valueMilli,
       ).toBe(100_000);
     }
     expect(evaluation.rawResidentialMilli).toBe(50_000);

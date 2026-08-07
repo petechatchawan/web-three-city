@@ -132,3 +132,40 @@ test('AGENTS makes the exact-head documentation exception normative', async () =
   assert.match(agents, /PR body|PR comment|pull request body|pull request comment/i);
   assert.match(agents, /do not create.*commit.*run ID|do not.*commit.*CI.*metadata/is);
 });
+
+test('bug Issue Form captures system, symptom, expectation, actual behavior, and reproduction', async () => {
+  const issueForm = await readRepoText('.github/ISSUE_TEMPLATE/bug_report.yml');
+  assert.match(issueForm, /name:\s*Bug report/i);
+  assert.match(issueForm, /type:\s*dropdown/);
+  assert.match(issueForm, /id:\s*system/);
+  for (const system of [
+    'World',
+    'Terrain',
+    'Water',
+    'Roads',
+    'Zoning',
+    'Buildings',
+    'Simulation Time',
+    'RCI Demand & Occupancy',
+    'Economy',
+    'Cross-system / Unknown',
+  ]) {
+    assert.ok(issueForm.includes(system), system);
+  }
+  for (const id of ['symptom', 'expected', 'actual', 'reproduction']) {
+    assert.match(issueForm, new RegExp(`id:\\s*${id}`));
+  }
+  assert.match(issueForm, /required:\s*true/);
+});
+
+test('PR template delegates affected-consumer decisions to AGENTS and enforces same-PR docs', async () => {
+  const template = await readRepoText('.github/pull_request_template.md');
+  assert.match(template, /AGENTS\.md.*Verification Escalation Rules/is);
+  assert.match(template, /Targeted package tests/i);
+  assert.match(template, /Targeted package typecheck/i);
+  assert.match(template, /Affected consumer verification/i);
+  assert.match(template, /docs\/systems\/<system>\/README\.md/i);
+  assert.match(template, /Behavior.*contracts.*unchanged|documentation update not required/is);
+  assert.match(template, /exact.*SHA/i);
+  assert.match(template, /debug|temporary/i);
+});

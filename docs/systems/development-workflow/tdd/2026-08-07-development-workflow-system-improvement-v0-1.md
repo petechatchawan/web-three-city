@@ -8,6 +8,13 @@
 
 **Tech Stack:** Node.js 22, pnpm 10.13.1 workspaces, Vitest 4, TypeScript 6, ESLint 9, Prettier 3, Husky, lint-staged, GitHub Issue Forms, GitHub pull-request templates, Node built-in `node:test` for repository workflow contract tests.
 
+## Execution Status
+
+- Tasks 1–6: implemented on `chore/development-workflow-system-improvement-v0-1` through PR #35.
+- Task 7: exact-head Level 3/4 verification and merge closure remain pending.
+- Required living documentation is complete before the final exact-head candidate; post-run CI metadata belongs in PR #35 rather than a metadata-only tree mutation.
+- The approved task definitions below are preserved as the execution record; this status annotation does not rewrite their historical RED/GREEN instructions.
+
 ## Global Constraints
 
 - Planning authority is `docs/systems/development-workflow/specs/2026-08-07-development-workflow-system-improvement-v0-1.md`.

@@ -1,8 +1,10 @@
 # Development Workflow System Improvement v0.1 — Design Specification
 
-**Status:** Approved  
+**Status:** Implemented  
 **System:** `development-workflow`  
 **Date:** `2026-08-07`
+
+Implementation delivery note: v0.1 was delivered from this approved design without changing its scope or historical decisions.
 
 ## Decision Summary
 

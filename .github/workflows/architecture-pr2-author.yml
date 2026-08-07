@@ -1,0 +1,27 @@
+name: Architecture PR2 Author
+
+on:
+  push:
+    branches:
+      - refactor/committed-world-application-seam-v0-1
+
+permissions:
+  contents: write
+
+jobs:
+  author:
+    if: github.actor != 'architecture-impl-agent'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refactor/committed-world-application-seam-v0-1
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: bash tooling/architecture-pr2-author.sh

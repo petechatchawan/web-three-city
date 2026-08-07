@@ -20,12 +20,15 @@ Every cross-system mutation follows:
 capture committed world
 -> plan domain changes
 -> reconcile dependent state
--> validate before/after revisions and invariants
+-> derive Road/Zone/Building environments from the candidate snapshots
+-> validate before/after revisions, environment provenance, and invariants
 -> publish one next committed world
--> rebuild or synchronize derived presentation
+-> synchronize derived presentation from the committed world
 ```
 
 Save reads only the committed world. Undo restores a complete dependent-world state or executes a deterministic reverse command that recreates all dependent projections, inventories, assignments, and references. Restoring one snapshot while leaving dependent state stale is prohibited.
+
+Road, Zone, and Building placement environments are immutable derived views of a candidate world. They are constructed and provenance-validated before atomic publication and travel with the committed-world view. They are not rebuilt as authoritative caches after publication. Publication results are discriminated: `rejected` means authority is unchanged; `committed` means authority changed successfully, with presentation separately reported as `synchronized` or `degraded`. A degraded presentation must never be treated as a failed transaction or trigger domain rollback.
 
 The existing Save wire schema remains unchanged in this program. V3-V4 migration may deterministically reconstruct derived workplace inventory from persisted active Buildings and the decoded world Simulation state before returning the decoded world. V3 uses its deterministic synthesized Simulation snapshot because its wire format has no Simulation; V4 decodes Simulation from Save. V1-V2 contain no persisted Buildings and must return empty Building-linked inventory without inventing state. This is an accepted compatibility repair, not a new persisted authority. Any persisted-field or version change requires a new ADR and separate approval.
 

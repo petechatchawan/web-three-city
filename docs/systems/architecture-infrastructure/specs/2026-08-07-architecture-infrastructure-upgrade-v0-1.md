@@ -128,14 +128,14 @@ input command
 -> capture committed world revision
 -> domain plan(s)
 -> cross-system policy and dependent plans
--> validate every before/after revision and invariant
+-> derive Road/Zone/Building environments from the candidate snapshots
+-> validate every before/after revision, environment provenance, and invariant
 -> publish one coherent committed world
--> rebuild derived environments
--> update renderers and HUD
+-> synchronize renderers and HUD from the committed world
 -> record a dependent-world Undo command
 ```
 
-Any validation or presentation failure before publication leaves the previous committed world unchanged. Presentation failure after publication must have a deterministic recovery path that rebuilds from the committed read model.
+Any planning, derivation, or validation failure before publication leaves the previous committed world unchanged. Presentation is invoked only after publication; a post-publication adapter failure must have a deterministic recovery path that rebuilds from the committed read model and must never be represented as a rejected transaction.
 
 The failure contract has two distinct cases:
 
@@ -202,6 +202,20 @@ type WorldPublication = Readonly<{
   nextWorld: CommittedWorld;
   nextFingerprint: string;
 }>;
+
+type WorldPublicationResult =
+  | Readonly<{
+      status: 'rejected';
+      world: CommittedWorld;
+      reason: WorldPublicationRejection;
+    }>
+  | Readonly<{
+      status: 'committed';
+      world: CommittedWorld;
+      presentation:
+        | Readonly<{ status: 'synchronized' }>
+        | Readonly<{ status: 'degraded'; recoveryRequired: true }>;
+    }>;
 ```
 
 Required invariants:
@@ -209,7 +223,9 @@ Required invariants:
 - `nextWorld.revision === baseRevision + 1`.
 - Water source revision equals the published Terrain revision.
 - Every dependent snapshot validates against the exact committed after-state.
+- Candidate Road/Zone/Building environments are immutable derived views created and provenance-validated before publication; they are part of the committed-world view, not post-publication caches.
 - Publication is one replace operation or no replace operation.
+- A rejected result always means authority is unchanged; a committed result remains committed even when presentation is degraded.
 - Save and presentation consumers read the same committed object.
 - Sequence allocation and deterministic ordering remain unchanged.
 

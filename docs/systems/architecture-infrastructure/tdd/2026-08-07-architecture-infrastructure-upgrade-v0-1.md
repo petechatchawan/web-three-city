@@ -590,7 +590,7 @@ export function fingerprintCommittedWorld(world: CommittedWorld): string;
 
 Preserve `GameWorldStateStore` as a compatibility adapter only during migration. Do not add a second mutable source that can diverge from the new store.
 
-`CommittedWorldStore.replace` accepts only `expectedRevision === current.revision` and `next.revision === current.revision + 1`; it rejects stale or skipped candidates without mutating the store. Derived-environment provenance fields must match the domain revisions in the candidate world.
+`CommittedWorldStore.replace` accepts only `expectedRevision === current.revision` and `next.revision === current.revision + 1`; it rejects stale or skipped candidates without mutating the store. Road/Zone/Building environments are derived from the candidate snapshots before replacement, and their provenance fields must match the exact domain revisions in that candidate world.
 
 `fingerprintCommittedWorld` canonicalizes Terrain, Water, Roads, Zones, Buildings, Simulation, RCI, and every environment provenance revision. Typed arrays become ordered byte/value arrays; object collections use stable ID ordering. Environment function identity is not fingerprinted; its revision inputs are.
 
@@ -873,10 +873,12 @@ it('rejects a publication with a mismatched base fingerprint before publication'
   ).toThrow('world:stale-content');
   expect(coordinator.snapshot()).toEqual(fixtures.initialWorld);
 });
-it('post-publication presentation failure retains authority and rebuilds from committed world', () => {
+it('post-publication presentation failure is committed but degraded and rebuilds from committed world', () => {
   const coordinator = createWorldTransactionCoordinator(fixtures.initialWorld, failingOncePresentation);
   const result = coordinator.publish(fixtures.nextPublication);
-  expect(result.presentationStatus).toBe('degraded');
+  expect(result.status).toBe('committed');
+  if (result.status !== 'committed') throw new Error('expected committed publication');
+  expect(result.presentation).toEqual({ status: 'degraded', recoveryRequired: true });
   expect(result.world).toEqual(fixtures.nextPublication.nextWorld);
   expect(coordinator.snapshot()).toEqual(fixtures.nextPublication.nextWorld);
   expect(failingOncePresentation.rebuiltFrom).toEqual(fixtures.nextPublication.nextWorld);
@@ -888,7 +890,7 @@ it('SaveCoordinator reads storage and decodes one world exactly once', async () 
     storage,
   });
   const result = await coordinator.load();
-  expect(result.ok).toBe(true);
+  expect(result.status).toBe('committed');
   expect(storage.readCount).toBe(1);
   expect(coordinator.decodeCount).toBe(1);
 });
@@ -973,22 +975,37 @@ export interface WorldTransactionCoordinator {
   replaceFromDecodedWorld(world: DecodedWorldState): WorldPublicationResult;
 }
 
-export interface WorldPublicationResult {
-  readonly ok: true;
-  readonly world: CommittedWorld;
-  readonly presentationStatus: 'ready' | 'degraded';
-}
+export type WorldPublicationResult =
+  | Readonly<{
+      status: 'rejected';
+      world: CommittedWorld;
+      reason: WorldPublicationRejection;
+    }>
+  | Readonly<{
+      status: 'committed';
+      world: CommittedWorld;
+      presentation:
+        | Readonly<{ status: 'synchronized' }>
+        | Readonly<{ status: 'degraded'; recoveryRequired: true }>;
+    }>;
+
+export type WorldPublicationRejection =
+  | 'world:stale-revision'
+  | 'world:stale-content'
+  | 'world:invalid-candidate';
 ```
 
 The implementation must:
 
 - capture one base world revision;
 - stage all dependent snapshots before publication;
-- validate Terrain -> Water -> Road -> Zone -> Building -> Simulation -> RCI coherence;
+- derive Road/Zone/Building environments from the staged candidate snapshots before publication;
+- validate Terrain -> Water -> Road -> Zone -> Building -> Simulation -> RCI coherence plus exact environment provenance before publication;
 - publish one next revision;
-- leave the previous committed world unchanged if any stage fails;
-- notify presentation only after successful publication.
-- if a presentation adapter fails after publication, retain the new authoritative world, report degraded state, and rebuild presentation from that committed world; never roll back domain authority after publication.
+- return `{ status: 'rejected', world: previousWorld, reason }` for pre-publication rejection and leave the previous committed world unchanged;
+- notify presentation only after successful publication;
+- return `{ status: 'committed', ... }` after authority changes, with presentation reported separately as `synchronized` or `degraded`;
+- if a presentation adapter fails after publication, retain the new authoritative world, return committed/degraded, and rebuild presentation from that committed world; never roll back domain authority after publication.
 
 `WorldPublication` is the exact shape in the spec: `baseRevision`, `baseFingerprint`, `nextWorld`, and `nextFingerprint`. The coordinator must require `baseRevision === current.revision`, `baseFingerprint === fingerprintCommittedWorld(current)`, `nextWorld.revision === current.revision + 1`, and `nextFingerprint === fingerprintCommittedWorld(nextWorld)`. Reject a same-revision/different-content candidate as `world:stale-content`; application revision alone is not a sufficient publication fence.
 

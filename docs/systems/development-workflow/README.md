@@ -13,7 +13,7 @@ The system owns development commands, verification escalation policy, pre-commit
 
 ## Current State
 
-The v0.1 design and TDD implementation plan are approved and ready for execution, but the workflow behavior is not yet implemented. The current repository still has the legacy workflow characteristics that motivated this milestone:
+The v0.1 design is approved and the TDD implementation plan is ready for execution, but the workflow behavior is not yet implemented. The current repository still has the legacy workflow characteristics that motivated this milestone:
 
 - root verification defaults to repository-wide commands;
 - there is no root `AGENTS.md`;

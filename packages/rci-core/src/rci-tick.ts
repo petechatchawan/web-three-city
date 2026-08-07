@@ -1,4 +1,4 @@
-import type { BuildingSnapshot } from '@web-three-city/building-core';
+import { fingerprintBuildingSnapshot, type BuildingSnapshot } from '@web-three-city/building-core';
 import type { SimulationSnapshot } from '@web-three-city/simulation-core';
 import { RciContractError, type RciContractErrorCode } from './contracts/errors.js';
 import { evaluateRciDemand, smoothRciDemand } from './demand/demand-evaluator.js';
@@ -41,6 +41,8 @@ export interface RciTickPlan {
   readonly baseRciRevision: number;
   readonly baseSimulationRevision: number;
   readonly baseBuildingRevision: number;
+  readonly afterBuildingRevision: number;
+  readonly afterBuildingFingerprint: string;
   readonly beforeAbsoluteTick: number;
   readonly afterAbsoluteTick: number;
   readonly proposedSnapshot: RciSnapshot;
@@ -73,6 +75,8 @@ function invalidPlan(input: RciTickInput, invalidReason: RciContractErrorCode): 
     baseRciRevision: input.rci.revision,
     baseSimulationRevision: input.simulationBefore.revision,
     baseBuildingRevision: input.buildingsBefore.revision,
+    afterBuildingRevision: input.buildingsAfter.revision,
+    afterBuildingFingerprint: fingerprintBuildingSnapshot(input.buildingsAfter),
     beforeAbsoluteTick: input.simulationBefore.absoluteTick,
     afterAbsoluteTick: input.simulationAfter.absoluteTick,
     proposedSnapshot: input.rci,
@@ -250,6 +254,8 @@ export function planRciTick(input: RciTickInput): RciTickPlan {
     baseRciRevision: input.rci.revision,
     baseSimulationRevision: input.simulationBefore.revision,
     baseBuildingRevision: input.buildingsBefore.revision,
+    afterBuildingRevision: input.buildingsAfter.revision,
+    afterBuildingFingerprint: fingerprintBuildingSnapshot(input.buildingsAfter),
     beforeAbsoluteTick: input.simulationBefore.absoluteTick,
     afterAbsoluteTick: input.simulationAfter.absoluteTick,
     proposedSnapshot: snapshot,
@@ -280,7 +286,11 @@ export function commitRciTick(input: RciTickCommitInput): Readonly<{
   ) {
     throw new RciContractError('rci:stale-simulation-plan');
   }
-  if (input.buildingsBefore.revision !== plan.baseBuildingRevision) {
+  if (
+    input.buildingsBefore.revision !== plan.baseBuildingRevision ||
+    input.buildingsAfter.revision !== plan.afterBuildingRevision ||
+    fingerprintBuildingSnapshot(input.buildingsAfter) !== plan.afterBuildingFingerprint
+  ) {
     throw new RciContractError('rci:stale-building-plan');
   }
 

@@ -48,7 +48,7 @@ test('every Vitest workspace exposes watch mode and non-test workspaces do not g
       assert.equal(packageJson.scripts['test:watch'], 'vitest', path);
     }
   }
-  assert.equal(vitestWorkspaceCount, 17);
+  assert.equal(vitestWorkspaceCount, 18);
   const terrainLab = manifests.find(({ packageJson }) => packageJson.name === '@web-three-city/terrain-lab');
   assert.ok(terrainLab);
   assert.equal(terrainLab.packageJson.scripts?.test, undefined);
@@ -112,6 +112,7 @@ test('AGENTS static Level 2 map contains every approved changed-owner row', asyn
     'zone-core',
     'building-core',
     'rci-core',
+    'economy-core',
     'road-core',
     'water-core',
     'terrain-generator',

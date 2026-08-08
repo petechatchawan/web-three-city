@@ -143,6 +143,7 @@ This is a **conservative verification map**, not the architectural dependency gr
 | `zone-core` | `building-core`, `rci-core`, `zone-three`, `game` |
 | `building-core` | `rci-core`, `building-three`, `game` |
 | `rci-core` | `game` |
+| `economy-core` | `game` |
 | `road-core` | `road-three`, `game`, `terrain-lab` |
 | `water-core` | `water-three`, `game`, `terrain-lab` |
 | `terrain-generator` | `game`, `terrain-lab` |

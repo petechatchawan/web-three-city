@@ -1,0 +1,47 @@
+name: PR41 Browser Diagnostic
+
+on:
+  push:
+    branches:
+      - chore/pr41-browser-diagnostic
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: f42efdacb23737125af373aa640a8d494601bb36
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build:browser
+      - run: pnpm exec playwright install chromium
+      - name: Replay failed Level 4 cases twice
+        run: >-
+          pnpm exec playwright test
+          browser-tests/building.spec.ts
+          browser-tests/growth-visual-evidence.spec.ts
+          browser-tests/growth.spec.ts
+          browser-tests/zoning-visual-evidence.spec.ts
+          --project=chromium
+          --workers=2
+          --repeat-each=2
+          --grep "grows deterministic R/C/I content and preserves authority across guards, Undo, and Save V5|captures Construction phases, variety, and responsive time controls|automatic Growth preserves the active Zoning tool and in-progress stroke|captures committed R/C/I overlays, invalid depth feedback, and responsive Zone HUD"
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: pr41-diagnostic-evidence
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore

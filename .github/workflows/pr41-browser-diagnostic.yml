@@ -9,13 +9,18 @@ permissions:
   contents: read
 
 jobs:
-  diagnostic:
+  visual-ab:
+    strategy:
+      fail-fast: false
+      matrix:
+        order: [baseline-first, candidate-first]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 6578b3fa13d19c608068995a1dd8796baf9d7ef7
+          ref: f42efdacb23737125af373aa640a8d494601bb36
+          fetch-depth: 0
       - uses: pnpm/action-setup@v4
         with:
           version: 10.13.1
@@ -24,22 +29,39 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm build:browser
       - run: pnpm exec playwright install chromium
-      - name: Replay failed Level 4 cases on PR3 baseline
-        run: >-
-          pnpm exec playwright test
-          browser-tests/building.spec.ts
-          browser-tests/growth-visual-evidence.spec.ts
-          browser-tests/growth.spec.ts
-          browser-tests/zoning-visual-evidence.spec.ts
-          --project=chromium
-          --workers=2
-          --grep "grows deterministic R/C/I content and preserves authority across guards, Undo, and Save V5|captures Construction phases, variety, and responsive time controls|automatic Growth preserves the active Zoning tool and in-progress stroke|captures committed R/C/I overlays, invalid depth feedback, and responsive Zone HUD"
+      - name: Controlled visual A/B
+        env:
+          ORDER: ${{ matrix.order }}
+        run: |
+          set -uo pipefail
+          baseline=6578b3fa13d19c608068995a1dd8796baf9d7ef7
+          candidate=f42efdacb23737125af373aa640a8d494601bb36
+          if [ "$ORDER" = baseline-first ]; then
+            refs="$baseline $candidate"
+          else
+            refs="$candidate $baseline"
+          fi
+          overall=0
+          for ref in $refs; do
+            git checkout --force "$ref"
+            rm -rf apps/game/dist apps/terrain-lab/dist playwright-report test-results
+            pnpm build:browser
+            start=$(date +%s)
+            pnpm exec playwright test \
+              browser-tests/growth-visual-evidence.spec.ts \
+              browser-tests/zoning-visual-evidence.spec.ts \
+              --project=chromium --workers=2
+            status=$?
+            end=$(date +%s)
+            echo "AB_RESULT order=$ORDER ref=$ref status=$status seconds=$((end-start))"
+            if [ "$status" -ne 0 ]; then overall=1; fi
+          done
+          exit "$overall"
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: pr41-baseline-diagnostic-evidence
+          name: pr41-visual-ab-${{ matrix.order }}
           path: |
             playwright-report
             test-results

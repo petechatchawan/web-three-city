@@ -10,8 +10,8 @@ import { deriveWaterSnapshot, triangleIndexFor } from '../packages/water-core/sr
 import { WORLD_CONFIG, type CellCoord } from '../packages/world-core/src/index.js';
 import {
   GAME_URL,
+  clickTerrainCell,
   dispatchCanvasTouch,
-  projectTerrainCells,
   readEvidence,
 } from './helpers/interaction.js';
 
@@ -71,7 +71,8 @@ test('Road operations expose distinct Preview and release outside Terrain commit
 }, testInfo) => {
   await openGame(page);
   const cells = findLine();
-  const points = await projectTerrainCells(page, cells);
+  const points = [];
+  for (const cell of cells) points.push(await clickTerrainCell(page, cell));
 
   await page.getByRole('button', { name: 'Build Road' }).click();
   await dispatchCanvasTouch(page, 'pointerdown', 1, points[0]!.x, points[0]!.y);

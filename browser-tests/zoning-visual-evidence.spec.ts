@@ -12,8 +12,8 @@ import { createRoadPlacementEnvironment } from '../apps/game/src/road-placement-
 import { createZonePlacementEnvironment } from '../apps/game/src/zone-placement-environment.js';
 import {
   GAME_URL,
+  clickTerrainCell,
   dispatchCanvasTouch,
-  projectTerrainCells,
   readEvidence,
   type TerrainCellScreenPoint,
 } from './helpers/interaction.js';
@@ -135,8 +135,9 @@ async function locate(
   page: Page,
   cells: readonly CellCoord[],
 ): Promise<Map<string, TerrainCellScreenPoint>> {
-  const projected = await projectTerrainCells(page, cells);
-  return new Map(cells.map((cell, index) => [key(cell), projected[index]!] as const));
+  const points = new Map<string, TerrainCellScreenPoint>();
+  for (const cell of cells) points.set(key(cell), await clickTerrainCell(page, cell));
+  return points;
 }
 
 function pointAt(

@@ -45,9 +45,9 @@ Git does not retain empty directories. Create a subdirectory when its first arti
 | [Roads](roads/README.md) | Implemented | `road-core`, `road-three` | `RoadSaveV1` |
 | [Zoning](zoning/README.md) | Implemented | `zone-core`, `zone-three` | `ZoneSaveV1` |
 | [Buildings](buildings/README.md) | Implemented | `building-core`, `building-three` | `BuildingSaveV2` |
-| [Simulation Time](simulation-time/README.md) | Implemented | `simulation-core`, game runtime | `SimulationSaveV1` |
+| [Simulation Time](simulation-time/README.md) | Implemented | `simulation-core`, game runtime | `SimulationSaveV2`; V1 migration |
 | [RCI Demand & Occupancy](rci/README.md) | Implemented | `rci-core` + `apps/game` orchestration | `RciSaveV1` / `WorldSaveV5` |
-| [Economy](economy/README.md) | Partial | `economy-core`; planned `apps/game` orchestration | none; planned `EconomySaveV1` in next `WorldSave` |
+| [Economy](economy/README.md) | Implemented | `economy-core`; `apps/game` orchestration | `EconomySaveV1` / `WorldSaveV6` |
 | [Development Workflow](development-workflow/README.md) | Implemented | root configuration, `.github/`, `AGENTS.md`, development docs | Git-tracked configuration and documentation |
 | [Architecture & Infrastructure](architecture-infrastructure/README.md) | Implemented, CLOSED / PASS | repository architecture, application orchestration, verification infrastructure | Git-tracked configuration and documentation |
 | [Documentation](documentation/README.md) | Implemented on this branch | repository documentation | Git history |

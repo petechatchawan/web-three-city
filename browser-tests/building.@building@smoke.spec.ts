@@ -9,7 +9,7 @@ import { GAME_URL, readEvidence } from './helpers/interaction.js';
 
 test.describe.configure({ timeout: 60_000 });
 
-const SAVE_KEY = 'web-three-city:world-save:v5';
+const SAVE_KEY = 'web-three-city:world-save:v6';
 const EXPECTED_DEFINITION_IDS = Object.freeze([
   'commercial-cafe-1x1',
   'commercial-shop-1x1',
@@ -125,7 +125,7 @@ test('grows deterministic R/C/I content and preserves authority across guards, U
   const parsedSave = await saveWorldFixture(page);
   expect(parsedSave).toMatchObject({
     kind: 'world-save',
-    schemaVersion: 5,
+    schemaVersion: 6,
     buildings: {
       kind: 'building-save',
       schemaVersion: 2,

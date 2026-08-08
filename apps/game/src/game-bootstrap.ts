@@ -80,6 +80,7 @@ import {
   type CommittedWorld,
 } from './application/committed-world.js';
 import { fingerprintCommittedWorld } from './application/committed-world-fingerprint.js';
+import { executeEconomyTaxPolicyCommand } from './application/economy-tax-policy-command.js';
 import { PresentationCoordinator } from './application/presentation-coordinator.js';
 import { reconcileRciForBuildingChange } from './application/rci-building-reconciliation.js';
 import { SaveCoordinator } from './application/save-coordinator.js';
@@ -113,6 +114,7 @@ import { guardZonePlanWithBuildings, type GameZoneInvalidReason } from './zone-b
 import { executeGameWorldTick } from './game-world-tick.js';
 import { GameWorldStateStore } from './game-world-state.js';
 import { mountRciHud } from './rci-hud.js';
+import { mountEconomyBudgetHud, type EconomyBudgetHudAdapter } from './economy-budget-hud.js';
 import { renderGameUi, type GameViewportLayout, type QualityLevel } from './game-ui.js';
 
 const CURATED_SEED = 1464156977;
@@ -471,6 +473,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
   buildingPresentation.load(buildingsSnapshot);
   const rciHud = mountRciHud(ui.panel);
   rciHud.update(rciSnapshot, rciRegistries, simulationSnapshot.absoluteTick);
+  let economyHud: EconomyBudgetHudAdapter | null = null;
 
   const grid = new TerrainGridPresentation(scene, WORLD_CONFIG);
   grid.setVisible(false);
@@ -518,6 +521,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     simulationSnapshot = world.simulation;
     rciSnapshot = world.rci;
     rciHud.update(rciSnapshot, rciRegistries, simulationSnapshot.absoluteTick);
+    economyHud?.update(world.economy);
     ui.setZoneCounts(zoneCounts(zonesSnapshot));
     ui.setBuildingCount(buildingCount(buildingsSnapshot));
     notifyCommittedWorld(world, reason);
@@ -594,6 +598,18 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     if (result.status === 'committed') adoptCommittedWorld(result.world);
     return Object.freeze({ before, result });
   };
+
+  economyHud = mountEconomyBudgetHud(ui.panel, (policy) => {
+    const result = executeEconomyTaxPolicyCommand(transactionCoordinator, policy);
+    if (result.status === 'accepted') {
+      adoptCommittedWorld(transactionCoordinator.snapshot());
+      ui.setStatus('Tax policy updated');
+      return Object.freeze({ status: 'accepted' as const });
+    }
+    ui.setStatus('Tax policy rejected');
+    return Object.freeze({ status: 'rejected' as const, reason: result.reason });
+  });
+  economyHud.update(transactionCoordinator.snapshot().economy);
 
   const applyTerraformPlan = (plan: TerraformPlan): void => {
     const current = transactionCoordinator.snapshot();
@@ -1299,6 +1315,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     window.cancelAnimationFrame(animationFrame);
     input.dispose();
     rciHud.dispose();
+    economyHud?.dispose();
     roadPreview.dispose();
     zonePreview.dispose();
     preview.dispose();

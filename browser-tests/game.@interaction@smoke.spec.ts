@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { GAME_URL, readEvidence } from './helpers/interaction.js';
 
-const SAVE_KEY = 'web-three-city:world-save:v5';
+const SAVE_KEY = 'web-three-city:world-save:v6';
 
 async function waitForReady(page: import('@playwright/test').Page): Promise<void> {
   await page.goto(GAME_URL);
@@ -79,7 +79,7 @@ test('changes quality and round-trips world save data', async ({ page }) => {
   expect(saved).not.toBeNull();
   expect(JSON.parse(saved ?? '{}')).toMatchObject({
     kind: 'world-save',
-    schemaVersion: 5,
+    schemaVersion: 6,
     buildings: { schemaVersion: 2 },
     rci: { kind: 'rci-save', schemaVersion: 1 },
   });

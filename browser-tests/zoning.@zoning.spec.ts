@@ -21,7 +21,7 @@ import {
   type TerrainCellScreenPoint,
 } from './helpers/interaction.js';
 
-const SAVE_KEY = 'web-three-city:world-save:v5';
+const SAVE_KEY = 'web-three-city:world-save:v6';
 const TERRAIN = GAME_TERRAIN;
 const WATER = GAME_WATER;
 const ROAD_ENVIRONMENT = ROAD_PLACEMENT_ENVIRONMENT;
@@ -196,7 +196,7 @@ test('paints R/C/I at committed-Road depths 1–3 and round-trips WorldSaveV5', 
   const saved = await page.evaluate((key) => localStorage.getItem(key), SAVE_KEY);
   expect(JSON.parse(saved ?? '{}')).toMatchObject({
     kind: 'world-save',
-    schemaVersion: 5,
+    schemaVersion: 6,
     zones: { schemaVersion: 1 },
     buildings: { schemaVersion: 2, instances: [] },
     rci: { schemaVersion: 1 },

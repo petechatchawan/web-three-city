@@ -13,7 +13,7 @@ import { GAME_URL } from './helpers/interaction.js';
 
 test.describe.configure({ timeout: 60_000 });
 
-const SAVE_KEY = 'web-three-city:world-save:v5';
+const SAVE_KEY = 'web-three-city:world-save:v6';
 
 async function openGrowthGame(page: import('@playwright/test').Page): Promise<void> {
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -179,7 +179,7 @@ test('automatic Growth preserves the active Zoning tool and in-progress stroke',
   await expect(industrialButton).toHaveAttribute('aria-pressed', 'true');
 });
 
-test('persists WorldSaveV5 and loads paused at the exact logical tick', async ({ page }) => {
+test('persists WorldSaveV6 and loads paused at the exact logical tick', async ({ page }) => {
   await openGrowthGame(page);
   await prepareBuildingFixtureWorld(page);
   await stepLogicalTicks(page, 4);
@@ -192,7 +192,7 @@ test('persists WorldSaveV5 and loads paused at the exact logical tick', async ({
     readonly buildings?: { readonly schemaVersion?: number };
     readonly rci?: { readonly schemaVersion?: number };
   };
-  expect(parsed.schemaVersion).toBe(5);
+  expect(parsed.schemaVersion).toBe(6);
   expect(parsed.simulation).toMatchObject({ absoluteTick: 12, growthSequence: 1 });
   expect(parsed.buildings?.schemaVersion).toBe(2);
   expect(parsed.rci?.schemaVersion).toBe(1);

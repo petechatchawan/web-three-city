@@ -10,6 +10,7 @@ permissions:
 
 jobs:
   author:
+    if: github.actor != 'architecture-impl-agent'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -23,231 +24,30 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-      - name: Author bounded presentation extraction
+      - name: Finish bounded presentation extraction
         run: |
           set -euo pipefail
           git config user.name 'architecture-impl-agent'
           git config user.email 'architecture-impl-agent@users.noreply.github.com'
           pnpm install --frozen-lockfile
 
-          cat > apps/game/src/application/presentation-coordinator.test.ts <<'EOF'
-          import { describe, expect, it } from 'vitest';
-          import { createApplicationFixture } from '../../test/application-fixtures.js';
-          import { CommittedWorldStore, type CommittedWorld } from './committed-world.js';
-          import { fingerprintCommittedWorld } from './committed-world-fingerprint.js';
-          import { PresentationCoordinator } from './presentation-coordinator.js';
-          import { DefaultWorldTransactionCoordinator } from './world-transaction-coordinator.js';
-
-          function createTraceCoordinator(trace: string[]): PresentationCoordinator {
-            return new PresentationCoordinator({
-              setReplacingWorld: (value) => trace.push(`replacing:${value}`),
-              loadTerrain: () => trace.push('terrain'),
-              loadWater: () => trace.push('water'),
-              loadGrid: () => trace.push('grid'),
-              loadRoads: () => trace.push('roads'),
-              loadZones: () => trace.push('zones'),
-              loadBuildings: () => trace.push('buildings'),
-              rebuildSelection: () => trace.push('selection'),
-              refreshTerrainObjects: () => trace.push('refresh'),
-            });
-          }
-
-          describe('PresentationCoordinator', () => {
-            it('updates presentation adapters only after committed-world publication', () => {
-              const before = createApplicationFixture();
-              const after = createApplicationFixture({ applicationRevision: 1 });
-              const store = new CommittedWorldStore(before);
-              const trace: string[] = [];
-              const presentation = new PresentationCoordinator({
-                setReplacingWorld: (value) => trace.push(`replacing:${value}`),
-                loadTerrain: () => {
-                  expect(store.snapshot().revision).toBe(after.revision);
-                  trace.push('after-publication');
-                },
-                loadWater: () => {},
-                loadGrid: () => {},
-                loadRoads: () => {},
-                loadZones: () => {},
-                loadBuildings: () => {},
-                rebuildSelection: () => {},
-                refreshTerrainObjects: () => {},
-              });
-              const transactions = new DefaultWorldTransactionCoordinator({
-                worldStore: store,
-                presentation: presentation.completeWorld,
-              });
-
-              const result = transactions.publish({
-                baseRevision: before.revision,
-                baseFingerprint: fingerprintCommittedWorld(before),
-                nextWorld: after,
-                nextFingerprint: fingerprintCommittedWorld(after),
-              });
-
-              expect(result.status).toBe('committed');
-              expect(trace).toContain('after-publication');
-              expect(trace.indexOf('after-publication')).toBeGreaterThan(trace.indexOf('replacing:true'));
-            });
-
-            it('rebuilds every derived presentation root from the committed world after context restoration', () => {
-              const world = createApplicationFixture();
-              const trace: string[] = [];
-              const presentation = createTraceCoordinator(trace);
-
-              presentation.rebuildCommittedWorld(world);
-
-              expect(trace).toEqual([
-                'replacing:true',
-                'terrain',
-                'water',
-                'grid',
-                'roads',
-                'zones',
-                'buildings',
-                'selection',
-                'refresh',
-                'replacing:false',
-              ]);
-            });
-
-            it('does not own or mutate active tool and Undo state during incremental Growth presentation', () => {
-              const world: CommittedWorld = createApplicationFixture();
-              const state = { tool: 'zone-industrial', undoKind: 'road' };
-              const before = { ...state };
-              const trace: string[] = [];
-              const presentation = createTraceCoordinator(trace);
-
-              presentation.incremental(() => trace.push('building-growth')).synchronize(world);
-
-              expect(state).toEqual(before);
-              expect(trace).toEqual(['building-growth']);
-            });
-          });
-          EOF
-
-          test ! -e apps/game/src/application/presentation-coordinator.ts
-          set +e
-          pnpm --filter @web-three-city/game test -- src/application/presentation-coordinator.test.ts > /tmp/pr4-red.log 2>&1
-          red_status=$?
-          set -e
-          if [ "$red_status" -eq 0 ]; then
-            cat /tmp/pr4-red.log
-            echo 'Expected RED because presentation-coordinator.ts does not exist.' >&2
-            exit 1
-          fi
-          grep -q 'presentation-coordinator' /tmp/pr4-red.log || { cat /tmp/pr4-red.log; exit 1; }
-
-          cat > apps/game/src/application/presentation-coordinator.ts <<'EOF'
-          import type { CommittedWorld } from './committed-world.js';
-          import type { WorldPresentationPort } from './world-transaction-coordinator.js';
-
-          export interface PresentationCoordinatorDependencies {
-            readonly setReplacingWorld: (value: boolean) => void;
-            readonly loadTerrain: (world: CommittedWorld) => void;
-            readonly loadWater: (world: CommittedWorld) => void;
-            readonly loadGrid: (world: CommittedWorld) => void;
-            readonly loadRoads: (world: CommittedWorld) => void;
-            readonly loadZones: (world: CommittedWorld) => void;
-            readonly loadBuildings: (world: CommittedWorld) => void;
-            readonly rebuildSelection: (world: CommittedWorld) => void;
-            readonly refreshTerrainObjects: (world: CommittedWorld) => void;
-          }
-
-          export class PresentationCoordinator {
-            readonly #dependencies: PresentationCoordinatorDependencies;
-            readonly completeWorld: WorldPresentationPort;
-            readonly noOp: WorldPresentationPort;
-
-            constructor(dependencies: PresentationCoordinatorDependencies) {
-              this.#dependencies = dependencies;
-              this.completeWorld = Object.freeze({
-                synchronize: (world: CommittedWorld) => this.synchronizeCompleteWorld(world),
-                rebuildFromCommitted: (world: CommittedWorld) => this.synchronizeCompleteWorld(world),
-              });
-              this.noOp = Object.freeze({
-                synchronize: () => {},
-                rebuildFromCommitted: (world: CommittedWorld) => this.synchronizeCompleteWorld(world),
-              });
-            }
-
-            incremental(synchronize: (world: CommittedWorld) => void): WorldPresentationPort {
-              return Object.freeze({
-                synchronize,
-                rebuildFromCommitted: (world: CommittedWorld) => this.synchronizeCompleteWorld(world),
-              });
-            }
-
-            rebuildCommittedWorld(world: CommittedWorld): void {
-              this.synchronizeCompleteWorld(world);
-            }
-
-            private synchronizeCompleteWorld(world: CommittedWorld): void {
-              this.#dependencies.setReplacingWorld(true);
-              try {
-                this.#dependencies.loadTerrain(world);
-                this.#dependencies.loadWater(world);
-                this.#dependencies.loadGrid(world);
-                this.#dependencies.loadRoads(world);
-                this.#dependencies.loadZones(world);
-                this.#dependencies.loadBuildings(world);
-                this.#dependencies.rebuildSelection(world);
-                this.#dependencies.refreshTerrainObjects(world);
-              } finally {
-                this.#dependencies.setReplacingWorld(false);
-              }
-            }
-          }
-          EOF
-
           python <<'PY'
           from pathlib import Path
+
           path = Path('apps/game/src/game-bootstrap.ts')
           text = path.read_text()
-          import_anchor = "import { fingerprintCommittedWorld } from './application/committed-world-fingerprint.js';\n"
-          assert import_anchor in text
-          text = text.replace(
-              import_anchor,
-              import_anchor + "import { PresentationCoordinator } from './application/presentation-coordinator.js';\n",
-              1,
-          )
 
-          old = '''  const presentCompleteWorld = (world: CommittedWorld): void => {
-            replacingWorld = true;
-            try {
-              terrain.load(world.terrain);
-              const presentationStart = performance.now();
-              water.load(world.terrain, world.water);
-              waterPresentationDurationMs = performance.now() - presentationStart;
-              waterBuildMetrics = stagedWaterBuildMetrics;
-              grid.load(world.terrain);
-              roadPresentation.loadAll(world.roads, world.environments.road);
-              zoneSurfaceSnapshot = world.terrain;
-              zonePresentation.loadAll(world.zones);
-              buildingPresentation.load(world.buildings);
-              rebuildSelection(selection, world.terrain, selectedCell);
-              inputRef.current?.refreshTerrainObjects();
-            } finally {
-              replacingWorld = false;
-            }
-          };
-          const completeWorldPresentation: WorldPresentationPort = Object.freeze({
-            synchronize: presentCompleteWorld,
-            rebuildFromCommitted: presentCompleteWorld,
-          });
-          const incrementalPresentation = (
-            synchronize: (world: CommittedWorld) => void,
-          ): WorldPresentationPort =>
-            Object.freeze({ synchronize, rebuildFromCommitted: presentCompleteWorld });
-          const noOpPresentation: WorldPresentationPort = Object.freeze({
-            synchronize: () => {},
-            rebuildFromCommitted: presentCompleteWorld,
-          });
-          const transactionCoordinator = new DefaultWorldTransactionCoordinator({
-            worldStore: committedWorldStore,
-            presentation: completeWorldPresentation,
-          });
-          '''
-          new = '''  const presentationCoordinator = new PresentationCoordinator({
+          import_anchor = "import { fingerprintCommittedWorld } from './application/committed-world-fingerprint.js';\n"
+          presentation_import = "import { PresentationCoordinator } from './application/presentation-coordinator.js';\n"
+          assert import_anchor in text
+          if presentation_import not in text:
+              text = text.replace(import_anchor, import_anchor + presentation_import, 1)
+
+          start_marker = '  const presentCompleteWorld = (world: CommittedWorld): void => {'
+          end_marker = '  const saveCoordinator = new SaveCoordinator({'
+          start = text.index(start_marker)
+          end = text.index(end_marker, start)
+          replacement = '''  const presentationCoordinator = new PresentationCoordinator({
             setReplacingWorld: (value) => {
               replacingWorld = value;
             },
@@ -273,45 +73,22 @@ jobs:
             presentation: presentationCoordinator.completeWorld,
           });
           '''
-          assert old in text, 'presentation block not found'
-          text = text.replace(old, new, 1)
+          text = text[:start] + replacement + text[end:]
           text = text.replace('incrementalPresentation(', 'presentationCoordinator.incremental(')
           text = text.replace('noOpPresentation', 'presentationCoordinator.noOp')
 
-          old_restore = '''      terrain.load(snapshot);
-                const presentationStart = performance.now();
-                water.load(snapshot, waterSnapshot);
-                waterPresentationDurationMs = performance.now() - presentationStart;
-                waterBuildMetrics = stagedWaterBuildMetrics;
-                grid.load(snapshot);
-                roadPresentation.loadAll(roadsSnapshot, roadEnvironment);
-                zoneSurfaceSnapshot = snapshot;
-                zonePresentation.loadAll(zonesSnapshot);
-                buildingPresentation.load(buildingsSnapshot);
-                rebuildSelection(selection, snapshot, selectedCell);
-                input.refreshTerrainObjects();
-                contextLost = false;'''
-          if old_restore not in text:
-              old_restore = '''      terrain.load(snapshot);
-              const presentationStart = performance.now();
-              water.load(snapshot, waterSnapshot);
-              waterPresentationDurationMs = performance.now() - presentationStart;
-              waterBuildMetrics = stagedWaterBuildMetrics;
-              grid.load(snapshot);
-              roadPresentation.loadAll(roadsSnapshot, roadEnvironment);
-              zoneSurfaceSnapshot = snapshot;
-              zonePresentation.loadAll(zonesSnapshot);
-              buildingPresentation.load(buildingsSnapshot);
-              rebuildSelection(selection, snapshot, selectedCell);
-              input.refreshTerrainObjects();
-              contextLost = false;'''
-          assert old_restore in text, 'context restore presentation block not found'
-          text = text.replace(
-              old_restore,
-              '''      presentationCoordinator.rebuildCommittedWorld(transactionCoordinator.snapshot());
-              contextLost = false;''',
-              1,
+          handler_anchor = "  ui.canvas.addEventListener(\n    'webglcontextrestored',"
+          handler = text.index(handler_anchor)
+          restore_start = text.index('      terrain.load(snapshot);', handler)
+          restore_end_line = '      contextLost = false;'
+          restore_end = text.index(restore_end_line, restore_start) + len(restore_end_line)
+          text = (
+              text[:restore_start]
+              + '      presentationCoordinator.rebuildCommittedWorld(transactionCoordinator.snapshot());\n'
+              + '      contextLost = false;'
+              + text[restore_end:]
           )
+
           path.write_text(text)
           PY
 
@@ -321,7 +98,7 @@ jobs:
           text = path.read_text()
           text = text.replace(
               '**Status:** Implementation in progress — slices 1–3 implemented; PR 3 final verification pending  ',
-              '**Status:** Implementation in progress — slices 1–3 implemented; PR 4 bounded presentation extraction in progress  ',
+              '**Status:** Implementation in progress — slices 1–4 implemented; PR 4 verification pending  ',
               1,
           )
           text = text.replace(
@@ -331,7 +108,7 @@ jobs:
           )
           text = text.replace(
               '- `game-bootstrap.ts` still owns substantial presentation/composition wiring; bounded presentation extraction is the next implementation slice.',
-              '- Complete-world presentation synchronization is being extracted behind an explicit application coordinator; `game-bootstrap.ts` remains the composition root and retains adapter construction.',
+              '- Complete-world presentation synchronization is extracted behind an explicit application coordinator; `game-bootstrap.ts` remains the composition root and retains adapter construction.',
               1,
           )
           if '## Implementation Slice 4' not in text:

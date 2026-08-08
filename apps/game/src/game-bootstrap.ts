@@ -9,6 +9,10 @@ import {
 import { BuildingPresentation } from '@web-three-city/building-three';
 import { OrthographicCameraRig } from '@web-three-city/camera-input';
 import {
+  createInitialEconomySnapshot,
+  FOUNDATION_ECONOMY_RULES,
+} from '@web-three-city/economy-core';
+import {
   createFoundationRciRegistries,
   createInitialRciSnapshot,
   type RciSnapshot,
@@ -316,6 +320,10 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     buildings: createEmptyBuildingSnapshot(WORLD_CONFIG),
     simulation: initialSimulation,
     rci: createInitialRciSnapshot({ absoluteTick: initialSimulation.absoluteTick }),
+    economy: createInitialEconomySnapshot(
+      { year: 1, month: 1, latestDailySettlementTick: initialSimulation.absoluteTick },
+      FOUNDATION_ECONOMY_RULES,
+    ),
   });
   const capability = detectWebGL2(ui.canvas);
   if (!capability.supported) {
@@ -568,6 +576,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
       buildings: overrides.buildings ?? before.buildings,
       simulation: overrides.simulation ?? before.simulation,
       rci: overrides.rci ?? before.rci,
+      economy: overrides.economy ?? before.economy,
     });
     const result = transactionCoordinator.publish({
       baseRevision: before.revision,
@@ -788,6 +797,8 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
       simulation: current.simulation,
       buildings: current.buildings,
       rci: current.rci,
+      roads: current.roads,
+      economy: current.economy,
     });
     try {
       const result = executeGameWorldTick({
@@ -803,6 +814,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
           simulation: result.state.simulation,
           buildings: result.state.buildings,
           rci: result.state.rci,
+          economy: result.state.economy,
         },
         buildingsChanged
           ? incrementalPresentation((world) => buildingPresentation.load(world.buildings))

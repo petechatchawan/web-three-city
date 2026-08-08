@@ -88,7 +88,7 @@ test('Game TypeScript includes browser-independent game tests', async () => {
 
 test('Game test inventory matches Vitest discovery', async () => {
   assert.equal(await readGameTestFileCount(), 57);
-  assert.equal((await runVitestList()).length, 230);
+  assert.equal((await runVitestList()).length, 232);
 });
 
 test('every browser spec has approved ownership tags in its Playwright title path', async () => {

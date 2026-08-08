@@ -50,6 +50,7 @@ export class UndoCoordinator {
       buildings: before.buildings,
       simulation: before.simulation,
       rci: before.rci,
+      economy: before.economy,
     });
     const result = this.#transactionCoordinator.publish({
       baseRevision: current.revision,

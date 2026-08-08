@@ -11,7 +11,11 @@ import {
   planRciTick,
   type RciDefinitionRegistries,
   type RciTickReceipt,
+  createRciProjection,
 } from '@web-three-city/rci-core';
+import { occupiedRoadCellCount } from '@web-three-city/road-core';
+import { deriveGameCalendar } from '@web-three-city/simulation-core';
+import { FOUNDATION_ECONOMY_RULES, settleScheduledEconomy } from '@web-three-city/economy-core';
 import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
 import type { GameWorldState } from './game-world-state.js';
 import { GameWorldStateStore } from './game-world-state.js';
@@ -108,6 +112,40 @@ export function planGameWorldTick(
     buildingsAfter: buildingCommit.buildings,
     plan: rciPlan,
   });
+  const rciProjection = createRciProjection(
+    rciCommit.snapshot,
+    input.registries,
+    buildingCommit.simulation.absoluteTick,
+  );
+  const settlement = settleScheduledEconomy(
+    input.state.economy,
+    {
+      beforeTick: input.state.simulation.absoluteTick,
+      afterTick: buildingCommit.simulation.absoluteTick,
+      calendar: deriveGameCalendar(buildingCommit.simulation.absoluteTick),
+      taxableActivity: {
+        occupiedResidentialDwellings: rciProjection.housing.occupiedDwellingCount,
+        occupiedCommercialPositions:
+          rciProjection.factorContext.commercialPositionCapacity -
+          rciProjection.factorContext.commercialVacantPositionCount,
+        occupiedIndustrialPositions:
+          rciProjection.factorContext.industrialPositionCapacity -
+          rciProjection.factorContext.industrialVacantPositionCount,
+      },
+      roadMaintenance: { occupiedRoadCells: occupiedRoadCellCount(input.state.roads) },
+    },
+    FOUNDATION_ECONOMY_RULES,
+  );
+  if (!settlement.ok) {
+    return Object.freeze({
+      baseWorldRevision: input.state.revision,
+      proposedState: input.state,
+      buildingReceipt: buildingCommit.receipt,
+      rciReceipt: rciCommit.receipt,
+      valid: false,
+      invalidReason: `economy:${settlement.reason}`,
+    });
+  }
   return Object.freeze({
     baseWorldRevision: input.state.revision,
     proposedState: Object.freeze({
@@ -115,6 +153,8 @@ export function planGameWorldTick(
       simulation: buildingCommit.simulation,
       buildings: buildingCommit.buildings,
       rci: rciCommit.snapshot,
+      roads: input.state.roads,
+      economy: settlement.snapshot,
     }),
     buildingReceipt: buildingCommit.receipt,
     rciReceipt: rciCommit.receipt,

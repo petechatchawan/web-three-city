@@ -5,6 +5,10 @@ import {
   type BuildingSnapshot,
 } from '@web-three-city/building-core';
 import {
+  createInitialEconomySnapshot,
+  FOUNDATION_ECONOMY_RULES,
+} from '@web-three-city/economy-core';
+import {
   createFoundationRciRegistries,
   createRciMigrationInventory,
 } from '@web-three-city/rci-core';
@@ -126,6 +130,10 @@ export function createApplicationFixture(
     buildings,
     simulation,
     rci,
+    economy: createInitialEconomySnapshot(
+      { year: 1, month: 1, latestDailySettlementTick: simulation.absoluteTick },
+      FOUNDATION_ECONOMY_RULES,
+    ),
     environments,
   });
 }

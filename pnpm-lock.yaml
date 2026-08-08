@@ -65,6 +65,9 @@ importers:
       '@web-three-city/camera-input':
         specifier: workspace:*
         version: link:../../packages/camera-input
+      '@web-three-city/economy-core':
+        specifier: workspace:*
+        version: link:../../packages/economy-core
       '@web-three-city/rci-core':
         specifier: workspace:*
         version: link:../../packages/rci-core

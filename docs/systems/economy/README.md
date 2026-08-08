@@ -1,10 +1,10 @@
 # Economy System
 
-**Status:** Partial — Economy Core Foundation implemented
+**Status:** Partial — Core, Treasury, and Scheduled Settlement implemented
 
 **Milestone:** Economy Foundation v0.1
 
-**Primary ownership:** `packages/economy-core`; future composition by `apps/game`
+**Primary ownership:** `packages/economy-core`; composition by `apps/game`
 
 **Persistence:** planned `EconomySaveV1` within the next `WorldSave` version
 
@@ -12,7 +12,7 @@
 
 Economy Foundation v0.1 defines a deterministic aggregate municipal economy: treasury, R/C/I tax policy and revenue, player-action costs, road maintenance, monthly accounting, and lagged tax-pressure feedback to RCI.
 
-The framework-independent Economy foundation now provides deterministic money/rate arithmetic, versioned foundation rules, the authoritative snapshot contract, pure Treasury/tax-policy commands, aggregate accounting deltas, and monthly close. Scheduled settlement, application integration, persistence, and UI remain unimplemented.
+The framework-independent Economy foundation provides deterministic money/rate arithmetic, versioned rules, the authoritative snapshot, pure Treasury/tax-policy commands, aggregate accounting, taxable projections, and scheduled daily/monthly settlement. `apps/game` now includes Economy in atomic background-tick candidates. Paid actions, persistence, RCI policy feedback, and UI remain unimplemented.
 
 ## Ownership
 
@@ -35,7 +35,7 @@ Economy does not own citizens, households, jobs, buildings, roads, terrain, simu
 - RCI reads tax-pressure factors derived from the previously committed Economy state; Economy then settles from the newly staged RCI state. There is no same-tick cycle.
 - Presentation consumes an Economy projection and submits typed application commands; it never mutates Economy state.
 
-These workflows remain approved contracts for later implementation PRs. PR1 implements only their shared domain foundation.
+Paid actions, lagged policy feedback, persistence, and presentation remain approved contracts for later implementation PRs.
 
 ## Current Implementation
 
@@ -43,8 +43,9 @@ These workflows remain approved contracts for later implementation PRs. PR1 impl
 - [`rules.ts`](../../../packages/economy-core/src/rules.ts) owns and validates `economy-rules.foundation.v1`.
 - [`economy-snapshot.ts`](../../../packages/economy-core/src/economy-snapshot.ts) creates, clones, validates, and fingerprints `EconomySnapshotV1`.
 - [`treasury-accounting.ts`](../../../packages/economy-core/src/treasury-accounting.ts) applies revision-fenced policy changes and categorized Economy deltas, enforces immediate affordability, permits recurring deficits, closes periods, and derives cost/accounting summaries.
+- [`scheduled-settlement.ts`](../../../packages/economy-core/src/scheduled-settlement.ts) validates narrow RCI/Road projections and applies once-only 08:00 tax and maintenance settlement.
 - The package has no runtime dependency and no DOM/Three.js library access.
-- No application currently consumes or publishes the snapshot; that integration belongs to later PRs.
+- `apps/game` derives projections from staged RCI and authoritative Road state, validates Economy in `CommittedWorld`, fingerprints it, and publishes Simulation/Building/RCI/Economy once.
 
 ## Determinism and Failure
 

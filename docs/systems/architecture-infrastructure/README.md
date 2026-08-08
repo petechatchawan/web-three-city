@@ -1,7 +1,7 @@
 # Architecture and Infrastructure System
 
-**Status:** Implementation in progress — slices 1–3 CLOSED / PASS; slice 4 candidate  
-**Implementation baseline:** `master@6578b3fa13d19c608068995a1dd8796baf9d7ef7`  
+**Status:** Implementation in progress — slices 1–4 CLOSED / PASS; slice 5 candidate  
+**Implementation baseline:** `master@bbb49cc3e94d0de5808cf6a5fa0356ecf6dd4827`  
 **Primary ownership:** repository architecture rules, `apps/game` application orchestration, repository verification tooling, CI/browser verification  
 **Persistence:** Git-tracked architecture and verification documentation; existing gameplay Save schemas remain unchanged
 
@@ -33,6 +33,10 @@ This system is an architecture and enforcement boundary. It does not own gamepla
 - Building content is fenced by deterministic fingerprint for RCI planning; Building changes reconcile dwelling/workplace inventory before publication.
 - Interactive Terraform/Road/Zone/Building mutations and foreground/background simulation changes publish through the committed-world seam before presentation.
 - `PresentationCoordinator` owns ordered full-world adapter synchronization, incremental/no-op publication ports, and committed-world rebuild recovery without owning domain, tool, or Undo state.
+- Normal Game verification includes both `apps/game/src/**/*.test.ts` and `apps/game/test/**/*.test.ts`, with repository contracts binding the physical inventory to Vitest discovery.
+- Browser tests carry grep-compatible ownership tags while the unfiltered Chromium project remains the release authority; deterministic fixture construction is centralized behind the reviewed browser fixture seam.
+- CI keeps Lean as the verification/build owner, uploads exact Game/Terrain Lab build outputs, and makes the Browser job consume those artifacts instead of rerunning Lean verification/builds.
+- CI frozen installs disable dependency lifecycle scripts; the local exact-head Level 4 command remains `pnpm verify:full`.
 
 ## Ownership and State
 
@@ -105,9 +109,8 @@ The Architecture and Infrastructure program introduces no Save wire-schema or pe
 ## Current Limitations
 
 - `game-bootstrap.ts` remains the composition root and still contains substantial concrete adapter/input wiring; only the duplicated full-world presentation synchronization lifecycle has moved to a bounded coordinator.
-- Browser tests still lack ownership tags and still use direct source imports for fixtures/helpers; Test/CI Architecture v0.2 remains pending in slice 5.
-- CI still repeats broad verification work in the browser path and does not yet expose the planned targeted browser groups.
-- Before/after timing and coupling measurements are not yet closed; milestone closure remains pending after slices 4–5 and final Level 4.
+- Test/CI Architecture v0.2 is implemented in slice 5, but milestone acceptance still requires exact-head Lean, full Chromium, Sonar, and final Level 4 evidence on one stable candidate.
+- Before/after timing and coupling measurements are not yet closed; milestone closure remains pending final verification and the Task 10 closure record.
 
 ## Handoff Checklist
 
@@ -148,3 +151,9 @@ The Level 4 browser gate exposed a defensive-read bug during this slice: plain f
 `PresentationCoordinator` is the first bounded bootstrap extraction. It owns the ordered full-world presentation synchronization lifecycle and the complete/incremental/no-op `WorldPresentationPort` variants while accepting only explicit callbacks and committed-world input. Concrete Three.js adapters remain wired by `game-bootstrap.ts`, preserving the composition root instead of introducing a God Coordinator.
 
 WebGL context restoration now clears transient previews and asks the same coordinator to rebuild all committed presentation roots from `WorldTransactionCoordinator.snapshot()`, removing the second handwritten Terrain/Water/Grid/Road/Zone/Building/selection/input rebuild sequence. Focused characterization tests lock publication-before-presentation ordering, complete rebuild coverage, background tool/Undo non-ownership, and lifecycle cleanup on adapter failure.
+
+## Implementation Slice 5
+
+Game test discovery now includes `apps/game/test`, and topology contracts bind the current physical test inventory to Vitest collection so browser-independent application tests cannot silently disappear from normal verification. Browser specs are ownership-tagged without replacing the unfiltered Chromium release project, and direct source fixture construction is confined to explicit reviewed seams enforced by an adversarial import-scanner fixture.
+
+Lean CI remains the repository verification and build owner. It archives the exact Game and Terrain Lab preview outputs as `lean-builds`; the Browser job depends on Lean, restores those outputs, installs Chromium, and runs the complete browser suite without rerunning Lean verification or browser builds. Dependency installation disables lifecycle scripts in CI, failure artifacts remain retained, and `pnpm verify:full` remains the exact-head local Level 4 release command.

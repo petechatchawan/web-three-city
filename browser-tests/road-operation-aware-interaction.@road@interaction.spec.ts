@@ -1,13 +1,15 @@
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import {
+  WORLD_CONFIG,
   createEmptyRoadSnapshot,
+  deriveWaterSnapshot,
+  generateCoastalTerrain,
   planRoadMutation,
+  terrainCellSurfaceProfile,
+  triangleIndexFor,
+  type CellCoord,
   type RoadPlacementEnvironment,
-} from '../packages/road-core/src/index.js';
-import { terrainCellSurfaceProfile } from '../packages/terrain-core/src/index.js';
-import { generateCoastalTerrain } from '../packages/terrain-generator/src/index.js';
-import { deriveWaterSnapshot, triangleIndexFor } from '../packages/water-core/src/index.js';
-import { WORLD_CONFIG, type CellCoord } from '../packages/world-core/src/index.js';
+} from './helpers/domain-fixtures.js';
 import {
   GAME_URL,
   clickTerrainCell,

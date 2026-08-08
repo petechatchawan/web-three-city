@@ -1,13 +1,14 @@
 import { expect, test } from '@playwright/test';
 import {
+  GAME_SEED,
+  WORLD_CONFIG,
+  generateCoastalTerrain,
   planTerraformStroke,
   rasterizeTerraformCellLine,
   type TerrainSnapshot,
   type TerraformBrushSize,
   type TerraformOperation,
-} from '../packages/terrain-core/src/index.js';
-import { generateCoastalTerrain } from '../packages/terrain-generator/src/index.js';
-import { WORLD_CONFIG } from '../packages/world-core/src/index.js';
+} from './helpers/domain-fixtures.js';
 import {
   GAME_URL,
   clickTerrainCell,
@@ -16,7 +17,6 @@ import {
   type TerrainCellScreenPoint,
 } from './helpers/interaction.js';
 
-const GAME_SEED = 1_464_156_977;
 const BASE_TERRAIN = (() => {
   const result = generateCoastalTerrain({ seed: GAME_SEED, config: WORLD_CONFIG });
   if (!result.ok) throw new Error(result.error.code);

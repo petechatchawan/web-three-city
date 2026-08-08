@@ -1,17 +1,20 @@
 import { expect, test, type Page } from '@playwright/test';
 import {
+  GAME_SEED,
+  WORLD_CONFIG,
   createEmptyRoadSnapshot,
+  deriveWaterSnapshot,
+  generateCoastalTerrain,
   planRoadMutation,
+  terrainCellSurfaceProfile,
+  triangleIndexFor,
+  type CellCoord,
   type RoadPlacementEnvironment,
-} from '../packages/road-core/src/index.js';
-import { terrainCellSurfaceProfile } from '../packages/terrain-core/src/index.js';
-import { generateCoastalTerrain } from '../packages/terrain-generator/src/index.js';
-import { deriveWaterSnapshot, triangleIndexFor } from '../packages/water-core/src/index.js';
-import { WORLD_CONFIG, type CellCoord } from '../packages/world-core/src/index.js';
+} from './helpers/domain-fixtures.js';
 import { GAME_URL, clickTerrainCell, readEvidence } from './helpers/interaction.js';
 
 const TERRAIN = (() => {
-  const result = generateCoastalTerrain({ seed: 1_464_156_977, config: WORLD_CONFIG });
+  const result = generateCoastalTerrain({ seed: GAME_SEED, config: WORLD_CONFIG });
   if (!result.ok) throw new Error(result.error.code);
   return result.value;
 })();

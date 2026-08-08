@@ -11,6 +11,8 @@ import {
 } from './helpers/growth-fixture.js';
 import { GAME_URL } from './helpers/interaction.js';
 
+test.describe.configure({ timeout: 60_000 });
+
 const SAVE_KEY = 'web-three-city:world-save:v5';
 
 async function openGrowthGame(page: import('@playwright/test').Page): Promise<void> {

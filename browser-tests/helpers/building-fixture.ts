@@ -1,33 +1,20 @@
 import { expect, type Page } from '@playwright/test';
 import {
+  EMPTY_WORLD_OCCUPANCY,
+  GAME_TERRAIN,
+  GAME_WATER,
+  ROAD_PLACEMENT_ENVIRONMENT,
+  WORLD_CONFIG,
   createEmptyRoadSnapshot,
-  createRoadSnapshot,
-  planRoadMutation,
-} from '../../packages/road-core/src/index.js';
-import { generateCoastalTerrain } from '../../packages/terrain-generator/src/index.js';
-import { deriveWaterSnapshot } from '../../packages/water-core/src/index.js';
-import {
   createEmptyZoneSnapshot,
+  createRoadSnapshot,
+  createZonePlacementEnvironment,
+  planRoadMutation,
   planZoneMutation,
+  type CellCoord,
   type ZoneDefinitionId,
-} from '../../packages/zone-core/src/index.js';
-import { WORLD_CONFIG, type CellCoord } from '../../packages/world-core/src/index.js';
-import { createRoadPlacementEnvironment } from '../../apps/game/src/road-placement-environment.js';
-import { createZonePlacementEnvironment } from '../../apps/game/src/zone-placement-environment.js';
+} from './domain-fixtures.js';
 import { clickTerrainCell, type TerrainCellScreenPoint } from './interaction.js';
-
-const TERRAIN = (() => {
-  const result = generateCoastalTerrain({ seed: 1_464_156_977, config: WORLD_CONFIG });
-  if (!result.ok) throw new Error(result.error.code);
-  return result.value;
-})();
-const WATER = (() => {
-  const result = deriveWaterSnapshot(TERRAIN, WORLD_CONFIG);
-  if (!result.ok) throw new Error(result.error.code);
-  return result.value;
-})();
-const ROAD_ENVIRONMENT = createRoadPlacementEnvironment(TERRAIN, WATER, WORLD_CONFIG);
-const EMPTY_OCCUPANCY = Object.freeze({ revision: 0, isBlocked: () => false });
 
 export interface BuildingLotFixture {
   readonly zoneDefinitionId: ZoneDefinitionId;
@@ -76,7 +63,7 @@ function findFixture(
       const roadPlan = planRoadMutation(
         emptyRoads,
         { operation: 'build', definitionId: 'basic-road', cells: roadCells },
-        ROAD_ENVIRONMENT,
+        ROAD_PLACEMENT_ENVIRONMENT,
         WORLD_CONFIG,
       );
       if (!roadPlan.valid) continue;
@@ -90,10 +77,10 @@ function findFixture(
         WORLD_CONFIG,
       );
       const zoneEnvironment = createZonePlacementEnvironment(
-        TERRAIN,
-        WATER,
+        GAME_TERRAIN,
+        GAME_WATER,
         roads,
-        EMPTY_OCCUPANCY,
+        EMPTY_WORLD_OCCUPANCY,
         WORLD_CONFIG,
       );
       const completeZonePlan = planZoneMutation(

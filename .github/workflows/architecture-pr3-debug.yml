@@ -58,8 +58,31 @@ jobs:
           if old not in text:
               raise SystemExit('cloneForRead shape changed; refuse blind repair')
           p.write_text(text.replace(old, new, 1))
+
+          p = Path('apps/game/src/application/committed-world.test.ts')
+          text = p.read_text()
+          old = '    expect(store.snapshot()).toEqual(before);'
+          new = '''    expect(fingerprintCommittedWorld(store.snapshot())).toBe(
+              fingerprintCommittedWorld(before),
+            );'''
+          if old not in text:
+              raise SystemExit('committed-world stale assertion shape changed')
+          p.write_text(text.replace(old, new, 1))
+
+          p = Path('apps/game/src/application/world-transaction-coordinator.test.ts')
+          text = p.read_text()
+          old = '    expect(coordinator.snapshot()).toEqual(before);'
+          new = '''    expect(fingerprintCommittedWorld(coordinator.snapshot())).toBe(
+              fingerprintCommittedWorld(before),
+            );'''
+          if old not in text:
+              raise SystemExit('transaction stale assertion shape changed')
+          p.write_text(text.replace(old, new, 1))
           PY
-          pnpm exec prettier --write apps/game/src/application/committed-world.ts apps/game/src/application/world-transaction-coordinator.test.ts
+          pnpm exec prettier --write \
+            apps/game/src/application/committed-world.ts \
+            apps/game/src/application/committed-world.test.ts \
+            apps/game/src/application/world-transaction-coordinator.test.ts
       - name: GREEN focused application contracts
         run: |
           pnpm --filter @web-three-city/game test -- src/application/world-transaction-coordinator.test.ts
@@ -69,6 +92,9 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git rm .github/workflows/architecture-pr3-debug.yml
-          git add apps/game/src/application/committed-world.ts apps/game/src/application/world-transaction-coordinator.test.ts
+          git add \
+            apps/game/src/application/committed-world.ts \
+            apps/game/src/application/committed-world.test.ts \
+            apps/game/src/application/world-transaction-coordinator.test.ts
           git commit --no-verify -m 'fix(architecture): preserve defensive committed-world snapshots'
           git push origin HEAD:refactor/dependent-world-consistency-v0-1

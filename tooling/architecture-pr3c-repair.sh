@@ -21,6 +21,11 @@ text = text.replace(
     1,
 )
 text = text.replace(
+    "# Runtime composition migration.\np = Path('apps/game/src/game-bootstrap.ts')\ntext = p.read_text()\n",
+    "# Runtime composition migration.\np = Path('apps/game/src/game-bootstrap.ts')\ntext = p.read_text()\n# The committed-world seam supersedes the legacy RuntimeWorldState staging helper.\nruntime_state_start = text.find(\"interface RuntimeWorldState {\\n\")\nruntime_state_end = text.find(\"\\n}\\n\\nfunction toRenderViewport\", runtime_state_start)\nif runtime_state_start >= 0 and runtime_state_end >= 0:\n    text = text[:runtime_state_start] + text[runtime_state_end + 3:]\nstage_start = text.find(\"function stageTerrainWorld(\\n\")\nstage_end = text.find(\"\\n}\\n\\nfunction frozenDirtyChunks\", stage_start)\nif stage_start >= 0 and stage_end >= 0:\n    text = text[:stage_start] + text[stage_end + 3:]\n",
+    1,
+)
+text = text.replace(
     "git rm .github/workflows/architecture-pr3c-author.yml tooling/architecture-pr3c-author.sh",
     "git rm -f .github/workflows/architecture-pr3c-author.yml tooling/architecture-pr3c-author.sh tooling/architecture-pr3c-repair.sh",
     1,

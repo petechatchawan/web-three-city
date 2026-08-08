@@ -6,13 +6,12 @@ on:
       - refactor/dependent-world-consistency-v0-1
     paths:
       - '.github/workflows/architecture-pr3-debug.yml'
-      - 'apps/game/src/application/world-transaction-coordinator.test.ts'
 
 permissions:
   contents: write
 
 jobs:
-  reproduce:
+  repair:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -26,15 +25,50 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Format reproduction test
+      - name: Repair defensive committed-world reads
         run: |
-          pnpm exec prettier --write apps/game/src/application/world-transaction-coordinator.test.ts
-          if ! git diff --quiet -- apps/game/src/application/world-transaction-coordinator.test.ts; then
-            git config user.name 'github-actions[bot]'
-            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git add apps/game/src/application/world-transaction-coordinator.test.ts
-            git commit --no-verify -m 'test(architecture): format Road publication regression'
-            git push origin HEAD:refactor/dependent-world-consistency-v0-1
-          fi
-      - name: Reproduce Road publication failure
-        run: pnpm --filter @web-three-city/game test -- src/application/world-transaction-coordinator.test.ts
+          python <<'PY'
+          from pathlib import Path
+          p = Path('apps/game/src/application/committed-world.ts')
+          text = p.read_text()
+          old = """function cloneForRead(world: CommittedWorld): CommittedWorld {
+            return Object.freeze({
+              ...world,
+              terrain: Object.freeze({ ...world.terrain, heightLevels: world.terrain.heightLevels.slice() }),
+              water: Object.freeze({ ...world.water, seaTriangleMask: world.water.seaTriangleMask.slice() }),
+              roads: Object.freeze({
+                width: world.roads.width,
+                height: world.roads.height,
+                revision: world.roads.revision,
+                definitionCodes: world.roads.definitionCodes.slice(),
+              }),
+              zones: Object.freeze({
+                width: world.zones.width,
+                height: world.zones.height,
+                revision: world.zones.revision,
+                definitionCodes: world.zones.definitionCodes.slice(),
+              }),
+            });
+          }
+          """
+          new = """function cloneForRead(world: CommittedWorld): CommittedWorld {
+            return createCommittedWorld(world);
+          }
+          """
+          if old not in text:
+              raise SystemExit('cloneForRead shape changed; refuse blind repair')
+          p.write_text(text.replace(old, new, 1))
+          PY
+          pnpm exec prettier --write apps/game/src/application/committed-world.ts apps/game/src/application/world-transaction-coordinator.test.ts
+      - name: GREEN focused application contracts
+        run: |
+          pnpm --filter @web-three-city/game test -- src/application/world-transaction-coordinator.test.ts
+          pnpm --filter @web-three-city/game typecheck
+      - name: Commit clean repair
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/architecture-pr3-debug.yml
+          git add apps/game/src/application/committed-world.ts apps/game/src/application/world-transaction-coordinator.test.ts
+          git commit --no-verify -m 'fix(architecture): preserve defensive committed-world snapshots'
+          git push origin HEAD:refactor/dependent-world-consistency-v0-1

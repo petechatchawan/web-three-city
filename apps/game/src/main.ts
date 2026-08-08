@@ -1,22 +1,13 @@
 import './style.css';
 import './growth-time.css';
-import {
-  constructionProgressAtTick,
-  createEmptyBuildingSnapshot,
-} from '@web-three-city/building-core';
+import { constructionProgressAtTick } from '@web-three-city/building-core';
 import {
   constructionVisualPhase,
-  latestPresentedBuildingSnapshot,
   reloadLatestBuildingPresentation,
   setBuildingPresentationAbsoluteTick,
 } from '@web-three-city/building-three';
-import {
-  createInitialSimulationSnapshot,
-  type SimulationSnapshot,
-  type SimulationSpeed,
-} from '@web-three-city/simulation-core';
+import type { SimulationSpeed } from '@web-three-city/simulation-core';
 import type { TerraformBrushSize } from '@web-three-city/terrain-core';
-import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { bootstrapGame } from './game-bootstrap.js';
 import { bindGameKeyboardShortcuts } from './game-keyboard-shortcuts.js';
 import { createGameTimePresentation } from './game-time-presentation.js';
@@ -27,23 +18,15 @@ import { bindGameToolHud } from './game-tool-hud-binding.js';
 import type { GameToolMode } from './game-tool-mode.js';
 import { expandGameSecondaryControls } from './game-secondary-controls.js';
 import { undoTransaction } from './game-transaction-presentation.js';
-import { decodeWorldSave } from './world-save.js';
-
-const CURRENT_WORLD_SAVE_KEY = 'web-three-city:world-save:v5';
-const WORLD_SAVE_KEYS = Object.freeze([
-  CURRENT_WORLD_SAVE_KEY,
-  'web-three-city:world-save:v3',
-  'web-three-city:world-save:v2',
-  'web-three-city:world-save:v1',
-  'web-three-city:terrain-save:v1',
-]);
 
 interface GameTimeTestApi {
   readonly snapshot: () => Readonly<{
-    readonly simulation: SimulationSnapshot;
+    readonly revision: number;
+    readonly simulation: ReturnType<ReturnType<typeof bootstrapGame>['snapshot']>['simulation'];
     readonly speed: SimulationSpeed;
     readonly buildingCount: number;
   }>;
+  readonly savePayload: () => unknown;
   readonly setSpeed: (speed: SimulationSpeed) => void;
   readonly step: () => boolean;
   readonly setAutomaticGrowthEnabled: (enabled: boolean) => void;
@@ -85,7 +68,6 @@ const brushActions = Object.freeze({ 1: 'brush-1', 3: 'brush-3', 5: 'brush-5' })
 const navigateButton = requireButton('tool-navigate');
 const closeToolButton = requireButton('tool-close');
 const undoButton = requireButton('undo');
-const loadButton = requireButton('load');
 const bindings = new AbortController();
 const automatedBrowser = navigator.webdriver === true;
 let automaticGrowthEnabled = !automatedBrowser;
@@ -117,31 +99,27 @@ function dispatchUndoTransaction(): void {
   dispatchGameTransactionState(canvas, transaction.state, transaction.domain);
 }
 
-let simulation: SimulationSnapshot = createInitialSimulationSnapshot();
 const simulationRuntime = createSimulationRuntime('normal');
 let previousFrameTimestamp: number | null = null;
 let frameRequest = 0;
 const phaseByInstance = new Map<string, string>();
 
-function currentBuildings() {
-  return latestPresentedBuildingSnapshot() ?? createEmptyBuildingSnapshot(WORLD_CONFIG);
-}
-
-function refreshTimeUi(): void {
+function refreshTimeUi(world = runtime.snapshot()): void {
   timeUi.update(
     simulationRuntime.getState().speed,
-    createGameTimePresentation(simulation, currentBuildings()),
+    createGameTimePresentation(world.simulation, world.buildings),
   );
 }
 
-function refreshConstructionPhaseIfNeeded(): void {
-  const snapshot = currentBuildings();
+function refreshConstructionPhaseIfNeeded(world = runtime.snapshot()): void {
   let changed = false;
   const next = new Map<string, string>();
-  for (const instance of snapshot.instances) {
+  for (const instance of world.buildings.instances) {
     const phase =
       instance.lifecycle === 'construction'
-        ? constructionVisualPhase(constructionProgressAtTick(instance, simulation.absoluteTick))
+        ? constructionVisualPhase(
+            constructionProgressAtTick(instance, world.simulation.absoluteTick),
+          )
         : 'active';
     next.set(instance.instanceId, phase);
     if (phaseByInstance.get(instance.instanceId) !== phase) changed = true;
@@ -152,13 +130,21 @@ function refreshConstructionPhaseIfNeeded(): void {
   if (changed) reloadLatestBuildingPresentation();
 }
 
+function synchronizeCommittedWorld(
+  world: ReturnType<typeof runtime.snapshot>,
+  reason: Parameters<Parameters<typeof runtime.subscribeCommittedWorld>[0]>[1],
+): void {
+  if (reason === 'load') {
+    simulationRuntime.setSpeed('paused');
+    simulationRuntime.resetAfterVisibilityChange();
+  }
+  setBuildingPresentationAbsoluteTick(world.simulation.absoluteTick);
+  refreshConstructionPhaseIfNeeded(world);
+  refreshTimeUi(world);
+}
+
 function advanceOneLogicalTick(): void {
-  simulation = automaticGrowthEnabled
-    ? runtime.runBackgroundGrowthTick(simulation)
-    : runtime.runSimulationOnlyTick(simulation);
-  setBuildingPresentationAbsoluteTick(simulation.absoluteTick);
-  refreshConstructionPhaseIfNeeded();
-  refreshTimeUi();
+  runtime.advanceLogicalTick({ automaticGrowth: automaticGrowthEnabled });
 }
 
 function setSimulationSpeed(speed: SimulationSpeed): void {
@@ -167,31 +153,37 @@ function setSimulationSpeed(speed: SimulationSpeed): void {
 }
 
 function resetSimulationForTest(): void {
-  simulation = createInitialSimulationSnapshot();
   simulationRuntime.setSpeed('paused');
   simulationRuntime.resetAfterVisibilityChange();
-  setBuildingPresentationAbsoluteTick(simulation.absoluteTick);
   phaseByInstance.clear();
-  refreshConstructionPhaseIfNeeded();
-  refreshTimeUi();
+  const world = runtime.resetSimulationForTest();
+  setBuildingPresentationAbsoluteTick(world.simulation.absoluteTick);
+  refreshConstructionPhaseIfNeeded(world);
+  refreshTimeUi(world);
 }
 
 const timeUi = mountGameTimeUi(root, setSimulationSpeed, () => {
   simulationRuntime.step(advanceOneLogicalTick);
   refreshTimeUi();
 });
-setBuildingPresentationAbsoluteTick(simulation.absoluteTick);
-refreshConstructionPhaseIfNeeded();
-refreshTimeUi();
+const unsubscribeCommittedWorld = runtime.subscribeCommittedWorld(synchronizeCommittedWorld);
+const initialWorld = runtime.snapshot();
+setBuildingPresentationAbsoluteTick(initialWorld.simulation.absoluteTick);
+refreshConstructionPhaseIfNeeded(initialWorld);
+refreshTimeUi(initialWorld);
 
 const timeWindow = window as GameTimeWindow;
 timeWindow.__WEB_THREE_CITY_TIME__ = Object.freeze({
-  snapshot: () =>
-    Object.freeze({
-      simulation,
+  snapshot: () => {
+    const world = runtime.snapshot();
+    return Object.freeze({
+      revision: world.revision,
+      simulation: world.simulation,
       speed: simulationRuntime.getState().speed,
-      buildingCount: currentBuildings().instances.length,
-    }),
+      buildingCount: world.buildings.instances.length,
+    });
+  },
+  savePayload: () => runtime.savePayload(),
   setSpeed: setSimulationSpeed,
   step: () => simulationRuntime.step(advanceOneLogicalTick),
   setAutomaticGrowthEnabled(enabled: boolean): void {
@@ -199,35 +191,6 @@ timeWindow.__WEB_THREE_CITY_TIME__ = Object.freeze({
   },
   resetForTest: resetSimulationForTest,
 });
-
-function readStoredWorld(): unknown | null {
-  for (const key of WORLD_SAVE_KEYS) {
-    const raw = localStorage.getItem(key);
-    if (raw === null) continue;
-    try {
-      return JSON.parse(raw) as unknown;
-    } catch {
-      return null;
-    }
-  }
-  return null;
-}
-
-loadButton.addEventListener(
-  'click',
-  () => {
-    const decoded = decodeWorldSave(readStoredWorld(), WORLD_CONFIG);
-    if (!decoded.ok) return;
-    simulation = decoded.value.simulation;
-    simulationRuntime.setSpeed('paused');
-    simulationRuntime.resetAfterVisibilityChange();
-    setBuildingPresentationAbsoluteTick(simulation.absoluteTick);
-    reloadLatestBuildingPresentation();
-    refreshConstructionPhaseIfNeeded();
-    refreshTimeUi();
-  },
-  { signal: bindings.signal },
-);
 
 function simulationFrame(timestamp: number): void {
   if (previousFrameTimestamp === null) previousFrameTimestamp = timestamp;
@@ -277,6 +240,7 @@ window.addEventListener(
   'pagehide',
   () => {
     cancelAnimationFrame(frameRequest);
+    unsubscribeCommittedWorld();
     timeUi.dispose();
     bindings.abort();
     runtime.dispose();

@@ -72,7 +72,6 @@ import { WORLD_CONFIG, type CellCoord } from '@web-three-city/world-core';
 import * as THREE from 'three';
 import {
   CommittedWorldStore,
-  createCommittedWorld,
   createCommittedWorldFromDomainState,
   type CommittedDomainState,
   type CommittedWorld,
@@ -121,9 +120,20 @@ const QUALITY_POLICY = Object.freeze({
   high: { label: 'High', maxPixelRatio: 2, shadows: true },
 });
 
+export type CommittedWorldChangeReason = 'publication' | 'load' | 'undo' | 'reset';
+export type CommittedWorldSubscriber = (
+  world: CommittedWorld,
+  reason: CommittedWorldChangeReason,
+) => void;
+
 export interface GameRuntime {
-  runBackgroundGrowthTick(simulation: SimulationSnapshot): SimulationSnapshot;
-  runSimulationOnlyTick(simulation: SimulationSnapshot): SimulationSnapshot;
+  snapshot(): CommittedWorld;
+  subscribeCommittedWorld(subscriber: CommittedWorldSubscriber): () => void;
+  advanceLogicalTick(input: Readonly<{ automaticGrowth: boolean }>): CommittedWorld;
+  resetSimulationForTest(): CommittedWorld;
+  savePayload(): ReturnType<SaveCoordinator['savePayload']>;
+  runBackgroundGrowthTick(simulation?: SimulationSnapshot): SimulationSnapshot;
+  runSimulationOnlyTick(simulation?: SimulationSnapshot): SimulationSnapshot;
   dispose(): void;
 }
 
@@ -303,49 +313,54 @@ function statusForBuildingBulldozePlan(plan: BuildingMutationPlan): string {
 
 export function bootstrapGame(root: HTMLElement): GameRuntime {
   const ui = renderGameUi(root);
-  const capability = detectWebGL2(ui.canvas);
-  if (!capability.supported) {
-    ui.setStatus('WebGL2 unavailable');
-    return {
-      runBackgroundGrowthTick(simulation: SimulationSnapshot): SimulationSnapshot {
-        return simulation;
-      },
-      runSimulationOnlyTick(simulation: SimulationSnapshot): SimulationSnapshot {
-        return simulation;
-      },
-      dispose(): void {},
-    };
-  }
-
   const generated = generateCoastalTerrain({ seed: CURATED_SEED, config: WORLD_CONFIG });
   if (!generated.ok) throw new Error(`game:generation-failed:${generated.error.code}`);
   const initialWaterDerivationStart = performance.now();
-  let snapshot = generated.value;
-  let waterSnapshot = requireWater(snapshot);
-  let roadsSnapshot = createEmptyRoadSnapshot(WORLD_CONFIG);
-  let zonesSnapshot = createEmptyZoneSnapshot(WORLD_CONFIG);
-  let buildingsSnapshot = createEmptyBuildingSnapshot(WORLD_CONFIG);
-  const rciRegistries = createFoundationRciRegistries();
-  let simulationSnapshot = createInitialSimulationSnapshot();
-  let rciSnapshot: RciSnapshot = createInitialRciSnapshot({
-    absoluteTick: simulationSnapshot.absoluteTick,
+  const initialSimulation = createInitialSimulationSnapshot();
+  const initialWorld = createCommittedWorldFromDomainState({
+    revision: 0,
+    terrain: generated.value,
+    roads: createEmptyRoadSnapshot(WORLD_CONFIG),
+    zones: createEmptyZoneSnapshot(WORLD_CONFIG),
+    buildings: createEmptyBuildingSnapshot(WORLD_CONFIG),
+    simulation: initialSimulation,
+    rci: createInitialRciSnapshot({ absoluteTick: initialSimulation.absoluteTick }),
   });
-  let pendingLoadedSimulation: SimulationSnapshot | null = null;
-  let roadEnvironment = createRoadPlacementEnvironment(snapshot, waterSnapshot, WORLD_CONFIG);
-  let zoneEnvironment = createZonePlacementEnvironment(
-    snapshot,
-    waterSnapshot,
-    roadsSnapshot,
-    createBuildingWorldOccupancy(buildingsSnapshot),
-    WORLD_CONFIG,
-  );
-  let buildingEnvironment = createBuildingDevelopmentEnvironment(
-    snapshot,
-    waterSnapshot,
-    roadsSnapshot,
-    zonesSnapshot,
-    WORLD_CONFIG,
-  );
+  const capability = detectWebGL2(ui.canvas);
+  if (!capability.supported) {
+    ui.setStatus('WebGL2 unavailable');
+    const unavailableWorld = new CommittedWorldStore(initialWorld);
+    const subscribers = new Set<CommittedWorldSubscriber>();
+    return {
+      snapshot: () => unavailableWorld.snapshot(),
+      subscribeCommittedWorld(subscriber: CommittedWorldSubscriber): () => void {
+        subscribers.add(subscriber);
+        return () => subscribers.delete(subscriber);
+      },
+      advanceLogicalTick: () => unavailableWorld.snapshot(),
+      resetSimulationForTest: () => unavailableWorld.snapshot(),
+      savePayload(): never {
+        throw new Error('game:runtime-unavailable');
+      },
+      runBackgroundGrowthTick: () => unavailableWorld.snapshot().simulation,
+      runSimulationOnlyTick: () => unavailableWorld.snapshot().simulation,
+      dispose(): void {
+        subscribers.clear();
+      },
+    };
+  }
+
+  let snapshot = initialWorld.terrain;
+  let waterSnapshot = initialWorld.water;
+  let roadsSnapshot = initialWorld.roads;
+  let zonesSnapshot = initialWorld.zones;
+  let buildingsSnapshot = initialWorld.buildings;
+  const rciRegistries = createFoundationRciRegistries();
+  let simulationSnapshot = initialWorld.simulation;
+  let rciSnapshot: RciSnapshot = initialWorld.rci;
+  let roadEnvironment = initialWorld.environments.road;
+  let zoneEnvironment = initialWorld.environments.zone;
+  let buildingEnvironment = initialWorld.environments.building;
   let waterDerivationDurationMs = performance.now() - initialWaterDerivationStart;
   let waterPresentationDurationMs = 0;
   let waterBuildMetrics: WaterBuildMetrics = {
@@ -467,24 +482,26 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
 
   const inputRef: { current: ReturnType<typeof createGameInput> | null } = { current: null };
 
-  const initialCommittedWorld = createCommittedWorld({
-    revision: 0,
-    terrain: snapshot,
-    water: waterSnapshot,
-    roads: roadsSnapshot,
-    zones: zonesSnapshot,
-    buildings: buildingsSnapshot,
-    simulation: simulationSnapshot,
-    rci: rciSnapshot,
-    environments: Object.freeze({
-      road: roadEnvironment,
-      zone: zoneEnvironment,
-      building: buildingEnvironment,
-    }),
-  });
-  const committedWorldStore = new CommittedWorldStore(initialCommittedWorld);
+  const committedWorldStore = new CommittedWorldStore(initialWorld);
+  const committedWorldSubscribers = new Set<CommittedWorldSubscriber>();
 
-  const adoptCommittedWorld = (world: CommittedWorld): void => {
+  const notifyCommittedWorld = (
+    world: CommittedWorld,
+    reason: CommittedWorldChangeReason,
+  ): void => {
+    for (const subscriber of [...committedWorldSubscribers]) {
+      try {
+        subscriber(world, reason);
+      } catch {
+        // Subscriber failures are post-publication presentation failures and never roll authority back.
+      }
+    }
+  };
+
+  const adoptCommittedWorld = (
+    world: CommittedWorld,
+    reason: CommittedWorldChangeReason = 'publication',
+  ): void => {
     snapshot = world.terrain;
     waterSnapshot = world.water;
     roadsSnapshot = world.roads;
@@ -498,6 +515,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     rciHud.update(rciSnapshot, rciRegistries, simulationSnapshot.absoluteTick);
     ui.setZoneCounts(zoneCounts(zonesSnapshot));
     ui.setBuildingCount(buildingCount(buildingsSnapshot));
+    notifyCommittedWorld(world, reason);
   };
 
   const presentCompleteWorld = (world: CommittedWorld): void => {
@@ -772,13 +790,11 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     );
   };
 
-  const runBackgroundGrowthTick = (simulation: SimulationSnapshot): SimulationSnapshot => {
+  const runBackgroundGrowthTick = (_simulation?: SimulationSnapshot): SimulationSnapshot => {
     const current = transactionCoordinator.snapshot();
-    const baseSimulation = pendingLoadedSimulation ?? simulation;
-    pendingLoadedSimulation = null;
     const tickStore = new GameWorldStateStore({
       revision: 0,
-      simulation: baseSimulation,
+      simulation: current.simulation,
       buildings: current.buildings,
       rci: current.rci,
     });
@@ -809,16 +825,41 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     }
   };
 
-  const runSimulationOnlyTick = (simulation: SimulationSnapshot): SimulationSnapshot => {
+  const runSimulationOnlyTick = (_simulation?: SimulationSnapshot): SimulationSnapshot => {
+    const current = transactionCoordinator.snapshot();
     const next = createSimulationSnapshot({
-      revision: simulation.revision + 1,
-      absoluteTick: simulation.absoluteTick + 1,
-      growthSequence: simulation.growthSequence,
+      revision: current.simulation.revision + 1,
+      absoluteTick: current.simulation.absoluteTick + 1,
+      growthSequence: current.simulation.growthSequence,
     });
     const publication = publishCommittedDomain({ simulation: next }, noOpPresentation);
     return publication.result.status === 'committed'
       ? publication.result.world.simulation
       : transactionCoordinator.snapshot().simulation;
+  };
+
+  const advanceLogicalTick = (input: Readonly<{ automaticGrowth: boolean }>): CommittedWorld => {
+    if (input.automaticGrowth) runBackgroundGrowthTick();
+    else runSimulationOnlyTick();
+    return transactionCoordinator.snapshot();
+  };
+
+  const resetSimulationForTest = (): CommittedWorld => {
+    const publication = publishCommittedDomain(
+      { simulation: createInitialSimulationSnapshot() },
+      noOpPresentation,
+    );
+    if (publication.result.status === 'committed') {
+      undoCoordinator.clear();
+      notifyCommittedWorld(publication.result.world, 'reset');
+      return publication.result.world;
+    }
+    return transactionCoordinator.snapshot();
+  };
+
+  const subscribeCommittedWorld = (subscriber: CommittedWorldSubscriber): (() => void) => {
+    committedWorldSubscribers.add(subscriber);
+    return () => committedWorldSubscribers.delete(subscriber);
   };
 
   const resetCamera = (): void => {
@@ -947,8 +988,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
         ui.setStatus(result.reason === 'world:no-save' ? 'No save' : 'Invalid save');
         return;
       }
-      adoptCommittedWorld(result.world);
-      pendingLoadedSimulation = result.world.simulation;
+      adoptCommittedWorld(result.world, 'load');
       undoCoordinator.clear();
       ui.setUndoAvailable(false);
       ui.setStatus('Loaded');
@@ -1019,7 +1059,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
         ui.setUndoAvailable(undoCoordinator.available);
         return;
       }
-      adoptCommittedWorld(result.world);
+      adoptCommittedWorld(result.world, 'undo');
       if (kind === 'terraform') {
         terraformUndoCount += 1;
         terraformWaterRebuildCount += 1;
@@ -1224,8 +1264,18 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     water.dispose();
     terrain.dispose();
     renderer.dispose();
+    committedWorldSubscribers.clear();
     delete window.__WEB_THREE_CITY_INTERACTION__;
   };
   window.addEventListener('pagehide', dispose, { once: true });
-  return { runBackgroundGrowthTick, runSimulationOnlyTick, dispose };
+  return {
+    snapshot: () => transactionCoordinator.snapshot(),
+    subscribeCommittedWorld,
+    advanceLogicalTick,
+    resetSimulationForTest,
+    savePayload: () => saveCoordinator.savePayload(),
+    runBackgroundGrowthTick,
+    runSimulationOnlyTick,
+    dispose,
+  };
 }

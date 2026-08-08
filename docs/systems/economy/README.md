@@ -1,69 +1,61 @@
 # Economy System
 
-**Status:** Planned  
-**Last verified against:** `docs/rci-demand-occupancy-v0-1-planning`  
-**Primary ownership:** not assigned  
-**Persistence:** none
+**Status:** Approved design — not implemented
 
-## Intended Purpose
+**Milestone:** Economy Foundation v0.1
 
-Model money flows and economic incentives after the RCI population, housing, workplace, and employment foundation is stable.
+**Primary ownership:** planned `packages/economy-core`; composed by `apps/game`
 
-## Intended Responsibilities
+**Persistence:** planned `EconomySaveV1` within the next `WorldSave` version
 
-Potential responsibilities include:
+## Purpose
 
-- city revenue, expenditure, budgets, and treasury;
-- taxation and policy rates;
-- Household income, affordability, and cost-of-living projections;
-- wages and Workplace operating economics;
-- construction, maintenance, Utilities, and Service costs;
-- economic factors supplied to RCI demand, migration, and growth policy.
+Economy Foundation v0.1 defines a deterministic aggregate municipal economy: treasury, R/C/I tax policy and revenue, player-action costs, road maintenance, monthly accounting, and lagged tax-pressure feedback to RCI.
 
-These are boundaries, not approved formulas.
+The approved design is implementation-ready, but no authoritative Economy state exists in production yet.
 
-## Does Not Own
+## Ownership
 
-- Citizen, Household, relationship, housing, or employment authority.
-- Building placement and construction lifecycle.
-- Simulation time, Traffic pathfinding, Utilities delivery, or City Service capacity.
-- RCI demand engine internals; Economy should contribute through registered factors or policy inputs.
+Economy owns only:
 
-## Current Integration
+- integer minor-unit money and basis-point tax-rate contracts;
+- treasury and tax policy;
+- current and previous municipal accounting periods;
+- daily settlement and monthly-close markers;
+- versioned Economy rules, validation, quotes, deltas, and snapshots.
 
-None. No authoritative Economy state, currency, tax rate, wage, price, budget, or business balance exists on `master` or the RCI planning branch.
+Economy does not own citizens, households, jobs, buildings, roads, terrain, simulation time, RCI demand, or presentation state. The application supplies immutable projections from those authorities and publishes dependent changes through the existing committed-world transaction coordinator.
 
-## Expected Integrations
+## Foundation Workflows
 
-```mermaid
-flowchart LR
-  Simulation --> Economy
-  RCI --> Economy
-  Buildings --> Economy
-  Utilities -. future .-> Economy
-  Services -. future .-> Economy
-  Economy -. factors .-> RCI
-  Economy --> HUD
-  Economy --> WorldSave
-```
+- Paid road, terraform, and bulldoze commands are planned, quoted, checked for affordability, staged with an Economy debit, cross-validated, and published atomically.
+- Zoning and automatic/private RCI growth remain free in v0.1.
+- At the canonical daily 08:00 boundary, Economy derives tax revenue and road maintenance from application projections.
+- At Day 1 08:00, the previous month closes before the new day's settlement is recorded in the newly opened period.
+- RCI reads tax-pressure factors derived from the previously committed Economy state; Economy then settles from the newly staged RCI state. There is no same-tick cycle.
+- Presentation consumes an Economy projection and submits typed application commands; it never mutates Economy state.
 
-## Decisions Intentionally Deferred
+## Determinism and Failure
 
-- Currency and fixed-point precision.
-- Accounting cadence and transaction ledger versus aggregate balances.
-- Tax categories and collection timing.
-- Household income and affordability model.
-- Wage, productivity, profit, bankruptcy, and business ownership.
-- Construction and maintenance cost ownership.
-- Budget failure, debt, bonds, and subsidies.
-- Interaction with Land Value, Education, Traffic, Utilities, and Services.
+- Money uses safe integer minor units; tax rates use integer basis points.
+- Authoritative multiplication uses checked integer intermediates and one specified rounding rule.
+- A failed plan, quote, validation, or publication changes neither world nor treasury.
+- Recurring expenses may make treasury negative; a positive-cost player command is rejected when unaffordable.
+- Undo applies an exact compensating Economy delta to the current world. It does not restore an old Economy snapshot.
+- Pause advances nothing; Step advances exactly one ordinary authoritative tick.
 
-## Extension Boundary Reserved by RCI
+## Deliberate Limits
 
-RCI registries and factor interfaces may accept future Economy contributions, but RCI v0.1 must not hard-code taxes, wages, rent, prices, or profitability. Employment assignment identifies who works where; Economy will decide what that work pays only after its own design is approved.
+There are no citizen wallets, wages, rent, business accounts, loans, bonds, inflation, production chains, utility billing, service budgets, land value, abandonment, density upgrades, or traffic-productivity economics in v0.1.
 
-## Handoff Checklist
+## Planning Authority
 
-- Read first: [RCI](../rci/README.md), [Buildings](../buildings/README.md), [Simulation Time](../simulation-time/README.md)
-- Create an Economy specification before adding production state.
-- Record fixed-point/accounting authority in an ADR before defining Save contracts.
+- [Economy Foundation v0.1 specification](specs/2026-08-08-economy-foundation-v0-1.md)
+- [TDD implementation plan](tdd/2026-08-08-economy-foundation-v0-1.md)
+- [Money and rates ADR](adrs/0001-integer-money-and-basis-point-rates.md)
+- [Municipal authority ADR](adrs/0002-aggregate-municipal-economy-authority.md)
+- [Atomic transaction ADR](adrs/0003-economy-in-atomic-world-transactions.md)
+- [Lagged RCI feedback ADR](adrs/0004-lagged-economy-rci-feedback.md)
+- [Persistence ADR](adrs/0005-economy-persistence-and-migration.md)
+
+Implementation must update this overview from approved design to implemented behavior in the same PRs that establish the contracts.

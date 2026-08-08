@@ -39,4 +39,13 @@ describe('game bootstrap authority migration', () => {
       /publishCommittedDomain/,
     );
   });
+
+  it('delegates full-world synchronization and context recovery to the bounded coordinator', () => {
+    expect(source).toMatch(/PresentationCoordinator/);
+    const restoration = section("'webglcontextrestored'", 'publishInteractionEvidence');
+    expect(restoration).toMatch(/presentationCoordinator\.rebuildFromCommitted/);
+    expect(restoration).not.toMatch(
+      /terrain\.load|water\.load|grid\.load|roadPresentation\.loadAll|zonePresentation\.loadAll|buildingPresentation\.load/,
+    );
+  });
 });

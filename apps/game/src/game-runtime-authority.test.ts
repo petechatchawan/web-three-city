@@ -13,6 +13,7 @@ describe('GameRuntime committed-world authority', () => {
     expect(mainSource).toMatch(/runtime\.snapshot\(\)/);
     expect(mainSource).toMatch(/runtime\.subscribeCommittedWorld/);
     expect(mainSource).toMatch(/runtime\.advanceLogicalTick/);
+    expect(mainSource).toMatch(/runtime\.savePayload\(\)/);
   });
 
   it('exposes one committed-world read and tick command surface', () => {

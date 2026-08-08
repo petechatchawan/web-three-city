@@ -16,6 +16,7 @@ const EXPECTED_DEFINITION_IDS = Object.freeze([
 test('captures deterministic Residential, Commercial, and Industrial prototypes', async ({
   page,
 }, testInfo) => {
+  test.setTimeout(60_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(GAME_URL);
   await expect(page.getByTestId('game-status')).toHaveText('Ready');

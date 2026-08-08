@@ -101,6 +101,7 @@ test('headless Growth fails closed before eligible Zones exist', async ({ page }
 test('grows deterministic R/C/I content and preserves authority across guards, Undo, and Save V5', async ({
   page,
 }) => {
+  test.setTimeout(60_000);
   await openGame(page);
   const points = await prepareBuildingFixtureWorld(page);
   await growAllEligibleBuildings(page);

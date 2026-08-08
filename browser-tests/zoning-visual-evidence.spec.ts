@@ -176,6 +176,7 @@ async function capture(page: Page, testInfo: TestInfo, fileName: string): Promis
 test('captures committed R/C/I overlays, invalid depth feedback, and responsive Zone HUD', async ({
   page,
 }, testInfo) => {
+  test.setTimeout(60_000);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(GAME_URL);
   await expect(page.getByTestId('game-status')).toHaveText('Ready');

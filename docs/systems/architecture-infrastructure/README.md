@@ -144,3 +144,5 @@ The Level 4 browser gate exposed a defensive-read bug during this slice: plain f
 ## Implementation Slice 4
 
 `PresentationCoordinator` owns the ordered post-publication synchronization and committed-world recovery path for Terrain, Water, Grid, Roads, Zones, Buildings, selection, and terrain-object refresh. `game-bootstrap.ts` supplies explicit adapter callbacks and remains the composition root; presentation does not gain domain authority, Save ownership, tool state, or Undo ownership. WebGL context restoration delegates to the same complete-world recovery path, while incremental background Growth updates remain isolated from active tool and Undo state.
+
+Exact-head Level 4 diagnostics also reproduced hosted-runner timeout pressure on the pre-PR4 baseline. Four measured heavy browser acceptance cases therefore use explicit 60/90 second budgets; assertions, deterministic two-worker execution, and zero-retry policy remain unchanged.

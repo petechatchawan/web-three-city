@@ -11,8 +11,41 @@
 .city-awareness-hud,
 .city-top-actions,
 .city-simulation-controls,
+.city-build-dock,
 .city-dialog-backdrop {
   pointer-events: auto;
+}
+
+.city-build-dock {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--city-ui-safe-bottom) + var(--city-ui-gap));
+  display: grid;
+  justify-items: center;
+  gap: 0.25rem;
+  transform: translateX(-50%);
+}
+
+.city-build-categories,
+.city-build-palette {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.city-build-palette:empty {
+  display: none;
+}
+
+.city-tool-context {
+  position: absolute;
+  left: calc(var(--city-ui-safe-left) + var(--city-ui-gap));
+  bottom: calc(var(--city-ui-safe-bottom) + 6.5rem);
+  display: grid;
+  gap: 0.15rem;
+  max-width: min(22rem, 55vw);
+  padding: 0.55rem 0.7rem;
+  border-radius: var(--city-ui-radius);
+  background: var(--city-ui-surface);
 }
 .city-awareness-hud {
   position: absolute;

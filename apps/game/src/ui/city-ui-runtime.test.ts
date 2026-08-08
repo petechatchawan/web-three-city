@@ -13,6 +13,8 @@ describe('City UI runtime', () => {
     const ui = mountCityUi(document.body, {
       setSpeed,
       step,
+      selectTool: vi.fn(),
+      setTerraformBrush: vi.fn(),
       rciRegistries: createFoundationRciRegistries(),
     });
     const world = createApplicationFixture();

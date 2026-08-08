@@ -11,6 +11,8 @@ describe('player shell', () => {
       onGameMenu: vi.fn(),
       setSpeed: vi.fn(),
       step: vi.fn(),
+      selectTool: vi.fn(),
+      setTerraformBrush: vi.fn(),
     });
     expect(shell.element.querySelector('aside')).toBeNull();
     expect(shell.element.textContent).toContain('Information Views');

@@ -143,6 +143,8 @@ export interface GameRuntime {
   savePayload(): ReturnType<SaveCoordinator['savePayload']>;
   runBackgroundGrowthTick(simulation?: SimulationSnapshot): SimulationSnapshot;
   runSimulationOnlyTick(simulation?: SimulationSnapshot): SimulationSnapshot;
+  selectTool(mode: GameToolMode): void;
+  setTerraformBrush(size: TerraformBrushSize): void;
   dispose(): void;
 }
 
@@ -351,6 +353,8 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
       },
       runBackgroundGrowthTick: () => unavailableWorld.snapshot().simulation,
       runSimulationOnlyTick: () => unavailableWorld.snapshot().simulation,
+      selectTool: () => undefined,
+      setTerraformBrush: () => undefined,
       dispose(): void {
         subscribers.clear();
       },
@@ -1339,6 +1343,8 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     savePayload: () => saveCoordinator.savePayload(),
     runBackgroundGrowthTick,
     runSimulationOnlyTick,
+    selectTool: setToolMode,
+    setTerraformBrush: setBrushSize,
     dispose,
   };
 }

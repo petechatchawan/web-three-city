@@ -66,3 +66,10 @@ City UI owns no authoritative persisted game state. Ephemeral dialog/navigation 
 - `DialogHost` enforces one primary dialog, internal LIFO Back, root Close, Escape close, focus restoration, and world-input blocking without gameplay or simulation commands.
 
 Legacy tool/system controls remain temporarily mounted while their PR2/PR3 replacements are implemented; they are not permitted in the final milestone candidate.
+
+### Build tool migration
+
+- Bottom categories expose Terrain, Roads, Zones, and Buildings through typed `GameRuntime` tool ports.
+- Terraform brush sizes use the existing controller contract.
+- The contextual tool surface is non-modal and does not carry the world-input-block attribute, so unobscured world placement remains available.
+- Category expansion and dialog lifecycle do not synthesize Navigate or cancel the active tool.

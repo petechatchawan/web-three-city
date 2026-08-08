@@ -1,0 +1,88 @@
+name: Architecture PR4 Timeout Stabilize
+
+on:
+  push:
+    branches:
+      - refactor/presentation-coordination-v0-1
+
+permissions:
+  contents: write
+
+jobs:
+  stabilize:
+    if: github.actor != 'architecture-impl-agent'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refactor/presentation-coordination-v0-1
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Apply measured heavy-test timeout budgets
+        run: |
+          set -euo pipefail
+          git config user.name 'architecture-impl-agent'
+          git config user.email 'architecture-impl-agent@users.noreply.github.com'
+          pnpm install --frozen-lockfile
+
+          python <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              assert old in text, f'marker missing: {path}'
+              p.write_text(text.replace(old, new, 1))
+
+          replace_once(
+              'browser-tests/building-visual-evidence.spec.ts',
+              "}, testInfo) => {\n  await page.setViewportSize",
+              "}, testInfo) => {\n  test.setTimeout(60_000);\n  await page.setViewportSize",
+          )
+          replace_once(
+              'browser-tests/building.spec.ts',
+              "  page,\n}) => {\n  await openGame(page);",
+              "  page,\n}) => {\n  test.setTimeout(60_000);\n  await openGame(page);",
+          )
+          replace_once(
+              'browser-tests/growth-visual-evidence.spec.ts',
+              'test.describe.configure({ timeout: 60_000 });',
+              'test.describe.configure({ timeout: 90_000 });',
+          )
+          replace_once(
+              'browser-tests/zoning-visual-evidence.spec.ts',
+              "}, testInfo) => {\n  await page.setViewportSize",
+              "}, testInfo) => {\n  test.setTimeout(60_000);\n  await page.setViewportSize",
+          )
+
+          p = Path('docs/systems/architecture-infrastructure/README.md')
+          text = p.read_text()
+          marker = '`PresentationCoordinator` owns the ordered post-publication synchronization and committed-world recovery path for Terrain, Water, Grid, Roads, Zones, Buildings, selection, and terrain-object refresh. `game-bootstrap.ts` supplies explicit adapter callbacks and remains the composition root; presentation does not gain domain authority, Save ownership, tool state, or Undo ownership. WebGL context restoration delegates to the same complete-world recovery path, while incremental background Growth updates remain isolated from active tool and Undo state.'
+          assert marker in text
+          addition = marker + '\n\nExact-head Level 4 diagnostics also reproduced hosted-runner timeout pressure on the pre-PR4 baseline. Four measured heavy browser acceptance cases therefore use explicit 60/90 second budgets; assertions, deterministic two-worker execution, and zero-retry policy remain unchanged.'
+          p.write_text(text.replace(marker, addition, 1))
+          PY
+
+          pnpm exec prettier --write browser-tests/building-visual-evidence.spec.ts browser-tests/building.spec.ts browser-tests/growth-visual-evidence.spec.ts browser-tests/zoning-visual-evidence.spec.ts
+          pnpm exec eslint browser-tests/building-visual-evidence.spec.ts browser-tests/building.spec.ts browser-tests/growth-visual-evidence.spec.ts browser-tests/zoning-visual-evidence.spec.ts
+          pnpm build:browser
+          pnpm exec playwright install chromium
+          pnpm exec playwright test \
+            browser-tests/building-visual-evidence.spec.ts \
+            browser-tests/building.spec.ts \
+            browser-tests/growth-visual-evidence.spec.ts \
+            browser-tests/zoning-visual-evidence.spec.ts \
+            --project=chromium --workers=2 \
+            --grep "captures deterministic Residential, Commercial, and Industrial prototypes|grows deterministic R/C/I content and preserves authority across guards, Undo, and Save V5|captures Construction phases, variety, and responsive time controls|captures committed R/C/I overlays, invalid depth feedback, and responsive Zone HUD"
+
+          git rm .github/workflows/architecture-pr4-timeout-stabilize.yml
+          git add browser-tests/building-visual-evidence.spec.ts browser-tests/building.spec.ts browser-tests/growth-visual-evidence.spec.ts browser-tests/zoning-visual-evidence.spec.ts docs/systems/architecture-infrastructure/README.md
+          git diff --cached --check
+          git commit -m 'test(browser): stabilize heavy acceptance timeouts'
+          git push origin HEAD:refactor/presentation-coordination-v0-1

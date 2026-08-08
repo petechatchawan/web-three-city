@@ -5,6 +5,7 @@ import { evaluateRciDemand, smoothRciDemand } from './demand/demand-evaluator.js
 import {
   FOUNDATION_RCI_DEMAND_FACTORS,
   type RciDemandFactorContribution,
+  type RciDemandFactorDefinition,
 } from './demand/demand-factor.js';
 import { updateRciGrowthGates } from './demand/growth-gate.js';
 import type { RciDefinitionRegistries } from './definitions/contracts.js';
@@ -35,6 +36,7 @@ export interface RciTickInput {
   readonly registries: RciDefinitionRegistries;
   readonly configuration: RciConfiguration;
   readonly qualificationResolver?: QualificationResolver;
+  readonly externalDemandFactors?: readonly RciDemandFactorDefinition[];
 }
 
 export interface RciTickPlan {
@@ -207,7 +209,10 @@ export function planRciTick(input: RciTickInput): RciTickPlan {
       input.registries,
       input.simulationAfter.absoluteTick,
     );
-    const evaluation = evaluateRciDemand(projection.factorContext, FOUNDATION_RCI_DEMAND_FACTORS);
+    const evaluation = evaluateRciDemand(projection.factorContext, [
+      ...FOUNDATION_RCI_DEMAND_FACTORS,
+      ...(input.externalDemandFactors ?? []),
+    ]);
     const demand = smoothRciDemand({
       previous: snapshot.demand.demand,
       evaluation,

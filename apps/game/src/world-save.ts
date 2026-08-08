@@ -6,6 +6,21 @@ import {
   type RciSaveV1,
   type RciSnapshot,
 } from '@web-three-city/rci-core';
+import {
+  createInitialEconomySnapshot,
+  decodeEconomySaveV1,
+  encodeEconomySaveV1,
+  FOUNDATION_ECONOMY_RULES,
+  type EconomySaveV1,
+  type EconomySnapshotV1,
+} from '@web-three-city/economy-core';
+import {
+  decodeSimulationSaveV2,
+  deriveGameCalendar,
+  encodeSimulationSaveV1,
+  encodeSimulationSaveV2,
+  type SimulationSaveV2,
+} from '@web-three-city/simulation-core';
 import { err, ok, type Result, type WorldConfig } from '@web-three-city/world-core';
 import * as legacy from './world-save-legacy.js';
 
@@ -28,11 +43,19 @@ export interface WorldSaveV5 {
   readonly rci: RciSaveV1;
 }
 
-export interface DecodedWorldState extends legacy.DecodedWorldState {
-  readonly rci: RciSnapshot;
+export interface WorldSaveV6 extends Omit<WorldSaveV5, 'schemaVersion' | 'simulation'> {
+  readonly schemaVersion: 6;
+  readonly simulation: SimulationSaveV2;
+  readonly economy: EconomySaveV1;
 }
 
-export type WorldSaveErrorCode = legacy.WorldSaveErrorCode | 'world-save:invalid-rci';
+export interface DecodedWorldState extends legacy.DecodedWorldState {
+  readonly rci: RciSnapshot;
+  readonly economy: EconomySnapshotV1;
+}
+
+export type WorldSaveErrorCode =
+  legacy.WorldSaveErrorCode | 'world-save:invalid-rci' | 'world-save:invalid-economy';
 export interface WorldSaveError {
   readonly code: WorldSaveErrorCode;
   readonly details?: Readonly<Record<string, unknown>>;
@@ -54,17 +77,59 @@ export function encodeWorldSaveV5(
   return Object.freeze({ ...base, schemaVersion: 5, rci: encodeRciSaveV1(rci) });
 }
 
+export function encodeWorldSaveV6(
+  terrain: Parameters<typeof encodeWorldSaveV5>[0],
+  roads: Parameters<typeof encodeWorldSaveV5>[1],
+  zones: Parameters<typeof encodeWorldSaveV5>[2],
+  buildings: Parameters<typeof encodeWorldSaveV5>[3],
+  simulation: Parameters<typeof encodeWorldSaveV5>[4],
+  rci: RciSnapshot,
+  economy: EconomySnapshotV1,
+): WorldSaveV6 {
+  return Object.freeze({
+    ...encodeWorldSaveV5(terrain, roads, zones, buildings, simulation, rci),
+    schemaVersion: 6,
+    simulation: encodeSimulationSaveV2(simulation),
+    economy: encodeEconomySaveV1(economy),
+  });
+}
+
+function migratedEconomy(simulation: legacy.DecodedWorldState['simulation']): EconomySnapshotV1 {
+  const calendar = deriveGameCalendar(simulation.absoluteTick);
+  const dayStart = simulation.absoluteTick - calendar.hour;
+  const latestBoundary = Math.max(0, calendar.hour >= 8 ? dayStart + 8 : dayStart - 16);
+  return createInitialEconomySnapshot(
+    { year: calendar.year, month: calendar.month, latestDailySettlementTick: latestBoundary },
+    FOUNDATION_ECONOMY_RULES,
+  );
+}
+
 export function decodeWorldSave(
   input: unknown,
   config: WorldConfig,
 ): Result<DecodedWorldState, WorldSaveError> {
+  const isV6 = isRecord(input) && input.kind === 'world-save' && input.schemaVersion === 6;
   const isV5 = isRecord(input) && input.kind === 'world-save' && input.schemaVersion === 5;
-  const legacyInput = isV5 ? Object.freeze({ ...input, schemaVersion: 4 }) : input;
+  const decodedV6Simulation =
+    isV6 && 'simulation' in input ? decodeSimulationSaveV2(input.simulation) : null;
+  if (decodedV6Simulation && !decodedV6Simulation.ok) {
+    return err({ code: 'world-save:invalid-simulation' });
+  }
+  const legacyInput =
+    isV6 || isV5
+      ? Object.freeze({
+          ...input,
+          schemaVersion: 4,
+          ...(decodedV6Simulation?.ok
+            ? { simulation: encodeSimulationSaveV1(decodedV6Simulation.value) }
+            : {}),
+        })
+      : input;
   const base = legacy.decodeWorldSave(legacyInput, config);
   if (!base.ok) return base;
 
   const registries = createFoundationRciRegistries();
-  if (!isV5) {
+  if (!isV6 && !isV5) {
     return ok(
       Object.freeze({
         ...base.value,
@@ -73,6 +138,7 @@ export function decodeWorldSave(
           absoluteTick: base.value.simulation.absoluteTick,
           registries,
         }),
+        economy: migratedEconomy(base.value.simulation),
       }),
     );
   }
@@ -90,5 +156,24 @@ export function decodeWorldSave(
     });
   }
 
-  return ok(Object.freeze({ ...base.value, rci: decodedRci.value }));
+  if (!isV6) {
+    return ok(
+      Object.freeze({
+        ...base.value,
+        rci: decodedRci.value,
+        economy: migratedEconomy(base.value.simulation),
+      }),
+    );
+  }
+  if (!('economy' in input)) return err({ code: 'world-save:invalid-schema' });
+  const decodedEconomy = decodeEconomySaveV1(input.economy, FOUNDATION_ECONOMY_RULES);
+  if (!decodedEconomy.ok) return err({ code: 'world-save:invalid-economy' });
+  return ok(
+    Object.freeze({
+      ...base.value,
+      simulation: decodedV6Simulation?.ok ? decodedV6Simulation.value : base.value.simulation,
+      rci: decodedRci.value,
+      economy: decodedEconomy.value,
+    }),
+  );
 }

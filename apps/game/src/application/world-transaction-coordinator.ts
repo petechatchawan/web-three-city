@@ -213,7 +213,7 @@ export class DefaultWorldTransactionCoordinator implements WorldTransactionCoord
         buildings: world.buildings,
         simulation: world.simulation,
         rci: world.rci,
-        economy: current.economy,
+        economy: world.economy,
       });
     } catch {
       return rejected(current, 'world:invalid-candidate');

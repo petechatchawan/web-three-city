@@ -2,6 +2,11 @@ import { createEmptyBuildingSnapshot } from '@web-three-city/building-core';
 import { createInitialRciSnapshot } from '@web-three-city/rci-core';
 import { createInitialSimulationSnapshot } from '@web-three-city/simulation-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
+import { createEmptyRoadSnapshot } from '@web-three-city/road-core';
+import {
+  createInitialEconomySnapshot,
+  FOUNDATION_ECONOMY_RULES,
+} from '@web-three-city/economy-core';
 import { describe, expect, it } from 'vitest';
 import { GameWorldStateStore, gameWorldStateFromCommittedWorld } from './game-world-state.js';
 
@@ -12,6 +17,11 @@ function initialState() {
     simulation,
     buildings: createEmptyBuildingSnapshot(WORLD_CONFIG),
     rci: createInitialRciSnapshot({ absoluteTick: simulation.absoluteTick }),
+    roads: createEmptyRoadSnapshot(WORLD_CONFIG),
+    economy: createInitialEconomySnapshot(
+      { year: 1, month: 1, latestDailySettlementTick: simulation.absoluteTick },
+      FOUNDATION_ECONOMY_RULES,
+    ),
   });
 }
 
@@ -26,6 +36,8 @@ describe('GameWorldStateStore', () => {
       simulation: legacy.simulation,
       buildings: legacy.buildings,
       rci: legacy.rci,
+      roads: legacy.roads,
+      economy: legacy.economy,
     });
   });
 
@@ -41,6 +53,8 @@ describe('GameWorldStateStore', () => {
       }),
       buildings: before.buildings,
       rci: before.rci,
+      roads: before.roads,
+      economy: before.economy,
     });
     expect(store.replace(0, next)).toBe(next);
     expect(store.snapshot()).toBe(next);

@@ -1,4 +1,8 @@
 import { createEmptyBuildingSnapshot } from '@web-three-city/building-core';
+import {
+  createInitialEconomySnapshot,
+  FOUNDATION_ECONOMY_RULES,
+} from '@web-three-city/economy-core';
 import { createInitialRciSnapshot } from '@web-three-city/rci-core';
 import {
   commitRoadMutation,
@@ -92,6 +96,10 @@ describe('WorldTransactionCoordinator', () => {
       buildings: createEmptyBuildingSnapshot(WORLD_CONFIG),
       simulation,
       rci: createInitialRciSnapshot({ absoluteTick: simulation.absoluteTick }),
+      economy: createInitialEconomySnapshot(
+        { year: 1, month: 1, latestDailySettlementTick: simulation.absoluteTick },
+        FOUNDATION_ECONOMY_RULES,
+      ),
     });
     const coordinator = new DefaultWorldTransactionCoordinator({
       worldStore: new CommittedWorldStore(initial),
@@ -140,6 +148,7 @@ describe('WorldTransactionCoordinator', () => {
         buildings: before.buildings,
         simulation: before.simulation,
         rci: before.rci,
+        economy: before.economy,
       });
 
       const result = coordinator.publish({

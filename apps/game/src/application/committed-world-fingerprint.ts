@@ -25,6 +25,7 @@ export function fingerprintCommittedWorld(world: CommittedWorld): string {
       buildings: world.buildings,
       simulation: world.simulation,
       rci: world.rci,
+      economy: world.economy,
       environments: {
         road: {
           terrainRevision: world.environments.road.terrainRevision,

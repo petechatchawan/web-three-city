@@ -1,4 +1,8 @@
 import { createEmptyBuildingSnapshot } from '@web-three-city/building-core';
+import {
+  createInitialEconomySnapshot,
+  FOUNDATION_ECONOMY_RULES,
+} from '@web-three-city/economy-core';
 import { createInitialRciSnapshot } from '@web-three-city/rci-core';
 import { createEmptyRoadSnapshot, type RoadSnapshot } from '@web-three-city/road-core';
 import { createInitialSimulationSnapshot } from '@web-three-city/simulation-core';
@@ -74,11 +78,31 @@ function sourceWorld(revision = 0): CommittedWorldInput {
     buildings,
     simulation,
     rci,
+    economy: createInitialEconomySnapshot(
+      { year: 1, month: 1, latestDailySettlementTick: simulation.absoluteTick },
+      FOUNDATION_ECONOMY_RULES,
+    ),
     environments,
   };
 }
 
 describe('CommittedWorldStore', () => {
+  it('includes Economy in candidate validation and the committed-world fingerprint', () => {
+    const source = sourceWorld(0);
+    const world = createCommittedWorld(source);
+    const changed = createCommittedWorld({
+      ...source,
+      economy: { ...source.economy, treasuryBalanceMinor: source.economy.treasuryBalanceMinor - 1 },
+    });
+    expect(fingerprintCommittedWorld(changed)).not.toBe(fingerprintCommittedWorld(world));
+    expect(() =>
+      createCommittedWorld({
+        ...source,
+        economy: { ...source.economy, treasuryBalanceMinor: 0.5 },
+      }),
+    ).toThrow('committed-world:invalid-economy');
+  });
+
   it('publishes all domain snapshots and derived environments in one application revision', () => {
     const initial = createCommittedWorld(sourceWorld(0));
     const store = new CommittedWorldStore(initial);

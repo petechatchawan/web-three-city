@@ -9,6 +9,12 @@ import {
   type RoadSnapshot,
 } from '@web-three-city/road-core';
 import type { RciSnapshot } from '@web-three-city/rci-core';
+import {
+  cloneEconomySnapshot,
+  FOUNDATION_ECONOMY_RULES,
+  validateEconomySnapshot,
+  type EconomySnapshotV1,
+} from '@web-three-city/economy-core';
 import { createSimulationSnapshot, type SimulationSnapshot } from '@web-three-city/simulation-core';
 import { createTerrainMap, type TerrainSnapshot } from '@web-three-city/terrain-core';
 import { deriveWaterSnapshot, type WaterSnapshot } from '@web-three-city/water-core';
@@ -32,6 +38,7 @@ export interface CommittedWorld {
   readonly buildings: BuildingSnapshot;
   readonly simulation: SimulationSnapshot;
   readonly rci: RciSnapshot;
+  readonly economy: EconomySnapshotV1;
   readonly environments: Readonly<{
     readonly road: RoadPlacementEnvironment;
     readonly zone: ZonePlacementEnvironment;
@@ -48,6 +55,7 @@ export type CommittedWorldInput = Readonly<{
   buildings: BuildingSnapshot;
   simulation: SimulationSnapshot;
   rci: RciSnapshot;
+  economy: EconomySnapshotV1;
   environments: CommittedWorld['environments'];
 }>;
 
@@ -100,6 +108,9 @@ function cloneForRead(world: CommittedWorld): CommittedWorld {
 export function createCommittedWorld(input: CommittedWorldInput): CommittedWorld {
   assertApplicationRevision(input.revision);
   assertEnvironmentProvenance(input);
+  if (!validateEconomySnapshot(input.economy, FOUNDATION_ECONOMY_RULES)) {
+    throw new RangeError('committed-world:invalid-economy');
+  }
   const terrain = createTerrainMap({
     config: WORLD_CONFIG,
     heightLevels: input.terrain.heightLevels,
@@ -152,6 +163,7 @@ export function createCommittedWorld(input: CommittedWorldInput): CommittedWorld
     buildings,
     simulation,
     rci: input.rci,
+    economy: cloneEconomySnapshot(input.economy),
     environments,
   });
 }
@@ -182,6 +194,7 @@ export type CommittedDomainState = Readonly<{
   buildings: BuildingSnapshot;
   simulation: SimulationSnapshot;
   rci: RciSnapshot;
+  economy: EconomySnapshotV1;
 }>;
 
 export function createCommittedWorldFromDomainState(input: CommittedDomainState): CommittedWorld {

@@ -1,0 +1,40 @@
+name: Architecture PR3 Debug
+
+on:
+  push:
+    branches:
+      - refactor/dependent-world-consistency-v0-1
+    paths:
+      - '.github/workflows/architecture-pr3-debug.yml'
+      - 'apps/game/src/application/world-transaction-coordinator.test.ts'
+
+permissions:
+  contents: write
+
+jobs:
+  reproduce:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refactor/dependent-world-consistency-v0-1
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Format reproduction test
+        run: |
+          pnpm exec prettier --write apps/game/src/application/world-transaction-coordinator.test.ts
+          if ! git diff --quiet -- apps/game/src/application/world-transaction-coordinator.test.ts; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add apps/game/src/application/world-transaction-coordinator.test.ts
+            git commit --no-verify -m 'test(architecture): format Road publication regression'
+            git push origin HEAD:refactor/dependent-world-consistency-v0-1
+          fi
+      - name: Reproduce Road publication failure
+        run: pnpm --filter @web-three-city/game test -- src/application/world-transaction-coordinator.test.ts

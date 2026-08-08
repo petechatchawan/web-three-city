@@ -8,7 +8,10 @@ import { DefaultWorldTransactionCoordinator } from './world-transaction-coordina
 describe('PresentationCoordinator', () => {
   it('updates presentation only after committed-world publication', () => {
     const initial = createApplicationFixture();
-    const next = createApplicationFixture({ applicationRevision: 1, withCommercialBuilding: true });
+    const next = createApplicationFixture({
+      applicationRevision: 1,
+      withCommercialBuilding: true,
+    });
     const store = new CommittedWorldStore(initial);
     const trace: string[] = [];
     const presentation = new PresentationCoordinator({
@@ -65,7 +68,9 @@ describe('PresentationCoordinator', () => {
     const synchronized: number[] = [];
     const presentation = new PresentationCoordinator({ steps: [] });
 
-    presentation.incrementalPort((candidate) => synchronized.push(candidate.revision)).synchronize(world);
+    presentation
+      .incrementalPort((candidate) => synchronized.push(candidate.revision))
+      .synchronize(world);
 
     expect(synchronized).toEqual([0]);
     expect(interactionState).toEqual(before);
@@ -78,9 +83,11 @@ describe('PresentationCoordinator', () => {
       beforeSynchronize: () => {
         replacing = true;
       },
-      steps: [() => {
-        throw new Error('presentation-failed');
-      }],
+      steps: [
+        () => {
+          throw new Error('presentation-failed');
+        },
+      ],
       afterSynchronize: () => {
         replacing = false;
       },

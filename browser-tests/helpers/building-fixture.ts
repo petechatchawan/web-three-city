@@ -14,7 +14,7 @@ import {
 import { WORLD_CONFIG, type CellCoord } from '../../packages/world-core/src/index.js';
 import { createRoadPlacementEnvironment } from '../../apps/game/src/road-placement-environment.js';
 import { createZonePlacementEnvironment } from '../../apps/game/src/zone-placement-environment.js';
-import { projectTerrainCells, type TerrainCellScreenPoint } from './interaction.js';
+import { clickTerrainCell, type TerrainCellScreenPoint } from './interaction.js';
 
 const TERRAIN = (() => {
   const result = generateCoastalTerrain({ seed: 1_464_156_977, config: WORLD_CONFIG });
@@ -147,10 +147,11 @@ export function pointFor(points: BuildingFixturePoints, cell: CellCoord): Terrai
 }
 
 export async function locateBuildingFixturePoints(page: Page): Promise<BuildingFixturePoints> {
-  const projected = await projectTerrainCells(page, ALL_BUILDING_FIXTURE_CELLS);
-  return new Map(
-    ALL_BUILDING_FIXTURE_CELLS.map((cell, index) => [key(cell), projected[index]!] as const),
-  );
+  const points = new Map<string, TerrainCellScreenPoint>();
+  for (const cell of ALL_BUILDING_FIXTURE_CELLS) {
+    points.set(key(cell), await clickTerrainCell(page, cell));
+  }
+  return points;
 }
 
 async function buildRoad(

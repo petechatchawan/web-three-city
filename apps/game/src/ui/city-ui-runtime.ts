@@ -9,6 +9,8 @@ import { mountPlayerShell, type PlayerShell } from './shell/player-shell.js';
 export interface CityUiPorts {
   readonly setSpeed: Parameters<typeof mountPlayerShell>[1]['setSpeed'];
   readonly step: () => void;
+  readonly selectTool: Parameters<typeof mountPlayerShell>[1]['selectTool'];
+  readonly setTerraformBrush: Parameters<typeof mountPlayerShell>[1]['setTerraformBrush'];
   readonly rciRegistries: RciDefinitionRegistries;
 }
 
@@ -36,6 +38,8 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
   const shell: PlayerShell = mountPlayerShell(parent, {
     setSpeed: ports.setSpeed,
     step: ports.step,
+    selectTool: ports.selectTool,
+    setTerraformBrush: ports.setTerraformBrush,
     onInformationViews: () =>
       openTextDialog('information-views', 'Information Views', 'Canonical world overlays'),
     onCity: () => openTextDialog('city-overview', 'City', 'City Overview'),

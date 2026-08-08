@@ -173,6 +173,8 @@ const timeUi = mountGameTimeUi(root, setSimulationSpeed, () => {
 });
 const cityUi = mountCityUi(root, {
   setSpeed: setSimulationSpeed,
+  selectTool: (mode) => runtime.selectTool(mode),
+  setTerraformBrush: (size) => runtime.setTerraformBrush(size),
   step: () => {
     simulationRuntime.step(advanceOneLogicalTick);
   },

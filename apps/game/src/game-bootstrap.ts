@@ -76,6 +76,7 @@ import {
   type CommittedWorld,
 } from './application/committed-world.js';
 import { fingerprintCommittedWorld } from './application/committed-world-fingerprint.js';
+import { PresentationCoordinator } from './application/presentation-coordinator.js';
 import { reconcileRciForBuildingChange } from './application/rci-building-reconciliation.js';
 import { SaveCoordinator } from './application/save-coordinator.js';
 import { UndoCoordinator } from './application/undo-coordinator.js';
@@ -508,37 +509,37 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     notifyCommittedWorld(world, reason);
   };
 
-  const presentCompleteWorld = (world: CommittedWorld): void => {
-    replacingWorld = true;
-    try {
-      terrain.load(world.terrain);
-      const presentationStart = performance.now();
-      water.load(world.terrain, world.water);
-      waterPresentationDurationMs = performance.now() - presentationStart;
-      waterBuildMetrics = stagedWaterBuildMetrics;
-      grid.load(world.terrain);
-      roadPresentation.loadAll(world.roads, world.environments.road);
-      zoneSurfaceSnapshot = world.terrain;
-      zonePresentation.loadAll(world.zones);
-      buildingPresentation.load(world.buildings);
-      rebuildSelection(selection, world.terrain, selectedCell);
-      inputRef.current?.refreshTerrainObjects();
-    } finally {
+  const presentationCoordinator = new PresentationCoordinator({
+    beforeSynchronize: () => {
+      replacingWorld = true;
+    },
+    steps: [
+      (world) => terrain.load(world.terrain),
+      (world) => {
+        const presentationStart = performance.now();
+        water.load(world.terrain, world.water);
+        waterPresentationDurationMs = performance.now() - presentationStart;
+        waterBuildMetrics = stagedWaterBuildMetrics;
+      },
+      (world) => grid.load(world.terrain),
+      (world) => roadPresentation.loadAll(world.roads, world.environments.road),
+      (world) => {
+        zoneSurfaceSnapshot = world.terrain;
+        zonePresentation.loadAll(world.zones);
+      },
+      (world) => buildingPresentation.load(world.buildings),
+      (world) => rebuildSelection(selection, world.terrain, selectedCell),
+      () => inputRef.current?.refreshTerrainObjects(),
+    ],
+    afterSynchronize: () => {
       replacingWorld = false;
-    }
-  };
-  const completeWorldPresentation: WorldPresentationPort = Object.freeze({
-    synchronize: presentCompleteWorld,
-    rebuildFromCommitted: presentCompleteWorld,
+    },
   });
+  const completeWorldPresentation = presentationCoordinator.completePort();
   const incrementalPresentation = (
     synchronize: (world: CommittedWorld) => void,
-  ): WorldPresentationPort =>
-    Object.freeze({ synchronize, rebuildFromCommitted: presentCompleteWorld });
-  const noOpPresentation: WorldPresentationPort = Object.freeze({
-    synchronize: () => {},
-    rebuildFromCommitted: presentCompleteWorld,
-  });
+  ): WorldPresentationPort => presentationCoordinator.incrementalPort(synchronize);
+  const noOpPresentation = presentationCoordinator.noOpPort();
   const transactionCoordinator = new DefaultWorldTransactionCoordinator({
     worldStore: committedWorldStore,
     presentation: completeWorldPresentation,
@@ -1093,18 +1094,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
       preview.clear();
       roadPreview.clear();
       zonePreview.clear();
-      terrain.load(snapshot);
-      const presentationStart = performance.now();
-      water.load(snapshot, waterSnapshot);
-      waterPresentationDurationMs = performance.now() - presentationStart;
-      waterBuildMetrics = stagedWaterBuildMetrics;
-      grid.load(snapshot);
-      roadPresentation.loadAll(roadsSnapshot, roadEnvironment);
-      zoneSurfaceSnapshot = snapshot;
-      zonePresentation.loadAll(zonesSnapshot);
-      buildingPresentation.load(buildingsSnapshot);
-      rebuildSelection(selection, snapshot, selectedCell);
-      input.refreshTerrainObjects();
+      presentationCoordinator.rebuildFromCommitted(transactionCoordinator.snapshot());
       contextLost = false;
       ui.setStatus('Ready');
     },

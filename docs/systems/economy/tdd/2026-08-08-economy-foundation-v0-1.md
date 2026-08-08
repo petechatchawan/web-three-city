@@ -1,6 +1,6 @@
 # Economy Foundation v0.1 — TDD Implementation Plan
 
-**Status:** Complete; awaiting implementation approval
+**Status:** Implementation complete; final verification pending
 
 **Planning baseline:** `master@f970805fdc6640aa923fded69897c5a43361c970`
 
@@ -294,6 +294,8 @@ pnpm verify:full
 - Level 4 exact-head pass and save compatibility evidence.
 
 ## PR 6 — Budget UI, Acceptance, and Milestone Closure
+
+**Execution status:** Implemented; final exact-candidate Level 4 evidence is recorded in the milestone verification record.
 
 **Goal:** Deliver the player-visible municipal loop, complete acceptance coverage, and close the milestone without changing domain authority.
 

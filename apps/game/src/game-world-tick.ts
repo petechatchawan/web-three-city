@@ -98,12 +98,14 @@ export function planGameWorldTick(
     buildingsAfter: buildingCommit.buildings,
     registries: input.registries,
     configuration: FOUNDATION_RCI_CONFIGURATION,
-    externalDemandFactors: (taxPressure.ok ? taxPressure.factors : []).map((factor) => ({
-      id: factor.id,
-      channel: factor.channel,
-      weightMilli: factor.weightMilli,
-      evaluate: () => factor.pressureMilli,
-    })),
+    externalDemandFactors: (taxPressure.ok ? taxPressure.factors : [])
+      .filter((factor) => factor.pressureMilli !== 0)
+      .map((factor) => ({
+        id: factor.id,
+        channel: factor.channel,
+        weightMilli: factor.weightMilli,
+        evaluate: () => factor.pressureMilli,
+      })),
   });
   if (!rciPlan.valid) {
     return Object.freeze({

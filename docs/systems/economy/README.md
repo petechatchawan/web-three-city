@@ -1,6 +1,6 @@
 # Economy System
 
-**Status:** Partial — Core, Settlement, and Paid Actions implemented
+**Status:** Implemented — Economy Foundation v0.1
 
 **Milestone:** Economy Foundation v0.1
 
@@ -12,7 +12,7 @@
 
 Economy Foundation v0.1 defines a deterministic aggregate municipal economy: treasury, R/C/I tax policy and revenue, player-action costs, road maintenance, monthly accounting, and lagged tax-pressure feedback to RCI.
 
-The framework-independent Economy foundation provides deterministic money/rate arithmetic, versioned rules, the authoritative snapshot, pure Treasury/tax-policy commands, aggregate accounting, taxable projections, and scheduled settlement. `apps/game` includes Economy in atomic background ticks and charges validated Road, Terraform, and Bulldoze plans. Persistence, RCI policy feedback, and UI remain unimplemented.
+The framework-independent Economy foundation provides deterministic money/rate arithmetic, versioned rules, the authoritative snapshot, pure Treasury/tax-policy commands, aggregate accounting, taxable projections, and scheduled settlement. `apps/game` composes Economy into atomic background ticks and paid actions, persists it in `WorldSaveV6`, supplies lagged policy feedback to RCI, and presents an immutable Budget projection.
 
 ## Ownership
 
@@ -35,8 +35,6 @@ Economy does not own citizens, households, jobs, buildings, roads, terrain, simu
 - RCI reads tax-pressure factors derived from the previously committed Economy state; Economy then settles from the newly staged RCI state. There is no same-tick cycle.
 - Presentation consumes an Economy projection and submits typed application commands; it never mutates Economy state.
 
-Paid actions, lagged policy feedback, persistence, and presentation remain approved contracts for later implementation PRs.
-
 ## Current Implementation
 
 - [`money.ts`](../../../packages/economy-core/src/money.ts) validates safe-integer minor units/basis points and performs checked ratio arithmetic with `bigint` intermediates.
@@ -50,6 +48,7 @@ Paid actions, lagged policy feedback, persistence, and presentation remain appro
 - Undo restores the affected domain through the current world and records an exact refund, preserving later settlement and closed accounting history.
 - Tax policy produces stable, clamped R/C/I demand factors consumed by the next RCI evaluation through an application-supplied seam.
 - `EconomySaveV1` validates untrusted JSON against validated rules; `WorldSaveV6` persists Economy while older saves receive zero-history deterministic initialization from saved GameTime.
+- The municipal HUD renders treasury, income, expenses, net, categorized accounts, periods, and tax policy from an immutable projection. Typed tax commands publish through the committed-world coordinator.
 
 ## Determinism and Failure
 
@@ -74,4 +73,4 @@ There are no citizen wallets, wages, rent, business accounts, loans, bonds, infl
 - [Lagged RCI feedback ADR](adrs/0004-lagged-economy-rci-feedback.md)
 - [Persistence ADR](adrs/0005-economy-persistence-and-migration.md)
 
-Later implementation PRs must update this overview in the same PRs that establish their contracts.
+The milestone's final verification record is stored under [`verification/`](verification/).

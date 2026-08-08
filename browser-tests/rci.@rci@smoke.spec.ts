@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { GAME_URL } from './helpers/interaction.js';
 
-const SAVE_KEY = 'web-three-city:world-save:v5';
+const SAVE_KEY = 'web-three-city:world-save:v6';
 
 async function waitForReady(page: import('@playwright/test').Page): Promise<void> {
   await page.goto(GAME_URL);
@@ -32,7 +32,7 @@ test('background RCI ticks do not interrupt an active zoning tool', async ({ pag
   );
 });
 
-test('round-trips WorldSaveV5 with RCI and restores HUD values', async ({ page }) => {
+test('round-trips WorldSaveV6 with RCI, Economy, and restores HUD values', async ({ page }) => {
   await waitForReady(page);
   const before = {
     population: await page.getByTestId('rci-population').textContent(),
@@ -46,10 +46,11 @@ test('round-trips WorldSaveV5 with RCI and restores HUD values', async ({ page }
   expect(saved).not.toBeNull();
   expect(JSON.parse(saved ?? '{}')).toMatchObject({
     kind: 'world-save',
-    schemaVersion: 5,
-    simulation: { schemaVersion: 1 },
+    schemaVersion: 6,
+    simulation: { schemaVersion: 2 },
     buildings: { schemaVersion: 2 },
     rci: { kind: 'rci-save', schemaVersion: 1 },
+    economy: { schemaVersion: 1 },
   });
 
   await page.getByRole('button', { name: 'Load world' }).click();

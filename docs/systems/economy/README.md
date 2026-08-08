@@ -12,7 +12,7 @@
 
 Economy Foundation v0.1 defines a deterministic aggregate municipal economy: treasury, R/C/I tax policy and revenue, player-action costs, road maintenance, monthly accounting, and lagged tax-pressure feedback to RCI.
 
-The framework-independent Economy foundation now provides deterministic money/rate arithmetic, versioned foundation rules, and the authoritative snapshot contract. Treasury commands, settlement, application integration, persistence, and UI remain unimplemented.
+The framework-independent Economy foundation now provides deterministic money/rate arithmetic, versioned foundation rules, the authoritative snapshot contract, pure Treasury/tax-policy commands, aggregate accounting deltas, and monthly close. Scheduled settlement, application integration, persistence, and UI remain unimplemented.
 
 ## Ownership
 
@@ -42,6 +42,7 @@ These workflows remain approved contracts for later implementation PRs. PR1 impl
 - [`money.ts`](../../../packages/economy-core/src/money.ts) validates safe-integer minor units/basis points and performs checked ratio arithmetic with `bigint` intermediates.
 - [`rules.ts`](../../../packages/economy-core/src/rules.ts) owns and validates `economy-rules.foundation.v1`.
 - [`economy-snapshot.ts`](../../../packages/economy-core/src/economy-snapshot.ts) creates, clones, validates, and fingerprints `EconomySnapshotV1`.
+- [`treasury-accounting.ts`](../../../packages/economy-core/src/treasury-accounting.ts) applies revision-fenced policy changes and categorized Economy deltas, enforces immediate affordability, permits recurring deficits, closes periods, and derives cost/accounting summaries.
 - The package has no runtime dependency and no DOM/Three.js library access.
 - No application currently consumes or publishes the snapshot; that integration belongs to later PRs.
 

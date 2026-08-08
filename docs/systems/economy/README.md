@@ -1,6 +1,6 @@
 # Economy System
 
-**Status:** Partial — Core, Treasury, and Scheduled Settlement implemented
+**Status:** Partial — Core, Settlement, and Paid Actions implemented
 
 **Milestone:** Economy Foundation v0.1
 
@@ -12,7 +12,7 @@
 
 Economy Foundation v0.1 defines a deterministic aggregate municipal economy: treasury, R/C/I tax policy and revenue, player-action costs, road maintenance, monthly accounting, and lagged tax-pressure feedback to RCI.
 
-The framework-independent Economy foundation provides deterministic money/rate arithmetic, versioned rules, the authoritative snapshot, pure Treasury/tax-policy commands, aggregate accounting, taxable projections, and scheduled daily/monthly settlement. `apps/game` now includes Economy in atomic background-tick candidates. Paid actions, persistence, RCI policy feedback, and UI remain unimplemented.
+The framework-independent Economy foundation provides deterministic money/rate arithmetic, versioned rules, the authoritative snapshot, pure Treasury/tax-policy commands, aggregate accounting, taxable projections, and scheduled settlement. `apps/game` includes Economy in atomic background ticks and charges validated Road, Terraform, and Bulldoze plans. Persistence, RCI policy feedback, and UI remain unimplemented.
 
 ## Ownership
 
@@ -46,6 +46,8 @@ Paid actions, lagged policy feedback, persistence, and presentation remain appro
 - [`scheduled-settlement.ts`](../../../packages/economy-core/src/scheduled-settlement.ts) validates narrow RCI/Road projections and applies once-only 08:00 tax and maintenance settlement.
 - The package has no runtime dependency and no DOM/Three.js library access.
 - `apps/game` derives projections from staged RCI and authoritative Road state, validates Economy in `CommittedWorld`, fingerprints it, and publishes Simulation/Building/RCI/Economy once.
+- Paid Road construction, Terraform, and Bulldoze plans are quoted from validated mutation counts; unaffordable commands publish nothing.
+- Undo restores the affected domain through the current world and records an exact refund, preserving later settlement and closed accounting history.
 
 ## Determinism and Failure
 

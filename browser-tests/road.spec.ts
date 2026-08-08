@@ -259,7 +259,7 @@ test('Bulldoze updates topology and tagged Undo restores the Road only', async (
   await expect(page.getByTestId('game-status')).toHaveText('Road undone');
   const undone = await readEvidence(page);
   expect(undone.road.occupiedCellCount).toBe(built.road.occupiedCellCount);
-  expect(undone.road.committedRoadRevision).toBeGreaterThan(bulldozed.road.committedRoadRevision);
+  expect(undone.road.committedRoadRevision).toBe(built.road.committedRoadRevision);
   expect(undone.road.undoCount).toBe(bulldozed.road.undoCount + 1);
   expect(undone.water.sourceTerrainRevision).toBe(built.water.sourceTerrainRevision);
 });

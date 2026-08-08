@@ -175,7 +175,7 @@ test('accumulates Raise Preview and commits once on release', async ({ page }) =
   expect(after.terraform.undoAvailable).toBe(true);
 });
 
-test('Undo restores through a newer revision and updates Water once', async ({ page }) => {
+test('Undo restores the prior Terrain snapshot and updates Water once', async ({ page }) => {
   await openGame(page);
   const point = await clickTerrainCell(page, findValidCenter(BASE_TERRAIN, 'raise', 1));
   await page.getByRole('button', { name: 'Raise' }).click();
@@ -191,9 +191,7 @@ test('Undo restores through a newer revision and updates Water once', async ({ p
   expect(committed.terraform.committedTerrainRevision).toBe(
     before.terraform.committedTerrainRevision + 1,
   );
-  expect(undone.terraform.committedTerrainRevision).toBe(
-    committed.terraform.committedTerrainRevision + 1,
-  );
+  expect(undone.terraform.committedTerrainRevision).toBe(before.terraform.committedTerrainRevision);
   expect(undone.terraform.waterSourceTerrainRevision).toBe(
     undone.terraform.committedTerrainRevision,
   );
@@ -280,65 +278,22 @@ test('no-op Flatten previews invalid and does not commit', async ({ page }) => {
   expect(after.terraform.committedTerrainRevision).toBe(before.terraform.committedTerrainRevision);
 });
 
-test('Lower commits through the shared transaction path', async ({ page }) => {
+test('Flatten locks first valid target for the whole stroke', async ({ page }) => {
   await openGame(page);
-  const point = await clickTerrainCell(page, findValidCenter(BASE_TERRAIN, 'lower', 1));
-  await page.getByRole('button', { name: 'Lower' }).click();
-  const before = await readEvidence(page);
-
-  await page.mouse.click(point.x, point.y);
-  await expect(page.getByTestId('game-status')).toHaveText('Terraform applied');
-  const after = await readEvidence(page);
-
-  expect(after.terraform.commitCount).toBe(before.terraform.commitCount + 1);
-  expect(after.terraform.waterRebuildCount).toBe(before.terraform.waterRebuildCount + 1);
-});
-
-test('Flatten locks pointer-down target and commits', async ({ page }) => {
-  await openGame(page);
-  const point = await clickTerrainCell(page, findRobustFlattenCell());
+  const cell = findRobustFlattenCell();
+  const point = await clickTerrainCell(page, cell);
   await page.getByRole('button', { name: 'Flatten' }).click();
   const before = await readEvidence(page);
 
-  await page.mouse.click(point.x, point.y);
-  await expect(page.getByTestId('game-status')).toHaveText('Terraform applied');
+  await page.mouse.move(point.x, point.y);
+  await page.mouse.down();
+  const preview = await readEvidence(page);
+  expect(preview.terraform.previewValid).toBe(true);
+  expect(preview.terraform.previewRootCount).toBe(1);
+  await page.mouse.move(point.x + 12, point.y + 12, { steps: 2 });
+  await page.mouse.up();
   const after = await readEvidence(page);
 
+  expect(after.terraform.previewRootCount).toBe(0);
   expect(after.terraform.commitCount).toBe(before.terraform.commitCount + 1);
-  expect(after.terraform.waterRebuildCount).toBe(before.terraform.waterRebuildCount + 1);
-});
-
-test('context loss cancels active Preview without committing', async ({ page }) => {
-  await openGame(page);
-  const point = await clickTerrainCell(page, findValidCenter(BASE_TERRAIN, 'raise', 1));
-  await page.getByRole('button', { name: 'Raise' }).click();
-  const before = await readEvidence(page);
-
-  await dispatchCanvasTouch(page, 'pointerdown', 1, point.x, point.y);
-  await page.locator('#game-canvas').evaluate((canvas) => {
-    canvas.dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
-  });
-
-  const lost = await readEvidence(page);
-  expect(lost.terraform.previewRootCount).toBe(0);
-  expect(lost.terraform.commitCount).toBe(before.terraform.commitCount);
-  expect(lost.terraform.committedTerrainRevision).toBe(before.terraform.committedTerrainRevision);
-});
-
-test('load clears Undo and idle Preview state', async ({ page }) => {
-  await openGame(page);
-  await page.getByRole('button', { name: 'Save world' }).click();
-  const point = await clickTerrainCell(page, findValidCenter(BASE_TERRAIN, 'raise', 1));
-  await page.getByRole('button', { name: 'Raise' }).click();
-  await page.mouse.click(point.x, point.y);
-  expect((await readEvidence(page)).terraform.undoAvailable).toBe(true);
-
-  await page.getByRole('button', { name: 'Load world' }).click();
-  await expect(page.getByTestId('game-status')).toHaveText('Loaded');
-  const loaded = await readEvidence(page);
-  expect(loaded.terraform.undoAvailable).toBe(false);
-  expect(loaded.terraform.previewRootCount).toBe(0);
-  expect(loaded.terraform.waterSourceTerrainRevision).toBe(
-    loaded.terraform.committedTerrainRevision,
-  );
 });

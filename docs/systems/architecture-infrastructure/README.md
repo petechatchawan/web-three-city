@@ -1,7 +1,7 @@
 # Architecture and Infrastructure System
 
-**Status:** Implementation in progress — boundary enforcement implemented  
-**Last verified against:** `master@c14d5eb34d7ccc61bfdd633a69e3649a26d54a13`  
+**Status:** Implementation in progress — slices 1–3 implemented; PR 3 final verification pending  
+**Implementation baseline:** `master@05334eba378340c610d6f6a8633e220a120580cf`  
 **Primary ownership:** repository architecture rules, `apps/game` application orchestration, repository verification tooling, CI/browser verification  
 **Persistence:** Git-tracked architecture and verification documentation; existing gameplay Save schemas remain unchanged
 
@@ -9,7 +9,7 @@
 
 Define and incrementally enforce the seams that keep deterministic domain systems isolated, make cross-system coordination explicit, reduce `game-bootstrap.ts` blast radius, and let future systems such as Economy, Utilities, Services, Land Value, Traffic, and Density integrate without circular ownership.
 
-This system is a planning and enforcement boundary. It does not own gameplay state or replace the domain systems documented in the neighboring system handoffs.
+This system is an architecture and enforcement boundary. It does not own gameplay state or replace the domain systems documented in the neighboring system handoffs.
 
 ## Does Not Own
 
@@ -21,14 +21,17 @@ This system is a planning and enforcement boundary. It does not own gameplay sta
 
 ## Current Capabilities
 
-- Phase 1 audit is complete for `origin/master` at `c14d5eb34d7ccc61bfdd633a69e3649a26d54a13`.
-- Root `AGENTS.md` defines the current Verification Ladder and conservative Level 2 map.
-- Existing domain packages are acyclic and currently show no production core-to-Three.js or package-to-app imports.
-- Existing `GameWorldStateStore` atomically publishes Simulation, Buildings, and RCI only.
-- Existing `game-world-tick.ts` stages Building Growth, Simulation, and RCI before that partial publication.
-- Planning artifacts in this directory define the target architecture and future implementation slices.
-
-No runtime architecture enforcement or bootstrap extraction is implemented by this Planning PR.
+- Phase 1 baseline audit and the approved seam-first architecture plan are complete.
+- Root `AGENTS.md` defines the Verification Ladder and conservative Level 2 map.
+- Repository-native architecture contracts enforce acyclic workspace imports, package-to-app and core-to-presentation separation, manifest consistency, and non-DOM core TypeScript boundaries before slow package suites.
+- Core browser-global leaks found by enforcement were removed with deterministic, wire-compatible codecs/UTF-8 behavior rather than restoring DOM ambient authority.
+- `CommittedWorldStore` composes Terrain, Water, Roads, Zones, Buildings, Simulation, RCI, and candidate-derived placement environments behind one application revision fence.
+- Committed-world publication and reads reconstruct canonical defensive domain snapshots so typed-array-backed state cannot be mutated through an application read boundary.
+- `DefaultWorldTransactionCoordinator` validates complete candidates before one authoritative publication and reports presentation degradation separately from domain commit status.
+- `SaveCoordinator` owns world Save/Load commands against coherent committed state; the Save wire schema remains unchanged.
+- `UndoCoordinator` restores the complete prior dependent domain world while only the application publication revision advances.
+- Building content is fenced by deterministic fingerprint for RCI planning; Building changes reconcile dwelling/workplace inventory before publication.
+- Interactive Terraform/Road/Zone/Building mutations and foreground/background simulation changes publish through the committed-world seam before presentation.
 
 ## Ownership and State
 
@@ -36,13 +39,13 @@ No runtime architecture enforcement or bootstrap extraction is implemented by th
 
 - Domain snapshots remain authoritative inside their owning `*-core` packages.
 - `apps/game` remains the composition root and owns application-level coordination.
-- Future application coordination may own committed-world publication policy, but must not duplicate domain facts.
+- `CommittedWorldStore` owns the coherent application publication boundary; it composes but does not duplicate domain facts.
 - Save authority remains the existing versioned world envelope until a separately approved Save decision changes it.
 
 ### Derived
 
 - Water, occupancy, placement environments, indexes, projections, HUD values, and renderer objects remain derived.
-- Application read models may compose authoritative snapshots and derived environments, but may not become a second domain store.
+- Application read models compose authoritative snapshots and derived environments but do not become a second domain store.
 - Candidate Road/Zone/Building placement environments are derived and provenance-validated before atomic publication when they travel with the committed-world view; they are not post-publication authoritative caches.
 - Browser evidence and CI metadata remain verification outputs, not runtime authority.
 
@@ -50,11 +53,10 @@ No runtime architecture enforcement or bootstrap extraction is implemented by th
 
 1. Audit actual package imports, ownership, state authority, transactions, tests, and CI.
 2. Enforce layer rules with fast repository-native contract checks.
-3. Design application seams around complete committed-world publication, Save/Load ownership, dependent-world Undo, tick coordination, and presentation synchronization.
-4. Add characterization tests for existing transaction and Save/Load risks.
-5. Extract one coherent responsibility from `game-bootstrap.ts` at a time.
-6. Classify browser tests and optimize CI without weakening deterministic release verification.
-7. Record before/after measurements and close the program with exact-head evidence.
+3. Coordinate complete committed-world publication, Save/Load ownership, dependent-world Undo, tick reconciliation, and presentation synchronization from the application layer.
+4. Characterize and extract one coherent presentation/bootstrap responsibility at a time without changing gameplay behavior.
+5. Classify browser tests and optimize CI without weakening deterministic release verification.
+6. Record before/after measurements and close the program with exact-head evidence.
 
 ## Integrations
 
@@ -80,11 +82,12 @@ The Architecture and Infrastructure program introduces no Save wire-schema or pe
 
 - Every authoritative fact has one owner.
 - A committed-world publication contains mutually valid snapshots and derived environments.
-- Cross-system plans derive required placement environments from the candidate snapshots and validate all required before/after revisions and environment provenance before publication.
+- Application reads preserve canonical defensive domain snapshot semantics; callers cannot mutate committed typed-array state through an exposed read model.
+- Cross-system plans derive required placement environments from candidate snapshots and validate required revisions, content fingerprints, and environment provenance before publication.
 - Failed or stale pre-publication work publishes no partial state and consumes no deterministic sequence values.
 - A publication result of `rejected` means authority is unchanged; `committed` means authority changed and presentation status is reported separately as synchronized or degraded.
 - Save reads only committed, coherent state.
-- Undo restores a coherent dependent world or executes a complete reverse command; it does not restore one snapshot while leaving dependent state stale.
+- Undo restores a coherent dependent world or executes a complete reverse command; domain snapshots return to their prior content/revisions while the application publication revision advances.
 - Presentation and HUD update only after authoritative publication; post-publication presentation failure never rolls back domain authority.
 - Tick ordering, fixed-point arithmetic, Save migration, and browser determinism remain unchanged unless an ADR explicitly replaces a rule.
 
@@ -98,12 +101,10 @@ The Architecture and Infrastructure program introduces no Save wire-schema or pe
 
 ## Current Limitations
 
-- `game-bootstrap.ts` remains a large composition and transaction hub.
-- `GameWorldStateStore` does not yet cover Terrain, Water, Roads, or Zones.
-- Building bulldoze/Undo dependent RCI paths lack characterization coverage.
-- Browser tests have no ownership tags and use direct source imports for fixtures/helpers.
-- Core packages inherit DOM ambient types through the shared TypeScript base configuration.
-- CI repeats full Lean verification inside the Browser job and does not share build artifacts.
+- `game-bootstrap.ts` still owns substantial presentation/composition wiring; bounded presentation extraction is the next implementation slice.
+- Browser tests still lack ownership tags and still use direct source imports for fixtures/helpers; Test/CI Architecture v0.2 remains pending.
+- CI still repeats broad verification work in the browser path and does not yet expose the planned targeted browser groups.
+- Before/after timing and coupling measurements are not yet closed; milestone closure remains pending after slices 4–5 and final Level 4.
 
 ## Handoff Checklist
 
@@ -111,7 +112,7 @@ The Architecture and Infrastructure program introduces no Save wire-schema or pe
 - Approved design: [Architecture and Infrastructure Upgrade v0.1](specs/2026-08-07-architecture-infrastructure-upgrade-v0-1.md)
 - ADRs: [architecture ADR directory](adrs/)
 - TDD plan: [Architecture and Infrastructure Upgrade v0.1](tdd/2026-08-07-architecture-infrastructure-upgrade-v0-1.md)
-- Runtime seams: `apps/game/src/game-world-state.ts`, `game-world-tick.ts`, `world-save.ts`, `world-undo.ts`
+- Application seams: `apps/game/src/application/committed-world.ts`, `world-transaction-coordinator.ts`, `save-coordinator.ts`, `undo-coordinator.ts`
 - Bootstrap hotspot: `apps/game/src/game-bootstrap.ts`
 - Verification authority: [`AGENTS.md`](../../../AGENTS.md)
 - Related systems: [World](../world/README.md), [Buildings](../buildings/README.md), [Simulation Time](../simulation-time/README.md), [RCI](../rci/README.md), [Economy](../economy/README.md), [Development Workflow](../development-workflow/README.md)
@@ -127,7 +128,14 @@ The Architecture and Infrastructure program introduces no Save wire-schema or pe
 
 Repository-native architecture boundary checks enforce declared acyclic workspace imports, package-to-app/core-to-presentation separation, runtime dependency classification, and non-DOM core TypeScript libraries. Confirmed manifest drift is corrected without runtime behavior change, and the architecture gate runs before recursive package tests.
 
-
 ## Implementation Slice 2
 
-The complete committed-world application seam is available in `apps/game/src/application`. It composes Terrain, Water, Roads, Zones, Buildings, Simulation, RCI, and candidate-derived placement environments behind one application revision fence. Typed-array authority is copied on publication and read, environment provenance is validated before replacement, and content fingerprinting ignores adapter function identity. Legacy `GameWorldStateStore` remains the active compatibility path until the transaction/runtime migration in the next slice; PR 2 does not move Save, Undo, or gameplay mutation ownership.
+The complete committed-world application seam is available in `apps/game/src/application`. It composes Terrain, Water, Roads, Zones, Buildings, Simulation, RCI, and candidate-derived placement environments behind one application revision fence. Typed-array authority is copied on publication and read, environment provenance is validated before replacement, and content fingerprinting ignores adapter function identity. Legacy runtime paths remain compatibility internals only until their bounded extraction; PR 2 did not move Save, Undo, or gameplay mutation ownership.
+
+## Implementation Slice 3
+
+Runtime mutation authority routes through the committed-world transaction seam. Terraform, Road, Zone, Building bulldoze, simulation ticks, Save/Load, and dependent-world Undo all publish one complete candidate revision before presentation. Building mutations reconcile dwelling/workplace RCI inventory before publication, Save reads only `CommittedWorldStore`, Load publishes decoded state through the same coordinator, and Undo restores the complete prior domain world while advancing only the application revision. Presentation failures after publication are recovery events and do not roll domain authority back.
+
+The runtime read side now uses the same authority boundary: `GameRuntime.snapshot()` and `subscribeCommittedWorld()` expose the committed projection, logical stepping goes through `advanceLogicalTick()`, and the browser time/test projection serializes via the runtime `SaveCoordinator` path. `main.ts` no longer decodes Save data, reads storage keys, maintains a second Simulation authority, or reads Building authority back from the Three.js presentation layer.
+
+The Level 4 browser gate exposed a defensive-read bug during this slice: plain frozen typed-array copies lost canonical snapshot getter semantics and allowed mutation planning to mutate the read model. The application read boundary now reconstructs canonical snapshots, and a curated-runtime Road publication regression test protects this contract.

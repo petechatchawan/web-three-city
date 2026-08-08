@@ -11,7 +11,7 @@ import {
 import type { RciSnapshot } from '@web-three-city/rci-core';
 import { createSimulationSnapshot, type SimulationSnapshot } from '@web-three-city/simulation-core';
 import { createTerrainMap, type TerrainSnapshot } from '@web-three-city/terrain-core';
-import type { WaterSnapshot } from '@web-three-city/water-core';
+import { deriveWaterSnapshot, type WaterSnapshot } from '@web-three-city/water-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import {
   createZoneSnapshot,
@@ -94,23 +94,7 @@ function cloneWaterSnapshot(input: WaterSnapshot): WaterSnapshot {
 }
 
 function cloneForRead(world: CommittedWorld): CommittedWorld {
-  return Object.freeze({
-    ...world,
-    terrain: Object.freeze({ ...world.terrain, heightLevels: world.terrain.heightLevels.slice() }),
-    water: Object.freeze({ ...world.water, seaTriangleMask: world.water.seaTriangleMask.slice() }),
-    roads: Object.freeze({
-      width: world.roads.width,
-      height: world.roads.height,
-      revision: world.roads.revision,
-      definitionCodes: world.roads.definitionCodes.slice(),
-    }),
-    zones: Object.freeze({
-      width: world.zones.width,
-      height: world.zones.height,
-      revision: world.zones.revision,
-      definitionCodes: world.zones.definitionCodes.slice(),
-    }),
-  });
+  return createCommittedWorld(world);
 }
 
 export function createCommittedWorld(input: CommittedWorldInput): CommittedWorld {
@@ -188,4 +172,42 @@ export class CommittedWorldStore {
     this.#world = createCommittedWorld(next);
     return this.snapshot();
   }
+}
+
+export type CommittedDomainState = Readonly<{
+  revision: number;
+  terrain: TerrainSnapshot;
+  roads: RoadSnapshot;
+  zones: ZoneSnapshot;
+  buildings: BuildingSnapshot;
+  simulation: SimulationSnapshot;
+  rci: RciSnapshot;
+}>;
+
+export function createCommittedWorldFromDomainState(input: CommittedDomainState): CommittedWorld {
+  const waterResult = deriveWaterSnapshot(input.terrain, WORLD_CONFIG);
+  if (!waterResult.ok)
+    throw new Error(`committed-world:water-derivation:${waterResult.error.code}`);
+  const environments = Object.freeze({
+    road: createRoadPlacementEnvironment(input.terrain, waterResult.value, WORLD_CONFIG),
+    zone: createZonePlacementEnvironment(
+      input.terrain,
+      waterResult.value,
+      input.roads,
+      createBuildingWorldOccupancy(input.buildings),
+      WORLD_CONFIG,
+    ),
+    building: createBuildingDevelopmentEnvironment(
+      input.terrain,
+      waterResult.value,
+      input.roads,
+      input.zones,
+      WORLD_CONFIG,
+    ),
+  });
+  return createCommittedWorld({
+    ...input,
+    water: waterResult.value,
+    environments,
+  });
 }

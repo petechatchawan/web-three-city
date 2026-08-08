@@ -5,28 +5,21 @@ import {
   type CameraState,
   type ViewportInsets,
 } from '../../packages/camera-input/src/index.js';
+import { createCoreWaterPresentationSource } from '../../packages/water-three/src/index.js';
+import type { InteractionEvidence } from '../../apps/game/src/interaction-evidence.js';
+import * as THREE from 'three';
 import {
   CELL_TRIANGLES,
+  GAME_TERRAIN,
+  WORLD_CONFIG,
+  deriveWaterSnapshot,
   selectTerrainDiagonal,
   type TerrainCorner,
   type TerrainSnapshot,
-} from '../../packages/terrain-core/src/index.js';
-import { generateCoastalTerrain } from '../../packages/terrain-generator/src/index.js';
-import { deriveWaterSnapshot } from '../../packages/water-core/src/index.js';
-import { createCoreWaterPresentationSource } from '../../packages/water-three/src/index.js';
-import { WORLD_CONFIG } from '../../packages/world-core/src/index.js';
-import type { InteractionEvidence } from '../../apps/game/src/interaction-evidence.js';
-import * as THREE from 'three';
+} from './domain-fixtures.js';
 
 export const GAME_URL = 'http://127.0.0.1:4174/';
 export const TERRAIN_LAB_URL = 'http://127.0.0.1:4173/';
-
-const GAME_SEED = 1_464_156_977;
-const GAME_TERRAIN = (() => {
-  const result = generateCoastalTerrain({ seed: GAME_SEED, config: WORLD_CONFIG });
-  if (!result.ok) throw new Error(`terrain-evidence:generation:${result.error.code}`);
-  return result.value;
-})();
 
 const CORNER_OFFSETS: Readonly<Record<TerrainCorner, Readonly<{ x: number; z: number }>>> =
   Object.freeze({

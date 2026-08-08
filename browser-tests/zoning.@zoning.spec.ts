@@ -1,15 +1,18 @@
 import { expect, test, type Page } from '@playwright/test';
 import {
+  EMPTY_WORLD_OCCUPANCY,
+  GAME_TERRAIN,
+  GAME_WATER,
+  ROAD_PLACEMENT_ENVIRONMENT,
+  WORLD_CONFIG,
   createEmptyRoadSnapshot,
+  createEmptyZoneSnapshot,
   createRoadSnapshot,
+  createZonePlacementEnvironment,
   planRoadMutation,
-} from '../packages/road-core/src/index.js';
-import { generateCoastalTerrain } from '../packages/terrain-generator/src/index.js';
-import { deriveWaterSnapshot } from '../packages/water-core/src/index.js';
-import { createEmptyZoneSnapshot, planZoneMutation } from '../packages/zone-core/src/index.js';
-import { WORLD_CONFIG, type CellCoord } from '../packages/world-core/src/index.js';
-import { createRoadPlacementEnvironment } from '../apps/game/src/road-placement-environment.js';
-import { createZonePlacementEnvironment } from '../apps/game/src/zone-placement-environment.js';
+  planZoneMutation,
+  type CellCoord,
+} from './helpers/domain-fixtures.js';
 import {
   GAME_URL,
   clickTerrainCell,
@@ -19,18 +22,10 @@ import {
 } from './helpers/interaction.js';
 
 const SAVE_KEY = 'web-three-city:world-save:v5';
-const TERRAIN = (() => {
-  const result = generateCoastalTerrain({ seed: 1_464_156_977, config: WORLD_CONFIG });
-  if (!result.ok) throw new Error(result.error.code);
-  return result.value;
-})();
-const WATER = (() => {
-  const result = deriveWaterSnapshot(TERRAIN, WORLD_CONFIG);
-  if (!result.ok) throw new Error(result.error.code);
-  return result.value;
-})();
-const ROAD_ENVIRONMENT = createRoadPlacementEnvironment(TERRAIN, WATER, WORLD_CONFIG);
-const EMPTY_OCCUPANCY = Object.freeze({ revision: 0, isBlocked: () => false });
+const TERRAIN = GAME_TERRAIN;
+const WATER = GAME_WATER;
+const ROAD_ENVIRONMENT = ROAD_PLACEMENT_ENVIRONMENT;
+const EMPTY_OCCUPANCY = EMPTY_WORLD_OCCUPANCY;
 
 interface ZoningFixture {
   readonly road: CellCoord;

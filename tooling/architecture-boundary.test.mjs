@@ -121,6 +121,42 @@ async function readCoreTsConfigs({ root = repoRoot } = {}) {
   }
   return Promise.all(files.map(async (file) => ({ path: normalize(path.relative(root, file)), includesDomLib: (await resolvedLib(file)).some((x) => /^DOM(?:\.|$)/i.test(x)) })));
 }
+
+async function readBrowserImports({ root = repoRoot } = {}) {
+  root = path.resolve(root instanceof URL ? fileURLToPath(root) : root);
+  const files = await walk(path.join(root, 'browser-tests'), (file) => /\.(?:ts|tsx|js|mjs)$/.test(file));
+  const imports = [];
+  for (const file of files) {
+    for (const rawSpecifier of importsOf(await readFile(file, 'utf8'))) {
+      const specifier = rawSpecifier.startsWith('.')
+        ? normalize(path.relative(root, path.resolve(path.dirname(file), rawSpecifier)))
+        : rawSpecifier;
+      imports.push({
+        path: normalize(path.relative(root, file)),
+        specifier,
+        isDirectSourceImport: /^(?:packages|apps)\/[^/]+\/src\//.test(specifier),
+      });
+    }
+  }
+  return imports.sort((a, b) => `${a.path}:${a.specifier}`.localeCompare(`${b.path}:${b.specifier}`));
+}
+
+const allowedBrowserSourceImportEdges = new Set([
+  'browser-tests/helpers/domain-fixtures.ts -> packages/road-core/src/index.js',
+  'browser-tests/helpers/domain-fixtures.ts -> packages/terrain-core/src/index.js',
+  'browser-tests/helpers/domain-fixtures.ts -> packages/terrain-generator/src/index.js',
+  'browser-tests/helpers/domain-fixtures.ts -> packages/water-core/src/index.js',
+  'browser-tests/helpers/domain-fixtures.ts -> packages/world-core/src/index.js',
+  'browser-tests/helpers/domain-fixtures.ts -> packages/zone-core/src/index.js',
+  'browser-tests/helpers/domain-fixtures.ts -> apps/game/src/road-placement-environment.js',
+  'browser-tests/helpers/domain-fixtures.ts -> apps/game/src/zone-placement-environment.js',
+  'browser-tests/helpers/interaction.ts -> packages/camera-input/src/index.js',
+  'browser-tests/helpers/interaction.ts -> packages/water-three/src/index.js',
+  'browser-tests/helpers/interaction.ts -> apps/game/src/interaction-evidence.js',
+  'browser-tests/terrain-lab.@terrain@water.spec.ts -> apps/terrain-lab/src/fixture-registry.js',
+  'browser-tests/terrain-lab-globals.d.ts -> apps/terrain-lab/src/bootstrap.js',
+]);
+
 const fixtureRoot = (name) => path.join(repoRoot, 'tooling', 'architecture-fixtures', name);
 
 test('production workspace graph is declared and acyclic', async () => {
@@ -148,4 +184,26 @@ test('core TypeScript configs do not provide DOM libraries', async () => {
 test('core DOM detector catches inherited DOM config', async () => {
   const configs = await readCoreTsConfigs({ root: fixtureRoot('dom-config') });
   assert.deepEqual(configs.filter((c) => c.includesDomLib).map((c) => c.path), ['fixture-core/tsconfig.json']);
+});
+test('browser specs do not construct fixtures through direct source imports', async () => {
+  const imports = await readBrowserImports();
+  assert.deepEqual(
+    imports.filter(
+      (entry) =>
+        entry.isDirectSourceImport &&
+        entry.path.startsWith('browser-tests/') &&
+        !allowedBrowserSourceImportEdges.has(`${entry.path} -> ${entry.specifier}`),
+    ),
+    [],
+  );
+});
+test('browser import scanner normalizes importer and target paths', async () => {
+  const imports = await readBrowserImports({ root: fixtureRoot('browser-imports') });
+  assert.deepEqual(imports, [
+    {
+      path: 'browser-tests/spec.ts',
+      specifier: 'packages/world-core/src/index.js',
+      isDirectSourceImport: true,
+    },
+  ]);
 });

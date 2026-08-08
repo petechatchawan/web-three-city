@@ -15,13 +15,9 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# Building Growth & Variety Foundation closure requires both jobs on the exact final PR head,
-# including automatic-Growth interaction isolation, deterministic two-worker browser execution,
-# and bounded heavy visual-evidence tests.
 jobs:
   lean:
     name: Lean CI
-    if: github.event_name == 'workflow_dispatch' || github.event.action != 'labeled'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -33,11 +29,20 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm check
+      - name: Archive lean build outputs
+        run: tar -czf lean-builds.tar.gz apps/game/dist apps/terrain-lab/dist
+      - name: Upload lean build outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: lean-builds
+          path: lean-builds.tar.gz
+          if-no-files-found: error
 
   browser:
     name: Full browser verification
+    needs: lean
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' &&
@@ -53,7 +58,20 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-      - run: pnpm verify:full
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Download lean build outputs
+        uses: actions/download-artifact@v4
+        with:
+          name: lean-builds
+      - name: Restore lean build outputs
+        run: |
+          tar -xzf lean-builds.tar.gz
+          test -d apps/game/dist
+          test -d apps/terrain-lab/dist
+          rm lean-builds.tar.gz
+      - run: ./node_modules/.bin/playwright install chromium
+      - run: pnpm test:browser:only
+      - run: node tooling/verify-clean-worktree.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -1,17 +1,18 @@
 import { expect, test, type Page } from '@playwright/test';
 import {
+  GAME_SEED,
+  WORLD_CONFIG,
   createEmptyRoadSnapshot,
-  planRoadMutation,
-  type RoadPlacementEnvironment,
-} from '../packages/road-core/src/index.js';
-import {
+  deriveWaterSnapshot,
   encodeTerrainSaveV1,
+  generateCoastalTerrain,
+  planRoadMutation,
   planTerraformStroke,
   terrainCellSurfaceProfile,
-} from '../packages/terrain-core/src/index.js';
-import { generateCoastalTerrain } from '../packages/terrain-generator/src/index.js';
-import { deriveWaterSnapshot, triangleIndexFor } from '../packages/water-core/src/index.js';
-import { WORLD_CONFIG, type CellCoord } from '../packages/world-core/src/index.js';
+  triangleIndexFor,
+  type CellCoord,
+  type RoadPlacementEnvironment,
+} from './helpers/domain-fixtures.js';
 import {
   GAME_URL,
   TERRAIN_LAB_URL,
@@ -23,7 +24,6 @@ import {
 
 const WORLD_SAVE_KEY = 'web-three-city:world-save:v5';
 const LEGACY_SAVE_KEY = 'web-three-city:terrain-save:v1';
-const GAME_SEED = 1_464_156_977;
 const BASE_TERRAIN = (() => {
   const result = generateCoastalTerrain({ seed: GAME_SEED, config: WORLD_CONFIG });
   if (!result.ok) throw new Error(result.error.code);
@@ -246,7 +246,6 @@ test('Bulldoze updates topology and tagged Undo restores the Road only', async (
   await page.mouse.move(points[1]!.x, points[1]!.y, { steps: 4 });
   await page.mouse.up();
   const built = await readEvidence(page);
-
   await page.getByRole('button', { name: 'Bulldoze Road' }).click();
   await page.mouse.click(points[1]!.x, points[1]!.y);
   await expect(page.getByTestId('game-status')).toHaveText('Road bulldozed');

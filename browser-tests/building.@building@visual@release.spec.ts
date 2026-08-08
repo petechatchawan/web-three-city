@@ -3,6 +3,9 @@ import { prepareBuildingFixtureWorld } from './helpers/building-fixture.js';
 import { prepareDeterministicGrowthClock, stepLogicalTicks } from './helpers/growth-fixture.js';
 import { GAME_URL, readEvidence } from './helpers/interaction.js';
 
+// Hosted Chromium visual capture has a measured ~35s floor on current runners.
+test.describe.configure({ timeout: 60_000 });
+
 const EXPECTED_DEFINITION_IDS = Object.freeze([
   'commercial-cafe-1x1',
   'commercial-cafe-1x1',

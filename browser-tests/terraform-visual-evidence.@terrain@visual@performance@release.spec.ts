@@ -1,13 +1,13 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import {
+  WORLD_CONFIG,
+  generateCoastalTerrain,
   planTerraformStroke,
   rasterizeTerraformCellLine,
   type TerrainSnapshot,
   type TerraformBrushSize,
-} from '../packages/terrain-core/src/index.js';
-import { generateCoastalTerrain } from '../packages/terrain-generator/src/index.js';
-import { WORLD_CONFIG } from '../packages/world-core/src/index.js';
+} from './helpers/domain-fixtures.js';
 import {
   GAME_URL,
   clickTerrainCell,

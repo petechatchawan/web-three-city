@@ -7,6 +7,8 @@ import {
 import { prepareDeterministicGrowthClock, readTimeSnapshot } from './helpers/growth-fixture.js';
 import { GAME_URL } from './helpers/interaction.js';
 
+test.describe.configure({ timeout: 60_000 });
+
 test('active Zone removal commits after background Growth skips its reserved cells', async ({
   page,
 }) => {

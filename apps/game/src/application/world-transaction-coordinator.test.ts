@@ -32,7 +32,9 @@ describe('WorldTransactionCoordinator', () => {
 
     expect(result.status).toBe('rejected');
     if (result.status === 'rejected') expect(result.reason).toBe('world:stale-content');
-    expect(coordinator.snapshot()).toEqual(before);
+    expect(fingerprintCommittedWorld(coordinator.snapshot())).toBe(
+      fingerprintCommittedWorld(before),
+    );
   });
 
   it('rejects a same-revision different-content candidate as stale content', () => {

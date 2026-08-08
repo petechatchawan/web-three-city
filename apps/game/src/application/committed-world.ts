@@ -94,23 +94,7 @@ function cloneWaterSnapshot(input: WaterSnapshot): WaterSnapshot {
 }
 
 function cloneForRead(world: CommittedWorld): CommittedWorld {
-  return Object.freeze({
-    ...world,
-    terrain: Object.freeze({ ...world.terrain, heightLevels: world.terrain.heightLevels.slice() }),
-    water: Object.freeze({ ...world.water, seaTriangleMask: world.water.seaTriangleMask.slice() }),
-    roads: Object.freeze({
-      width: world.roads.width,
-      height: world.roads.height,
-      revision: world.roads.revision,
-      definitionCodes: world.roads.definitionCodes.slice(),
-    }),
-    zones: Object.freeze({
-      width: world.zones.width,
-      height: world.zones.height,
-      revision: world.zones.revision,
-      definitionCodes: world.zones.definitionCodes.slice(),
-    }),
-  });
+  return createCommittedWorld(world);
 }
 
 export function createCommittedWorld(input: CommittedWorldInput): CommittedWorld {

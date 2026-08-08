@@ -109,7 +109,7 @@ describe('CommittedWorldStore', () => {
     expect(() => store.replace(0, createCommittedWorld(sourceWorld(2)))).toThrow(
       'committed-world:invalid-next-revision',
     );
-    expect(store.snapshot()).toEqual(before);
+    expect(fingerprintCommittedWorld(store.snapshot())).toBe(fingerprintCommittedWorld(before));
   });
 
   it('copies authoritative typed arrays on publication and on read', () => {

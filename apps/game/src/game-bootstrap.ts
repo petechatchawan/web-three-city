@@ -83,6 +83,12 @@ import { fingerprintCommittedWorld } from './application/committed-world-fingerp
 import { PresentationCoordinator } from './application/presentation-coordinator.js';
 import { reconcileRciForBuildingChange } from './application/rci-building-reconciliation.js';
 import { SaveCoordinator } from './application/save-coordinator.js';
+import {
+  applyPaidActionCost,
+  quoteBuildingBulldozeCost,
+  quoteRoadMutationCost,
+  quoteTerraformCost,
+} from './application/economy-action-cost.js';
 import { UndoCoordinator } from './application/undo-coordinator.js';
 import {
   DefaultWorldTransactionCoordinator,
@@ -612,11 +618,26 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     }
 
     try {
+      const quote = quoteTerraformCost(plan, FOUNDATION_ECONOMY_RULES);
+      if (!quote.ok) {
+        ui.setStatus('Terraform rejected');
+        return;
+      }
+      const payment = applyPaidActionCost(current.economy, quote, FOUNDATION_ECONOMY_RULES);
+      if (!payment.ok) {
+        ui.setStatus(
+          payment.reason === 'insufficient-funds' ? 'Insufficient funds' : 'Terraform rejected',
+        );
+        return;
+      }
       const committed = commitTerraformPlan(current.terrain, plan, WORLD_CONFIG);
       const derivationStart = performance.now();
-      const publication = publishCommittedDomain({ terrain: committed.snapshot });
+      const publication = publishCommittedDomain({
+        terrain: committed.snapshot,
+        economy: payment.snapshot,
+      });
       if (publication.result.status === 'committed') {
-        undoCoordinator.record(publication.before, 'terraform');
+        undoCoordinator.record(publication.before, 'terraform', payment.receipt);
         terraformCommitCount += 1;
         terraformWaterRebuildCount += 1;
         waterDerivationDurationMs = performance.now() - derivationStart;
@@ -667,8 +688,27 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
         current.environments.road,
         WORLD_CONFIG,
       );
+      const quote = quoteRoadMutationCost(
+        {
+          valid: candidate.valid,
+          addedCellCount: committed.receipt.addedCellCount,
+          removedCellCount: committed.receipt.removedCellCount,
+        },
+        FOUNDATION_ECONOMY_RULES,
+      );
+      if (!quote.ok) {
+        ui.setStatus('Road update failed');
+        return;
+      }
+      const payment = applyPaidActionCost(current.economy, quote, FOUNDATION_ECONOMY_RULES);
+      if (!payment.ok) {
+        ui.setStatus(
+          payment.reason === 'insufficient-funds' ? 'Insufficient funds' : 'Road update failed',
+        );
+        return;
+      }
       const publication = publishCommittedDomain(
-        { roads: committed.snapshot },
+        { roads: committed.snapshot, economy: payment.snapshot },
         incrementalPresentation((world) =>
           roadPresentation.rebuildDirty(
             world.roads,
@@ -678,7 +718,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
         ),
       );
       if (publication.result.status === 'committed') {
-        undoCoordinator.record(publication.before, 'road');
+        undoCoordinator.record(publication.before, 'road', payment.receipt);
         roadLastDirtyChunkCount = committed.receipt.dirtyChunks.length;
         roadChunkRebuildCount += committed.receipt.dirtyChunks.length;
         if (committed.receipt.addedCellCount > 0) roadCommitCount += 1;
@@ -759,6 +799,21 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
         current.environments.building,
         WORLD_CONFIG,
       );
+      const quote = quoteBuildingBulldozeCost(
+        { valid: plan.valid, removedCellCount: committed.receipt.removedCellCount },
+        FOUNDATION_ECONOMY_RULES,
+      );
+      if (!quote.ok) {
+        ui.setStatus('Building update failed');
+        return;
+      }
+      const payment = applyPaidActionCost(current.economy, quote, FOUNDATION_ECONOMY_RULES);
+      if (!payment.ok) {
+        ui.setStatus(
+          payment.reason === 'insufficient-funds' ? 'Insufficient funds' : 'Building update failed',
+        );
+        return;
+      }
       const reconciledRci = reconcileRciForBuildingChange({
         rci: current.rci,
         buildingsBefore: current.buildings,
@@ -767,11 +822,11 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
         evaluationTick: current.simulation.absoluteTick,
       });
       const publication = publishCommittedDomain(
-        { buildings: committed.snapshot, rci: reconciledRci },
+        { buildings: committed.snapshot, rci: reconciledRci, economy: payment.snapshot },
         incrementalPresentation((world) => buildingPresentation.load(world.buildings)),
       );
       if (publication.result.status === 'committed') {
-        undoCoordinator.record(publication.before, 'building');
+        undoCoordinator.record(publication.before, 'building', payment.receipt);
         buildingBulldozeCount += 1;
         buildingInvalidReason = null;
         ui.setStatus(statusForBuildingBulldozePlan(plan));

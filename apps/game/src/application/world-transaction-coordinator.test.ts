@@ -1,6 +1,20 @@
+import { createEmptyBuildingSnapshot } from '@web-three-city/building-core';
+import { createFoundationRciRegistries, createInitialRciSnapshot } from '@web-three-city/rci-core';
+import {
+  commitRoadMutation,
+  createEmptyRoadSnapshot,
+  planRoadMutation,
+} from '@web-three-city/road-core';
+import { createInitialSimulationSnapshot } from '@web-three-city/simulation-core';
+import { generateCoastalTerrain } from '@web-three-city/terrain-generator';
+import { WORLD_CONFIG } from '@web-three-city/world-core';
+import { createEmptyZoneSnapshot } from '@web-three-city/zone-core';
 import { describe, expect, it } from 'vitest';
 import { createApplicationFixture } from '../../test/application-fixtures.js';
-import { CommittedWorldStore } from './committed-world.js';
+import {
+  CommittedWorldStore,
+  createCommittedWorldFromDomainState,
+} from './committed-world.js';
 import { fingerprintCommittedWorld } from './committed-world-fingerprint.js';
 import { DefaultWorldTransactionCoordinator } from './world-transaction-coordinator.js';
 
@@ -65,6 +79,75 @@ describe('WorldTransactionCoordinator', () => {
     expect(fingerprintCommittedWorld(coordinator.snapshot())).toBe(
       fingerprintCommittedWorld(initial),
     );
+  });
+
+  it('publishes valid Road additions on the curated runtime terrain', () => {
+    const generated = generateCoastalTerrain({ seed: 1_464_156_977, config: WORLD_CONFIG });
+    if (!generated.ok) throw new Error(generated.error.code);
+    const simulation = createInitialSimulationSnapshot();
+    const initial = createCommittedWorldFromDomainState({
+      revision: 0,
+      terrain: generated.value,
+      roads: createEmptyRoadSnapshot(WORLD_CONFIG),
+      zones: createEmptyZoneSnapshot(WORLD_CONFIG),
+      buildings: createEmptyBuildingSnapshot(WORLD_CONFIG),
+      simulation,
+      rci: createInitialRciSnapshot({ absoluteTick: simulation.absoluteTick }),
+    });
+    const coordinator = new DefaultWorldTransactionCoordinator({
+      worldStore: new CommittedWorldStore(initial),
+    });
+
+    for (let publicationIndex = 0; publicationIndex < 2; publicationIndex += 1) {
+      const before = coordinator.snapshot();
+      let plan = null as ReturnType<typeof planRoadMutation> | null;
+      for (let z = 8 + publicationIndex * 8; z < WORLD_CONFIG.mapHeight - 2 && plan === null; z += 1) {
+        for (let x = 8; x < WORLD_CONFIG.mapWidth - 2; x += 1) {
+          const candidate = planRoadMutation(
+            before.roads,
+            {
+              operation: 'build',
+              definitionId: 'basic-road',
+              cells: [
+                { x, z },
+                { x: x + 1, z },
+              ],
+            },
+            before.environments.road,
+            WORLD_CONFIG,
+          );
+          if (candidate.valid) {
+            plan = candidate;
+            break;
+          }
+        }
+      }
+      if (plan === null) throw new Error('test:no-valid-road-plan');
+      const committed = commitRoadMutation(
+        before.roads,
+        plan,
+        before.environments.road,
+        WORLD_CONFIG,
+      );
+      const next = createCommittedWorldFromDomainState({
+        revision: before.revision + 1,
+        terrain: before.terrain,
+        roads: committed.snapshot,
+        zones: before.zones,
+        buildings: before.buildings,
+        simulation: before.simulation,
+        rci: before.rci,
+      });
+
+      const result = coordinator.publish({
+        baseRevision: before.revision,
+        baseFingerprint: fingerprintCommittedWorld(before),
+        nextWorld: next,
+        nextFingerprint: fingerprintCommittedWorld(next),
+      });
+
+      expect(result.status).toBe('committed');
+    }
   });
 
   it('commits once before presentation and never rolls domain authority back on adapter failure', () => {

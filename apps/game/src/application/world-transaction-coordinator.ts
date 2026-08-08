@@ -29,6 +29,7 @@ export interface WorldPublication {
   readonly baseFingerprint: string;
   readonly nextWorld: CommittedWorld;
   readonly nextFingerprint: string;
+  readonly presentation?: WorldPresentationPort;
 }
 
 export type WorldPublicationResult =
@@ -168,7 +169,8 @@ export class DefaultWorldTransactionCoordinator implements WorldTransactionCoord
       return rejected(current, 'world:invalid-candidate');
     }
 
-    if (this.#presentation === null) {
+    const presentation = plan.presentation ?? this.#presentation;
+    if (presentation === null) {
       return Object.freeze({
         status: 'committed' as const,
         world: candidate,
@@ -176,7 +178,7 @@ export class DefaultWorldTransactionCoordinator implements WorldTransactionCoord
       });
     }
     try {
-      this.#presentation.synchronize(candidate);
+      presentation.synchronize(candidate);
       return Object.freeze({
         status: 'committed' as const,
         world: candidate,
@@ -184,7 +186,7 @@ export class DefaultWorldTransactionCoordinator implements WorldTransactionCoord
       });
     } catch {
       try {
-        this.#presentation.rebuildFromCommitted(candidate);
+        presentation.rebuildFromCommitted(candidate);
       } catch {
         // Domain authority is already committed. Recovery can be retried from snapshot().
       }

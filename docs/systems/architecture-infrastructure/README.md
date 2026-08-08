@@ -131,3 +131,8 @@ Repository-native architecture boundary checks enforce declared acyclic workspac
 ## Implementation Slice 2
 
 The complete committed-world application seam is available in `apps/game/src/application`. It composes Terrain, Water, Roads, Zones, Buildings, Simulation, RCI, and candidate-derived placement environments behind one application revision fence. Typed-array authority is copied on publication and read, environment provenance is validated before replacement, and content fingerprinting ignores adapter function identity. Legacy `GameWorldStateStore` remains the active compatibility path until the transaction/runtime migration in the next slice; PR 2 does not move Save, Undo, or gameplay mutation ownership.
+
+
+## Implementation Slice 3
+
+Runtime mutation authority now routes through the committed-world transaction seam. Terraform, Road, Zone, Building bulldoze, simulation ticks, Save/Load, and dependent-world Undo all publish one complete candidate revision before presentation. Building mutations reconcile dwelling/workplace RCI inventory before publication, Save reads only `CommittedWorldStore`, load publishes decoded state through the same coordinator, and Undo restores the complete prior domain world while advancing only the application revision. Presentation failures after publication are recovery events and do not roll domain authority back.

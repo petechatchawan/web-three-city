@@ -9,9 +9,12 @@ import type {
   WorldTransactionCoordinator,
 } from './world-transaction-coordinator.js';
 
+export type WorldUndoKind = 'terraform' | 'road' | 'zone' | 'building';
+
 export class UndoCoordinator {
   readonly #transactionCoordinator: WorldTransactionCoordinator;
   #beforeWorld: CommittedWorld | null = null;
+  #kind: WorldUndoKind | null = null;
 
   constructor(input: { transactionCoordinator: WorldTransactionCoordinator }) {
     this.#transactionCoordinator = input.transactionCoordinator;
@@ -21,12 +24,18 @@ export class UndoCoordinator {
     return this.#beforeWorld !== null;
   }
 
-  record(world: CommittedWorld): void {
+  get kind(): WorldUndoKind | null {
+    return this.#kind;
+  }
+
+  record(world: CommittedWorld, kind: WorldUndoKind = 'building'): void {
     this.#beforeWorld = createCommittedWorld(world);
+    this.#kind = kind;
   }
 
   clear(): void {
     this.#beforeWorld = null;
+    this.#kind = null;
   }
 
   undo(): WorldPublicationResult | null {
@@ -48,7 +57,7 @@ export class UndoCoordinator {
       nextWorld: candidate,
       nextFingerprint: fingerprintCommittedWorld(candidate),
     });
-    if (result.status === 'committed') this.#beforeWorld = null;
+    if (result.status === 'committed') this.clear();
     return result;
   }
 }

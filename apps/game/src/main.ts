@@ -12,7 +12,6 @@ import {
 } from '@web-three-city/building-three';
 import {
   createInitialSimulationSnapshot,
-  createSimulationSnapshot,
   type SimulationSnapshot,
   type SimulationSpeed,
 } from '@web-three-city/simulation-core';
@@ -156,11 +155,7 @@ function refreshConstructionPhaseIfNeeded(): void {
 function advanceOneLogicalTick(): void {
   simulation = automaticGrowthEnabled
     ? runtime.runBackgroundGrowthTick(simulation)
-    : createSimulationSnapshot({
-        revision: simulation.revision + 1,
-        absoluteTick: simulation.absoluteTick + 1,
-        growthSequence: simulation.growthSequence,
-      });
+    : runtime.runSimulationOnlyTick(simulation);
   setBuildingPresentationAbsoluteTick(simulation.absoluteTick);
   refreshConstructionPhaseIfNeeded();
   refreshTimeUi();

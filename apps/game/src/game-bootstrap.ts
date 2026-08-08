@@ -4,9 +4,7 @@ import {
   createEmptyBuildingSnapshot,
   occupiedBuildingCellCount,
   planBuildingBulldoze,
-  type BuildingDevelopmentEnvironment,
   type BuildingMutationPlan,
-  type BuildingSnapshot,
 } from '@web-three-city/building-core';
 import { BuildingPresentation } from '@web-three-city/building-three';
 import { OrthographicCameraRig } from '@web-three-city/camera-input';
@@ -17,6 +15,7 @@ import {
 } from '@web-three-city/rci-core';
 import {
   createInitialSimulationSnapshot,
+  createSimulationSnapshot,
   type SimulationSnapshot,
 } from '@web-three-city/simulation-core';
 import {
@@ -24,7 +23,6 @@ import {
   createEmptyRoadSnapshot,
   occupiedRoadCellCount,
   type RoadMutationPlan,
-  type RoadPlacementEnvironment,
   type RoadSnapshot,
 } from '@web-three-city/road-core';
 import {
@@ -63,7 +61,6 @@ import {
   planZoneMutation,
   zoneCounts,
   type ZoneMutationPlan,
-  type ZonePlacementEnvironment,
   type ZoneSnapshot,
 } from '@web-three-city/zone-core';
 import {
@@ -73,6 +70,22 @@ import {
 } from '@web-three-city/zone-three';
 import { WORLD_CONFIG, type CellCoord } from '@web-three-city/world-core';
 import * as THREE from 'three';
+import {
+  CommittedWorldStore,
+  createCommittedWorld,
+  createCommittedWorldFromDomainState,
+  type CommittedDomainState,
+  type CommittedWorld,
+} from './application/committed-world.js';
+import { fingerprintCommittedWorld } from './application/committed-world-fingerprint.js';
+import { reconcileRciForBuildingChange } from './application/rci-building-reconciliation.js';
+import { SaveCoordinator } from './application/save-coordinator.js';
+import { UndoCoordinator } from './application/undo-coordinator.js';
+import {
+  DefaultWorldTransactionCoordinator,
+  type WorldPresentationPort,
+  type WorldPublicationResult,
+} from './application/world-transaction-coordinator.js';
 import { createBuildingDevelopmentEnvironment } from './building-development-environment.js';
 import { createBuildingWorldOccupancy } from './building-world-occupancy.js';
 import { createGameInput, type GameRenderViewport } from './game-input.js';
@@ -90,19 +103,12 @@ import { guardRoadPlanWithZones } from './road-zone-guard.js';
 import { createRoadPlacementEnvironment } from './road-placement-environment.js';
 import { guardTerraformPlanWithOccupancy } from './terraform-occupancy-guard.js';
 import { createZonePlacementEnvironment } from './zone-placement-environment.js';
-import { decodeWorldSave, encodeWorldSaveV5, type DecodedWorldState } from './world-save.js';
 import { guardZonePlanWithBuildings, type GameZoneInvalidReason } from './zone-building-guard.js';
 import { executeGameWorldTick } from './game-world-tick.js';
 import { GameWorldStateStore } from './game-world-state.js';
 import { mountRciHud } from './rci-hud.js';
-import { WorldUndoStore, type WorldUndoEntry } from './world-undo.js';
 import { renderGameUi, type GameViewportLayout, type QualityLevel } from './game-ui.js';
 
-const WORLD_SAVE_KEY = 'web-three-city:world-save:v5';
-const LEGACY_WORLD_SAVE_V3_KEY = 'web-three-city:world-save:v3';
-const LEGACY_WORLD_SAVE_V2_KEY = 'web-three-city:world-save:v2';
-const LEGACY_WORLD_SAVE_KEY = 'web-three-city:world-save:v1';
-const LEGACY_TERRAIN_SAVE_KEY = 'web-three-city:terrain-save:v1';
 const CURATED_SEED = 1464156977;
 const WORLD_BOUNDS = Object.freeze({
   minimumWorldY: WORLD_CONFIG.dioramaBaseY,
@@ -117,18 +123,8 @@ const QUALITY_POLICY = Object.freeze({
 
 export interface GameRuntime {
   runBackgroundGrowthTick(simulation: SimulationSnapshot): SimulationSnapshot;
+  runSimulationOnlyTick(simulation: SimulationSnapshot): SimulationSnapshot;
   dispose(): void;
-}
-
-interface RuntimeWorldState {
-  readonly terrain: TerrainSnapshot;
-  readonly water: WaterSnapshot;
-  readonly roads: RoadSnapshot;
-  readonly roadEnvironment: RoadPlacementEnvironment;
-  readonly zones: ZoneSnapshot;
-  readonly zoneEnvironment: ZonePlacementEnvironment;
-  readonly buildings: BuildingSnapshot;
-  readonly buildingEnvironment: BuildingDevelopmentEnvironment;
 }
 
 function toRenderViewport(layout: GameViewportLayout): GameRenderViewport {
@@ -189,32 +185,6 @@ function requireWater(snapshot: TerrainSnapshot): WaterSnapshot {
   const result = deriveWaterSnapshot(snapshot, WORLD_CONFIG);
   if (!result.ok) throw new Error(`game:water-derivation-failed:${result.error.code}`);
   return result.value;
-}
-
-function stageTerrainWorld(
-  terrain: TerrainSnapshot,
-  roads: RoadSnapshot,
-  zones: ZoneSnapshot,
-  buildings: BuildingSnapshot,
-): RuntimeWorldState {
-  const water = requireWater(terrain);
-  const occupancy = createBuildingWorldOccupancy(buildings);
-  return Object.freeze({
-    terrain,
-    water,
-    roads,
-    roadEnvironment: createRoadPlacementEnvironment(terrain, water, WORLD_CONFIG),
-    zones,
-    zoneEnvironment: createZonePlacementEnvironment(terrain, water, roads, occupancy, WORLD_CONFIG),
-    buildings,
-    buildingEnvironment: createBuildingDevelopmentEnvironment(
-      terrain,
-      water,
-      roads,
-      zones,
-      WORLD_CONFIG,
-    ),
-  });
 }
 
 function frozenDirtyChunks(chunks: Iterable<ChunkCoord>): readonly ChunkCoord[] {
@@ -340,6 +310,9 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
       runBackgroundGrowthTick(simulation: SimulationSnapshot): SimulationSnapshot {
         return simulation;
       },
+      runSimulationOnlyTick(simulation: SimulationSnapshot): SimulationSnapshot {
+        return simulation;
+      },
       dispose(): void {},
     };
   }
@@ -356,12 +329,6 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
   let simulationSnapshot = createInitialSimulationSnapshot();
   let rciSnapshot: RciSnapshot = createInitialRciSnapshot({
     absoluteTick: simulationSnapshot.absoluteTick,
-  });
-  const worldStateStore = new GameWorldStateStore({
-    revision: 0,
-    simulation: simulationSnapshot,
-    buildings: buildingsSnapshot,
-    rci: rciSnapshot,
   });
   let pendingLoadedSimulation: SimulationSnapshot | null = null;
   let roadEnvironment = createRoadPlacementEnvironment(snapshot, waterSnapshot, WORLD_CONFIG);
@@ -490,7 +457,6 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
   grid.load(snapshot);
   const selection = new SelectedCellPresentation(scene, WORLD_CONFIG);
   const preview = new TerraformPreviewPresentation(scene, WORLD_CONFIG);
-  const undoStore = new WorldUndoStore(WORLD_CONFIG);
 
   const setSelection = (cell: CellCoord | null): void => {
     selectedCell = cell === null ? null : { ...cell };
@@ -501,112 +467,117 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
 
   const inputRef: { current: ReturnType<typeof createGameInput> | null } = { current: null };
 
-  const replaceCompleteWorld = (
-    nextWorld: RuntimeWorldState | DecodedWorldState,
-    successStatus: string,
-  ): boolean => {
-    const previousWorld: RuntimeWorldState = {
-      terrain: snapshot,
-      water: waterSnapshot,
-      roads: roadsSnapshot,
-      roadEnvironment,
-      zones: zonesSnapshot,
-      zoneEnvironment,
-      buildings: buildingsSnapshot,
-      buildingEnvironment,
-    };
-    const previousSimulationSnapshot = simulationSnapshot;
-    const previousRciSnapshot = rciSnapshot;
+  const initialCommittedWorld = createCommittedWorld({
+    revision: 0,
+    terrain: snapshot,
+    water: waterSnapshot,
+    roads: roadsSnapshot,
+    zones: zonesSnapshot,
+    buildings: buildingsSnapshot,
+    simulation: simulationSnapshot,
+    rci: rciSnapshot,
+    environments: Object.freeze({
+      road: roadEnvironment,
+      zone: zoneEnvironment,
+      building: buildingEnvironment,
+    }),
+  });
+  const committedWorldStore = new CommittedWorldStore(initialCommittedWorld);
+
+  const adoptCommittedWorld = (world: CommittedWorld): void => {
+    snapshot = world.terrain;
+    waterSnapshot = world.water;
+    roadsSnapshot = world.roads;
+    roadEnvironment = world.environments.road;
+    zonesSnapshot = world.zones;
+    zoneEnvironment = world.environments.zone;
+    buildingsSnapshot = world.buildings;
+    buildingEnvironment = world.environments.building;
+    simulationSnapshot = world.simulation;
+    rciSnapshot = world.rci;
+    rciHud.update(rciSnapshot, rciRegistries, simulationSnapshot.absoluteTick);
+    ui.setZoneCounts(zoneCounts(zonesSnapshot));
+    ui.setBuildingCount(buildingCount(buildingsSnapshot));
+  };
+
+  const presentCompleteWorld = (world: CommittedWorld): void => {
     replacingWorld = true;
     try {
-      terrain.load(nextWorld.terrain);
+      terrain.load(world.terrain);
       const presentationStart = performance.now();
-      water.load(nextWorld.terrain, nextWorld.water);
-      const nextWaterPresentationDurationMs = performance.now() - presentationStart;
-      grid.load(nextWorld.terrain);
-      roadPresentation.loadAll(nextWorld.roads, nextWorld.roadEnvironment);
-      zoneSurfaceSnapshot = nextWorld.terrain;
-      zonePresentation.loadAll(nextWorld.zones);
-      buildingPresentation.load(nextWorld.buildings);
-      rebuildSelection(selection, nextWorld.terrain, selectedCell);
-      inputRef.current?.refreshTerrainObjects();
-
-      snapshot = nextWorld.terrain;
-      waterSnapshot = nextWorld.water;
-      roadsSnapshot = nextWorld.roads;
-      roadEnvironment = nextWorld.roadEnvironment;
-      zonesSnapshot = nextWorld.zones;
-      zoneEnvironment = nextWorld.zoneEnvironment;
-      buildingsSnapshot = nextWorld.buildings;
-      buildingEnvironment = nextWorld.buildingEnvironment;
-      if ('rci' in nextWorld) {
-        simulationSnapshot = nextWorld.simulation;
-        rciSnapshot = nextWorld.rci;
-        pendingLoadedSimulation = nextWorld.simulation;
-      }
-      worldStateStore.synchronizeExternal({
-        simulation: simulationSnapshot,
-        buildings: buildingsSnapshot,
-        rci: rciSnapshot,
-      });
-      rciHud.update(rciSnapshot, rciRegistries, simulationSnapshot.absoluteTick);
-      ui.setZoneCounts(zoneCounts(zonesSnapshot));
-      ui.setBuildingCount(buildingCount(buildingsSnapshot));
-      waterPresentationDurationMs = nextWaterPresentationDurationMs;
+      water.load(world.terrain, world.water);
+      waterPresentationDurationMs = performance.now() - presentationStart;
       waterBuildMetrics = stagedWaterBuildMetrics;
-      ui.setStatus(successStatus);
-      return true;
-    } catch {
-      try {
-        terrain.load(previousWorld.terrain);
-        water.load(previousWorld.terrain, previousWorld.water);
-        grid.load(previousWorld.terrain);
-        roadPresentation.loadAll(previousWorld.roads, previousWorld.roadEnvironment);
-        zoneSurfaceSnapshot = previousWorld.terrain;
-        zonePresentation.loadAll(previousWorld.zones);
-        buildingPresentation.load(previousWorld.buildings);
-        rebuildSelection(selection, previousWorld.terrain, selectedCell);
-        inputRef.current?.refreshTerrainObjects();
-        waterBuildMetrics = stagedWaterBuildMetrics;
-      } catch {
-        // Context restoration can rebuild the last committed authoritative world.
-      }
-      simulationSnapshot = previousSimulationSnapshot;
-      rciSnapshot = previousRciSnapshot;
-      worldStateStore.synchronizeExternal({
-        simulation: simulationSnapshot,
-        buildings: buildingsSnapshot,
-        rci: rciSnapshot,
-      });
-      rciHud.update(rciSnapshot, rciRegistries, simulationSnapshot.absoluteTick);
-      ui.setStatus('World update failed');
-      return false;
+      grid.load(world.terrain);
+      roadPresentation.loadAll(world.roads, world.environments.road);
+      zoneSurfaceSnapshot = world.terrain;
+      zonePresentation.loadAll(world.zones);
+      buildingPresentation.load(world.buildings);
+      rebuildSelection(selection, world.terrain, selectedCell);
+      inputRef.current?.refreshTerrainObjects();
     } finally {
       replacingWorld = false;
     }
   };
+  const completeWorldPresentation: WorldPresentationPort = Object.freeze({
+    synchronize: presentCompleteWorld,
+    rebuildFromCommitted: presentCompleteWorld,
+  });
+  const incrementalPresentation = (
+    synchronize: (world: CommittedWorld) => void,
+  ): WorldPresentationPort =>
+    Object.freeze({ synchronize, rebuildFromCommitted: presentCompleteWorld });
+  const noOpPresentation: WorldPresentationPort = Object.freeze({
+    synchronize: () => {},
+    rebuildFromCommitted: presentCompleteWorld,
+  });
+  const transactionCoordinator = new DefaultWorldTransactionCoordinator({
+    worldStore: committedWorldStore,
+    presentation: completeWorldPresentation,
+  });
+  const saveCoordinator = new SaveCoordinator({
+    storage: Object.freeze({
+      read: (key: string) => localStorage.getItem(key),
+      write: (key: string, value: string) => localStorage.setItem(key, value),
+    }),
+    worldStore: committedWorldStore,
+    transactionCoordinator,
+  });
+  const undoCoordinator = new UndoCoordinator({ transactionCoordinator });
 
-  const replaceTerrainWorld = (nextSnapshot: TerrainSnapshot, successStatus: string): boolean => {
-    const derivationStart = performance.now();
-    let nextWorld: RuntimeWorldState;
-    try {
-      nextWorld = stageTerrainWorld(nextSnapshot, roadsSnapshot, zonesSnapshot, buildingsSnapshot);
-    } catch {
-      ui.setStatus('World update failed');
-      return false;
-    }
-    const nextDerivationDurationMs = performance.now() - derivationStart;
-    if (!replaceCompleteWorld(nextWorld, successStatus)) return false;
-    waterDerivationDurationMs = nextDerivationDurationMs;
-    return true;
+  type DomainOverrides = Partial<Omit<CommittedDomainState, 'revision'>>;
+  const publishCommittedDomain = (
+    overrides: DomainOverrides,
+    presentation?: WorldPresentationPort,
+  ): Readonly<{ before: CommittedWorld; result: WorldPublicationResult }> => {
+    const before = transactionCoordinator.snapshot();
+    const nextWorld = createCommittedWorldFromDomainState({
+      revision: before.revision + 1,
+      terrain: overrides.terrain ?? before.terrain,
+      roads: overrides.roads ?? before.roads,
+      zones: overrides.zones ?? before.zones,
+      buildings: overrides.buildings ?? before.buildings,
+      simulation: overrides.simulation ?? before.simulation,
+      rci: overrides.rci ?? before.rci,
+    });
+    const result = transactionCoordinator.publish({
+      baseRevision: before.revision,
+      baseFingerprint: fingerprintCommittedWorld(before),
+      nextWorld,
+      nextFingerprint: fingerprintCommittedWorld(nextWorld),
+      ...(presentation === undefined ? {} : { presentation }),
+    });
+    if (result.status === 'committed') adoptCommittedWorld(result.world);
+    return Object.freeze({ before, result });
   };
 
   const applyTerraformPlan = (plan: TerraformPlan): void => {
+    const current = transactionCoordinator.snapshot();
     const candidate = guardTerraformPlanWithOccupancy(
       plan,
-      roadsSnapshot,
-      zonesSnapshot,
-      buildingsSnapshot,
+      current.roads,
+      current.zones,
+      current.buildings,
     );
     if (!candidate.valid) {
       ui.setStatus(
@@ -618,142 +589,137 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
               ? 'Terraform blocked by road'
               : 'Terraform rejected',
       );
-      ui.setUndoAvailable(undoStore.available);
+      ui.setUndoAvailable(undoCoordinator.available);
       return;
     }
 
-    const before = snapshot;
     try {
-      const committed = commitTerraformPlan(snapshot, plan, WORLD_CONFIG);
-      if (replaceTerrainWorld(committed.snapshot, 'Terraform applied')) {
-        undoStore.replace({ kind: 'terraform', terrain: before });
+      const committed = commitTerraformPlan(current.terrain, plan, WORLD_CONFIG);
+      const derivationStart = performance.now();
+      const publication = publishCommittedDomain({ terrain: committed.snapshot });
+      if (publication.result.status === 'committed') {
+        undoCoordinator.record(publication.before, 'terraform');
         terraformCommitCount += 1;
         terraformWaterRebuildCount += 1;
+        waterDerivationDurationMs = performance.now() - derivationStart;
+        ui.setStatus('Terraform applied');
+      } else {
+        ui.setStatus('Terraform rejected');
       }
     } catch {
       ui.setStatus('Terraform rejected');
     }
-    ui.setUndoAvailable(undoStore.available);
+    ui.setUndoAvailable(undoCoordinator.available);
   };
 
   const applyRoadPlan = (
     plan: RoadMutationPlan,
     routedReason: GameRoadBuildingInvalidReason | null = null,
   ): void => {
+    const current = transactionCoordinator.snapshot();
     const zoneCandidate = guardRoadPlanWithZones(
       plan,
-      roadsSnapshot,
-      zonesSnapshot,
-      snapshot,
-      waterSnapshot,
-      createBuildingWorldOccupancy(buildingsSnapshot),
+      current.roads,
+      current.zones,
+      current.terrain,
+      current.water,
+      createBuildingWorldOccupancy(current.buildings),
       WORLD_CONFIG,
     );
     const candidate = guardRoadPlanWithBuildings(
       zoneCandidate,
-      roadsSnapshot,
-      buildingsSnapshot,
-      snapshot,
-      waterSnapshot,
-      zonesSnapshot,
+      current.roads,
+      current.buildings,
+      current.terrain,
+      current.water,
+      current.zones,
       WORLD_CONFIG,
     );
     const reason = routedReason ?? candidate.invalidReason;
     if (!candidate.valid) {
       ui.setStatus(statusForRoadPlan(candidate.previewPlan, reason));
-      ui.setUndoAvailable(undoStore.available);
+      ui.setUndoAvailable(undoCoordinator.available);
       return;
     }
 
-    const before = roadsSnapshot;
     try {
       const committed = commitRoadMutation(
-        roadsSnapshot,
+        current.roads,
         candidate.corePlan,
-        roadEnvironment,
+        current.environments.road,
         WORLD_CONFIG,
       );
-      roadPresentation.rebuildDirty(
-        committed.snapshot,
-        roadEnvironment,
-        committed.receipt.dirtyChunks,
+      const publication = publishCommittedDomain(
+        { roads: committed.snapshot },
+        incrementalPresentation((world) =>
+          roadPresentation.rebuildDirty(
+            world.roads,
+            world.environments.road,
+            committed.receipt.dirtyChunks,
+          ),
+        ),
       );
-      roadsSnapshot = committed.snapshot;
-      zoneEnvironment = createZonePlacementEnvironment(
-        snapshot,
-        waterSnapshot,
-        roadsSnapshot,
-        createBuildingWorldOccupancy(buildingsSnapshot),
-        WORLD_CONFIG,
-      );
-      buildingEnvironment = createBuildingDevelopmentEnvironment(
-        snapshot,
-        waterSnapshot,
-        roadsSnapshot,
-        zonesSnapshot,
-        WORLD_CONFIG,
-      );
-      undoStore.replace({ kind: 'road', roads: before });
-      roadLastDirtyChunkCount = committed.receipt.dirtyChunks.length;
-      roadChunkRebuildCount += committed.receipt.dirtyChunks.length;
-      if (committed.receipt.addedCellCount > 0) roadCommitCount += 1;
-      if (committed.receipt.removedCellCount > 0) roadBulldozeCount += 1;
-      ui.setStatus(statusForRoadPlan(candidate.corePlan));
+      if (publication.result.status === 'committed') {
+        undoCoordinator.record(publication.before, 'road');
+        roadLastDirtyChunkCount = committed.receipt.dirtyChunks.length;
+        roadChunkRebuildCount += committed.receipt.dirtyChunks.length;
+        if (committed.receipt.addedCellCount > 0) roadCommitCount += 1;
+        if (committed.receipt.removedCellCount > 0) roadBulldozeCount += 1;
+        ui.setStatus(statusForRoadPlan(candidate.corePlan));
+      } else {
+        ui.setStatus('Road update failed');
+      }
     } catch {
       ui.setStatus('Road update failed');
     }
-    ui.setUndoAvailable(undoStore.available);
+    ui.setUndoAvailable(undoCoordinator.available);
   };
 
   const applyZonePlan = (plan: ZoneMutationPlan): void => {
+    const current = transactionCoordinator.snapshot();
     const revalidatedPlan = planZoneMutation(
-      zonesSnapshot,
-      {
-        operation: plan.operation,
-        definitionId: plan.definitionId,
-        cells: plan.requestedCells,
-      },
-      zoneEnvironment,
+      current.zones,
+      { operation: plan.operation, definitionId: plan.definitionId, cells: plan.requestedCells },
+      current.environments.zone,
       WORLD_CONFIG,
     );
-    const candidate = guardZonePlanWithBuildings(revalidatedPlan, buildingsSnapshot);
+    const candidate = guardZonePlanWithBuildings(revalidatedPlan, current.buildings);
     const reason = candidate.invalidReason;
     zoneInvalidReason = reason;
     if (!candidate.valid || reason !== null) {
       ui.setStatus(statusForZonePlan(candidate.previewPlan, reason));
-      ui.setUndoAvailable(undoStore.available);
+      ui.setUndoAvailable(undoCoordinator.available);
       return;
     }
 
-    const before = zonesSnapshot;
     try {
       const committed = commitZoneMutation(
-        zonesSnapshot,
+        current.zones,
         candidate.corePlan,
-        zoneEnvironment,
+        current.environments.zone,
         WORLD_CONFIG,
       );
-      zonePresentation.rebuildDirty(committed.snapshot, committed.receipt.dirtyChunks);
-      zonesSnapshot = committed.snapshot;
-      buildingEnvironment = createBuildingDevelopmentEnvironment(
-        snapshot,
-        waterSnapshot,
-        roadsSnapshot,
-        zonesSnapshot,
-        WORLD_CONFIG,
+      const publication = publishCommittedDomain(
+        { zones: committed.snapshot },
+        incrementalPresentation((world) =>
+          zonePresentation.rebuildDirty(world.zones, committed.receipt.dirtyChunks),
+        ),
       );
-      undoStore.replace({ kind: 'zone', zones: before });
-      zoneLastDirtyChunkCount = committed.receipt.dirtyChunks.length;
-      zoneChunkRebuildCount += committed.receipt.dirtyChunks.length;
-      if (candidate.corePlan.operation === 'paint') zoneCommitCount += 1;
-      else zoneRemoveCount += 1;
-      zoneInvalidReason = null;
-      ui.setZoneCounts(zoneCounts(zonesSnapshot));
-      ui.setStatus(statusForZonePlan(candidate.corePlan));
+      if (publication.result.status === 'committed') {
+        undoCoordinator.record(publication.before, 'zone');
+        zoneLastDirtyChunkCount = committed.receipt.dirtyChunks.length;
+        zoneChunkRebuildCount += committed.receipt.dirtyChunks.length;
+        if (candidate.corePlan.operation === 'paint') zoneCommitCount += 1;
+        else zoneRemoveCount += 1;
+        zoneInvalidReason = null;
+        ui.setStatus(statusForZonePlan(candidate.corePlan));
+      } else {
+        ui.setStatus('Zone update failed');
+      }
     } catch {
       ui.setStatus('Zone update failed');
     }
-    ui.setUndoAvailable(undoStore.available);
+    ui.setUndoAvailable(undoCoordinator.available);
   };
 
   const commitBuildingBulldozePlan = (plan: BuildingMutationPlan): void => {
@@ -763,36 +729,41 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     buildingInvalidReason = plan.invalidReason;
     if (!plan.valid) {
       ui.setStatus(statusForBuildingBulldozePlan(plan));
-      ui.setUndoAvailable(undoStore.available);
+      ui.setUndoAvailable(undoCoordinator.available);
       return;
     }
-    const before = buildingsSnapshot;
+    const current = transactionCoordinator.snapshot();
     dispatchGameTransactionState(ui.canvas, 'committing', 'building');
     try {
       const committed = commitBuildingMutation(
-        buildingsSnapshot,
+        current.buildings,
         plan,
-        buildingEnvironment,
+        current.environments.building,
         WORLD_CONFIG,
       );
-      buildingsSnapshot = committed.snapshot;
-      buildingPresentation.load(buildingsSnapshot);
-      zoneEnvironment = createZonePlacementEnvironment(
-        snapshot,
-        waterSnapshot,
-        roadsSnapshot,
-        createBuildingWorldOccupancy(buildingsSnapshot),
-        WORLD_CONFIG,
+      const reconciledRci = reconcileRciForBuildingChange({
+        rci: current.rci,
+        buildingsBefore: current.buildings,
+        buildingsAfter: committed.snapshot,
+        registries: rciRegistries,
+        evaluationTick: current.simulation.absoluteTick,
+      });
+      const publication = publishCommittedDomain(
+        { buildings: committed.snapshot, rci: reconciledRci },
+        incrementalPresentation((world) => buildingPresentation.load(world.buildings)),
       );
-      undoStore.replace({ kind: 'building', buildings: before });
-      buildingBulldozeCount += 1;
-      buildingInvalidReason = null;
-      ui.setBuildingCount(buildingCount(buildingsSnapshot));
-      ui.setStatus(statusForBuildingBulldozePlan(plan));
+      if (publication.result.status === 'committed') {
+        undoCoordinator.record(publication.before, 'building');
+        buildingBulldozeCount += 1;
+        buildingInvalidReason = null;
+        ui.setStatus(statusForBuildingBulldozePlan(plan));
+      } else {
+        ui.setStatus('Building update failed');
+      }
     } catch {
       ui.setStatus('Building update failed');
     }
-    ui.setUndoAvailable(undoStore.available);
+    ui.setUndoAvailable(undoCoordinator.available);
   };
 
   const applyBuildingBulldozeRequest = (cell: CellCoord): void => {
@@ -802,38 +773,52 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
   };
 
   const runBackgroundGrowthTick = (simulation: SimulationSnapshot): SimulationSnapshot => {
+    const current = transactionCoordinator.snapshot();
     const baseSimulation = pendingLoadedSimulation ?? simulation;
     pendingLoadedSimulation = null;
-    simulationSnapshot = baseSimulation;
-    worldStateStore.synchronizeExternal({
+    const tickStore = new GameWorldStateStore({
+      revision: 0,
       simulation: baseSimulation,
-      buildings: buildingsSnapshot,
-      rci: rciSnapshot,
+      buildings: current.buildings,
+      rci: current.rci,
     });
-    const result = executeGameWorldTick({
-      store: worldStateStore,
-      environment: buildingEnvironment,
-      config: WORLD_CONFIG,
-      registries: rciRegistries,
-      reservedCells: inputRef.current?.getBackgroundGrowthReservations() ?? Object.freeze([]),
-    });
-    simulationSnapshot = result.state.simulation;
-    rciSnapshot = result.state.rci;
-    if (result.state.buildings.revision !== buildingsSnapshot.revision) {
-      buildingsSnapshot = result.state.buildings;
-      buildingPresentation.load(buildingsSnapshot);
-      zoneEnvironment = createZonePlacementEnvironment(
-        snapshot,
-        waterSnapshot,
-        roadsSnapshot,
-        createBuildingWorldOccupancy(buildingsSnapshot),
-        WORLD_CONFIG,
+    try {
+      const result = executeGameWorldTick({
+        store: tickStore,
+        environment: current.environments.building,
+        config: WORLD_CONFIG,
+        registries: rciRegistries,
+        reservedCells: inputRef.current?.getBackgroundGrowthReservations() ?? Object.freeze([]),
+      });
+      const buildingsChanged = result.state.buildings.revision !== current.buildings.revision;
+      const publication = publishCommittedDomain(
+        {
+          simulation: result.state.simulation,
+          buildings: result.state.buildings,
+          rci: result.state.rci,
+        },
+        buildingsChanged
+          ? incrementalPresentation((world) => buildingPresentation.load(world.buildings))
+          : noOpPresentation,
       );
-      buildingCommitCount += 1;
-      ui.setBuildingCount(buildingCount(buildingsSnapshot));
+      if (publication.result.status !== 'committed') return current.simulation;
+      if (buildingsChanged) buildingCommitCount += 1;
+      return publication.result.world.simulation;
+    } catch {
+      return current.simulation;
     }
-    rciHud.update(rciSnapshot, rciRegistries, simulationSnapshot.absoluteTick);
-    return simulationSnapshot;
+  };
+
+  const runSimulationOnlyTick = (simulation: SimulationSnapshot): SimulationSnapshot => {
+    const next = createSimulationSnapshot({
+      revision: simulation.revision + 1,
+      absoluteTick: simulation.absoluteTick + 1,
+      growthSequence: simulation.growthSequence,
+    });
+    const publication = publishCommittedDomain({ simulation: next }, noOpPresentation);
+    return publication.result.status === 'committed'
+      ? publication.result.world.simulation
+      : transactionCoordinator.snapshot().simulation;
   };
 
   const resetCamera = (): void => {
@@ -948,19 +933,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     'click',
     () => {
       input.clearActiveSession();
-      localStorage.setItem(
-        WORLD_SAVE_KEY,
-        JSON.stringify(
-          encodeWorldSaveV5(
-            snapshot,
-            roadsSnapshot,
-            zonesSnapshot,
-            buildingsSnapshot,
-            simulationSnapshot,
-            rciSnapshot,
-          ),
-        ),
-      );
+      saveCoordinator.save();
       ui.setStatus('Saved');
     },
     listenerOptions,
@@ -969,29 +942,16 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     'click',
     () => {
       input.clearActiveSession();
-      const saved =
-        localStorage.getItem(WORLD_SAVE_KEY) ??
-        localStorage.getItem(LEGACY_WORLD_SAVE_V3_KEY) ??
-        localStorage.getItem(LEGACY_WORLD_SAVE_V2_KEY) ??
-        localStorage.getItem(LEGACY_WORLD_SAVE_KEY) ??
-        localStorage.getItem(LEGACY_TERRAIN_SAVE_KEY);
-      if (saved === null) {
-        ui.setStatus('No save');
+      const result = saveCoordinator.load();
+      if (result.status === 'rejected') {
+        ui.setStatus(result.reason === 'world:no-save' ? 'No save' : 'Invalid save');
         return;
       }
-      try {
-        const decoded = decodeWorldSave(JSON.parse(saved) as unknown, WORLD_CONFIG);
-        if (!decoded.ok) {
-          ui.setStatus('Invalid save');
-          return;
-        }
-        if (replaceCompleteWorld(decoded.value, 'Loaded')) {
-          undoStore.clear();
-          ui.setUndoAvailable(false);
-        }
-      } catch {
-        ui.setStatus('Invalid save');
-      }
+      adoptCommittedWorld(result.world);
+      pendingLoadedSimulation = result.world.simulation;
+      undoCoordinator.clear();
+      ui.setUndoAvailable(false);
+      ui.setStatus('Loaded');
     },
     listenerOptions,
   );
@@ -1052,88 +1012,37 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     'click',
     () => {
       input.clearActiveSession();
-      const entry = undoStore.consume();
-      if (entry === null) return;
-
-      let succeeded = false;
-      if (entry.kind === 'terraform') {
-        succeeded = replaceTerrainWorld(entry.terrain, 'Terraform undone');
-        if (succeeded) {
-          terraformUndoCount += 1;
-          terraformWaterRebuildCount += 1;
-        }
-      } else if (entry.kind === 'road') {
-        const dirtyChunks = roadDirtyChunksBetween(roadsSnapshot, entry.roads);
-        try {
-          roadPresentation.rebuildDirty(entry.roads, roadEnvironment, dirtyChunks);
-          roadsSnapshot = entry.roads;
-          zoneEnvironment = createZonePlacementEnvironment(
-            snapshot,
-            waterSnapshot,
-            roadsSnapshot,
-            createBuildingWorldOccupancy(buildingsSnapshot),
-            WORLD_CONFIG,
-          );
-          buildingEnvironment = createBuildingDevelopmentEnvironment(
-            snapshot,
-            waterSnapshot,
-            roadsSnapshot,
-            zonesSnapshot,
-            WORLD_CONFIG,
-          );
-          roadUndoCount += 1;
-          roadLastDirtyChunkCount = dirtyChunks.length;
-          roadChunkRebuildCount += dirtyChunks.length;
-          ui.setStatus('Road undone');
-          succeeded = true;
-        } catch {
-          ui.setStatus('Road undo failed');
-        }
-      } else if (entry.kind === 'zone') {
-        const dirtyChunks = zoneDirtyChunksBetween(zonesSnapshot, entry.zones);
-        try {
-          zonePresentation.rebuildDirty(entry.zones, dirtyChunks);
-          zonesSnapshot = entry.zones;
-          buildingEnvironment = createBuildingDevelopmentEnvironment(
-            snapshot,
-            waterSnapshot,
-            roadsSnapshot,
-            zonesSnapshot,
-            WORLD_CONFIG,
-          );
-          zoneUndoCount += 1;
-          zoneLastDirtyChunkCount = dirtyChunks.length;
-          zoneChunkRebuildCount += dirtyChunks.length;
-          zoneInvalidReason = null;
-          ui.setZoneCounts(zoneCounts(zonesSnapshot));
-          ui.setStatus('Zone undone');
-          succeeded = true;
-        } catch {
-          ui.setStatus('Zone undo failed');
-        }
-      } else {
-        try {
-          buildingsSnapshot = entry.buildings;
-          buildingPresentation.load(buildingsSnapshot);
-          zoneEnvironment = createZonePlacementEnvironment(
-            snapshot,
-            waterSnapshot,
-            roadsSnapshot,
-            createBuildingWorldOccupancy(buildingsSnapshot),
-            WORLD_CONFIG,
-          );
-          buildingUndoCount += 1;
-          buildingInvalidReason = null;
-          ui.setBuildingCount(buildingCount(buildingsSnapshot));
-          ui.setStatus('Building undone');
-          succeeded = true;
-        } catch {
-          ui.setStatus('Building undo failed');
-        }
+      const kind = undoCoordinator.kind;
+      const before = transactionCoordinator.snapshot();
+      const result = undoCoordinator.undo();
+      if (result === null || result.status === 'rejected') {
+        ui.setUndoAvailable(undoCoordinator.available);
+        return;
       }
-
-      if (!succeeded) undoStore.replace(entry as WorldUndoEntry);
-      ui.setUndoAvailable(undoStore.available);
+      adoptCommittedWorld(result.world);
+      if (kind === 'terraform') {
+        terraformUndoCount += 1;
+        terraformWaterRebuildCount += 1;
+        ui.setStatus('Terraform undone');
+      } else if (kind === 'road') {
+        const dirtyChunks = roadDirtyChunksBetween(before.roads, result.world.roads);
+        roadUndoCount += 1;
+        roadLastDirtyChunkCount = dirtyChunks.length;
+        roadChunkRebuildCount += dirtyChunks.length;
+        ui.setStatus('Road undone');
+      } else if (kind === 'zone') {
+        const dirtyChunks = zoneDirtyChunksBetween(before.zones, result.world.zones);
+        zoneUndoCount += 1;
+        zoneLastDirtyChunkCount = dirtyChunks.length;
+        zoneChunkRebuildCount += dirtyChunks.length;
+        zoneInvalidReason = null;
+        ui.setStatus('Zone undone');
+      } else if (kind === 'building') {
+        buildingUndoCount += 1;
+        buildingInvalidReason = null;
+        ui.setStatus('Building undone');
+      }
+      ui.setUndoAvailable(undoCoordinator.available);
     },
     listenerOptions,
   );
@@ -1197,7 +1106,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
         ...state,
         committedTerrainRevision: snapshot.revision,
         waterSourceTerrainRevision: waterSnapshot.sourceTerrainRevision,
-        undoAvailable: undoStore.available,
+        undoAvailable: undoCoordinator.available,
         commitCount: terraformCommitCount,
         undoCount: terraformUndoCount,
         waterRebuildCount: terraformWaterRebuildCount,
@@ -1216,7 +1125,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
         chunkRebuildCount: roadChunkRebuildCount,
         terrainRevision: snapshot.revision,
         waterSourceTerrainRevision: waterSnapshot.sourceTerrainRevision,
-        undoKind: undoStore.kind,
+        undoKind: undoCoordinator.kind,
         estimatedGeometryBytes: roadGeometryBytes(scene),
       };
     },
@@ -1238,7 +1147,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
         terrainRevision: snapshot.revision,
         roadRevision: roadsSnapshot.revision,
         zoneRevision: zonesSnapshot.revision,
-        undoKind: undoStore.kind,
+        undoKind: undoCoordinator.kind,
         invalidReason: buildingInvalidReason,
       };
     },
@@ -1256,7 +1165,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
         terrainRevision: snapshot.revision,
         waterSourceTerrainRevision: waterSnapshot.sourceTerrainRevision,
         roadRevision: roadsSnapshot.revision,
-        undoKind: undoStore.kind,
+        undoKind: undoCoordinator.kind,
         invalidReason: state.previewInvalidReason ?? zoneInvalidReason,
       };
     },
@@ -1318,5 +1227,5 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     delete window.__WEB_THREE_CITY_INTERACTION__;
   };
   window.addEventListener('pagehide', dispose, { once: true });
-  return { runBackgroundGrowthTick, dispose };
+  return { runBackgroundGrowthTick, runSimulationOnlyTick, dispose };
 }

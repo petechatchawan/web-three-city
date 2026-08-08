@@ -53,7 +53,7 @@ export class SaveCoordinator {
     this.#storage.write(WORLD_SAVE_KEY, JSON.stringify(this.savePayload()));
   }
 
-  async load(): Promise<WorldPublicationResult> {
+  load(): WorldPublicationResult {
     const current = this.#worldStore.snapshot();
     const saved = WORLD_SAVE_READ_KEYS.map((key) => this.#storage.read(key)).find(
       (value): value is string => value !== null,

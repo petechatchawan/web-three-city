@@ -1,5 +1,7 @@
 # Architecture and Infrastructure Upgrade v0.1 Implementation Plan
 
+**Execution status:** `CLOSED / PASS` — see the [authoritative final closure record](../verification/2026-08-08-architecture-infrastructure-v0-1-closure.md). The original task instructions below are preserved as implementation history.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Incrementally enforce package boundaries, make application coordination explicit, reduce `game-bootstrap.ts` coupling, and make targeted verification and browser CI faster without changing gameplay, deterministic simulation, or Save compatibility.
@@ -1623,6 +1625,8 @@ Final escalation: Level 4 because CI and browser release verification changed.
 
 ### Task 10: Record Before/After Architecture and Performance Closure
 
+**Execution result:** Complete through the separate docs-only closure PR. PR5 exact-head Level 4 evidence and tree equality were established before this record; the documentation-only exception avoids a redundant browser rerun.
+
 **Files:**
 - Create: `docs/systems/architecture-infrastructure/verification/2026-08-07-architecture-infrastructure-v0-1-closure.md`
 - Modify: `docs/systems/architecture-infrastructure/README.md`
@@ -1748,18 +1752,18 @@ Each commit ends with its own focused test command. Each PR updates `docs/system
 
 ## Final Verification
 
-- [ ] Planning PR contains documentation only and is approved by ARB.
-- [ ] Architecture contract tests pass before slow suites.
-- [ ] `apps/game/test` is included in normal verification.
-- [ ] Building bulldoze -> Save/Load is coherent.
-- [ ] Building bulldoze -> tick -> Undo restores dependent RCI state.
-- [ ] RCI validates exact Building after-state contracts.
-- [ ] Complete-world failure leaves committed state unchanged.
-- [ ] One Save/Load command owns storage and decode.
-- [ ] Application no longer reads renderer-global Building authority.
-- [ ] Browser direct imports are confined to the explicit fixture seam.
-- [ ] Full browser suite remains available and passes.
-- [ ] Lean/Browser timing comparison uses actual output.
-- [ ] No gameplay or Save schema changes were introduced without separate approval.
-- [ ] Final exact-head evidence is recorded without a metadata-only tree mutation.
-- [ ] Squash-merged content tree matches the verified candidate tree.
+- [x] Planning PR contains documentation only and is approved by ARB.
+- [x] Architecture contract tests pass before slow suites.
+- [x] `apps/game/test` is included in normal verification.
+- [x] Building bulldoze -> Save/Load is coherent.
+- [x] Building bulldoze -> tick -> Undo restores dependent RCI state.
+- [x] RCI validates exact Building after-state contracts.
+- [x] Complete-world failure leaves committed state unchanged.
+- [x] One Save/Load command owns storage and decode.
+- [x] Application no longer reads renderer-global Building authority.
+- [x] Browser direct imports are confined to the explicit fixture seam.
+- [x] Full browser suite remains available and passes.
+- [x] Lean/Browser timing comparison uses actual output with environment differences stated.
+- [x] No gameplay or Save schema changes were introduced without separate approval.
+- [x] Final exact-head evidence is recorded without a metadata-only runtime tree mutation.
+- [x] Squash-merged content tree matches the verified candidate tree.

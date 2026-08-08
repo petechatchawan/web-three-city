@@ -1,6 +1,6 @@
 # Architecture and Infrastructure Upgrade v0.1 - Design Specification
 
-**Status:** Approved  
+**Status:** Implemented — `CLOSED / PASS`
 **System:** `architecture-infrastructure`  
 **Date:** `2026-08-07`
 
@@ -309,4 +309,5 @@ Task 3 is an execution prerequisite for characterization, so its commit may be d
 - ADRs: [0001](../adrs/0001-application-orchestration-seam.md), [0002](../adrs/0002-complete-world-publication-and-dependent-undo.md), [0003](../adrs/0003-repository-native-boundary-enforcement.md), [0004](../adrs/0004-layered-targeted-verification-and-ci.md)
 - TDD plan: [Architecture and Infrastructure Upgrade v0.1](../tdd/2026-08-07-architecture-infrastructure-upgrade-v0-1.md)
 - Verification: [Phase 1 baseline](../verification/2026-08-07-architecture-infrastructure-phase-1-baseline.md)
+- Final evidence: [Architecture and Infrastructure Upgrade v0.1 closure](../verification/2026-08-08-architecture-infrastructure-v0-1-closure.md)
 - Current workflow authority: [`AGENTS.md`](../../../../AGENTS.md)

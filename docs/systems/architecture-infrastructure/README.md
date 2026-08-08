@@ -1,7 +1,8 @@
 # Architecture and Infrastructure System
 
-**Status:** Implementation in progress — slices 1–4 CLOSED / PASS; slice 5 candidate  
-**Implementation baseline:** `master@bbb49cc3e94d0de5808cf6a5fa0356ecf6dd4827`  
+**Status:** `CLOSED / PASS` — Architecture and Infrastructure Upgrade v0.1
+
+**Verified runtime baseline:** `master@48919fb3e49d894857b1e0cf23791cea43433b7b`
 **Primary ownership:** repository architecture rules, `apps/game` application orchestration, repository verification tooling, CI/browser verification  
 **Persistence:** Git-tracked architecture and verification documentation; existing gameplay Save schemas remain unchanged
 
@@ -109,12 +110,13 @@ The Architecture and Infrastructure program introduces no Save wire-schema or pe
 ## Current Limitations
 
 - `game-bootstrap.ts` remains the composition root and still contains substantial concrete adapter/input wiring; only the duplicated full-world presentation synchronization lifecycle has moved to a bounded coordinator.
-- Test/CI Architecture v0.2 is implemented in slice 5, but milestone acceptance still requires exact-head Lean, full Chromium, Sonar, and final Level 4 evidence on one stable candidate.
-- Before/after timing and coupling measurements are not yet closed; milestone closure remains pending final verification and the Task 10 closure record.
+- Test/CI Architecture v0.2 is implemented and verified on the tree-identical PR5 candidate and merged runtime tree.
+- Before/after measurements, CI evidence, and remaining non-blocking debt are closed in the [authoritative v0.1 closure record](verification/2026-08-08-architecture-infrastructure-v0-1-closure.md).
 
 ## Handoff Checklist
 
 - Start reading: [Phase 1 baseline audit](verification/2026-08-07-architecture-infrastructure-phase-1-baseline.md)
+- Final milestone evidence: [Architecture and Infrastructure Upgrade v0.1 closure](verification/2026-08-08-architecture-infrastructure-v0-1-closure.md)
 - Approved design: [Architecture and Infrastructure Upgrade v0.1](specs/2026-08-07-architecture-infrastructure-upgrade-v0-1.md)
 - ADRs: [architecture ADR directory](adrs/)
 - TDD plan: [Architecture and Infrastructure Upgrade v0.1](tdd/2026-08-07-architecture-infrastructure-upgrade-v0-1.md)
@@ -128,7 +130,7 @@ The Architecture and Infrastructure program introduces no Save wire-schema or pe
 - Specification: [Architecture and Infrastructure Upgrade v0.1](specs/2026-08-07-architecture-infrastructure-upgrade-v0-1.md)
 - ADRs: [ADR-0001](adrs/0001-application-orchestration-seam.md), [ADR-0002](adrs/0002-complete-world-publication-and-dependent-undo.md), [ADR-0003](adrs/0003-repository-native-boundary-enforcement.md), [ADR-0004](adrs/0004-layered-targeted-verification-and-ci.md)
 - TDD plan: [Architecture and Infrastructure Upgrade v0.1](tdd/2026-08-07-architecture-infrastructure-upgrade-v0-1.md)
-- Verification: [Phase 1 baseline](verification/2026-08-07-architecture-infrastructure-phase-1-baseline.md)
+- Verification: [Phase 1 baseline](verification/2026-08-07-architecture-infrastructure-phase-1-baseline.md), [v0.1 final closure](verification/2026-08-08-architecture-infrastructure-v0-1-closure.md)
 
 ## Implementation Slice 1
 

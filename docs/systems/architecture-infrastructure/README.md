@@ -1,7 +1,7 @@
 # Architecture and Infrastructure System
 
-**Status:** Implementation in progress — slices 1–3 implemented; PR 3 final verification pending  
-**Implementation baseline:** `master@05334eba378340c610d6f6a8633e220a120580cf`  
+**Status:** Implementation in progress — slices 1–3 CLOSED / PASS; slice 4 candidate  
+**Implementation baseline:** `master@6578b3fa13d19c608068995a1dd8796baf9d7ef7`  
 **Primary ownership:** repository architecture rules, `apps/game` application orchestration, repository verification tooling, CI/browser verification  
 **Persistence:** Git-tracked architecture and verification documentation; existing gameplay Save schemas remain unchanged
 
@@ -32,6 +32,7 @@ This system is an architecture and enforcement boundary. It does not own gamepla
 - `UndoCoordinator` restores the complete prior dependent domain world while only the application publication revision advances.
 - Building content is fenced by deterministic fingerprint for RCI planning; Building changes reconcile dwelling/workplace inventory before publication.
 - Interactive Terraform/Road/Zone/Building mutations and foreground/background simulation changes publish through the committed-world seam before presentation.
+- `PresentationCoordinator` owns ordered full-world adapter synchronization, incremental/no-op publication ports, and committed-world rebuild recovery without owning domain, tool, or Undo state.
 
 ## Ownership and State
 
@@ -89,6 +90,8 @@ The Architecture and Infrastructure program introduces no Save wire-schema or pe
 - Save reads only committed, coherent state.
 - Undo restores a coherent dependent world or executes a complete reverse command; domain snapshots return to their prior content/revisions while the application publication revision advances.
 - Presentation and HUD update only after authoritative publication; post-publication presentation failure never rolls back domain authority.
+- Full-world presentation recovery rebuilds every registered derived adapter from one committed-world snapshot through `PresentationCoordinator`.
+- Incremental/background presentation callbacks do not own or mutate active tool and Undo authority.
 - Tick ordering, fixed-point arithmetic, Save migration, and browser determinism remain unchanged unless an ADR explicitly replaces a rule.
 
 ## Extension Points
@@ -101,8 +104,8 @@ The Architecture and Infrastructure program introduces no Save wire-schema or pe
 
 ## Current Limitations
 
-- `game-bootstrap.ts` still owns substantial presentation/composition wiring; bounded presentation extraction is the next implementation slice.
-- Browser tests still lack ownership tags and still use direct source imports for fixtures/helpers; Test/CI Architecture v0.2 remains pending.
+- `game-bootstrap.ts` remains the composition root and still contains substantial concrete adapter/input wiring; only the duplicated full-world presentation synchronization lifecycle has moved to a bounded coordinator.
+- Browser tests still lack ownership tags and still use direct source imports for fixtures/helpers; Test/CI Architecture v0.2 remains pending in slice 5.
 - CI still repeats broad verification work in the browser path and does not yet expose the planned targeted browser groups.
 - Before/after timing and coupling measurements are not yet closed; milestone closure remains pending after slices 4–5 and final Level 4.
 
@@ -112,8 +115,8 @@ The Architecture and Infrastructure program introduces no Save wire-schema or pe
 - Approved design: [Architecture and Infrastructure Upgrade v0.1](specs/2026-08-07-architecture-infrastructure-upgrade-v0-1.md)
 - ADRs: [architecture ADR directory](adrs/)
 - TDD plan: [Architecture and Infrastructure Upgrade v0.1](tdd/2026-08-07-architecture-infrastructure-upgrade-v0-1.md)
-- Application seams: `apps/game/src/application/committed-world.ts`, `world-transaction-coordinator.ts`, `save-coordinator.ts`, `undo-coordinator.ts`
-- Bootstrap hotspot: `apps/game/src/game-bootstrap.ts`
+- Application seams: `apps/game/src/application/committed-world.ts`, `world-transaction-coordinator.ts`, `save-coordinator.ts`, `undo-coordinator.ts`, `presentation-coordinator.ts`
+- Bootstrap composition root: `apps/game/src/game-bootstrap.ts`
 - Verification authority: [`AGENTS.md`](../../../AGENTS.md)
 - Related systems: [World](../world/README.md), [Buildings](../buildings/README.md), [Simulation Time](../simulation-time/README.md), [RCI](../rci/README.md), [Economy](../economy/README.md), [Development Workflow](../development-workflow/README.md)
 
@@ -139,3 +142,9 @@ Runtime mutation authority routes through the committed-world transaction seam. 
 The runtime read side now uses the same authority boundary: `GameRuntime.snapshot()` and `subscribeCommittedWorld()` expose the committed projection, logical stepping goes through `advanceLogicalTick()`, and the browser time/test projection serializes via the runtime `SaveCoordinator` path. `main.ts` no longer decodes Save data, reads storage keys, maintains a second Simulation authority, or reads Building authority back from the Three.js presentation layer.
 
 The Level 4 browser gate exposed a defensive-read bug during this slice: plain frozen typed-array copies lost canonical snapshot getter semantics and allowed mutation planning to mutate the read model. The application read boundary now reconstructs canonical snapshots, and a curated-runtime Road publication regression test protects this contract.
+
+## Implementation Slice 4
+
+`PresentationCoordinator` is the first bounded bootstrap extraction. It owns the ordered full-world presentation synchronization lifecycle and the complete/incremental/no-op `WorldPresentationPort` variants while accepting only explicit callbacks and committed-world input. Concrete Three.js adapters remain wired by `game-bootstrap.ts`, preserving the composition root instead of introducing a God Coordinator.
+
+WebGL context restoration now clears transient previews and asks the same coordinator to rebuild all committed presentation roots from `WorldTransactionCoordinator.snapshot()`, removing the second handwritten Terrain/Water/Grid/Road/Zone/Building/selection/input rebuild sequence. Focused characterization tests lock publication-before-presentation ordering, complete rebuild coverage, background tool/Undo non-ownership, and lifecycle cleanup on adapter failure.

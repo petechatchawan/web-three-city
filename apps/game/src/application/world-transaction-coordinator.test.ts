@@ -1,5 +1,5 @@
 import { createEmptyBuildingSnapshot } from '@web-three-city/building-core';
-import { createFoundationRciRegistries, createInitialRciSnapshot } from '@web-three-city/rci-core';
+import { createInitialRciSnapshot } from '@web-three-city/rci-core';
 import {
   commitRoadMutation,
   createEmptyRoadSnapshot,

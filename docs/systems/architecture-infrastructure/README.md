@@ -1,7 +1,7 @@
 # Architecture and Infrastructure System
 
-**Status:** Implementation in progress — slices 1–3 implemented; PR 3 final verification pending  
-**Implementation baseline:** `master@05334eba378340c610d6f6a8633e220a120580cf`  
+**Status:** Implementation in progress — slices 1–4 implemented; PR 4 verification pending
+**Implementation baseline:** `master@6578b3fa13d19c608068995a1dd8796baf9d7ef7`
 **Primary ownership:** repository architecture rules, `apps/game` application orchestration, repository verification tooling, CI/browser verification  
 **Persistence:** Git-tracked architecture and verification documentation; existing gameplay Save schemas remain unchanged
 
@@ -101,7 +101,7 @@ The Architecture and Infrastructure program introduces no Save wire-schema or pe
 
 ## Current Limitations
 
-- `game-bootstrap.ts` still owns substantial presentation/composition wiring; bounded presentation extraction is the next implementation slice.
+- Complete-world presentation synchronization is extracted behind an explicit application coordinator; `game-bootstrap.ts` remains the composition root and retains adapter construction.
 - Browser tests still lack ownership tags and still use direct source imports for fixtures/helpers; Test/CI Architecture v0.2 remains pending.
 - CI still repeats broad verification work in the browser path and does not yet expose the planned targeted browser groups.
 - Before/after timing and coupling measurements are not yet closed; milestone closure remains pending after slices 4–5 and final Level 4.
@@ -139,3 +139,8 @@ Runtime mutation authority routes through the committed-world transaction seam. 
 The runtime read side now uses the same authority boundary: `GameRuntime.snapshot()` and `subscribeCommittedWorld()` expose the committed projection, logical stepping goes through `advanceLogicalTick()`, and the browser time/test projection serializes via the runtime `SaveCoordinator` path. `main.ts` no longer decodes Save data, reads storage keys, maintains a second Simulation authority, or reads Building authority back from the Three.js presentation layer.
 
 The Level 4 browser gate exposed a defensive-read bug during this slice: plain frozen typed-array copies lost canonical snapshot getter semantics and allowed mutation planning to mutate the read model. The application read boundary now reconstructs canonical snapshots, and a curated-runtime Road publication regression test protects this contract.
+
+
+## Implementation Slice 4
+
+`PresentationCoordinator` owns the ordered post-publication synchronization and committed-world recovery path for Terrain, Water, Grid, Roads, Zones, Buildings, selection, and terrain-object refresh. `game-bootstrap.ts` supplies explicit adapter callbacks and remains the composition root; presentation does not gain domain authority, Save ownership, tool state, or Undo ownership. WebGL context restoration delegates to the same complete-world recovery path, while incremental background Growth updates remain isolated from active tool and Undo state.

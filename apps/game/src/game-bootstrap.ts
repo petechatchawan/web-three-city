@@ -76,6 +76,7 @@ import {
   type CommittedWorld,
 } from './application/committed-world.js';
 import { fingerprintCommittedWorld } from './application/committed-world-fingerprint.js';
+import { PresentationCoordinator } from './application/presentation-coordinator.js';
 import { reconcileRciForBuildingChange } from './application/rci-building-reconciliation.js';
 import { SaveCoordinator } from './application/save-coordinator.js';
 import { UndoCoordinator } from './application/undo-coordinator.js';
@@ -508,40 +509,30 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     notifyCommittedWorld(world, reason);
   };
 
-  const presentCompleteWorld = (world: CommittedWorld): void => {
-    replacingWorld = true;
-    try {
-      terrain.load(world.terrain);
+  const presentationCoordinator = new PresentationCoordinator({
+    setReplacingWorld: (value) => {
+      replacingWorld = value;
+    },
+    loadTerrain: (world) => terrain.load(world.terrain),
+    loadWater: (world) => {
       const presentationStart = performance.now();
       water.load(world.terrain, world.water);
       waterPresentationDurationMs = performance.now() - presentationStart;
       waterBuildMetrics = stagedWaterBuildMetrics;
-      grid.load(world.terrain);
-      roadPresentation.loadAll(world.roads, world.environments.road);
+    },
+    loadGrid: (world) => grid.load(world.terrain),
+    loadRoads: (world) => roadPresentation.loadAll(world.roads, world.environments.road),
+    loadZones: (world) => {
       zoneSurfaceSnapshot = world.terrain;
       zonePresentation.loadAll(world.zones);
-      buildingPresentation.load(world.buildings);
-      rebuildSelection(selection, world.terrain, selectedCell);
-      inputRef.current?.refreshTerrainObjects();
-    } finally {
-      replacingWorld = false;
-    }
-  };
-  const completeWorldPresentation: WorldPresentationPort = Object.freeze({
-    synchronize: presentCompleteWorld,
-    rebuildFromCommitted: presentCompleteWorld,
-  });
-  const incrementalPresentation = (
-    synchronize: (world: CommittedWorld) => void,
-  ): WorldPresentationPort =>
-    Object.freeze({ synchronize, rebuildFromCommitted: presentCompleteWorld });
-  const noOpPresentation: WorldPresentationPort = Object.freeze({
-    synchronize: () => {},
-    rebuildFromCommitted: presentCompleteWorld,
+    },
+    loadBuildings: (world) => buildingPresentation.load(world.buildings),
+    rebuildSelection: (world) => rebuildSelection(selection, world.terrain, selectedCell),
+    refreshTerrainObjects: () => inputRef.current?.refreshTerrainObjects(),
   });
   const transactionCoordinator = new DefaultWorldTransactionCoordinator({
     worldStore: committedWorldStore,
-    presentation: completeWorldPresentation,
+    presentation: presentationCoordinator.completeWorld,
   });
   const saveCoordinator = new SaveCoordinator({
     storage: Object.freeze({
@@ -659,7 +650,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
       );
       const publication = publishCommittedDomain(
         { roads: committed.snapshot },
-        incrementalPresentation((world) =>
+        presentationCoordinator.incremental((world) =>
           roadPresentation.rebuildDirty(
             world.roads,
             world.environments.road,
@@ -709,7 +700,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
       );
       const publication = publishCommittedDomain(
         { zones: committed.snapshot },
-        incrementalPresentation((world) =>
+        presentationCoordinator.incremental((world) =>
           zonePresentation.rebuildDirty(world.zones, committed.receipt.dirtyChunks),
         ),
       );
@@ -758,7 +749,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
       });
       const publication = publishCommittedDomain(
         { buildings: committed.snapshot, rci: reconciledRci },
-        incrementalPresentation((world) => buildingPresentation.load(world.buildings)),
+        presentationCoordinator.incremental((world) => buildingPresentation.load(world.buildings)),
       );
       if (publication.result.status === 'committed') {
         undoCoordinator.record(publication.before, 'building');
@@ -804,8 +795,10 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
           rci: result.state.rci,
         },
         buildingsChanged
-          ? incrementalPresentation((world) => buildingPresentation.load(world.buildings))
-          : noOpPresentation,
+          ? presentationCoordinator.incremental((world) =>
+              buildingPresentation.load(world.buildings),
+            )
+          : presentationCoordinator.noOp,
       );
       if (publication.result.status !== 'committed') return current.simulation;
       if (buildingsChanged) buildingCommitCount += 1;
@@ -822,7 +815,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
       absoluteTick: current.simulation.absoluteTick + 1,
       growthSequence: current.simulation.growthSequence,
     });
-    const publication = publishCommittedDomain({ simulation: next }, noOpPresentation);
+    const publication = publishCommittedDomain({ simulation: next }, presentationCoordinator.noOp);
     return publication.result.status === 'committed'
       ? publication.result.world.simulation
       : transactionCoordinator.snapshot().simulation;
@@ -837,7 +830,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
   const resetSimulationForTest = (): CommittedWorld => {
     const publication = publishCommittedDomain(
       { simulation: createInitialSimulationSnapshot() },
-      noOpPresentation,
+      presentationCoordinator.noOp,
     );
     if (publication.result.status === 'committed') {
       undoCoordinator.clear();
@@ -1093,18 +1086,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
       preview.clear();
       roadPreview.clear();
       zonePreview.clear();
-      terrain.load(snapshot);
-      const presentationStart = performance.now();
-      water.load(snapshot, waterSnapshot);
-      waterPresentationDurationMs = performance.now() - presentationStart;
-      waterBuildMetrics = stagedWaterBuildMetrics;
-      grid.load(snapshot);
-      roadPresentation.loadAll(roadsSnapshot, roadEnvironment);
-      zoneSurfaceSnapshot = snapshot;
-      zonePresentation.loadAll(zonesSnapshot);
-      buildingPresentation.load(buildingsSnapshot);
-      rebuildSelection(selection, snapshot, selectedCell);
-      input.refreshTerrainObjects();
+      presentationCoordinator.rebuildCommittedWorld(transactionCoordinator.snapshot());
       contextLost = false;
       ui.setStatus('Ready');
     },

@@ -258,6 +258,38 @@ function projectWorldPoint(
   return Object.freeze({ x, y });
 }
 
+function isInsideRenderViewport(point: TerrainCellScreenPoint, layout: GameCanvasLayout): boolean {
+  const left = layout.canvasX + layout.viewportLeft;
+  const top = layout.canvasY + layout.viewportTop;
+  return (
+    point.x >= left &&
+    point.x <= left + layout.viewportWidth &&
+    point.y >= top &&
+    point.y <= top + layout.viewportHeight
+  );
+}
+
+export async function projectTerrainCells(
+  page: Page,
+  targets: readonly Readonly<{ x: number; z: number }>[],
+): Promise<readonly TerrainCellScreenPoint[]> {
+  const layout = await readGameCanvasLayout(page);
+  const cameraState = (await readEvidence(page)).camera;
+
+  return Object.freeze(
+    targets.map((target) => {
+      const points = terrainCellTriangleCentroids(GAME_TERRAIN, target)
+        .map((centroid) => projectWorldPoint(centroid, cameraState, layout))
+        .filter((point) => isInsideRenderViewport(point, layout));
+      const point = points[0];
+      if (point === undefined) {
+        throw new Error(`terrain-cell:outside-render-viewport:${target.x}:${target.z}`);
+      }
+      return point;
+    }),
+  );
+}
+
 export async function clickTerrainCell(
   page: Page,
   target: Readonly<{ x: number; z: number }>,

@@ -46,6 +46,7 @@ pnpm --filter @web-three-city/<pkg> test:watch
 pnpm --filter @web-three-city/<pkg> test
 pnpm --filter @web-three-city/<pkg> typecheck
 pnpm format
+pnpm test:deployment
 pnpm verify
 pnpm verify:full
 pnpm test:browser
@@ -53,9 +54,65 @@ pnpm test:browser
 
 `pnpm verify` is Level 3 and is not the default after each local edit. Use package-scoped tests and typecheck first.
 
+For repository architecture, test-discovery/topology, CI-topology, deployment-tooling, or shared verification-script changes, use the tooling loop before the Level 3 final gate:
+
+```text
+relevant focused tooling test, when available
+→ pnpm test:deployment
+→ pnpm verify when Level 3 is required
+```
+
+`pnpm test:deployment` is fast affected feedback, not a replacement for `pnpm verify` when a Level 3 trigger applies.
+
+### Targeted Browser Feedback
+
+Browser-observable changes may use ownership tags during development:
+
+```bash
+pnpm exec playwright test --grep @road
+pnpm exec playwright test --grep @rci
+pnpm exec playwright test --grep @building
+pnpm exec playwright test --grep @smoke
+```
+
+Supported ownership tags are `@smoke`, `@terrain`, `@water`, `@road`, `@zoning`, `@building`, `@rci`, `@interaction`, `@visual`, `@performance`, and `@release`. Select the tag or union of tags that covers the changed behavior. If several domains or shared interaction paths are affected, run every relevant subset or escalate under the existing verification rules.
+
+Tagged subsets are affected fast feedback; they are not a new verification level and never replace the full browser release authority. Do not run the full browser suite after every small edit when a focused subset answers the development question.
+
+### Browser Release Authority
+
+- The release authority is the one unfiltered Chromium project. Repository topology tests enforce its current inventory and require approved ownership tags without excluding tests from the full project.
+- Level 4 uses the canonical `pnpm verify:full` command and therefore runs the full browser authority.
+- Targeted `--grep` subsets cannot qualify as full release, browser-acceptance, or milestone-closure evidence.
+- Playwright currently enforces `workers: 2` and `retries: 0`. Do not add retries to conceal flaky behavior or broaden workers/timeouts repository-wide as a workaround. Change worker count or timeout strategy only from measured evidence, using narrow per-spec budgets when a specific test requires one.
+
+### CI Verification Ownership
+
+```text
+Lean CI
+  ├─ repository verification, unit tests, typecheck, and build
+  └─ publish exact browser preview build artifact
+          ↓
+Browser CI
+  ├─ consume the exact Lean artifact
+  ├─ install browser runtime
+  └─ run browser acceptance/release evidence
+```
+
+- Lean CI owns repository verification and application builds.
+- Browser CI reuses the exact Lean-produced Game and Terrain Lab outputs. Apart from dependency/browser setup, clean-worktree validation, and evidence retention, its responsibility is browser verification only.
+- Browser CI must not duplicate `pnpm check`, unit suites, typecheck, or application builds.
+- A CI-topology change must update the architecture/CI topology contract tests in the same PR. Do not add duplicate verification “for safety” without an explicit architecture decision backed by evidence.
+
 ## Verification Escalation Rules
 
 The final gate is determined by these normative rules. Lower levels remain the preferred feedback loop during implementation.
+
+```text
+request/change → owning system → Level 0 focused iteration → Level 1 owner
+→ Level 2 affected consumers → targeted browser tags when browser-observable
+→ Level 3 when triggered → Level 4 when triggered → exact-head evidence → PR/merge
+```
 
 - **Level 0 — Focused iteration.** Run a focused Vitest file/test name or package `test:watch` while actively editing. Do not run repository-wide verification.
 - **Level 1 — Owning package.** Default localized-code gate: owning package `test` plus `typecheck`.
@@ -124,6 +181,8 @@ A bounded post-merge documentation-only closure commit is allowed only when an o
 - Scope/system ownership is correct and no unrelated behavior is included.
 - Targeted Level 0/1 verification is used during implementation and the required final level passes.
 - Required Level 2 consumers are selected from this file, not from memory.
+- Browser-observable affected feedback uses the relevant ownership tags, while any triggered Level 4 gate uses the full unfiltered browser authority.
+- Repository tooling changes use focused contracts and `pnpm test:deployment` before the required Level 3 final gate.
 - Relevant living documentation is updated in the same PR.
 - Determinism and Save compatibility are preserved or explicitly addressed where applicable.
 - No temporary/debug artifacts remain.
@@ -132,6 +191,8 @@ A bounded post-merge documentation-only closure commit is allowed only when an o
 ## Forbidden Shortcuts
 
 - Do not use whole-repository `pnpm verify` or `pnpm verify:full` after every small edit instead of targeted feedback.
+- Do not present targeted browser subsets as full release evidence or weaken failures with broad retries, worker increases, or global timeout expansion.
+- Do not make Browser CI repeat Lean-owned checks, tests, typechecks, or builds without an approved, evidence-backed architecture change.
 - Do not skip Level 2 for observable public-contract changes.
 - Do not invent downstream consumers from memory when this map and workspace manifests exist.
 - Do not merge with knowingly stale required living documentation.

@@ -189,6 +189,8 @@ importers:
         specifier: 0.185.0
         version: 0.185.0
 
+  packages/economy-core: {}
+
   packages/rci-core:
     dependencies:
       '@web-three-city/building-core':

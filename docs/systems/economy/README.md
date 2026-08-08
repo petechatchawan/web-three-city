@@ -1,10 +1,10 @@
 # Economy System
 
-**Status:** Approved design — not implemented
+**Status:** Partial — Economy Core Foundation implemented
 
 **Milestone:** Economy Foundation v0.1
 
-**Primary ownership:** planned `packages/economy-core`; composed by `apps/game`
+**Primary ownership:** `packages/economy-core`; future composition by `apps/game`
 
 **Persistence:** planned `EconomySaveV1` within the next `WorldSave` version
 
@@ -12,7 +12,7 @@
 
 Economy Foundation v0.1 defines a deterministic aggregate municipal economy: treasury, R/C/I tax policy and revenue, player-action costs, road maintenance, monthly accounting, and lagged tax-pressure feedback to RCI.
 
-The approved design is implementation-ready, but no authoritative Economy state exists in production yet.
+The framework-independent Economy foundation now provides deterministic money/rate arithmetic, versioned foundation rules, and the authoritative snapshot contract. Treasury commands, settlement, application integration, persistence, and UI remain unimplemented.
 
 ## Ownership
 
@@ -34,6 +34,16 @@ Economy does not own citizens, households, jobs, buildings, roads, terrain, simu
 - At Day 1 08:00, the previous month closes before the new day's settlement is recorded in the newly opened period.
 - RCI reads tax-pressure factors derived from the previously committed Economy state; Economy then settles from the newly staged RCI state. There is no same-tick cycle.
 - Presentation consumes an Economy projection and submits typed application commands; it never mutates Economy state.
+
+These workflows remain approved contracts for later implementation PRs. PR1 implements only their shared domain foundation.
+
+## Current Implementation
+
+- [`money.ts`](../../../packages/economy-core/src/money.ts) validates safe-integer minor units/basis points and performs checked ratio arithmetic with `bigint` intermediates.
+- [`rules.ts`](../../../packages/economy-core/src/rules.ts) owns and validates `economy-rules.foundation.v1`.
+- [`economy-snapshot.ts`](../../../packages/economy-core/src/economy-snapshot.ts) creates, clones, validates, and fingerprints `EconomySnapshotV1`.
+- The package has no runtime dependency and no DOM/Three.js library access.
+- No application currently consumes or publishes the snapshot; that integration belongs to later PRs.
 
 ## Determinism and Failure
 
@@ -58,4 +68,4 @@ There are no citizen wallets, wages, rent, business accounts, loans, bonds, infl
 - [Lagged RCI feedback ADR](adrs/0004-lagged-economy-rci-feedback.md)
 - [Persistence ADR](adrs/0005-economy-persistence-and-migration.md)
 
-Implementation must update this overview from approved design to implemented behavior in the same PRs that establish the contracts.
+Later implementation PRs must update this overview in the same PRs that establish their contracts.

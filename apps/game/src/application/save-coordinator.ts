@@ -1,14 +1,15 @@
 import { WORLD_CONFIG } from '@web-three-city/world-core';
-import { decodeWorldSave, encodeWorldSaveV5, type WorldSaveV5 } from '../world-save.js';
+import { decodeWorldSave, encodeWorldSaveV6, type WorldSaveV6 } from '../world-save.js';
 import type { CommittedWorldStore } from './committed-world.js';
 import type {
   WorldPublicationResult,
   WorldTransactionCoordinator,
 } from './world-transaction-coordinator.js';
 
-export const WORLD_SAVE_KEY = 'web-three-city:world-save:v5';
+export const WORLD_SAVE_KEY = 'web-three-city:world-save:v6';
 export const WORLD_SAVE_READ_KEYS = Object.freeze([
   WORLD_SAVE_KEY,
+  'web-three-city:world-save:v5',
   'web-three-city:world-save:v3',
   'web-three-city:world-save:v2',
   'web-three-city:world-save:v1',
@@ -37,15 +38,16 @@ export class SaveCoordinator {
     this.#transactionCoordinator = input.transactionCoordinator;
   }
 
-  savePayload(): WorldSaveV5 {
+  savePayload(): WorldSaveV6 {
     const world = this.#worldStore.snapshot();
-    return encodeWorldSaveV5(
+    return encodeWorldSaveV6(
       world.terrain,
       world.roads,
       world.zones,
       world.buildings,
       world.simulation,
       world.rci,
+      world.economy,
     );
   }
 

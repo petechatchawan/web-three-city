@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   createSimulationSnapshot,
   decodeSimulationSaveV1,
+  decodeSimulationSaveV2,
   encodeSimulationSaveV1,
+  encodeSimulationSaveV2,
 } from '../src/index.js';
 
 describe('SimulationSaveV1', () => {
@@ -26,6 +28,30 @@ describe('SimulationSaveV1', () => {
         schemaVersion: 1,
         absoluteTick: -1,
         growthSequence: 0,
+      }).ok,
+    ).toBe(false);
+  });
+});
+
+describe('SimulationSaveV2', () => {
+  it('round trips the authoritative revision for deterministic continuation', () => {
+    const snapshot = createSimulationSnapshot({
+      revision: 7,
+      absoluteTick: 99,
+      growthSequence: 4,
+    });
+    const decoded = decodeSimulationSaveV2(encodeSimulationSaveV2(snapshot));
+    expect(decoded).toEqual({ ok: true, value: snapshot });
+  });
+
+  it('fails closed for malformed revisions', () => {
+    expect(
+      decodeSimulationSaveV2({
+        kind: 'simulation-save',
+        schemaVersion: 2,
+        revision: -1,
+        absoluteTick: 99,
+        growthSequence: 4,
       }).ok,
     ).toBe(false);
   });

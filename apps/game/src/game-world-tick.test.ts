@@ -49,7 +49,14 @@ function initialState(absoluteTick = 8) {
 
 describe('atomic game-world tick', () => {
   it('stages one eligible Economy settlement in the same atomic tick candidate', () => {
-    const state = initialState(31);
+    const base = initialState(31);
+    const state = Object.freeze({
+      ...base,
+      economy: Object.freeze({
+        ...base.economy,
+        taxPolicy: Object.freeze({ ...base.economy.taxPolicy, residentialBp: 200 }),
+      }),
+    });
     const plan = planGameWorldTick({
       state,
       environment,
@@ -60,6 +67,21 @@ describe('atomic game-world tick', () => {
     expect(plan.proposedState.simulation.absoluteTick).toBe(32);
     expect(plan.proposedState.economy.lastDailySettlementTick).toBe(32);
     expect(plan.proposedState.economy.revision).toBe(1);
+    expect(plan.rciReceipt.afterAbsoluteTick).toBe(32);
+    expect(plan.rciReceipt).toBeDefined();
+    expect(plan.rciDemandContributions).toContainEqual(
+      expect.objectContaining({
+        factorDefinitionId: 'economy.tax.residential.v1',
+        channel: 'residential',
+        valueMilli: expect.any(Number),
+      }),
+    );
+    expect(
+      plan.rciDemandContributions.find(
+        (contribution) => contribution.factorDefinitionId === 'economy.tax.residential.v1',
+      )?.valueMilli,
+    ).toBeGreaterThan(0);
+    expect(plan.proposedState.economy.taxPolicy.residentialBp).toBe(200);
   });
   it('plans deterministically and advances Simulation/RCI through one proposed world state', () => {
     const registries = createFoundationRciRegistries();

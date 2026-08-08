@@ -1,12 +1,21 @@
 import { createEmptyBuildingSnapshot } from '@web-three-city/building-core';
 import { createInitialRciSnapshot } from '@web-three-city/rci-core';
+import {
+  createInitialEconomySnapshot,
+  FOUNDATION_ECONOMY_RULES,
+} from '@web-three-city/economy-core';
 import { createRoadSnapshot } from '@web-three-city/road-core';
 import { createInitialSimulationSnapshot } from '@web-three-city/simulation-core';
 import { createTerrainMap } from '@web-three-city/terrain-core';
 import { createZoneSnapshot } from '@web-three-city/zone-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { describe, expect, it } from 'vitest';
-import { decodeWorldSave, encodeWorldSaveV4, encodeWorldSaveV5 } from './world-save.js';
+import {
+  decodeWorldSave,
+  encodeWorldSaveV4,
+  encodeWorldSaveV5,
+  encodeWorldSaveV6,
+} from './world-save.js';
 
 const CELL_COUNT = WORLD_CONFIG.mapWidth * WORLD_CONFIG.mapHeight;
 const LATTICE_COUNT = (WORLD_CONFIG.mapWidth + 1) * (WORLD_CONFIG.mapHeight + 1);
@@ -44,6 +53,32 @@ function emptyWorld() {
 }
 
 describe('WorldSaveV5 RCI integration', () => {
+  it('round-trips Economy authority in WorldSaveV6 and rejects malformed Economy', () => {
+    const world = emptyWorld();
+    const rci = createInitialRciSnapshot({ absoluteTick: world.simulation.absoluteTick });
+    const economy = createInitialEconomySnapshot(
+      { year: 1, month: 1, latestDailySettlementTick: world.simulation.absoluteTick },
+      FOUNDATION_ECONOMY_RULES,
+    );
+    const encoded = encodeWorldSaveV6(
+      world.terrain,
+      world.roads,
+      world.zones,
+      world.buildings,
+      world.simulation,
+      rci,
+      economy,
+    );
+    const decoded = decodeWorldSave(encoded, WORLD_CONFIG);
+    expect(decoded).toMatchObject({ ok: true, value: { economy } });
+    expect(
+      decodeWorldSave(
+        { ...encoded, economy: { ...encoded.economy, treasuryBalanceMinor: 0.5 } },
+        WORLD_CONFIG,
+      ),
+    ).toEqual({ ok: false, error: { code: 'world-save:invalid-economy' } });
+  });
+
   it('round-trips the authoritative RCI snapshot with Simulation and Buildings', () => {
     const world = emptyWorld();
     const initial = createInitialRciSnapshot({
@@ -98,6 +133,10 @@ describe('WorldSaveV5 RCI integration', () => {
     expect(decoded.value.rci.housing.assignments).toEqual([]);
     expect(decoded.value.rci.employment.assignments).toEqual([]);
     expect(decoded.value.rci.demand.demand.evaluatedAtTick).toBe(world.simulation.absoluteTick);
+    expect(decoded.value.economy.treasuryBalanceMinor).toBe(
+      FOUNDATION_ECONOMY_RULES.initialTreasuryMinor,
+    );
+    expect(decoded.value.economy.previousPeriod).toBeNull();
   });
 
   it('rejects malformed RCI payload without exposing partial world state', () => {

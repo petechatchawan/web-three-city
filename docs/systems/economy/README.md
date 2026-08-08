@@ -6,7 +6,7 @@
 
 **Primary ownership:** `packages/economy-core`; composition by `apps/game`
 
-**Persistence:** planned `EconomySaveV1` within the next `WorldSave` version
+**Persistence:** `EconomySaveV1` within `WorldSaveV6`; deterministic migration from V1–V5
 
 ## Purpose
 
@@ -48,6 +48,8 @@ Paid actions, lagged policy feedback, persistence, and presentation remain appro
 - `apps/game` derives projections from staged RCI and authoritative Road state, validates Economy in `CommittedWorld`, fingerprints it, and publishes Simulation/Building/RCI/Economy once.
 - Paid Road construction, Terraform, and Bulldoze plans are quoted from validated mutation counts; unaffordable commands publish nothing.
 - Undo restores the affected domain through the current world and records an exact refund, preserving later settlement and closed accounting history.
+- Tax policy produces stable, clamped R/C/I demand factors consumed by the next RCI evaluation through an application-supplied seam.
+- `EconomySaveV1` validates untrusted JSON against validated rules; `WorldSaveV6` persists Economy while older saves receive zero-history deterministic initialization from saved GameTime.
 
 ## Determinism and Failure
 

@@ -10,12 +10,17 @@ import {
   createBuildingGrowthPolicy,
   planRciTick,
   type RciDefinitionRegistries,
+  type RciDemandFactorContribution,
   type RciTickReceipt,
   createRciProjection,
 } from '@web-three-city/rci-core';
 import { occupiedRoadCellCount } from '@web-three-city/road-core';
 import { deriveGameCalendar } from '@web-three-city/simulation-core';
-import { FOUNDATION_ECONOMY_RULES, settleScheduledEconomy } from '@web-three-city/economy-core';
+import {
+  createTaxPressureProjection,
+  FOUNDATION_ECONOMY_RULES,
+  settleScheduledEconomy,
+} from '@web-three-city/economy-core';
 import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
 import type { GameWorldState } from './game-world-state.js';
 import { GameWorldStateStore } from './game-world-state.js';
@@ -25,6 +30,7 @@ export interface GameWorldTickPlan {
   readonly proposedState: GameWorldState;
   readonly buildingReceipt: BuildingGrowthReceipt;
   readonly rciReceipt: RciTickReceipt;
+  readonly rciDemandContributions: readonly RciDemandFactorContribution[];
   readonly valid: boolean;
   readonly invalidReason: string | null;
 }
@@ -38,6 +44,10 @@ export function planGameWorldTick(
     reservedCells?: readonly CellCoord[];
   }>,
 ): GameWorldTickPlan {
+  const taxPressure = createTaxPressureProjection(
+    input.state.economy.taxPolicy,
+    FOUNDATION_ECONOMY_RULES,
+  );
   const buildingPlan = planBuildingGrowthTick({
     buildings: input.state.buildings,
     simulation: input.state.simulation,
@@ -68,6 +78,7 @@ export function planGameWorldTick(
         afterAbsoluteTick: input.state.simulation.absoluteTick,
         emittedEventCount: 0,
       }),
+      rciDemandContributions: Object.freeze([]),
       valid: false,
       invalidReason: buildingPlan.invalidReason,
     });
@@ -87,6 +98,12 @@ export function planGameWorldTick(
     buildingsAfter: buildingCommit.buildings,
     registries: input.registries,
     configuration: FOUNDATION_RCI_CONFIGURATION,
+    externalDemandFactors: (taxPressure.ok ? taxPressure.factors : []).map((factor) => ({
+      id: factor.id,
+      channel: factor.channel,
+      weightMilli: factor.weightMilli,
+      evaluate: () => factor.pressureMilli,
+    })),
   });
   if (!rciPlan.valid) {
     return Object.freeze({
@@ -100,6 +117,7 @@ export function planGameWorldTick(
         afterAbsoluteTick: input.state.simulation.absoluteTick,
         emittedEventCount: 0,
       }),
+      rciDemandContributions: Object.freeze([]),
       valid: false,
       invalidReason: rciPlan.invalidReason,
     });
@@ -142,6 +160,7 @@ export function planGameWorldTick(
       proposedState: input.state,
       buildingReceipt: buildingCommit.receipt,
       rciReceipt: rciCommit.receipt,
+      rciDemandContributions: rciPlan.demandContributions,
       valid: false,
       invalidReason: `economy:${settlement.reason}`,
     });
@@ -158,6 +177,7 @@ export function planGameWorldTick(
     }),
     buildingReceipt: buildingCommit.receipt,
     rciReceipt: rciCommit.receipt,
+    rciDemandContributions: rciPlan.demandContributions,
     valid: true,
     invalidReason: null,
   });

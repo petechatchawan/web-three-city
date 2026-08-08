@@ -48,7 +48,6 @@ import {
   TerrainPresentation,
   TerraformPreviewPresentation,
 } from '@web-three-city/terrain-three';
-import { deriveWaterSnapshot, type WaterSnapshot } from '@web-three-city/water-core';
 import {
   createCoreWaterPresentationSource,
   WaterPresentation,
@@ -85,7 +84,6 @@ import {
   type WorldPresentationPort,
   type WorldPublicationResult,
 } from './application/world-transaction-coordinator.js';
-import { createBuildingDevelopmentEnvironment } from './building-development-environment.js';
 import { createBuildingWorldOccupancy } from './building-world-occupancy.js';
 import { createGameInput, type GameRenderViewport } from './game-input.js';
 import { dispatchGameTransactionState } from './game-tool-events.js';
@@ -99,9 +97,7 @@ import {
   type GameRoadBuildingInvalidReason,
 } from './road-building-guard.js';
 import { guardRoadPlanWithZones } from './road-zone-guard.js';
-import { createRoadPlacementEnvironment } from './road-placement-environment.js';
 import { guardTerraformPlanWithOccupancy } from './terraform-occupancy-guard.js';
-import { createZonePlacementEnvironment } from './zone-placement-environment.js';
 import { guardZonePlanWithBuildings, type GameZoneInvalidReason } from './zone-building-guard.js';
 import { executeGameWorldTick } from './game-world-tick.js';
 import { GameWorldStateStore } from './game-world-state.js';
@@ -189,12 +185,6 @@ function summarizeWaterBuild(build: WaterPresentationBuild): WaterBuildMetrics {
     wallSegmentCount: build.wall.segmentCount,
     estimatedGeometryBytes,
   };
-}
-
-function requireWater(snapshot: TerrainSnapshot): WaterSnapshot {
-  const result = deriveWaterSnapshot(snapshot, WORLD_CONFIG);
-  if (!result.ok) throw new Error(`game:water-derivation-failed:${result.error.code}`);
-  return result.value;
 }
 
 function frozenDirtyChunks(chunks: Iterable<ChunkCoord>): readonly ChunkCoord[] {
@@ -790,7 +780,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     );
   };
 
-  const runBackgroundGrowthTick = (_simulation?: SimulationSnapshot): SimulationSnapshot => {
+  const runBackgroundGrowthTick = (): SimulationSnapshot => {
     const current = transactionCoordinator.snapshot();
     const tickStore = new GameWorldStateStore({
       revision: 0,
@@ -825,7 +815,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     }
   };
 
-  const runSimulationOnlyTick = (_simulation?: SimulationSnapshot): SimulationSnapshot => {
+  const runSimulationOnlyTick = (): SimulationSnapshot => {
     const current = transactionCoordinator.snapshot();
     const next = createSimulationSnapshot({
       revision: current.simulation.revision + 1,
@@ -851,7 +841,6 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     );
     if (publication.result.status === 'committed') {
       undoCoordinator.clear();
-      notifyCommittedWorld(publication.result.world, 'reset');
       return publication.result.world;
     }
     return transactionCoordinator.snapshot();

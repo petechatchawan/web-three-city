@@ -101,7 +101,11 @@ describe('WorldTransactionCoordinator', () => {
     for (let publicationIndex = 0; publicationIndex < 2; publicationIndex += 1) {
       const before = coordinator.snapshot();
       let plan = null as ReturnType<typeof planRoadMutation> | null;
-      for (let z = 8 + publicationIndex * 8; z < WORLD_CONFIG.mapHeight - 2 && plan === null; z += 1) {
+      for (
+        let z = 8 + publicationIndex * 8;
+        z < WORLD_CONFIG.mapHeight - 2 && plan === null;
+        z += 1
+      ) {
         for (let x = 8; x < WORLD_CONFIG.mapWidth - 2; x += 1) {
           const candidate = planRoadMutation(
             before.roads,

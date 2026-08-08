@@ -11,10 +11,7 @@ import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { createEmptyZoneSnapshot } from '@web-three-city/zone-core';
 import { describe, expect, it } from 'vitest';
 import { createApplicationFixture } from '../../test/application-fixtures.js';
-import {
-  CommittedWorldStore,
-  createCommittedWorldFromDomainState,
-} from './committed-world.js';
+import { CommittedWorldStore, createCommittedWorldFromDomainState } from './committed-world.js';
 import { fingerprintCommittedWorld } from './committed-world-fingerprint.js';
 import { DefaultWorldTransactionCoordinator } from './world-transaction-coordinator.js';
 

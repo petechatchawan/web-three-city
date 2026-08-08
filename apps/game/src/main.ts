@@ -1,11 +1,14 @@
 import './style.css';
 import './growth-time.css';
+import './ui/foundation/tokens.css';
+import './ui/city-ui.css';
 import { constructionProgressAtTick } from '@web-three-city/building-core';
 import {
   constructionVisualPhase,
   reloadLatestBuildingPresentation,
   setBuildingPresentationAbsoluteTick,
 } from '@web-three-city/building-three';
+import { createFoundationRciRegistries } from '@web-three-city/rci-core';
 import type { SimulationSpeed } from '@web-three-city/simulation-core';
 import type { TerraformBrushSize } from '@web-three-city/terrain-core';
 import { bootstrapGame } from './game-bootstrap.js';
@@ -18,6 +21,7 @@ import { bindGameToolHud } from './game-tool-hud-binding.js';
 import type { GameToolMode } from './game-tool-mode.js';
 import { expandGameSecondaryControls } from './game-secondary-controls.js';
 import { undoTransaction } from './game-transaction-presentation.js';
+import { mountCityUi } from './ui/city-ui-runtime.js';
 
 interface GameTimeTestApi {
   readonly snapshot: () => Readonly<{
@@ -141,6 +145,7 @@ function synchronizeCommittedWorld(
   setBuildingPresentationAbsoluteTick(world.simulation.absoluteTick);
   refreshConstructionPhaseIfNeeded(world);
   refreshTimeUi(world);
+  cityUi.update(world);
 }
 
 function advanceOneLogicalTick(): void {
@@ -166,8 +171,16 @@ const timeUi = mountGameTimeUi(root, setSimulationSpeed, () => {
   simulationRuntime.step(advanceOneLogicalTick);
   refreshTimeUi();
 });
+const cityUi = mountCityUi(root, {
+  setSpeed: setSimulationSpeed,
+  step: () => {
+    simulationRuntime.step(advanceOneLogicalTick);
+  },
+  rciRegistries: createFoundationRciRegistries(),
+});
 const unsubscribeCommittedWorld = runtime.subscribeCommittedWorld(synchronizeCommittedWorld);
 const initialWorld = runtime.snapshot();
+cityUi.update(initialWorld);
 setBuildingPresentationAbsoluteTick(initialWorld.simulation.absoluteTick);
 refreshConstructionPhaseIfNeeded(initialWorld);
 refreshTimeUi(initialWorld);
@@ -242,6 +255,7 @@ window.addEventListener(
     cancelAnimationFrame(frameRequest);
     unsubscribeCommittedWorld();
     timeUi.dispose();
+    cityUi.dispose();
     bindings.abort();
     runtime.dispose();
     delete timeWindow.__WEB_THREE_CITY_TIME__;

@@ -1,0 +1,101 @@
+.city-ui {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  color: var(--city-ui-text);
+  pointer-events: none;
+  font:
+    600 0.8rem/1.2 system-ui,
+    sans-serif;
+}
+.city-awareness-hud,
+.city-top-actions,
+.city-simulation-controls,
+.city-dialog-backdrop {
+  pointer-events: auto;
+}
+.city-awareness-hud {
+  position: absolute;
+  top: calc(var(--city-ui-safe-top) + var(--city-ui-gap));
+  left: calc(var(--city-ui-safe-left) + var(--city-ui-gap));
+  display: flex;
+  max-width: calc(100vw - var(--city-ui-safe-left) - var(--city-ui-safe-right) - 1rem);
+  gap: 0.25rem;
+  overflow-x: auto;
+}
+.city-metric {
+  padding: 0.45rem 0.6rem;
+  border-radius: var(--city-ui-radius);
+  background: var(--city-ui-surface);
+  white-space: nowrap;
+}
+.city-top-actions {
+  position: absolute;
+  top: calc(var(--city-ui-safe-top) + 3.4rem);
+  right: calc(var(--city-ui-safe-right) + var(--city-ui-gap));
+  display: flex;
+  gap: 0.25rem;
+}
+.city-simulation-controls {
+  position: absolute;
+  right: calc(var(--city-ui-safe-right) + var(--city-ui-gap));
+  bottom: calc(var(--city-ui-safe-bottom) + var(--city-ui-gap));
+  display: flex;
+  gap: 0.2rem;
+}
+.city-ui button {
+  min-width: var(--city-ui-target);
+  min-height: var(--city-ui-target);
+  border: 1px solid rgb(255 255 255 / 24%);
+  border-radius: 0.65rem;
+  color: inherit;
+  background: var(--city-ui-surface);
+}
+.city-dialog-backdrop {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: max(0.75rem, var(--city-ui-safe-top)) max(0.75rem, var(--city-ui-safe-right))
+    max(0.75rem, var(--city-ui-safe-bottom)) max(0.75rem, var(--city-ui-safe-left));
+  background: rgb(4 12 18 / 48%);
+}
+.city-dialog-backdrop[hidden] {
+  display: none;
+}
+.city-dialog {
+  width: min(42rem, 82vw);
+  max-height: 82vh;
+  overflow: auto;
+  border-radius: 1rem;
+  background: var(--city-ui-surface-raised);
+  box-shadow: 0 1.5rem 4rem rgb(0 0 0 / 35%);
+}
+.city-dialog > header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem;
+}
+.city-dialog h2 {
+  margin: 0;
+  text-align: center;
+}
+.city-dialog-body {
+  padding: 0 1rem 1rem;
+}
+@media (orientation: portrait) and (max-width: 600px) {
+  .city-dialog {
+    width: 100%;
+    max-height: 100%;
+  }
+  .city-top-actions {
+    top: auto;
+    bottom: calc(var(--city-ui-safe-bottom) + 3.4rem);
+  }
+  .city-simulation-controls {
+    left: calc(var(--city-ui-safe-left) + var(--city-ui-gap));
+    right: auto;
+  }
+}

@@ -1,6 +1,6 @@
 # City UI
 
-**Status:** Approved design — not implemented
+**Status:** Implementation in progress — shell/dialog foundation implemented on PR1 branch
 
 ## Purpose
 
@@ -56,3 +56,13 @@ City UI owns no authoritative persisted game state. Ephemeral dialog/navigation 
 
 - [City UI Foundation v0.1 specification](specs/2026-08-09-city-ui-foundation-v0-1.md)
 - [ADR: mobile-first dialog-based presentation](adrs/2026-08-09-mobile-first-dialog-based-presentation.md)
+- [TDD implementation plan](tdd/2026-08-09-city-ui-foundation-v0-1.md)
+
+## Implemented behavior
+
+- Internal lifecycle and viewport classification contracts cover the landscape-mobile, portrait, and desktop acceptance sizes.
+- A compact awareness HUD projects Population, Treasury, current Net, R/C/I direction, and GameTime without continuous live-region announcements.
+- Top actions and existing Paused/1×/2×/4×/Step intents use semantic touch-safe buttons.
+- `DialogHost` enforces one primary dialog, internal LIFO Back, root Close, Escape close, focus restoration, and world-input blocking without gameplay or simulation commands.
+
+Legacy tool/system controls remain temporarily mounted while their PR2/PR3 replacements are implemented; they are not permitted in the final milestone candidate.

@@ -175,6 +175,7 @@ const cityUi = mountCityUi(root, {
   setSpeed: setSimulationSpeed,
   selectTool: (mode) => runtime.selectTool(mode),
   setTerraformBrush: (size) => runtime.setTerraformBrush(size),
+  submitTaxPolicy: (policy) => runtime.submitTaxPolicy(policy),
   step: () => {
     simulationRuntime.step(advanceOneLogicalTick);
   },

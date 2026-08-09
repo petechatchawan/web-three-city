@@ -73,3 +73,10 @@ Legacy tool/system controls remain temporarily mounted while their PR2/PR3 repla
 - Terraform brush sizes use the existing controller contract.
 - The contextual tool surface is non-modal and does not carry the world-input-block attribute, so unobscured world placement remains available.
 - Category expansion and dialog lifecycle do not synthesize Navigate or cancel the active tool.
+
+### City systems
+
+- The City registry exposes only City Overview, Economy, Population / RCI, Zoning, and Roads.
+- Economy provides Overview and Taxation routes backed by the existing immutable projection and typed tax-policy command.
+- Open dialog content reprojects from each committed-world publication while simulation continues.
+- Population, housing, employment, demand, zone counts, and Road cell totals are derived from current owning snapshots; no future-system tabs or new domain state are introduced.

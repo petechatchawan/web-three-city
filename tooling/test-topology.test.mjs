@@ -9,7 +9,8 @@ import test from 'node:test';
 const execFileAsync = promisify(execFile);
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const approvedDomainTag = /@(terrain|water|road|zoning|building|rci|interaction)/;
-const approvedTag = /@(smoke|terrain|water|road|zoning|building|rci|interaction|visual|performance|release)/;
+const approvedTag =
+  /@(smoke|terrain|water|road|zoning|building|rci|interaction|visual|performance|release)/;
 
 async function exists(file) {
   try {
@@ -87,13 +88,13 @@ test('Game TypeScript includes browser-independent game tests', async () => {
 });
 
 test('Game test inventory matches Vitest discovery', async () => {
-  assert.equal(await readGameTestFileCount(), 71);
-  assert.equal((await runVitestList()).length, 272);
+  assert.equal(await readGameTestFileCount(), 72);
+  assert.equal((await runVitestList()).length, 274);
 });
 
 test('every browser spec has approved ownership tags in its Playwright title path', async () => {
   const files = await browserSpecFiles();
-  assert.equal(files.length, 23);
+  assert.equal(files.length, 24);
   for (const file of files) {
     assert.match(file, approvedDomainTag, `${file} has no domain ownership tag`);
     assert.match(file, approvedTag, `${file} has no approved browser tag`);
@@ -111,7 +112,7 @@ test('full Chromium project has no tag exclusion', async () => {
 
 test('full Chromium list retains the current browser inventory', async () => {
   const listed = await runPlaywrightList();
-  assert.equal(listed.testCount, 120);
+  assert.equal(listed.testCount, 121);
 });
 
 test('approved targeted Playwright grep commands remain valid', async () => {

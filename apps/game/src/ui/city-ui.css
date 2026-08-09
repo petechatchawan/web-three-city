@@ -118,6 +118,35 @@
 .city-dialog-body {
   padding: 0 1rem 1rem;
 }
+
+.city-dialog-body > p {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid rgb(255 255 255 / 10%);
+}
+
+.city-dialog-body nav,
+.city-dialog-body [role='tablist'] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.7rem 0;
+}
+
+.city-dialog-body label {
+  display: grid;
+  grid-template-columns: 1fr minmax(5rem, auto);
+  align-items: center;
+  gap: 1rem;
+  margin: 0.4rem 0;
+}
+
+.city-dialog-body select {
+  min-height: var(--city-ui-target);
+}
 @media (orientation: portrait) and (max-width: 600px) {
   .city-dialog {
     width: 100%;

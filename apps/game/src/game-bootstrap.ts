@@ -114,7 +114,12 @@ import { guardZonePlanWithBuildings, type GameZoneInvalidReason } from './zone-b
 import { executeGameWorldTick } from './game-world-tick.js';
 import { GameWorldStateStore } from './game-world-state.js';
 import { mountRciHud } from './rci-hud.js';
-import { mountEconomyBudgetHud, type EconomyBudgetHudAdapter } from './economy-budget-hud.js';
+import {
+  mountEconomyBudgetHud,
+  type EconomyBudgetHudAdapter,
+  type EconomyPolicyUiResult,
+  type EconomyTaxPolicy,
+} from './economy-budget-hud.js';
 import { renderGameUi, type GameViewportLayout, type QualityLevel } from './game-ui.js';
 
 const CURATED_SEED = 1464156977;
@@ -145,6 +150,7 @@ export interface GameRuntime {
   runSimulationOnlyTick(simulation?: SimulationSnapshot): SimulationSnapshot;
   selectTool(mode: GameToolMode): void;
   setTerraformBrush(size: TerraformBrushSize): void;
+  submitTaxPolicy(policy: EconomyTaxPolicy): EconomyPolicyUiResult;
   dispose(): void;
 }
 
@@ -355,6 +361,8 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
       runSimulationOnlyTick: () => unavailableWorld.snapshot().simulation,
       selectTool: () => undefined,
       setTerraformBrush: () => undefined,
+      submitTaxPolicy: () =>
+        Object.freeze({ status: 'rejected', reason: 'game:runtime-unavailable' }),
       dispose(): void {
         subscribers.clear();
       },
@@ -603,7 +611,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     return Object.freeze({ before, result });
   };
 
-  economyHud = mountEconomyBudgetHud(ui.panel, (policy) => {
+  const submitTaxPolicy = (policy: EconomyTaxPolicy): EconomyPolicyUiResult => {
     const result = executeEconomyTaxPolicyCommand(transactionCoordinator, policy);
     if (result.status === 'accepted') {
       adoptCommittedWorld(transactionCoordinator.snapshot());
@@ -612,7 +620,8 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     }
     ui.setStatus('Tax policy rejected');
     return Object.freeze({ status: 'rejected' as const, reason: result.reason });
-  });
+  };
+  economyHud = mountEconomyBudgetHud(ui.panel, submitTaxPolicy);
   economyHud.update(transactionCoordinator.snapshot().economy);
 
   const applyTerraformPlan = (plan: TerraformPlan): void => {
@@ -1345,6 +1354,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     runSimulationOnlyTick,
     selectTool: setToolMode,
     setTerraformBrush: setBrushSize,
+    submitTaxPolicy,
     dispose,
   };
 }

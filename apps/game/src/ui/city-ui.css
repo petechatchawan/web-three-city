@@ -15,40 +15,57 @@
 .city-awareness-hud,
 .city-top-actions,
 .city-simulation-controls,
-.city-build-dock,
+.city-bottom-nav,
+.city-subtool-tray,
 .city-dialog-backdrop {
   pointer-events: auto;
 }
 
-.city-build-dock {
+.city-bottom-nav {
   position: absolute;
   left: 50%;
-  bottom: calc(var(--city-ui-safe-bottom) + var(--city-ui-gap));
-  display: grid;
-  justify-items: center;
-  width: min(62rem, calc(100vw - 1rem));
-  gap: 0.25rem;
+  bottom: var(--city-ui-safe-bottom);
+  display: flex;
+  gap: 0.15rem;
+  width: min(100vw, 40rem);
+  padding: 0.4rem var(--city-ui-gap) calc(var(--city-ui-safe-bottom) > 0 ? 0.4rem : 0.4rem);
+  border-radius: 1rem 1rem 0 0;
+  background: #ffffff;
+  box-shadow: 0 -0.5rem 1.5rem rgb(26 34 54 / 10%);
   transform: translateX(-50%);
 }
 
-.city-build-categories,
-.city-build-palette {
-  display: flex;
-  gap: 0.25rem;
+.city-bottom-nav > button {
+  flex: 1 1 0;
+  min-width: 0;
+  white-space: nowrap;
 }
 
-.city-build-palette {
-  width: 100%;
-  overflow-x: auto;
-  padding-bottom: 0.15rem;
+.city-subtool-tray {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--city-ui-safe-bottom) + 3.4rem);
+  width: min(100vw, 40rem);
+  padding: 0.4rem;
+  border-radius: 1rem;
+  background: #ffffff;
+  box-shadow: 0 -0.5rem 1.5rem rgb(26 34 54 / 12%);
+  transform: translateX(-50%);
 }
 
-.city-build-palette > button {
-  flex: 0 0 auto;
-}
-
-.city-build-palette:empty {
+.city-subtool-tray[hidden] {
   display: none;
+}
+
+.city-subtool-tray-content {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.city-subtool-tray-content > button {
+  color: #ffffff;
+  background: #1a2236;
 }
 
 .city-tool-context {
@@ -97,6 +114,14 @@
   bottom: calc(var(--city-ui-safe-bottom) + var(--city-ui-gap));
   display: flex;
   gap: 0.2rem;
+}
+.city-simulation-controls--compact {
+  position: static;
+  flex: 0 0 auto;
+}
+.city-simulation-controls--compact > button {
+  min-width: 0;
+  min-height: var(--city-ui-target);
 }
 .city-ui button {
   min-width: var(--city-ui-target);
@@ -193,9 +218,6 @@
   }
   .city-top-actions {
     top: calc(var(--city-ui-safe-top) + var(--city-ui-gap));
-  }
-  .city-build-categories {
-    display: none;
   }
   .city-simulation-controls {
     top: calc(var(--city-ui-safe-top) + 3.35rem);

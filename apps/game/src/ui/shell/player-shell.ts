@@ -2,7 +2,8 @@ import { mountDialogHost, type DialogHost } from '../dialog/dialog-host.js';
 import type { GameToolMode } from '../../game-tool-mode.js';
 import type { UiAdapter } from '../foundation/lifecycle.js';
 import { mountContextualToolSurface } from '../tools/contextual-tool-surface.js';
-import { mountBuildDock, type BuildDock } from './build-dock.js';
+import { mountBottomNav, type BottomNav, type NavCategory } from './bottom-nav.js';
+import { mountSubToolTray, type SubToolTray, type TrayCategory } from './subtool-tray.js';
 import { mountGameHud, type GameHudProjection } from './game-hud.js';
 import { mountSimulationControls, type SimulationControlCallbacks } from './simulation-controls.js';
 import { mountTopActions, type TopActionCallbacks } from './top-actions.js';
@@ -14,15 +15,23 @@ function toolName(mode: GameToolMode): string {
     .join(' ');
 }
 
+const defaultToolForCategory: Readonly<Record<TrayCategory, GameToolMode>> = {
+  terrain: 'raise',
+  roads: 'road-build',
+  zones: 'zone-residential',
+  buildings: 'building-bulldoze',
+};
+
 export type PlayerShellCallbacks = TopActionCallbacks &
   SimulationControlCallbacks & {
-    readonly selectTool: Parameters<typeof mountBuildDock>[1];
+    readonly selectTool: (mode: GameToolMode) => void;
     readonly setTerraformBrush: (size: 1 | 3 | 5) => void;
   };
 
 export interface PlayerShell extends UiAdapter<GameHudProjection> {
   readonly dialogHost: DialogHost;
-  readonly buildDock: BuildDock;
+  readonly bottomNav: BottomNav;
+  readonly subToolTray: SubToolTray;
 }
 
 export function mountPlayerShell(
@@ -34,7 +43,6 @@ export function mountPlayerShell(
   parent.append(element);
   const hud = mountGameHud(element);
   mountTopActions(element, callbacks);
-  mountSimulationControls(element, callbacks);
   const toolSurface = mountContextualToolSurface(element);
   toolSurface.update({
     mode: 'navigate',
@@ -43,9 +51,32 @@ export function mountPlayerShell(
     message: 'Inspect or move around the city',
     undoAvailable: false,
   });
-  const buildDock = mountBuildDock(
-    element,
-    (mode) => {
+  const bottomNav = mountBottomNav(element, (category: NavCategory) => {
+    if (category === 'navigate') {
+      subToolTray.close();
+      callbacks.selectTool('navigate');
+      toolSurface.update({
+        mode: 'navigate',
+        name: 'Navigate',
+        state: 'Ready',
+        message: 'Inspect or move around the city',
+        undoAvailable: false,
+      });
+      return;
+    }
+    subToolTray.open(category);
+    callbacks.selectTool(defaultToolForCategory[category]);
+    toolSurface.update({
+      mode: defaultToolForCategory[category],
+      name: toolName(defaultToolForCategory[category]),
+      state: 'Ready',
+      message: 'Point at the world to preview this tool',
+      undoAvailable: false,
+    });
+  });
+  mountSimulationControls(bottomNav.element, callbacks, { compact: true });
+  const subToolTray = mountSubToolTray(element, {
+    onSelectTool: (mode) => {
       callbacks.selectTool(mode);
       toolSurface.update({
         mode,
@@ -55,19 +86,21 @@ export function mountPlayerShell(
         undoAvailable: false,
       });
     },
-    callbacks.setTerraformBrush,
-  );
+    onBrush: callbacks.setTerraformBrush,
+  });
   const dialogHost = mountDialogHost(element);
   return Object.freeze({
     element,
     dialogHost,
-    buildDock,
+    bottomNav,
+    subToolTray,
     update(projection: GameHudProjection): void {
       hud.update(projection);
     },
     dispose(): void {
       dialogHost.dispose();
-      buildDock.dispose();
+      bottomNav.dispose();
+      subToolTray.dispose();
       toolSurface.dispose();
       element.remove();
     },

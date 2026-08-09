@@ -48,7 +48,7 @@
 - [x] **Step 5: Sky gradient (body + `.app-shell`) per design §5** — vertical blue→white→green, radial sun glow upper-right, horizon haze; render tunnel.
 - [x] **Step 6: Terrain/water/building/zone material constants** per design §6 table; verify no geometry/opacity change; update owning-unit snapshot expectations for any color assertions.
 - [x] **Step 7: Owner/consumer tests.** `pnpm --filter @web-three-city/terrain-core test`, `water-core`, `building-three`, `zone-three`; then `pnpm --filter @web-three-city/game test`; `pnpm --filter @web-three-city/game typecheck`.
-- [ ] **Step 8: ** Commit `theme: light palette, sky, transparent renderer(bright daytime assets)` — atomic.
+- [x] **Step 8: ** Commit `theme: light palette, sky, transparent renderer (bright daytime assets)` — atomic (`0cee923`).
 
 ### Task M2 — Bottom nav + subtool tray (uniform mobile shell primitive)
 
@@ -65,13 +65,13 @@
 - Public. `PlayerShell` composes: `bottomNav.onSelect` routes `'terrain'` → tray open + `selectTool('navigate')`? (See decision in M3: category selection both opens tray AND passes through `selectTool` so committed context still shows Ready→Preview; Navigate closes tray).
 
 **Tests (RED→GREEN):**
-- [ ] **Step 1: Checkbox regression.** `bottom-nav.test.ts`: renders 5 rail buttons; selecting `zones` fires `onSelect('zones')`.
-- [ ] **Step 2: `subtool-tray.test.ts`:** mounting tray with active category `terrain` renders Raise/Lower/Flatten + brush controls; clicking a subtool fires `onSelectTool('terraform-raise')`; selecting `navigate` empties/collapses the tray.
-- [ ] **Step 3: BUG-Truncated tray vs RND:** a shielded `build-dock.test.ts`-equivalent ensures no category is missing (each of 5 non-navigate modes reachable exactly once from rail+tray).
-- [ ] **Step 4: Implement** the three new components with `createButton` + tiles style in `city-ui.css` (rail: `#ffffff` bottom bar, target-size, safe-area; tray: white card sliding with dark `#1a2236` pills).
-- [ ] **Step 5: Rewire `player-shell`:** replace `mountBuildDock` with `BottomNav` + `SubToolTray` + `BrushViewTry` ; keep `callbacks.selectTool`/`setTerraformBrush` and **keep a one-line default `navigate` projection so the context sheet still renders on boot** (PS `player-shell.ts:39-45` behavior preserved in the new composition).
-- [ ] **Step 6: Remove `build-dock.ts` + test; update `player-ui.test.ts`/custom-shell consumers.**
-- [ ] **Step 7: Green + `pnpm --filter @web-three-city/game test` `typecheck`; commit `shell: bottom nav + subtool tray, retire build-dock`.**
+- [x] **Step 1: Checkbox regression.** `bottom-nav.test.ts`: renders 5 rail buttons; selecting `zones` fires `onSelect('zones')`.
+- [x] **Step 2: `subtool-tray.test.ts`:** mounting tray with active category `terrain` renders Raise/Lower/Flatten + brush controls; clicking a subtool fires `onSelectTool('terraform-raise')`; selecting `navigate` empties/collapses the tray.
+- [x] **Step 3: BUG-Truncated tray vs RND:** a shielded `build-dock.test.ts`-equivalent ensures no category is missing (each of 5 non-navigate modes reachable exactly once from rail+tray).
+- [x] **Step 4: Implement** the three new components with `createButton` + tiles style in `city-ui.css` (rail: `#ffffff` bottom bar, target-size, safe-area; tray: white card sliding with dark `#1a2236` pills).
+- [x] **Step 5: Rewire `player-shell`:** replace `mountBuildDock` with `BottomNav` + `SubToolTray` + `BrushViewTry` ; keep `callbacks.selectTool`/`setTerraformBrush` and **keep a one-line default `navigate` projection so the context sheet still renders on boot** (PS `player-shell.ts:39-45` behavior preserved in the new composition).
+- [x] **Step 6: Remove `build-dock.ts` + test; update `player-ui.test.ts`/custom-shell consumers.**
+- [x] **Step 7: Green + `pnpm --filter @web-three-city/game test` `typecheck`; commit `shell: bottom nav + subtool tray, retire build-dock`.**
 
 ---
 

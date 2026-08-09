@@ -9,9 +9,12 @@ export interface SimulationControlCallbacks {
 export function mountSimulationControls(
   parent: HTMLElement,
   callbacks: SimulationControlCallbacks,
+  options: { compact?: boolean } = {},
 ): HTMLElement {
   const element = document.createElement('div');
-  element.className = 'city-simulation-controls';
+  element.className = options.compact
+    ? 'city-simulation-controls city-simulation-controls--compact'
+    : 'city-simulation-controls';
   element.setAttribute('role', 'group');
   element.setAttribute('aria-label', 'Simulation speed');
   const controls = [

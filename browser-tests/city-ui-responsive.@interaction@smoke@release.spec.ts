@@ -18,7 +18,7 @@ for (const viewport of viewports) {
     await page.goto(GAME_URL);
     await expect(page.getByTestId('game-status')).toHaveText('Ready');
     await expect(page.locator('.city-awareness-hud')).toBeVisible();
-    await expect(page.locator('.city-build-dock')).toBeVisible();
+    await expect(page.locator('.city-bottom-nav')).toBeVisible();
     await expect(page.locator('.city-simulation-controls')).toBeVisible();
 
     const layout = await page.evaluate(() => {

@@ -88,13 +88,13 @@
 - Produces: pure `translateToolEvent(detail): ContextualToolProjection | null`; `contextToolSheet.update(projection)` renders name/state/message + numeric metrics chips (requested/effective + `Affordable|Unaffordable` + Undo) + collapse `button[aria-expanded]`.
 - **A bridge subscribes `bindGameToolEvents(canvas, ..., signal)` in the NEW shell AND folds each committed `GAME_TOOL_EVENT` detail through `translateToolEvent` into fresh ones a `toolContextSheet.update()`. The existing `bindGameToolHud(root, canvas, signal)` legacy binding in `main.ts:235` remains untouched — both consume the same theoretical stream from distinct windows.**
 
-- [ ] **Step 1: RED regression.** new `tool-context-sheet.test.ts`: sheet tool collapse toggle (`[data-testid="tool-context-toggle"]`) hidden→visible transitions; `game-tool-context-bridge.test.ts`: feed `terraform-state` accepted → projection has `state 'Valid preview'`, feed `transaction-state committing` → `'Applying change'`; feed `reason terraform:no-change` → `'No change'`.
-- [ ] **Step 2: Implement `translateToolEventtool` pure reducer** covering the 4 event types, reusing label/message helpers (mirroring `game-tool-hud-binding.ts:100-210` switch semantics WITHOUT DOM side effects).
-- [ ] **Step 3: Implement `mountToolContextSheet`** (floating card above bottom nav; collapsible via toggle; metrics chips; `undoAvailable` pill).
-- [ ] **Step 4: ACTIVATE `.city-tool-context` presentation** — now the CSS rule `display:none` is replaced by the card component's own layout/`hidden` attribute, and the sheet is always mounted in `player-shell` (per design §7.3: white card floating above bottom nav, collapsible).
-- [ ] **Step 5: Feed wiring in new shell.** player-shell owns the sheet; runtime hook wires sheet: `player-shell` adds a `toolContextSheet` expose no API change required; main adds **second** binding group `game-tool-context-bridge` fed from the same canvas into the shell's sheet.
-- [ ] **Step 6: Double-write dedupe is NOT required** — the sheet overlays; ensure no z-fight/scroll with legacy `.tool-context` (legacy currently visible but only in old layout; acceptable overlap while both chromeless).
-- [ ] **Step 7: Green: legacy `game-tool-hud-binding.test.ts` + new sheet/bridge tests + `city-ui-runtime.test.ts` passing; `pnpm --filter @web-three-city/game test && typecheck`.
+- [x] **Step 1: RED regression.** new `tool-context-sheet.test.ts`: sheet tool collapse toggle (`[data-testid="tool-context-toggle"]`) hidden→visible transitions; `game-tool-context-bridge.test.ts`: feed `terraform-state` accepted → projection has `state 'Valid preview'`, feed `transaction-state committing` → `'Applying change'`; feed `reason terraform:no-change` → `'No change'`.
+- [x] **Step 2: Implement `translateToolEvent` pure reducer** covering the 4 event types, reusing label/message helpers (mirroring `game-tool-hud-binding.ts:100-210` switch semantics WITHOUT DOM side effects).
+- [x] **Step 3: Implement `mountToolContextSheet`** (floating card above bottom nav; collapsible via toggle; metrics chips; `undoAvailable` pill).
+- [x] **Step 4: ACTIVATE `.city-tool-context` presentation** — now the CSS rule `display:none` is replaced by the card component's own layout/`hidden` attribute, and the sheet is always mounted in `player-shell` (per design §7.3: white card floating above bottom nav, collapsible).
+- [x] **Step 5: Feed wiring in new shell.** player-shell owns the sheet; runtime hook wires sheet: `player-shell` adds a `toolContextSheet` expose no API change required; main adds **second** binding group `game-tool-context-bridge` fed from the same canvas into the shell's sheet.
+- [x] **Step 6: Double-write dedupe is NOT required** — the sheet overlays; ensure no z-fight/scroll with legacy `.tool-context` (legacy currently visible but only in old layout; acceptable overlap while both chromeless).
+- [x] **Step 7: Green: legacy `game-tool-hud-binding.test.ts` + new sheet/bridge tests + `city-ui-runtime.test.ts` passing; `pnpm --filter @web-three-city/game test && typecheck`.
 
 ---
 

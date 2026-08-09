@@ -38,6 +38,10 @@ Adopt a single light theme and a mobile-first uniform shell.
   shell supersedes them.
 - Legacy `.city-tool-context` stays `display:none` until the new context sheet
   activates it.
+- The context sheet activated with the committed projection bridge
+  (`game-tool-context-bridge.ts` → `tool-context-sheet`), at which point the
+  legacy `.city-tool-context` `display:none` override was removed and the legacy
+  surface presenter was deleted.
 - The browser paints the horizon: transparent WebGL clear + CSS sky gradient on
   `body`/`.app-shell` (blue → near-white → subtle green + radial sun glow +
   horizon haze).
@@ -69,7 +73,9 @@ Adopt a single light theme and a mobile-first uniform shell.
 ### Costs
 - A second event binding group reuses one canvas tool-event stream into the
   shell context sheet, double-writing committed projections while the legacy
-  binding is retired staged (legacy `bindGameToolHud` stays until removal).
+  binding is retired staged (legacy `bindGameToolHud` stays until removal);
+  the sheet now owns Status/Metric formatting while `bindGameToolHud` keeps the
+  legacy `game-status` recovery and mutation-blocking responsibilities.
 - Smaller window footprint + backdrop-filter blur composition must be browser-tested
   on portrait and landscape acceptance sizes.
 - Renderer transparency reworks the render-target sizing expectations if the app

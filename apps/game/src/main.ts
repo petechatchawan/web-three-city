@@ -18,6 +18,7 @@ import { mountGameTimeUi } from './game-time-ui.js';
 import { createSimulationRuntime } from './simulation-runtime.js';
 import { dispatchGameToolCancel, dispatchGameTransactionState } from './game-tool-events.js';
 import { bindGameToolHud } from './game-tool-hud-binding.js';
+import { bindGameToolContext } from './game-tool-context-bridge.js';
 import type { GameToolMode } from './game-tool-mode.js';
 import { expandGameSecondaryControls } from './game-secondary-controls.js';
 import { undoTransaction } from './game-transaction-presentation.js';
@@ -233,6 +234,7 @@ frameRequest = requestAnimationFrame(simulationFrame);
 expandGameSecondaryControls(root);
 window.dispatchEvent(new Event('resize'));
 bindGameToolHud(root, canvas, bindings.signal);
+bindGameToolContext(canvas, cityUi.toolContextSheet, bindings.signal);
 closeToolButton.addEventListener('click', () => navigateButton.click(), {
   signal: bindings.signal,
 });

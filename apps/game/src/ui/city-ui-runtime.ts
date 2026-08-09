@@ -8,6 +8,8 @@ import { openInspectDialog } from './inspect/inspect-dialog.js';
 import { pickInspectTarget } from './inspect/inspect-target.js';
 import { createInformationViewRegistry } from './information-views/information-view-registry.js';
 import { mountPlayerShell, type PlayerShell } from './shell/player-shell.js';
+import type { ContextualToolProjection } from './shell/tool-context-sheet.js';
+import type { UiAdapter } from './foundation/lifecycle.js';
 import { createCitySystemDialogs } from './systems/city-system-dialogs.js';
 
 export interface CityUiPorts {
@@ -30,6 +32,7 @@ export interface CityUiPorts {
 export interface CityUiRuntime {
   readonly element: HTMLElement;
   readonly dialogHost: DialogHost;
+  readonly toolContextSheet: UiAdapter<ContextualToolProjection>;
   update(world: CommittedWorld): void;
   inspectCell(cell: Readonly<{ x: number; z: number }>): void;
   dispose(): void;
@@ -147,6 +150,7 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
   return Object.freeze({
     element: shell.element,
     dialogHost: shell.dialogHost,
+    toolContextSheet: shell.toolContextSheet,
     update(world: CommittedWorld): void {
       latestWorld = world;
       const economy = createEconomyViewProjection(world.economy);

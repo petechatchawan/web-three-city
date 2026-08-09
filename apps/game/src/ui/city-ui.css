@@ -17,6 +17,7 @@
 .city-simulation-controls,
 .city-bottom-nav,
 .city-subtool-tray,
+.city-tool-context,
 .city-dialog-backdrop {
   pointer-events: auto;
 }
@@ -81,9 +82,61 @@
   backdrop-filter: blur(var(--city-ui-blur));
 }
 
-/* The committed tool projection remains the sole contextual presenter during legacy cleanup. */
-.city-tool-context {
+.city-tool-context-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.city-tool-context-header > [data-testid='tool-context-name'] {
+  font-weight: 600;
+}
+
+.city-tool-context-header > [data-testid='tool-context-state'] {
+  color: var(--city-ui-accent, #315f69);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.city-tool-context-toggle {
+  margin-left: auto;
+}
+
+.city-tool-context-message {
+  margin: 0;
+  font-size: 0.82rem;
+  color: inherit;
+}
+
+.city-tool-context-content {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  padding-top: 0.2rem;
+}
+
+.city-tool-context-content[hidden] {
   display: none;
+}
+
+.city-tool-context-chip,
+.city-tool-context-pill {
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.city-tool-context-chip {
+  color: #1a2236;
+  background: color-mix(in srgb, currentColor 10%, transparent);
+}
+
+.city-tool-context-pill {
+  color: #315f69;
+  background: #e2efeb;
 }
 .city-awareness-hud {
   position: absolute;

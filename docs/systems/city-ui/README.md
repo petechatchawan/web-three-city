@@ -84,7 +84,8 @@ City UI owns no authoritative persisted game state. Ephemeral dialog/navigation 
 
 - Bottom categories expose Terrain, Roads, Zones, and Buildings through typed `GameRuntime` tool ports.
 - Terraform brush sizes use the existing controller contract.
-- The contextual tool surface is non-modal and does not carry the world-input-block attribute, so unobscured world placement remains available.
+- The committed tool projection folds through `game-tool-context-bridge.ts` (pure `translateToolEvent` + `bindGameToolContext`) into the `tool-context-sheet` presenter.
+- The context sheet is non-modal and does not carry the world-input-block attribute, so unobscured world placement remains available. Its header shows the powered-on tool name and status while its body shows command message, metric/affordability chips, and Undo state; a toggle collapses and expands the body without changing tool state.
 - Category expansion and dialog lifecycle do not synthesize Navigate or cancel the active tool.
 
 ### City systems
@@ -106,6 +107,7 @@ City UI owns no authoritative persisted game state. Ephemeral dialog/navigation 
 
 - The legacy `.game-hud` no longer produces a layout box or permanent sidebar; the City UI shell owns HUD, top actions, simulation controls, and the bottom build dock.
 - Game Menu is a real primary dialog for Save, Load, camera rotation/reset, Grid, and Quality commands through typed runtime ports.
-- The retained legacy adapter is limited to the existing authoritative contextual tool projection, Undo, and bounded test/status projections while those presenters remain application-owned.
+- The legacy `contextual-tool-surface` presenter was replaced by `tool-context-sheet`; the deferred `display:none` override on `.city-tool-context` was removed when the bridge activated the sheet, closing the cleanup boundary.
+- The retained legacy adapter is limited to the existing authoritative tool status/metric projections through `game-tool-hud-binding`, Undo, and bounded test/status projections while those presenters remain application-owned.
 - Game framing uses no sidebar inset and permits a larger portrait orthographic fit without changing the camera package defaults.
 - Browser acceptance covers 844×390, 932×430, 390×844, 430×932, 1280×720, and 1440×900 with no document overflow and 44 CSS px minimum visible City UI targets.

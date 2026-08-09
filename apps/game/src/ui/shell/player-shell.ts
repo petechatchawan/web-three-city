@@ -1,7 +1,7 @@
 import { mountDialogHost, type DialogHost } from '../dialog/dialog-host.js';
 import type { GameToolMode } from '../../game-tool-mode.js';
 import type { UiAdapter } from '../foundation/lifecycle.js';
-import { mountContextualToolSurface } from '../tools/contextual-tool-surface.js';
+import { mountToolContextSheet, type ContextualToolProjection } from './tool-context-sheet.js';
 import { mountBottomNav, type BottomNav, type NavCategory } from './bottom-nav.js';
 import { mountSubToolTray, type SubToolTray, type TrayCategory } from './subtool-tray.js';
 import { mountGameHud, type GameHudProjection } from './game-hud.js';
@@ -32,6 +32,7 @@ export interface PlayerShell extends UiAdapter<GameHudProjection> {
   readonly dialogHost: DialogHost;
   readonly bottomNav: BottomNav;
   readonly subToolTray: SubToolTray;
+  readonly toolContextSheet: UiAdapter<ContextualToolProjection>;
 }
 
 export function mountPlayerShell(
@@ -43,7 +44,7 @@ export function mountPlayerShell(
   parent.append(element);
   const hud = mountGameHud(element);
   mountTopActions(element, callbacks);
-  const toolSurface = mountContextualToolSurface(element);
+  const toolSurface = mountToolContextSheet(element);
   toolSurface.update({
     mode: 'navigate',
     name: 'Navigate',
@@ -94,6 +95,7 @@ export function mountPlayerShell(
     dialogHost,
     bottomNav,
     subToolTray,
+    toolContextSheet: toolSurface,
     update(projection: GameHudProjection): void {
       hud.update(projection);
     },

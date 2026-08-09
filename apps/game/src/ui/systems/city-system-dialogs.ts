@@ -18,6 +18,8 @@ export interface CitySystemDialogPorts {
 export interface CitySystemDialogs {
   openCity(): void;
   openEconomyTaxation(): void;
+  openPopulationRci(): void;
+  openSimulationTime(): void;
 }
 
 function metric(parent: HTMLElement, label: string, value: string | number): void {
@@ -180,6 +182,16 @@ export function createCitySystemDialogs(
     metric(body, 'Road cells', occupiedRoadCellCount(ports.getWorld().roads));
   };
 
+  const renderSimulationTime = (body: HTMLElement): void => {
+    const world = ports.getWorld();
+    metric(
+      body,
+      'Calendar',
+      createGameTimePresentation(world.simulation, world.buildings).calendarLabel,
+    );
+    metric(body, 'Tick', world.simulation.absoluteTick);
+  };
+
   return Object.freeze({
     openCity(): void {
       host.open({ kind: 'system', key: 'city-overview', title: 'City' }, renderOverview);
@@ -188,6 +200,18 @@ export function createCitySystemDialogs(
       host.open(
         { kind: 'system', key: 'economy-taxation', title: 'Economy · Taxation' },
         renderTaxation,
+      );
+    },
+    openPopulationRci(): void {
+      host.open(
+        { kind: 'system', key: 'population-rci', title: 'Population / RCI' },
+        renderPopulation,
+      );
+    },
+    openSimulationTime(): void {
+      host.open(
+        { kind: 'system', key: 'simulation-time', title: 'Simulation Time' },
+        renderSimulationTime,
       );
     },
   });

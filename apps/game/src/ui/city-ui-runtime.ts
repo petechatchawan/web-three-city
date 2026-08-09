@@ -100,6 +100,19 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
         renderInformationViews,
       ),
     onCity: () => systemDialogs.openCity(),
+    onSelectMetric: (metric) => {
+      const route = shell.dialogHost.activeRoute;
+      if (metric === 'population' || metric === 'treasury' || metric === 'net') {
+        if (route?.key === 'city-overview') shell.dialogHost.close();
+        else systemDialogs.openCity();
+      } else if (metric === 'demand') {
+        if (route?.key === 'population-rci') shell.dialogHost.close();
+        else systemDialogs.openPopulationRci();
+      } else {
+        if (route?.key === 'simulation-time') shell.dialogHost.close();
+        else systemDialogs.openSimulationTime();
+      }
+    },
     onGameMenu: () =>
       shell.dialogHost.open({ kind: 'system', key: 'game-menu', title: 'Game Menu' }, (body) => {
         const actions = [

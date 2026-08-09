@@ -13,6 +13,7 @@ describe('player shell', () => {
       step: vi.fn(),
       selectTool: vi.fn(),
       setTerraformBrush: vi.fn(),
+      onSelectMetric: vi.fn(),
     });
     expect(shell.element.querySelector('aside')).toBeNull();
     expect(shell.element.textContent).toContain('Information Views');

@@ -109,11 +109,11 @@
 - Consumes: `GameHudProjection`, `DialogHost`, `systemDialogs` (`openCity()`, `openEconomyTaxation()`, info views).
 - Produces: chips get `role=button` + `data-metric` + `aria-label`; tapping dispatches `onSelectMetric(metric)` → runtime maps: population/treasury/net → `systemDialogs.openCity()`; RCI demand → open city/RCI-behavior panel; game-time → simulation time info view; tap on open chip or × closes by `dialogHost.close()`.
 
-- [ ] **Step 1: RED.** `game-hud.test.ts` fails: chip element is `role=button`, clicking triggers configured `onSelectMetric('population')`.
-- [ ] **Step 2: Implement chips.** Keep distinct `data-metric` keys (population, treasury, net, demand, time), translucent white on top gradient scrim, hover/active state.
-- [ ] **Step 3: Wire `onSelectMetric` in `mountCityUi`**: metric→dialog map; tapping opened = dialogHost open if not already, then `close()` on second tap.
-- [ ] **Step 4: `player-shell` passes `GameHudCallbacks`; `player-ui.test.ts` updated for new foot tap behavior.**
-- [ ] **Step 5: Green `game` test + typecheck.**
+- [x] **Step 1: RED.** `game-hud.test.ts` fails: chip element is `role=button`, clicking triggers configured `onSelectMetric('population')`.
+- [x] **Step 2: Implement chips.** Keep distinct `data-metric` keys (population, treasury, net, demand, time), translucent white on top gradient scrim, hover/active state.
+- [x] **Step 3: Wire `onSelectMetric` in `mountCityUi`**: metric→dialog map; tapping opened = dialogHost open if not already, then `close()` on second tap.
+- [x] **Step 4: `player-shell` passes `GameHudCallbacks`; `player-ui.test.ts` updated for new foot tap behavior.**
+- [x] **Step 5: Green `game` test + typecheck.**
 
 ---
 

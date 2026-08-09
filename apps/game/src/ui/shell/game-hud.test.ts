@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mountGameHud, type GameHudProjection } from './game-hud.js';
 
 afterEach(() => document.body.replaceChildren());
@@ -13,12 +13,23 @@ const projection: GameHudProjection = {
 
 describe('game HUD', () => {
   it('updates awareness metrics without announcing every tick and disposes', () => {
-    const hud = mountGameHud(document.body);
+    const hud = mountGameHud(document.body, { onSelectMetric: vi.fn() });
     hud.update(projection);
     expect(hud.element.textContent).toContain('337');
     expect(hud.element.textContent).toContain('Y1 M5 D19 06:45');
     expect(hud.element.hasAttribute('aria-live')).toBe(false);
     hud.dispose();
     expect(document.body.contains(hud.element)).toBe(false);
+  });
+
+  it('exposes each metric chip as a role=button and dispatches onSelectMetric on tap', () => {
+    const onSelectMetric = vi.fn();
+    const hud = mountGameHud(document.body, { onSelectMetric });
+    const chip = hud.element.querySelector<HTMLButtonElement>('[data-metric="population"]')!;
+    expect(chip.getAttribute('role')).toBe('button');
+    expect(chip.getAttribute('aria-label')).toBe('Population');
+    chip.click();
+    expect(onSelectMetric).toHaveBeenCalledWith('population');
+    hud.dispose();
   });
 });

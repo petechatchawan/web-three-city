@@ -8,7 +8,13 @@ export interface GameHudProjection {
   readonly gameTime: string;
 }
 
-const metrics: ReadonlyArray<readonly [keyof GameHudProjection, string]> = [
+export type GameHudMetricId = keyof GameHudProjection;
+
+export interface GameHudCallbacks {
+  readonly onSelectMetric: (metric: GameHudMetricId) => void;
+}
+
+const metrics: ReadonlyArray<readonly [GameHudMetricId, string]> = [
   ['population', 'Population'],
   ['treasury', 'Treasury'],
   ['net', 'Current net'],
@@ -16,20 +22,27 @@ const metrics: ReadonlyArray<readonly [keyof GameHudProjection, string]> = [
   ['gameTime', 'Game time'],
 ];
 
-export function mountGameHud(parent: HTMLElement): UiAdapter<GameHudProjection> {
+export function mountGameHud(
+  parent: HTMLElement,
+  callbacks: GameHudCallbacks,
+): UiAdapter<GameHudProjection> {
   const element = document.createElement('section');
   element.className = 'city-awareness-hud';
   element.setAttribute('aria-label', 'City status');
-  const values = new Map<keyof GameHudProjection, HTMLElement>();
+  const values = new Map<GameHudMetricId, HTMLElement>();
   for (const [key, label] of metrics) {
-    const metric = document.createElement('div');
-    metric.className = 'city-metric';
-    metric.setAttribute('aria-label', label);
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.setAttribute('role', 'button');
+    chip.className = 'city-metric';
+    chip.dataset.metric = key;
+    chip.setAttribute('aria-label', label);
+    chip.addEventListener('click', () => callbacks.onSelectMetric(key));
     const value = document.createElement('strong');
     value.dataset.metric = key;
-    metric.append(value);
+    chip.append(value);
     values.set(key, value);
-    element.append(metric);
+    element.append(chip);
   }
   parent.append(element);
   return Object.freeze({

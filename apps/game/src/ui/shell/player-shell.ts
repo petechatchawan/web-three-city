@@ -4,7 +4,7 @@ import type { UiAdapter } from '../foundation/lifecycle.js';
 import { mountToolContextSheet, type ContextualToolProjection } from './tool-context-sheet.js';
 import { mountBottomNav, type BottomNav, type NavCategory } from './bottom-nav.js';
 import { mountSubToolTray, type SubToolTray, type TrayCategory } from './subtool-tray.js';
-import { mountGameHud, type GameHudProjection } from './game-hud.js';
+import { mountGameHud, type GameHudCallbacks, type GameHudProjection } from './game-hud.js';
 import { mountSimulationControls, type SimulationControlCallbacks } from './simulation-controls.js';
 import { mountTopActions, type TopActionCallbacks } from './top-actions.js';
 
@@ -26,6 +26,7 @@ export type PlayerShellCallbacks = TopActionCallbacks &
   SimulationControlCallbacks & {
     readonly selectTool: (mode: GameToolMode) => void;
     readonly setTerraformBrush: (size: 1 | 3 | 5) => void;
+    readonly onSelectMetric: GameHudCallbacks['onSelectMetric'];
   };
 
 export interface PlayerShell extends UiAdapter<GameHudProjection> {
@@ -42,7 +43,7 @@ export function mountPlayerShell(
   const element = document.createElement('div');
   element.className = 'city-ui';
   parent.append(element);
-  const hud = mountGameHud(element);
+  const hud = mountGameHud(element, { onSelectMetric: callbacks.onSelectMetric });
   mountTopActions(element, callbacks);
   const toolSurface = mountToolContextSheet(element);
   toolSurface.update({

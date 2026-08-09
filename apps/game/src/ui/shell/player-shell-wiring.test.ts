@@ -29,6 +29,7 @@ function mountSpyShell(callbacks: Partial<PlayerShellCallbacks> = {}) {
     step: vi.fn(),
     selectTool: vi.fn(),
     setTerraformBrush: vi.fn(),
+    onSelectMetric: vi.fn(),
     ...callbacks,
   });
 }
@@ -89,6 +90,14 @@ describe('player shell wiring', () => {
     const text = contextText(shell);
     expect(text).toContain('Navigate');
     expect(text).toContain('Inspect or move around the city');
+  });
+
+  it('forwards awareness metric taps on the HUD to onSelectMetric', () => {
+    const onSelectMetric = vi.fn();
+    const shell = mountSpyShell({ onSelectMetric });
+    shell.element.querySelector<HTMLButtonElement>('[data-metric="population"]')!.click();
+    expect(onSelectMetric).toHaveBeenCalledWith('population');
+    shell.dispose();
   });
 
   it('tray subtool click selects that exact mode and projects it', () => {

@@ -16,6 +16,7 @@ describe('City UI runtime', () => {
       selectTool: vi.fn(),
       setTerraformBrush: vi.fn(),
       submitTaxPolicy: vi.fn(() => ({ status: 'accepted' as const })),
+      setInformationView: vi.fn(),
       rciRegistries: createFoundationRciRegistries(),
     });
     const world = createApplicationFixture();

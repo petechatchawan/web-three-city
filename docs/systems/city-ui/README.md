@@ -1,6 +1,6 @@
 # City UI
 
-**Status:** Implementation in progress — shell/dialog foundation implemented on PR1 branch
+**Status:** Implementation in progress — shell, tools, systems, inspect, and information views implemented through PR4
 
 ## Purpose
 
@@ -80,3 +80,11 @@ Legacy tool/system controls remain temporarily mounted while their PR2/PR3 repla
 - Economy provides Overview and Taxation routes backed by the existing immutable projection and typed tax-policy command.
 - Open dialog content reprojects from each committed-world publication while simulation continues.
 - Population, housing, employment, demand, zone counts, and Road cell totals are derived from current owning snapshots; no future-system tabs or new domain state are introduced.
+
+### World inspect and information views
+
+- Navigate-mode world selection resolves Building, Road, Zone, then Terrain and opens a player-facing Inspect dialog.
+- Inspect content is reprojected from the latest committed world. A target removed after opening renders `Unavailable` instead of stale values.
+- Active build tools retain world-input ownership; inspect does not switch tools or intercept placement.
+- The information-view registry enforces one active view and deterministic activate, replace, and deactivate lifecycle.
+- v0.1 exposes only the existing canonical grid and zoning visualization. Player projections exclude raw IDs, revisions, fingerprints, and debug state.

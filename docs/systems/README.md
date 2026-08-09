@@ -48,7 +48,7 @@ Git does not retain empty directories. Create a subdirectory when its first arti
 | [Simulation Time](simulation-time/README.md) | Implemented | `simulation-core`, game runtime | `SimulationSaveV2`; V1 migration |
 | [RCI Demand & Occupancy](rci/README.md) | Implemented | `rci-core` + `apps/game` orchestration | `RciSaveV1` / `WorldSaveV5` |
 | [Economy](economy/README.md) | Implemented | `economy-core`; `apps/game` orchestration | `EconomySaveV1` / `WorldSaveV6` |
-| [City UI](city-ui/README.md) | Approved design — not implemented | `apps/game` presentation | None; session-only presentation state |
+| [City UI](city-ui/README.md) | Implemented | `apps/game` presentation | None; session-only presentation state |
 | [Development Workflow](development-workflow/README.md) | Implemented | root configuration, `.github/`, `AGENTS.md`, development docs | Git-tracked configuration and documentation |
 | [Architecture & Infrastructure](architecture-infrastructure/README.md) | Implemented, CLOSED / PASS | repository architecture, application orchestration, verification infrastructure | Git-tracked configuration and documentation |
 | [Documentation](documentation/README.md) | Implemented on this branch | repository documentation | Git history |

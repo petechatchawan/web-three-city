@@ -1,6 +1,6 @@
 # City UI
 
-**Status:** Implementation complete — automated verification candidate preparation; Manual Acceptance pending
+**Status:** Live shell on this branch — light theme, bottom navigation + subtool tray, and bottom-sheet dialogs merged; final browser acceptance pending
 
 ## Purpose
 
@@ -20,7 +20,7 @@ City UI does **not** own simulation, Economy, RCI, World, Building, Road, Zoning
 
 - Mobile-first and landscape-first gameplay; portrait is supported as a secondary layout.
 - The world remains the primary screen. No permanent gameplay sidebar.
-- Persistent surfaces are limited to compact HUD, bottom build dock, simulation controls, and small top-level actions.
+- Persistent surfaces are limited to compact HUD, bottom navigation (5 tabs) + subtool tray, simulation controls, and small top-level actions.
 - A single primary `DialogHost` presents system or inspect dialogs with one active primary dialog and an internal navigation stack.
 - System/inspect dialogs block world pointer input behind them but **do not pause simulation** or change the active simulation speed.
 - Opening/closing a dialog must not mutate domain state, clear Undo history, or change the selected build tool.
@@ -76,9 +76,9 @@ City UI owns no authoritative persisted game state. Ephemeral dialog/navigation 
 ## Implemented behavior
 
 - Internal lifecycle and viewport classification contracts cover the landscape-mobile, portrait, and desktop acceptance sizes.
-- A compact awareness HUD projects Population, Treasury, current Net, R/C/I direction, and GameTime without continuous live-region announcements.
+- A compact awareness HUD projects Population, Treasury, current Net, R/C/I direction, and GameTime without continuous live-region announcements. Metric chips are touch-safe buttons: tap opens the matching system dialog (`city-overview` / `population-rci` / `simulation-time`); re-tap closes it.
 - Top actions and existing Paused/1×/2×/4×/Step intents use semantic touch-safe buttons.
-- `DialogHost` enforces one primary dialog, internal LIFO Back, root Close, Escape close, focus restoration, and world-input blocking without gameplay or simulation commands.
+- `DialogHost` enforces one primary dialog, internal LIFO Back, root Close, Escape close, focus restoration, and world-input blocking without gameplay or simulation commands. Primary dialogs present as 90vh bottom sheets (max-width 40rem, grab-handle bar, blurred backdrop, close ×, backdrop tap-to-close) at every breakpoint; no center-modal presentation.
 
 ### Build tool migration
 
@@ -105,7 +105,7 @@ City UI owns no authoritative persisted game state. Ephemeral dialog/navigation 
 
 ### Final shell and compatibility
 
-- The legacy `.game-hud` no longer produces a layout box or permanent sidebar; the City UI shell owns HUD, top actions, simulation controls, and the bottom build dock.
+- The legacy `.game-hud` no longer produces a layout box or permanent sidebar; the City UI shell owns HUD, top actions, simulation controls, bottom navigation (5 tabs), and the subtool tray.
 - Game Menu is a real primary dialog for Save, Load, camera rotation/reset, Grid, and Quality commands through typed runtime ports.
 - The legacy `contextual-tool-surface` presenter was replaced by `tool-context-sheet`; the deferred `display:none` override on `.city-tool-context` was removed when the bridge activated the sheet, closing the cleanup boundary.
 - The retained legacy adapter is limited to the existing authoritative tool status/metric projections through `game-tool-hud-binding`, Undo, and bounded test/status projections while those presenters remain application-owned.

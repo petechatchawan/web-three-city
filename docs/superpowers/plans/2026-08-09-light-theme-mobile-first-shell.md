@@ -138,7 +138,7 @@
 ### M6 — Closure: browser regression, docs/ADR, verify
 
 - [ ] **Step 1: Browser tagged subsets** — `@smoke @terrain @water @road @zoning @building @interaction @visual` affected fast feedback during development; full unfiltered Chromium project at `pnpm verify:full` for closure.
-- [ ] **Step 2: ADR `docs/systems/city-ui/black-ui.md` → new ADR** name registered in registry; update `docs/systems/city-ui/README.md` theme + shell + dialog presentation and the new-shell content about context sheet.
+- [x] **Step 2: ADR `docs/systems/city-ui/black-ui.md` → new ADR** name registered in registry; update `docs/systems/city-ui/README.md` theme + shell + dialog presentation and the new-shell content about context sheet. (ADR rename already satisfied by the existing `adrs/2026-08-09-light-theme-mobile-first-uniform-shell.md`; README + registry updated in Task M6 closure.)
 - [ ] **Step 3: Repo verification**: root/workspace/tooling changes → `pnpm test:deployment` + required Level 3 `pnpm verify`; Level 4 `pnpm verify:full` at finalization; record exact-head SHA/run IDs and evidence counts in PR body.
 - [ ] **Step 4: Confirm DoD checklist below and mark plan complete.**
 

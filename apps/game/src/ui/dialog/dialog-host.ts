@@ -20,9 +20,13 @@ export function mountDialogHost(parent: HTMLElement): DialogHost {
   element.dataset.worldInputBlock = '';
   element.hidden = true;
   const dialog = document.createElement('section');
-  dialog.className = 'city-dialog';
+  dialog.className = 'city-sheet';
+  dialog.dataset.sheet = '90vh';
   dialog.setAttribute('role', 'dialog');
   dialog.setAttribute('aria-modal', 'true');
+  const handle = document.createElement('div');
+  handle.className = 'city-sheet-handle';
+  handle.setAttribute('aria-hidden', 'true');
   const header = document.createElement('header');
   const backButton = document.createElement('button');
   backButton.type = 'button';
@@ -30,11 +34,12 @@ export function mountDialogHost(parent: HTMLElement): DialogHost {
   const title = document.createElement('h2');
   const closeButton = document.createElement('button');
   closeButton.type = 'button';
-  closeButton.textContent = 'Close';
+  closeButton.textContent = '×';
+  closeButton.setAttribute('aria-label', 'Close');
   const body = document.createElement('div');
-  body.className = 'city-dialog-body';
+  body.className = 'city-sheet-body';
   header.append(backButton, title, closeButton);
-  dialog.append(header, body);
+  dialog.append(handle, header, body);
   element.append(dialog);
   parent.append(element);
 
@@ -98,6 +103,13 @@ export function mountDialogHost(parent: HTMLElement): DialogHost {
   backButton.addEventListener('click', () => host.back(), listenerOptions);
   closeButton.addEventListener('click', close, listenerOptions);
   element.addEventListener('pointerdown', (event) => event.stopPropagation(), listenerOptions);
+  element.addEventListener(
+    'click',
+    (event) => {
+      if (event.target === element && navigation.active() !== null) close();
+    },
+    listenerOptions,
+  );
   document.addEventListener(
     'keydown',
     (event) => {

@@ -29,6 +29,28 @@ describe('DialogHost', () => {
     expect(host.activeRoute).toBeNull();
   });
 
+  it('presents the primary dialog as a 90vh bottom sheet, not a centered modal', () => {
+    const host = mountDialogHost(document.body);
+    host.open({ kind: 'system', key: 'city', title: 'City' }, () => undefined);
+    const sheet = document.querySelector<HTMLElement>('[role="dialog"]')!;
+    expect(sheet.classList.contains('city-dialog')).toBe(false);
+    expect(sheet.classList.contains('city-sheet')).toBe(true);
+    expect(sheet.dataset.sheet).toBe('90vh');
+    expect(sheet.style.height > '90vh').toBe(false);
+    expect(sheet.querySelector('.city-sheet-handle')).not.toBeNull();
+    expect(sheet.querySelector('.city-sheet-body')).not.toBeNull();
+  });
+
+  it('closes on a backdrop tap but stays open when the sheet itself is clicked', () => {
+    const host = mountDialogHost(document.body);
+    host.open({ kind: 'system', key: 'city', title: 'City' }, () => undefined);
+    const sheet = document.querySelector<HTMLElement>('[role="dialog"]')!;
+    sheet.click();
+    expect(host.activeRoute).not.toBeNull();
+    host.element.click();
+    expect(host.activeRoute).toBeNull();
+  });
+
   it('closes on Escape, restores focus, and dispose removes owned DOM', () => {
     const trigger = document.createElement('button');
     document.body.append(trigger);

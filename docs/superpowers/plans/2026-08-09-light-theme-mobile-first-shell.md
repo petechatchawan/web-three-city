@@ -128,10 +128,10 @@
 - Consumes: `DialogHost.open(route…)`, `close`, `activeRoute`, `data-block-avoid`, `describer`, aria-modal.
 - Produces: `DialogHost` presents as bottom sheet: slide-up from bottom, `height: clamp(60vh, 90vh, …)`, cap width `max-width: 640px` on wide, handle bar grab, backdrop blur + tap-to-close, clear ×.
 
-- [ ] **Step 1: RED.** `dialog-host.test.ts` adds a viewport-agnostic check: `sheet.style.height > '90vh'` never true (maxed height at 90vh); center-modal class gone.
-- [ ] **Step 2: Sheet CSS presentation** with handle bar, blur backdrop, close button; remove center-modal default.
-- [ ] **Step 3: Keep all system dialogs + info views + inspect content working in the sheet presenter (no `isMobile` prop; uniformly at all breakpoints).**
-- [ ] **Step 4: Green `pnpm --filter @web-three-city/game test` + typecheck; update `city-system-dialogs.test.ts` if it asserts center-dialog CSS.**
+- [x] **Step 1: RED.** `dialog-host.test.ts` adds a viewport-agnostic check: `sheet.style.height > '90vh'` never true (maxed height at 90vh); center-modal class gone.
+- [x] **Step 2: Sheet CSS presentation** with handle bar, blur backdrop, close button; remove center-modal default.
+- [x] **Step 3: Keep all system dialogs + info views + inspect content working in the sheet presenter (no `isMobile` prop; uniformly at all breakpoints).**
+- [x] **Step 4: Green `pnpm --filter @web-three-city/game test` + typecheck; update `city-system-dialogs.test.ts` if it asserts center-dialog CSS.** (no center-dialog CSS assertions — clean)
 
 ---
 

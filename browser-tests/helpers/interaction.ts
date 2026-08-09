@@ -21,6 +21,18 @@ import {
 export const GAME_URL = 'http://127.0.0.1:4174/';
 export const TERRAIN_LAB_URL = 'http://127.0.0.1:4173/';
 
+export async function clickGameMenuAction(
+  page: Page,
+  name: 'Save world' | 'Load world' | 'Rotate left' | 'Rotate right' | 'Reset camera' | 'Grid',
+): Promise<void> {
+  const activeDialog = page.getByRole('dialog');
+  if (await activeDialog.isVisible()) {
+    await activeDialog.getByRole('button', { name: 'Close', exact: true }).click();
+  }
+  await page.getByRole('button', { name: 'Game Menu', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name, exact: true }).click();
+}
+
 const CORNER_OFFSETS: Readonly<Record<TerrainCorner, Readonly<{ x: number; z: number }>>> =
   Object.freeze({
     nw: Object.freeze({ x: 0, z: 0 }),
@@ -142,33 +154,10 @@ export function createDeterministicWaterGeometryEvidence(): DeterministicWaterGe
 async function readGameCanvasLayout(page: Page): Promise<GameCanvasLayout> {
   const canvasBounds = await page.locator('#game-canvas').boundingBox();
   if (canvasBounds === null) throw new Error('missing Game canvas bounds');
-  const panelBounds = await page.locator('.game-hud').boundingBox();
-  const mode = (await page.getByTestId('controls-mode').textContent())?.trim();
   const width = Math.max(1, canvasBounds.width);
   const height = Math.max(1, canvasBounds.height);
 
-  const insets: ViewportInsets =
-    panelBounds === null
-      ? Object.freeze({ top: 0, right: 0, bottom: 0, left: 0 })
-      : mode === 'compact'
-        ? Object.freeze({
-            top: Math.min(
-              height - 1,
-              Math.max(0, panelBounds.y + panelBounds.height - canvasBounds.y + 8),
-            ),
-            right: 0,
-            bottom: 0,
-            left: 0,
-          })
-        : Object.freeze({
-            top: 0,
-            right: 0,
-            bottom: 0,
-            left: Math.min(
-              width - 1,
-              Math.max(0, panelBounds.x + panelBounds.width - canvasBounds.x + 16),
-            ),
-          });
+  const insets: ViewportInsets = Object.freeze({ top: 0, right: 0, bottom: 0, left: 0 });
 
   return Object.freeze({
     canvasX: canvasBounds.x,
@@ -269,7 +258,13 @@ export async function clickTerrainCell(
 
     await page.mouse.click(screen.x, screen.y);
     lastSelected = (await readEvidence(page)).selectedCell;
-    if (lastSelected?.x === target.x && lastSelected.z === target.z) return screen;
+    if (lastSelected?.x === target.x && lastSelected.z === target.z) {
+      const dialog = page.getByRole('dialog');
+      if (await dialog.isVisible()) {
+        await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+      }
+      return screen;
+    }
   }
 
   throw new Error(

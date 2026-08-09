@@ -117,6 +117,10 @@ async function findVisibleRaiseLine(
     };
     await page.mouse.click(point.x, point.y);
     const cell = (await readEvidence(page)).selectedCell;
+    const dialog = page.getByRole('dialog');
+    if (await dialog.isVisible()) {
+      await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+    }
     if (cell === null) continue;
 
     const key = `${cell.x}:${cell.z}`;

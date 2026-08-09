@@ -94,7 +94,7 @@ test('Game test inventory matches Vitest discovery', async () => {
 
 test('every browser spec has approved ownership tags in its Playwright title path', async () => {
   const files = await browserSpecFiles();
-  assert.equal(files.length, 25);
+  assert.equal(files.length, 26);
   for (const file of files) {
     assert.match(file, approvedDomainTag, `${file} has no domain ownership tag`);
     assert.match(file, approvedTag, `${file} has no approved browser tag`);
@@ -112,7 +112,7 @@ test('full Chromium project has no tag exclusion', async () => {
 
 test('full Chromium list retains the current browser inventory', async () => {
   const listed = await runPlaywrightList();
-  assert.equal(listed.testCount, 123);
+  assert.equal(listed.testCount, 129);
 });
 
 test('approved targeted Playwright grep commands remain valid', async () => {

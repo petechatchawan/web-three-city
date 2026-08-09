@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { GAME_URL } from './helpers/interaction.js';
+import { GAME_URL, clickGameMenuAction } from './helpers/interaction.js';
 
 const SAVE_KEY = 'web-three-city:world-save:v6';
 
@@ -8,24 +8,38 @@ async function waitForReady(page: import('@playwright/test').Page): Promise<void
   await expect(page.getByTestId('game-status')).toHaveText('Ready');
 }
 
+async function openTaxation(page: import('@playwright/test').Page): Promise<void> {
+  await page.getByRole('button', { name: 'City', exact: true }).click();
+  await page.getByRole('button', { name: 'Economy', exact: true }).click();
+  await page.getByRole('button', { name: 'Taxation', exact: true }).click();
+}
+
+async function closeDialog(page: import('@playwright/test').Page): Promise<void> {
+  await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
+}
+
 test('shows the compact municipal budget without changing world tools', async ({ page }) => {
   await waitForReady(page);
-  await expect(page.getByTestId('economy-treasury')).toHaveText('100,000.00');
-  await expect(page.getByTestId('economy-income')).toHaveText('0.00');
-  await expect(page.getByTestId('economy-expenses')).toHaveText('0.00');
-  await expect(page.getByTestId('economy-net')).toHaveText('0.00');
+  await page.getByRole('button', { name: 'City', exact: true }).click();
+  await page.getByRole('button', { name: 'Economy', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toContainText('Treasury100,000.00');
+  await expect(dialog).toContainText('Income0.00');
+  await expect(dialog).toContainText('Expenses0.00');
+  await expect(dialog).toContainText('Net0.00');
   await expect(page.getByTestId('active-tool')).toHaveText('Navigate');
 });
 
 test('applies typed tax policy and round-trips the committed Economy save', async ({ page }) => {
   await waitForReady(page);
-  await page.getByTestId('budget-panel').click();
-  await page.getByTestId('tax-residential').selectOption('8');
-  await page.getByTestId('apply-tax-policy').click();
-  await expect(page.getByRole('status')).toHaveText('Tax policy updated');
+  await openTaxation(page);
+  let dialog = page.getByRole('dialog');
+  await dialog.getByTestId('tax-residential').selectOption('8');
+  await dialog.getByTestId('apply-tax-policy').click();
+  await expect(dialog.getByRole('status')).toHaveText('Tax policy updated');
 
-  await page.getByTestId('secondary-controls').click();
-  await page.getByRole('button', { name: 'Save world' }).click();
+  await closeDialog(page);
+  await clickGameMenuAction(page, 'Save world');
   const saved = await page.evaluate((key) => localStorage.getItem(key), SAVE_KEY);
   expect(JSON.parse(saved ?? '{}')).toMatchObject({
     schemaVersion: 6,
@@ -35,9 +49,13 @@ test('applies typed tax policy and round-trips the committed Economy save', asyn
     },
   });
 
-  await page.getByTestId('tax-residential').selectOption('7');
-  await page.getByTestId('apply-tax-policy').click();
-  await page.getByRole('button', { name: 'Load world' }).click();
+  await openTaxation(page);
+  dialog = page.getByRole('dialog');
+  await dialog.getByTestId('tax-residential').selectOption('7');
+  await dialog.getByTestId('apply-tax-policy').click();
+  await closeDialog(page);
+  await clickGameMenuAction(page, 'Load world');
   await expect(page.getByTestId('game-status')).toHaveText('Loaded');
-  await expect(page.getByTestId('tax-residential')).toHaveValue('8');
+  await openTaxation(page);
+  await expect(page.getByRole('dialog').getByTestId('tax-residential')).toHaveValue('8');
 });

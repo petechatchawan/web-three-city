@@ -2,6 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import {
   clickTerrainCell,
+  clickGameMenuAction,
   createDeterministicWaterGeometryEvidence,
   dispatchCanvasTouch,
   GAME_URL,
@@ -130,7 +131,7 @@ test('captures canonical desktop and mobile interaction evidence', async ({ page
     timeout: READY_TIMEOUT,
   });
 
-  await page.getByRole('button', { name: 'Grid' }).click();
+  await clickGameMenuAction(page, 'Grid');
   expect((await readEvidence(page)).gridVisible).toBe(true);
   await page.screenshot({
     path: `${OUTPUT_DIRECTORY}/interaction-grid-on.png`,
@@ -188,7 +189,7 @@ test('captures canonical desktop and mobile interaction evidence', async ({ page
     fullPage: true,
   });
 
-  await page.getByRole('button', { name: 'Reset camera' }).click();
+  await clickGameMenuAction(page, 'Reset camera');
   await dispatchCanvasTouch(page, 'pointerdown', 5, 850, 480);
   await dispatchCanvasTouch(page, 'pointerdown', 6, 950, 480);
   for (const y of [490, 500, 510, 520]) {
@@ -203,7 +204,7 @@ test('captures canonical desktop and mobile interaction evidence', async ({ page
     fullPage: true,
   });
 
-  await page.getByRole('button', { name: 'Reset camera' }).click();
+  await clickGameMenuAction(page, 'Reset camera');
   expect((await readEvidence(page)).camera).toMatchObject({
     targetX: 0,
     targetZ: 0,
@@ -319,7 +320,7 @@ test('captures Water and shoreline acceptance evidence', async ({ page }) => {
   await expect(page.getByTestId('game-status')).toHaveText('Ready', {
     timeout: READY_TIMEOUT,
   });
-  await page.getByRole('button', { name: 'Grid' }).click();
+  await clickGameMenuAction(page, 'Grid');
   await clickTerrainCell(page, { x: 64, z: 116 });
   gameEvidence = await readEvidence(page);
   expect(gameEvidence.gridVisible).toBe(true);

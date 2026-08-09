@@ -12,6 +12,7 @@ import {
 } from './helpers/domain-fixtures.js';
 import {
   GAME_URL,
+  clickGameMenuAction,
   clickTerrainCell,
   dispatchCanvasTouch,
   readEvidence,
@@ -108,11 +109,9 @@ test('camera pan remains screen-relative after every quarter-turn rotation', asy
   page,
 }, testInfo) => {
   await openGame(page);
-  const rotateRight = page.getByRole('button', { name: 'Rotate right' });
-  const reset = page.getByRole('button', { name: 'Reset camera' });
   for (let turns = 0; turns < 4; turns += 1) {
-    await reset.click();
-    for (let index = 0; index < turns; index += 1) await rotateRight.click();
+    await clickGameMenuAction(page, 'Reset camera');
+    for (let index = 0; index < turns; index += 1) await clickGameMenuAction(page, 'Rotate right');
     const beforeRight = (await readEvidence(page)).camera;
     await page.mouse.move(900, 500);
     await page.mouse.down();
@@ -127,8 +126,8 @@ test('camera pan remains screen-relative after every quarter-turn rotation', asy
     expect(deltaX * expectedX + deltaZ * expectedZ).toBeGreaterThan(0);
     expect(Math.abs(deltaX * expectedZ - deltaZ * expectedX)).toBeLessThan(0.01);
 
-    await reset.click();
-    for (let index = 0; index < turns; index += 1) await rotateRight.click();
+    await clickGameMenuAction(page, 'Reset camera');
+    for (let index = 0; index < turns; index += 1) await clickGameMenuAction(page, 'Rotate right');
     const beforeUp = (await readEvidence(page)).camera;
     await page.mouse.move(900, 550);
     await page.mouse.down();

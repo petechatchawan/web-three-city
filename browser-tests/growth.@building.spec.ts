@@ -9,7 +9,7 @@ import {
   readTimeSnapshot,
   stepLogicalTicks,
 } from './helpers/growth-fixture.js';
-import { GAME_URL } from './helpers/interaction.js';
+import { GAME_URL, clickGameMenuAction } from './helpers/interaction.js';
 
 test.describe.configure({ timeout: 60_000 });
 
@@ -184,7 +184,7 @@ test('persists WorldSaveV6 and loads paused at the exact logical tick', async ({
   await prepareBuildingFixtureWorld(page);
   await stepLogicalTicks(page, 4);
 
-  await page.getByRole('button', { name: 'Save world' }).click();
+  await clickGameMenuAction(page, 'Save world');
   const saved = await page.evaluate((key) => localStorage.getItem(key), SAVE_KEY);
   const parsed = JSON.parse(saved ?? '{}') as {
     readonly schemaVersion?: number;
@@ -198,7 +198,7 @@ test('persists WorldSaveV6 and loads paused at the exact logical tick', async ({
   expect(parsed.rci?.schemaVersion).toBe(1);
 
   await stepLogicalTicks(page, 3);
-  await page.getByRole('button', { name: 'Load world' }).click();
+  await clickGameMenuAction(page, 'Load world');
   await expect(page.getByTestId('game-status')).toHaveText('Loaded');
   const loaded = await readTimeSnapshot(page);
   expect(loaded.simulation.absoluteTick).toBe(12);

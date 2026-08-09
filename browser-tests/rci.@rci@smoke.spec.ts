@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { GAME_URL } from './helpers/interaction.js';
+import { GAME_URL, clickGameMenuAction } from './helpers/interaction.js';
 
 const SAVE_KEY = 'web-three-city:world-save:v6';
 
@@ -41,7 +41,7 @@ test('round-trips WorldSaveV6 with RCI, Economy, and restores HUD values', async
     employment: await page.getByTestId('rci-employment').textContent(),
   };
 
-  await page.getByRole('button', { name: 'Save world' }).click();
+  await clickGameMenuAction(page, 'Save world');
   const saved = await page.evaluate((key) => localStorage.getItem(key), SAVE_KEY);
   expect(saved).not.toBeNull();
   expect(JSON.parse(saved ?? '{}')).toMatchObject({
@@ -53,7 +53,7 @@ test('round-trips WorldSaveV6 with RCI, Economy, and restores HUD values', async
     economy: { schemaVersion: 1 },
   });
 
-  await page.getByRole('button', { name: 'Load world' }).click();
+  await clickGameMenuAction(page, 'Load world');
   await expect(page.getByTestId('game-status')).toHaveText('Loaded');
   await expect(page.getByTestId('rci-population')).toHaveText(before.population ?? '');
   await expect(page.getByTestId('rci-households')).toHaveText(before.households ?? '');

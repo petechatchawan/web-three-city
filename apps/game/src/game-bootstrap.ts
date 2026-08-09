@@ -155,6 +155,13 @@ export interface GameRuntime {
   setTerraformBrush(size: TerraformBrushSize): void;
   submitTaxPolicy(policy: EconomyTaxPolicy): EconomyPolicyUiResult;
   setInformationView(key: InformationViewKey): void;
+  saveWorld(): void;
+  loadWorld(): void;
+  rotateLeft(): void;
+  rotateRight(): void;
+  resetCamera(): void;
+  toggleGrid(): void;
+  setQuality(quality: QualityLevel): void;
   dispose(): void;
 }
 
@@ -373,6 +380,13 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
       submitTaxPolicy: () =>
         Object.freeze({ status: 'rejected', reason: 'game:runtime-unavailable' }),
       setInformationView: () => undefined,
+      saveWorld: () => undefined,
+      loadWorld: () => undefined,
+      rotateLeft: () => undefined,
+      rotateRight: () => undefined,
+      resetCamera: () => undefined,
+      toggleGrid: () => undefined,
+      setQuality: () => undefined,
       dispose(): void {
         subscribers.clear();
         selectionSubscribers.clear();
@@ -449,7 +463,11 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
   scene.add(sun);
 
   const camera = new THREE.OrthographicCamera();
-  const cameraRig = new OrthographicCameraRig(camera, WORLD_CONFIG);
+  const framingMarginRatio = 0.08;
+  const cameraRig = new OrthographicCameraRig(camera, WORLD_CONFIG, {
+    framingMarginRatio,
+    maximumOrthographicSize: 240,
+  });
   const terrain = new TerrainPresentation(
     scene,
     createCoreTerrainPresentationSource(WORLD_CONFIG),
@@ -1073,37 +1091,35 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
 
   const abortController = new AbortController();
   const listenerOptions = { signal: abortController.signal };
+  const saveWorld = (): void => {
+    input.clearActiveSession();
+    saveCoordinator.save();
+    ui.setStatus('Saved');
+  };
+  const loadWorld = (): void => {
+    input.clearActiveSession();
+    const result = saveCoordinator.load();
+    if (result.status === 'rejected') {
+      ui.setStatus(result.reason === 'world:no-save' ? 'No save' : 'Invalid save');
+      return;
+    }
+    adoptCommittedWorld(result.world, 'load');
+    undoCoordinator.clear();
+    ui.setUndoAvailable(false);
+    ui.setStatus('Loaded');
+  };
+  const toggleGrid = (): void => {
+    grid.setVisible(!grid.visible);
+    ui.setGridVisible(grid.visible);
+  };
 
   ui.qualitySelect.addEventListener(
     'change',
     () => applyQuality(ui.qualitySelect.value as QualityLevel),
     listenerOptions,
   );
-  ui.saveButton.addEventListener(
-    'click',
-    () => {
-      input.clearActiveSession();
-      saveCoordinator.save();
-      ui.setStatus('Saved');
-    },
-    listenerOptions,
-  );
-  ui.loadButton.addEventListener(
-    'click',
-    () => {
-      input.clearActiveSession();
-      const result = saveCoordinator.load();
-      if (result.status === 'rejected') {
-        ui.setStatus(result.reason === 'world:no-save' ? 'No save' : 'Invalid save');
-        return;
-      }
-      adoptCommittedWorld(result.world, 'load');
-      undoCoordinator.clear();
-      ui.setUndoAvailable(false);
-      ui.setStatus('Loaded');
-    },
-    listenerOptions,
-  );
+  ui.saveButton.addEventListener('click', saveWorld, listenerOptions);
+  ui.loadButton.addEventListener('click', loadWorld, listenerOptions);
   ui.rotateLeftButton.addEventListener(
     'click',
     () => input.controller.rotateLeft(),
@@ -1115,14 +1131,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     listenerOptions,
   );
   ui.resetButton.addEventListener('click', resetCamera, listenerOptions);
-  ui.gridButton.addEventListener(
-    'click',
-    () => {
-      grid.setVisible(!grid.visible);
-      ui.setGridVisible(grid.visible);
-    },
-    listenerOptions,
-  );
+  ui.gridButton.addEventListener('click', toggleGrid, listenerOptions);
   ui.navigateButton.addEventListener('click', () => setToolMode('navigate'), listenerOptions);
   ui.raiseButton.addEventListener('click', () => setToolMode('raise'), listenerOptions);
   ui.lowerButton.addEventListener('click', () => setToolMode('lower'), listenerOptions);
@@ -1226,6 +1235,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     config: WORLD_CONFIG,
     scene,
     input,
+    framingMarginRatio,
     getViewport: () => renderViewport,
     getSelectedCell: () => selectedCell,
     getGridVisible: () => grid.visible,
@@ -1381,6 +1391,13 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     setTerraformBrush: setBrushSize,
     submitTaxPolicy,
     setInformationView,
+    saveWorld,
+    loadWorld,
+    rotateLeft: () => input.controller.rotateLeft(),
+    rotateRight: () => input.controller.rotateRight(),
+    resetCamera,
+    toggleGrid,
+    setQuality: applyQuality,
     dispose,
   };
 }

@@ -160,6 +160,7 @@ export interface InteractionEvidenceSource {
   readonly config: WorldConfig;
   readonly scene: THREE.Scene;
   readonly input: GameInput;
+  readonly framingMarginRatio?: number;
   getViewport(): GameRenderViewport;
   getSelectedCell(): CellCoord | null;
   getGridVisible(): boolean;
@@ -302,7 +303,7 @@ export function publishInteractionEvidence(source: InteractionEvidenceSource): v
     get allWorldCornersInsideUsableViewport(): boolean {
       return allCornersInside(source.camera, source.config, source.getViewport());
     },
-    framingMarginRatio: CAMERA_DEFAULTS.framingMarginRatio,
+    framingMarginRatio: source.framingMarginRatio ?? CAMERA_DEFAULTS.framingMarginRatio,
     get water(): WaterInteractionEvidence {
       return {
         ...source.getWaterEvidence(),

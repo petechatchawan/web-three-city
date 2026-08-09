@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { GAME_URL, readEvidence } from './helpers/interaction.js';
+import { GAME_URL, clickGameMenuAction, readEvidence } from './helpers/interaction.js';
 
 const SAVE_KEY = 'web-three-city:world-save:v6';
 
@@ -47,19 +47,16 @@ test('tap selects, grid toggles, and reset restores defaults', async ({ page }) 
   expect(evidence.selectedCell).not.toBeNull();
   await expect(page.getByTestId('selected-cell')).not.toHaveText('None');
 
-  const gridButton = page.getByRole('button', { name: 'Grid' });
-  await expect(gridButton).toHaveAttribute('aria-pressed', 'false');
-  await gridButton.click();
+  await clickGameMenuAction(page, 'Grid');
   evidence = await readEvidence(page);
   expect(evidence.gridVisible).toBe(true);
-  await expect(gridButton).toHaveAttribute('aria-pressed', 'true');
 
   await page.mouse.move(900, 500);
   await page.mouse.down();
   await page.mouse.move(980, 540, { steps: 3 });
   await page.mouse.up();
-  await page.getByRole('button', { name: 'Rotate right' }).click();
-  await page.getByRole('button', { name: 'Reset camera' }).click();
+  await clickGameMenuAction(page, 'Rotate right');
+  await clickGameMenuAction(page, 'Reset camera');
 
   evidence = await readEvidence(page);
   expect(evidence.camera).toMatchObject({
@@ -74,7 +71,7 @@ test('tap selects, grid toggles, and reset restores defaults', async ({ page }) 
 test('changes quality and round-trips world save data', async ({ page }) => {
   await waitForReady(page);
 
-  await page.getByRole('button', { name: 'Save world' }).click();
+  await clickGameMenuAction(page, 'Save world');
   const saved = await page.evaluate((key) => localStorage.getItem(key), SAVE_KEY);
   expect(saved).not.toBeNull();
   expect(JSON.parse(saved ?? '{}')).toMatchObject({
@@ -84,10 +81,12 @@ test('changes quality and round-trips world save data', async ({ page }) => {
     rci: { kind: 'rci-save', schemaVersion: 1 },
   });
 
-  await page.getByLabel('Quality').selectOption('low');
+  await page.getByRole('button', { name: 'Game Menu', exact: true }).click();
+  await page.getByRole('dialog').getByLabel('Quality').selectOption('low');
   await expect(page.getByTestId('quality-value')).toHaveText('Low');
+  await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
 
-  await page.getByRole('button', { name: 'Load world' }).click();
+  await clickGameMenuAction(page, 'Load world');
   await expect(page.getByTestId('game-status')).toHaveText('Loaded');
 });
 
@@ -127,8 +126,8 @@ test('boots Coastal Water and Roads with one presentation root each', async ({ p
 test('save and load reproduce identical Water evidence', async ({ page }) => {
   await waitForReady(page);
   const before = (await readEvidence(page)).water;
-  await page.getByRole('button', { name: 'Save world' }).click();
-  await page.getByRole('button', { name: 'Load world' }).click();
+  await clickGameMenuAction(page, 'Save world');
+  await clickGameMenuAction(page, 'Load world');
   await expect(page.getByTestId('game-status')).toHaveText('Loaded');
   const after = (await readEvidence(page)).water;
   expect(after.sourceTerrainRevision).toBe(before.sourceTerrainRevision);
@@ -207,7 +206,8 @@ test('exposes Terraform, Road, Zone, and Building tools with mode-aware brush co
   await expect(page.getByTestId('terraform-brush-controls')).toBeHidden();
 
   await page.getByRole('button', { name: 'Raise' }).click();
-  await expect(page.getByTestId('terraform-brush-controls')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Brush 1 × 1' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Brush 5 × 5' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Brush 1 × 1' })).toHaveAttribute(
     'aria-pressed',
     'true',

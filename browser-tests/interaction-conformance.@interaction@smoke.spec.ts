@@ -128,7 +128,7 @@ test('desktop HUD is map-first and separates primary, context, and secondary con
   await openGame(page);
   await expect(page.getByTestId('primary-world-tools')).toBeVisible();
   await expect(page.getByTestId('tool-context')).toBeVisible();
-  await expect(page.getByTestId('secondary-controls')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Game Menu' })).toBeVisible();
   const layout = await page.evaluate(() => {
     const panel = document.querySelector<HTMLElement>('.game-hud');
     if (panel === null) throw new Error('missing Game HUD');
@@ -245,5 +245,6 @@ test('responsive compatibility keeps primary tools reachable without horizontal 
   expect(layout.horizontalOverflow).toBe(false);
   expect(layout.panelHeight).toBeLessThan(844 * 0.6);
   await page.getByRole('button', { name: 'Raise' }).click();
-  await expect(page.getByTestId('terraform-brush-controls')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Brush 1 × 1' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Brush 5 × 5' })).toBeVisible();
 });

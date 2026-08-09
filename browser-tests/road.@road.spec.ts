@@ -16,6 +16,7 @@ import {
 import {
   GAME_URL,
   TERRAIN_LAB_URL,
+  clickGameMenuAction,
   clickTerrainCell,
   dispatchCanvasTouch,
   readEvidence,
@@ -323,7 +324,7 @@ test('WorldSaveV5 restores Roads and legacy Terrain saves migrate to empty Roads
   await openGame(page);
   const cell = findRoadLine(1)[0]!;
   await buildRoadTap(page, cell);
-  await page.getByRole('button', { name: 'Save world' }).click();
+  await clickGameMenuAction(page, 'Save world');
   const worldSave = await page.evaluate((key) => localStorage.getItem(key), WORLD_SAVE_KEY);
   expect(worldSave).not.toBeNull();
 
@@ -331,7 +332,7 @@ test('WorldSaveV5 restores Roads and legacy Terrain saves migrate to empty Roads
   await page.getByRole('button', { name: 'Bulldoze Road' }).click();
   await page.mouse.click(point.x, point.y);
   expect((await readEvidence(page)).road.occupiedCellCount).toBe(0);
-  await page.getByRole('button', { name: 'Load world' }).click();
+  await clickGameMenuAction(page, 'Load world');
   await expect(page.getByTestId('game-status')).toHaveText('Loaded');
   expect((await readEvidence(page)).road.occupiedCellCount).toBe(1);
 
@@ -346,7 +347,7 @@ test('WorldSaveV5 restores Roads and legacy Terrain saves migrate to empty Roads
       legacy: JSON.stringify(encodeTerrainSaveV1(BASE_TERRAIN)),
     },
   );
-  await page.getByRole('button', { name: 'Load world' }).click();
+  await clickGameMenuAction(page, 'Load world');
   await expect(page.getByTestId('game-status')).toHaveText('Loaded');
   const migrated = await readEvidence(page);
   expect(migrated.road.occupiedCellCount).toBe(0);

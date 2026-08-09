@@ -4,6 +4,9 @@ import { createEconomyViewProjection } from '../economy-budget-hud.js';
 import { createGameTimePresentation } from '../game-time-presentation.js';
 import { createRciHudModel } from '../rci-hud.js';
 import type { DialogHost } from './dialog/dialog-host.js';
+import { openInspectDialog } from './inspect/inspect-dialog.js';
+import { pickInspectTarget } from './inspect/inspect-target.js';
+import { createInformationViewRegistry } from './information-views/information-view-registry.js';
 import { mountPlayerShell, type PlayerShell } from './shell/player-shell.js';
 import { createCitySystemDialogs } from './systems/city-system-dialogs.js';
 
@@ -13,6 +16,7 @@ export interface CityUiPorts {
   readonly selectTool: Parameters<typeof mountPlayerShell>[1]['selectTool'];
   readonly setTerraformBrush: Parameters<typeof mountPlayerShell>[1]['setTerraformBrush'];
   readonly submitTaxPolicy: Parameters<typeof createCitySystemDialogs>[1]['submitTaxPolicy'];
+  readonly setInformationView: (key: 'grid' | 'zoning' | null) => void;
   readonly rciRegistries: RciDefinitionRegistries;
 }
 
@@ -20,6 +24,7 @@ export interface CityUiRuntime {
   readonly element: HTMLElement;
   readonly dialogHost: DialogHost;
   update(world: CommittedWorld): void;
+  inspectCell(cell: Readonly<{ x: number; z: number }>): void;
   dispose(): void;
 }
 
@@ -31,6 +36,49 @@ function demandSymbol(value: number): string {
 
 export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRuntime {
   let latestWorld: CommittedWorld | null = null;
+  const informationViews = createInformationViewRegistry([
+    {
+      key: 'grid',
+      title: 'Canonical Grid',
+      legend: 'Canonical build-cell boundaries',
+      activate: () => ports.setInformationView('grid'),
+      deactivate: () => ports.setInformationView(null),
+    },
+    {
+      key: 'zoning',
+      title: 'Zoning',
+      legend: 'Residential, Commercial, and Industrial zones',
+      activate: () => ports.setInformationView('zoning'),
+      deactivate: () => ports.setInformationView(null),
+    },
+  ]);
+  const renderInformationViews = (body: HTMLElement): void => {
+    for (const entry of informationViews.entries()) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = entry.title;
+      button.dataset.informationView = entry.key;
+      button.addEventListener('click', () => {
+        informationViews.replace(entry.key);
+        shell.dialogHost.update();
+      });
+      body.append(button);
+    }
+    const active = informationViews.projection();
+    if (active !== null) {
+      const legend = document.createElement('p');
+      legend.dataset.testid = 'information-view-legend';
+      legend.textContent = `${active.title}: ${active.legend}`;
+      const deactivate = document.createElement('button');
+      deactivate.type = 'button';
+      deactivate.textContent = 'Deactivate view';
+      deactivate.addEventListener('click', () => {
+        informationViews.deactivate();
+        shell.dialogHost.update();
+      });
+      body.append(legend, deactivate);
+    }
+  };
   const openTextDialog = (key: string, title: string, text: string): void => {
     shell.dialogHost.open({ kind: 'system', key, title }, (body) => {
       const paragraph = document.createElement('p');
@@ -44,7 +92,10 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
     selectTool: ports.selectTool,
     setTerraformBrush: ports.setTerraformBrush,
     onInformationViews: () =>
-      openTextDialog('information-views', 'Information Views', 'Canonical world overlays'),
+      shell.dialogHost.open(
+        { kind: 'system', key: 'information-views', title: 'Information Views' },
+        renderInformationViews,
+      ),
     onCity: () => systemDialogs.openCity(),
     onGameMenu: () => openTextDialog('game-menu', 'Game Menu', 'World and camera controls'),
   });
@@ -73,7 +124,17 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
       });
       shell.dialogHost.update();
     },
+    inspectCell(cell: Readonly<{ x: number; z: number }>): void {
+      if (latestWorld === null) return;
+      openInspectDialog(
+        shell.dialogHost,
+        () => latestWorld!,
+        ports.rciRegistries,
+        pickInspectTarget(latestWorld, cell),
+      );
+    },
     dispose(): void {
+      informationViews.deactivate();
       shell.dispose();
     },
   });

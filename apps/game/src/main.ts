@@ -176,12 +176,16 @@ const cityUi = mountCityUi(root, {
   selectTool: (mode) => runtime.selectTool(mode),
   setTerraformBrush: (size) => runtime.setTerraformBrush(size),
   submitTaxPolicy: (policy) => runtime.submitTaxPolicy(policy),
+  setInformationView: (key) => runtime.setInformationView(key),
   step: () => {
     simulationRuntime.step(advanceOneLogicalTick);
   },
   rciRegistries: createFoundationRciRegistries(),
 });
 const unsubscribeCommittedWorld = runtime.subscribeCommittedWorld(synchronizeCommittedWorld);
+const unsubscribeWorldSelection = runtime.subscribeWorldSelection((cell) =>
+  cityUi.inspectCell(cell),
+);
 const initialWorld = runtime.snapshot();
 cityUi.update(initialWorld);
 setBuildingPresentationAbsoluteTick(initialWorld.simulation.absoluteTick);
@@ -257,6 +261,7 @@ window.addEventListener(
   () => {
     cancelAnimationFrame(frameRequest);
     unsubscribeCommittedWorld();
+    unsubscribeWorldSelection();
     timeUi.dispose();
     cityUi.dispose();
     bindings.abort();

@@ -139,10 +139,13 @@ export type CommittedWorldSubscriber = (
   world: CommittedWorld,
   reason: CommittedWorldChangeReason,
 ) => void;
+export type WorldSelectionSubscriber = (cell: CellCoord) => void;
+export type InformationViewKey = 'grid' | 'zoning' | null;
 
 export interface GameRuntime {
   snapshot(): CommittedWorld;
   subscribeCommittedWorld(subscriber: CommittedWorldSubscriber): () => void;
+  subscribeWorldSelection(subscriber: WorldSelectionSubscriber): () => void;
   advanceLogicalTick(input: Readonly<{ automaticGrowth: boolean }>): CommittedWorld;
   resetSimulationForTest(): CommittedWorld;
   savePayload(): ReturnType<SaveCoordinator['savePayload']>;
@@ -151,6 +154,7 @@ export interface GameRuntime {
   selectTool(mode: GameToolMode): void;
   setTerraformBrush(size: TerraformBrushSize): void;
   submitTaxPolicy(policy: EconomyTaxPolicy): EconomyPolicyUiResult;
+  setInformationView(key: InformationViewKey): void;
   dispose(): void;
 }
 
@@ -346,11 +350,16 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     ui.setStatus('WebGL2 unavailable');
     const unavailableWorld = new CommittedWorldStore(initialWorld);
     const subscribers = new Set<CommittedWorldSubscriber>();
+    const selectionSubscribers = new Set<WorldSelectionSubscriber>();
     return {
       snapshot: () => unavailableWorld.snapshot(),
       subscribeCommittedWorld(subscriber: CommittedWorldSubscriber): () => void {
         subscribers.add(subscriber);
         return () => subscribers.delete(subscriber);
+      },
+      subscribeWorldSelection(subscriber: WorldSelectionSubscriber): () => void {
+        selectionSubscribers.add(subscriber);
+        return () => selectionSubscribers.delete(subscriber);
       },
       advanceLogicalTick: () => unavailableWorld.snapshot(),
       resetSimulationForTest: () => unavailableWorld.snapshot(),
@@ -363,8 +372,10 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
       setTerraformBrush: () => undefined,
       submitTaxPolicy: () =>
         Object.freeze({ status: 'rejected', reason: 'game:runtime-unavailable' }),
+      setInformationView: () => undefined,
       dispose(): void {
         subscribers.clear();
+        selectionSubscribers.clear();
       },
     };
   }
@@ -492,12 +503,16 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
   grid.load(snapshot);
   const selection = new SelectedCellPresentation(scene, WORLD_CONFIG);
   const preview = new TerraformPreviewPresentation(scene, WORLD_CONFIG);
+  const worldSelectionSubscribers = new Set<WorldSelectionSubscriber>();
 
   const setSelection = (cell: CellCoord | null): void => {
     selectedCell = cell === null ? null : { ...cell };
     ui.setSelectedCell(selectedCell);
     if (selectedCell === null) selection.clear();
-    else selection.setSelection(snapshot, selectedCell);
+    else {
+      selection.setSelection(snapshot, selectedCell);
+      for (const subscriber of [...worldSelectionSubscribers]) subscriber(selectedCell);
+    }
   };
 
   const inputRef: { current: ReturnType<typeof createGameInput> | null } = { current: null };
@@ -947,6 +962,10 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     committedWorldSubscribers.add(subscriber);
     return () => committedWorldSubscribers.delete(subscriber);
   };
+  const subscribeWorldSelection = (subscriber: WorldSelectionSubscriber): (() => void) => {
+    worldSelectionSubscribers.add(subscriber);
+    return () => worldSelectionSubscribers.delete(subscriber);
+  };
 
   const resetCamera = (): void => {
     const layout = ui.measureViewport();
@@ -1043,6 +1062,10 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
   const setBrushSize = (size: TerraformBrushSize): void => {
     input.setBrushSize(size);
     ui.setBrushSize(size);
+  };
+  const setInformationView = (key: InformationViewKey): void => {
+    grid.setVisible(key === 'grid');
+    ui.setGridVisible(grid.visible);
   };
 
   updateViewport();
@@ -1341,12 +1364,14 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     terrain.dispose();
     renderer.dispose();
     committedWorldSubscribers.clear();
+    worldSelectionSubscribers.clear();
     delete window.__WEB_THREE_CITY_INTERACTION__;
   };
   window.addEventListener('pagehide', dispose, { once: true });
   return {
     snapshot: () => transactionCoordinator.snapshot(),
     subscribeCommittedWorld,
+    subscribeWorldSelection,
     advanceLogicalTick,
     resetSimulationForTest,
     savePayload: () => saveCoordinator.savePayload(),
@@ -1355,6 +1380,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     selectTool: setToolMode,
     setTerraformBrush: setBrushSize,
     submitTaxPolicy,
+    setInformationView,
     dispose,
   };
 }

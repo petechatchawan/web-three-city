@@ -277,6 +277,23 @@ export async function clickTerrainCell(
   );
 }
 
+export async function locateTerrainCell(
+  page: Page,
+  target: Readonly<{ x: number; z: number }>,
+): Promise<TerrainCellScreenPoint> {
+  const layout = await readGameCanvasLayout(page);
+  const cameraState = (await readEvidence(page)).camera;
+  for (const centroid of terrainCellTriangleCentroids(GAME_TERRAIN, target)) {
+    const screen = projectWorldPoint(centroid, cameraState, layout);
+    const hitsCanvas = await page.evaluate(
+      ({ x, y }) => document.elementFromPoint(x, y)?.id === 'game-canvas',
+      screen,
+    );
+    if (hitsCanvas) return screen;
+  }
+  throw new Error(`terrain-cell:not-visible:${target.x},${target.z}`);
+}
+
 export async function dispatchTouchOn(
   target: Locator,
   type: 'pointerdown' | 'pointermove' | 'pointerup' | 'pointercancel',

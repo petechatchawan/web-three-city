@@ -120,9 +120,9 @@ export function renderGameUi(root: HTMLElement): GameUi {
         </header>
 
         <div class="primary-workspace">
-          <section class="primary-tool-surface" aria-label="World tools">
+          <section class="primary-tool-surface" aria-label="Legacy world tools" hidden>
             <p class="control-label">World tools</p>
-            <div class="world-tools" data-testid="primary-world-tools">
+            <div class="world-tools">
               <button type="button" data-action="tool-navigate" aria-pressed="true">Navigate</button>
               <button type="button" data-action="tool-raise" aria-pressed="false">Raise</button>
               <button type="button" data-action="tool-lower" aria-pressed="false">Lower</button>
@@ -478,26 +478,12 @@ export function renderGameUi(root: HTMLElement): GameUi {
     undoButton,
     measureViewport(): GameViewportLayout {
       const canvasRect = canvas.getBoundingClientRect();
-      const panelRect = panel.getBoundingClientRect();
       const width = Math.max(1, canvas.clientWidth || canvasRect.width);
       const height = Math.max(1, canvas.clientHeight || canvasRect.height);
       const mode: ControlsMode = window.matchMedia('(max-width: 720px)').matches
         ? 'compact'
         : 'expanded';
-      const insets: ViewportInsets =
-        mode === 'compact'
-          ? {
-              top: Math.min(height - 1, Math.max(0, panelRect.bottom - canvasRect.top + 8)),
-              right: 0,
-              bottom: 0,
-              left: 0,
-            }
-          : {
-              top: 0,
-              right: 0,
-              bottom: 0,
-              left: Math.min(width - 1, Math.max(0, panelRect.right - canvasRect.left + 16)),
-            };
+      const insets: ViewportInsets = { top: 0, right: 0, bottom: 0, left: 0 };
       return { width, height, insets, mode };
     },
     setStatus(value: string): void {

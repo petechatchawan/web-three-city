@@ -22,6 +22,7 @@
   bottom: calc(var(--city-ui-safe-bottom) + var(--city-ui-gap));
   display: grid;
   justify-items: center;
+  width: min(62rem, calc(100vw - 1rem));
   gap: 0.25rem;
   transform: translateX(-50%);
 }
@@ -30,6 +31,16 @@
 .city-build-palette {
   display: flex;
   gap: 0.25rem;
+}
+
+.city-build-palette {
+  width: 100%;
+  overflow-x: auto;
+  padding-bottom: 0.15rem;
+}
+
+.city-build-palette > button {
+  flex: 0 0 auto;
 }
 
 .city-build-palette:empty {
@@ -46,6 +57,11 @@
   padding: 0.55rem 0.7rem;
   border-radius: var(--city-ui-radius);
   background: var(--city-ui-surface);
+}
+
+/* The committed tool projection remains the sole contextual presenter during legacy cleanup. */
+.city-tool-context {
+  display: none;
 }
 .city-awareness-hud {
   position: absolute;
@@ -153,11 +169,27 @@
     max-height: 100%;
   }
   .city-top-actions {
-    top: auto;
-    bottom: calc(var(--city-ui-safe-bottom) + 3.4rem);
+    top: calc(var(--city-ui-safe-top) + 3.4rem);
+    bottom: auto;
   }
   .city-simulation-controls {
     left: calc(var(--city-ui-safe-left) + var(--city-ui-gap));
     right: auto;
+  }
+}
+
+@media (max-height: 520px) {
+  .city-awareness-hud {
+    max-width: 62vw;
+  }
+  .city-top-actions {
+    top: calc(var(--city-ui-safe-top) + var(--city-ui-gap));
+  }
+  .city-build-categories {
+    display: none;
+  }
+  .city-simulation-controls {
+    top: calc(var(--city-ui-safe-top) + 3.35rem);
+    bottom: auto;
   }
 }

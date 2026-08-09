@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import {
   clickTerrainCell,
+  clickGameMenuAction,
   createDeterministicWaterGeometryEvidence,
   dispatchCanvasTouch,
   GAME_URL,
@@ -52,7 +53,7 @@ test('Water remains framed on desktop and mobile with exactly one root', async (
 test('underwater selection and Grid remain readable', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await openGame(page);
-  await page.getByRole('button', { name: 'Grid' }).click();
+  await clickGameMenuAction(page, 'Grid');
   await clickTerrainCell(page, { x: 64, z: 116 });
 
   const evidence = await readEvidence(page);
@@ -79,7 +80,7 @@ test('pan, zoom, yaw, pitch, and reset remain stable with Water', async ({ page 
   evidence = await readEvidence(page);
   expect(evidence.camera.orthographicSize).toBeLessThan(initial.camera.orthographicSize);
 
-  await page.getByRole('button', { name: 'Rotate right' }).click();
+  await clickGameMenuAction(page, 'Rotate right');
   evidence = await readEvidence(page);
   expect(evidence.camera.yawDegrees).not.toBe(initial.camera.yawDegrees);
 
@@ -94,7 +95,7 @@ test('pan, zoom, yaw, pitch, and reset remain stable with Water', async ({ page 
   evidence = await readEvidence(page);
   expect(evidence.camera.pitchDegrees).toBeGreaterThan(initial.camera.pitchDegrees);
 
-  await page.getByRole('button', { name: 'Reset camera' }).click();
+  await clickGameMenuAction(page, 'Reset camera');
   evidence = await readEvidence(page);
   expect(evidence.camera).toMatchObject({
     targetX: 0,
@@ -108,9 +109,9 @@ test('pan, zoom, yaw, pitch, and reset remain stable with Water', async ({ page 
 test('save and load reproduce deterministic Water state', async ({ page }) => {
   await openGame(page);
   const before = (await readEvidence(page)).water;
-  await page.getByRole('button', { name: 'Save world' }).click();
+  await clickGameMenuAction(page, 'Save world');
   expect(await page.evaluate((key) => localStorage.getItem(key), SAVE_KEY)).not.toBeNull();
-  await page.getByRole('button', { name: 'Load world' }).click();
+  await clickGameMenuAction(page, 'Load world');
   await expect(page.getByTestId('game-status')).toHaveText('Loaded');
   const after = (await readEvidence(page)).water;
 

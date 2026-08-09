@@ -17,6 +17,13 @@ export interface CityUiPorts {
   readonly setTerraformBrush: Parameters<typeof mountPlayerShell>[1]['setTerraformBrush'];
   readonly submitTaxPolicy: Parameters<typeof createCitySystemDialogs>[1]['submitTaxPolicy'];
   readonly setInformationView: (key: 'grid' | 'zoning' | null) => void;
+  readonly saveWorld: () => void;
+  readonly loadWorld: () => void;
+  readonly rotateLeft: () => void;
+  readonly rotateRight: () => void;
+  readonly resetCamera: () => void;
+  readonly toggleGrid: () => void;
+  readonly setQuality: (quality: 'low' | 'medium' | 'high') => void;
   readonly rciRegistries: RciDefinitionRegistries;
 }
 
@@ -79,13 +86,6 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
       body.append(legend, deactivate);
     }
   };
-  const openTextDialog = (key: string, title: string, text: string): void => {
-    shell.dialogHost.open({ kind: 'system', key, title }, (body) => {
-      const paragraph = document.createElement('p');
-      paragraph.textContent = text;
-      body.append(paragraph);
-    });
-  };
   const shell: PlayerShell = mountPlayerShell(parent, {
     setSpeed: ports.setSpeed,
     step: ports.step,
@@ -97,7 +97,43 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
         renderInformationViews,
       ),
     onCity: () => systemDialogs.openCity(),
-    onGameMenu: () => openTextDialog('game-menu', 'Game Menu', 'World and camera controls'),
+    onGameMenu: () =>
+      shell.dialogHost.open({ kind: 'system', key: 'game-menu', title: 'Game Menu' }, (body) => {
+        const actions = [
+          ['Save world', ports.saveWorld],
+          ['Load world', ports.loadWorld],
+          ['Rotate left', ports.rotateLeft],
+          ['Rotate right', ports.rotateRight],
+          ['Reset camera', ports.resetCamera],
+          ['Grid', ports.toggleGrid],
+        ] as const;
+        for (const [label, action] of actions) {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.textContent = label;
+          button.addEventListener('click', () => {
+            action();
+            shell.dialogHost.close();
+          });
+          body.append(button);
+        }
+        const qualityLabel = document.createElement('label');
+        qualityLabel.textContent = 'Quality';
+        const quality = document.createElement('select');
+        quality.setAttribute('aria-label', 'Quality');
+        for (const value of ['low', 'medium', 'high'] as const) {
+          const option = document.createElement('option');
+          option.value = value;
+          option.textContent = value[0]!.toUpperCase() + value.slice(1);
+          quality.append(option);
+        }
+        quality.value = 'medium';
+        quality.addEventListener('change', () =>
+          ports.setQuality(quality.value as 'low' | 'medium' | 'high'),
+        );
+        qualityLabel.append(quality);
+        body.append(qualityLabel);
+      }),
   });
   const systemDialogs = createCitySystemDialogs(shell.dialogHost, {
     getWorld: () => {

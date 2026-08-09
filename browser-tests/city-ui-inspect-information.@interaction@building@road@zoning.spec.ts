@@ -5,7 +5,12 @@ import {
   prepareSingleBuildingFixtureWorld,
 } from './helpers/building-fixture.js';
 import { prepareDeterministicGrowthClock, stepLogicalTicks } from './helpers/growth-fixture.js';
-import { GAME_URL, clickTerrainCell, readEvidence } from './helpers/interaction.js';
+import {
+  GAME_URL,
+  clickGameMenuAction,
+  locateTerrainCell,
+  readEvidence,
+} from './helpers/interaction.js';
 
 test.describe.configure({ timeout: 60_000 });
 
@@ -25,7 +30,8 @@ test('inspects terrain and replaces then deactivates the primary information vie
 }) => {
   await openGame(page);
   const terrainCell = { x: 64, z: 64 };
-  await clickTerrainCell(page, terrainCell);
+  const terrainPoint = await locateTerrainCell(page, terrainCell);
+  await page.mouse.click(terrainPoint.x, terrainPoint.y);
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByRole('heading', { name: 'Terrain' })).toBeVisible();
   await expect(dialog).toContainText(`Cell${terrainCell.x}, ${terrainCell.z}`);
@@ -71,7 +77,7 @@ test('uses Building over Zone and inspects Road and remaining Zone cells', async
   const snapshot = await stepLogicalTicks(page, 16);
   expect(snapshot.buildingCount).toBeGreaterThanOrEqual(1);
 
-  await page.getByRole('button', { name: 'Save world' }).click();
+  await clickGameMenuAction(page, 'Save world');
   const instances = await page.evaluate(() => {
     const raw = localStorage.getItem('web-three-city:world-save:v6');
     const save = JSON.parse(raw ?? '{}') as {

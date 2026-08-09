@@ -45,11 +45,11 @@ function terraformContextFixture(): GameToolPresentationState {
 }
 
 describe('renderGameUi', () => {
-  it('separates primary tools, context, Undo, and secondary controls without interactive Develop Zones', () => {
+  it('keeps the legacy adapter contextual and excludes its retired primary-tool authority', () => {
     const root = document.createElement('div');
     const ui = renderGameUi(root);
 
-    expect(root.querySelector('[data-testid="primary-world-tools"]')).not.toBeNull();
+    expect(root.querySelector('[data-testid="primary-world-tools"]')).toBeNull();
     expect(root.querySelector('[data-testid="tool-context"]')).not.toBeNull();
     expect(root.querySelector('[data-testid="undo-world-change"]')).toBe(ui.undoButton);
     expect(root.querySelector('[data-testid="secondary-controls"]')).not.toBeNull();

@@ -1,6 +1,6 @@
 # City UI
 
-**Status:** Implementation in progress — shell, tools, systems, inspect, and information views implemented through PR4
+**Status:** Implementation complete — automated verification candidate preparation; Manual Acceptance pending
 
 ## Purpose
 
@@ -65,8 +65,6 @@ City UI owns no authoritative persisted game state. Ephemeral dialog/navigation 
 - Top actions and existing Paused/1×/2×/4×/Step intents use semantic touch-safe buttons.
 - `DialogHost` enforces one primary dialog, internal LIFO Back, root Close, Escape close, focus restoration, and world-input blocking without gameplay or simulation commands.
 
-Legacy tool/system controls remain temporarily mounted while their PR2/PR3 replacements are implemented; they are not permitted in the final milestone candidate.
-
 ### Build tool migration
 
 - Bottom categories expose Terrain, Roads, Zones, and Buildings through typed `GameRuntime` tool ports.
@@ -88,3 +86,11 @@ Legacy tool/system controls remain temporarily mounted while their PR2/PR3 repla
 - Active build tools retain world-input ownership; inspect does not switch tools or intercept placement.
 - The information-view registry enforces one active view and deterministic activate, replace, and deactivate lifecycle.
 - v0.1 exposes only the existing canonical grid and zoning visualization. Player projections exclude raw IDs, revisions, fingerprints, and debug state.
+
+### Final shell and compatibility
+
+- The legacy `.game-hud` no longer produces a layout box or permanent sidebar; the City UI shell owns HUD, top actions, simulation controls, and the bottom build dock.
+- Game Menu is a real primary dialog for Save, Load, camera rotation/reset, Grid, and Quality commands through typed runtime ports.
+- The retained legacy adapter is limited to the existing authoritative contextual tool projection, Undo, and bounded test/status projections while those presenters remain application-owned.
+- Game framing uses no sidebar inset and permits a larger portrait orthographic fit without changing the camera package defaults.
+- Browser acceptance covers 844×390, 932×430, 390×844, 430×932, 1280×720, and 1440×900 with no document overflow and 44 CSS px minimum visible City UI targets.

@@ -358,6 +358,72 @@ select:focus-visible,
   outline-offset: 2px;
 }
 
+/* City UI owns the permanent shell. The remaining legacy presentation is contextual only. */
+.panel {
+  display: contents;
+}
+
+.hud-heading,
+.economy-hud,
+.rci-hud-summary {
+  display: none;
+}
+
+.primary-workspace {
+  display: contents;
+}
+
+.panel .tool-context {
+  position: absolute;
+  z-index: 21;
+  left: calc(8px + var(--safe-left));
+  bottom: calc(112px + var(--safe-bottom));
+  width: min(310px, calc(100vw - 16px - var(--safe-left) - var(--safe-right)));
+  min-height: 0;
+  border: 1px solid rgb(255 255 255 / 24%);
+  color: #f5f8fa;
+  background: rgb(16 28 37 / 92%);
+  box-shadow: 0 12px 34px rgb(0 0 0 / 22%);
+}
+
+.panel .tool-context .context-heading,
+.panel .tool-context .context-message {
+  color: #b8c6ce;
+}
+
+.panel .tool-context .context-heading strong {
+  color: #f5f8fa;
+}
+
+.panel .undo-button {
+  position: absolute;
+  z-index: 21;
+  left: calc(8px + var(--safe-left));
+  bottom: calc(64px + var(--safe-bottom));
+  width: auto;
+  min-height: 44px;
+}
+
+.panel .secondary-controls {
+  display: contents;
+}
+
+.panel .secondary-controls summary {
+  display: none;
+}
+
+.panel .secondary-content {
+  display: contents;
+}
+
+.panel .secondary-content > :not(.world-actions) {
+  display: none;
+}
+
+.panel .world-actions {
+  display: none;
+}
+
 @media (max-width: 720px) {
   .panel {
     top: var(--safe-top);

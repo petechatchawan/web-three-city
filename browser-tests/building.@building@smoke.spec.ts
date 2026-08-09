@@ -5,7 +5,7 @@ import {
   prepareBuildingFixtureWorld,
 } from './helpers/building-fixture.js';
 import { prepareDeterministicGrowthClock, stepLogicalTicks } from './helpers/growth-fixture.js';
-import { GAME_URL, readEvidence } from './helpers/interaction.js';
+import { GAME_URL, clickGameMenuAction, readEvidence } from './helpers/interaction.js';
 
 test.describe.configure({ timeout: 60_000 });
 
@@ -70,7 +70,7 @@ async function setAutomaticGrowthEnabled(page: Page, enabled: boolean): Promise<
 }
 
 async function saveWorldFixture(page: Page): Promise<SavedWorldFixture> {
-  await page.getByRole('button', { name: 'Save world' }).click();
+  await clickGameMenuAction(page, 'Save world');
   const saved = await page.evaluate((key) => localStorage.getItem(key), SAVE_KEY);
   return JSON.parse(saved ?? '{}') as SavedWorldFixture;
 }
@@ -195,7 +195,7 @@ test('grows deterministic R/C/I content and preserves authority across guards, U
   await page.getByRole('button', { name: 'Bulldoze Building' }).click();
   await page.mouse.click(commercialOccupiedCell.x, commercialOccupiedCell.y);
   await expect(page.getByTestId('game-status')).toHaveText('Building bulldozed');
-  await page.getByRole('button', { name: 'Load world' }).click();
+  await clickGameMenuAction(page, 'Load world');
   await expect(page.getByTestId('game-status')).toHaveText('Loaded');
   evidence = await readEvidence(page);
   expect(evidence.building.count).toBe(3);

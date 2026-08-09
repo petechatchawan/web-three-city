@@ -15,6 +15,7 @@ import {
 } from './helpers/domain-fixtures.js';
 import {
   GAME_URL,
+  clickGameMenuAction,
   clickTerrainCell,
   dispatchCanvasTouch,
   readEvidence,
@@ -192,7 +193,7 @@ test('paints R/C/I at committed-Road depths 1–3 and round-trips WorldSaveV5', 
   await expect(page.getByTestId('zone-commercial-count')).toHaveText('1');
   await expect(page.getByTestId('zone-industrial-count')).toHaveText('1');
 
-  await page.getByRole('button', { name: 'Save world' }).click();
+  await clickGameMenuAction(page, 'Save world');
   const saved = await page.evaluate((key) => localStorage.getItem(key), SAVE_KEY);
   expect(JSON.parse(saved ?? '{}')).toMatchObject({
     kind: 'world-save',
@@ -214,7 +215,7 @@ test('paints R/C/I at committed-Road depths 1–3 and round-trips WorldSaveV5', 
   expect(evidence.zone.counts.industrial).toBe(1);
   expect(evidence.zone.undoCount).toBe(1);
 
-  await page.getByRole('button', { name: 'Load world' }).click();
+  await clickGameMenuAction(page, 'Load world');
   await expect(page.getByTestId('game-status')).toHaveText('Loaded');
   evidence = await readEvidence(page);
   expect(evidence.zone.counts.total).toBe(5);

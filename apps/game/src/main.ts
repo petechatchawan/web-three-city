@@ -177,6 +177,13 @@ const cityUi = mountCityUi(root, {
   setTerraformBrush: (size) => runtime.setTerraformBrush(size),
   submitTaxPolicy: (policy) => runtime.submitTaxPolicy(policy),
   setInformationView: (key) => runtime.setInformationView(key),
+  saveWorld: () => runtime.saveWorld(),
+  loadWorld: () => runtime.loadWorld(),
+  rotateLeft: () => runtime.rotateLeft(),
+  rotateRight: () => runtime.rotateRight(),
+  resetCamera: () => runtime.resetCamera(),
+  toggleGrid: () => runtime.toggleGrid(),
+  setQuality: (quality) => runtime.setQuality(quality),
   step: () => {
     simulationRuntime.step(advanceOneLogicalTick);
   },

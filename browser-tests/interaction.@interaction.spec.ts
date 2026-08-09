@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import {
   GAME_URL,
+  clickGameMenuAction,
   dispatchCanvasTouch,
   dispatchTouchOn,
   readEvidence,
@@ -99,7 +100,8 @@ test('pointer cancellation cannot select', async ({ page }) => {
 test('a pointer starting on UI never moves the world', async ({ page }) => {
   await openGame(page);
   const before = (await readEvidence(page)).camera;
-  const saveButton = page.getByRole('button', { name: 'Save world' });
+  await page.getByRole('button', { name: 'Game Menu', exact: true }).click();
+  const saveButton = page.getByRole('dialog').getByRole('button', { name: 'Save world' });
   const box = await saveButton.boundingBox();
   if (box === null) throw new Error('missing Save terrain bounds');
 
@@ -131,7 +133,7 @@ test('context loss clears an active session before release', async ({ page }) =>
 test('reset after resize uses the new usable viewport', async ({ page }) => {
   await openGame(page);
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.getByRole('button', { name: 'Reset camera' }).click();
+  await clickGameMenuAction(page, 'Reset camera');
 
   const evidence = await readEvidence(page);
   expect(evidence.allWorldCornersInsideUsableViewport).toBe(true);
@@ -142,7 +144,7 @@ test('context restore preserves grid and selection with one root each', async ({
   await openGame(page);
   await page.mouse.click(900, 500);
   await expect(page.getByTestId('selected-cell')).not.toHaveText('None');
-  await page.getByRole('button', { name: 'Grid' }).click();
+  await clickGameMenuAction(page, 'Grid');
 
   await page.locator('#game-canvas').evaluate((canvas) => {
     canvas.dispatchEvent(new Event('webglcontextlost', { cancelable: true }));

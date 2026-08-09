@@ -1,10 +1,14 @@
 :root {
-  --city-ui-surface: rgb(16 28 37 / 92%);
-  --city-ui-surface-raised: rgb(28 44 55 / 96%);
-  --city-ui-text: #f5f8fa;
-  --city-ui-muted: #b8c6ce;
-  --city-ui-accent: #63d5b4;
-  --city-ui-danger: #ffb3a7;
+  --city-ui-surface: rgba(255 255 255 / 0.88);
+  --city-ui-surface-raised: #ffffff;
+  --city-ui-blur: 14px;
+  --city-ui-text: #1a2236;
+  --city-ui-muted: #4a5878;
+  --city-ui-accent: #2563eb;
+  --city-ui-danger: #dc2626;
+  --city-ui-zone-residential: #16a34a;
+  --city-ui-zone-commercial: #2563eb;
+  --city-ui-zone-industrial: #d97706;
   --city-ui-gap: 0.5rem;
   --city-ui-radius: 0.75rem;
   --city-ui-target: 44px;

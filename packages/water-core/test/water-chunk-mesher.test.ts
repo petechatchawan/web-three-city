@@ -66,8 +66,8 @@ describe('buildWaterChunkMesh', () => {
     const { fixture, water } = waterFor('water-straight-coast');
     const shallow = buildWaterChunkMesh(fixture.terrain, water, { x: 3, z: 6 }, WORLD_CONFIG);
     const deep = buildWaterChunkMesh(fixture.terrain, water, { x: 3, z: 7 }, WORLD_CONFIG);
-    expect([...shallow.surfaceColors].some((value) => Math.abs(value - 0.36) < 1e-6)).toBe(true);
-    expect([...deep.surfaceColors].some((value) => Math.abs(value - 0.06) < 1e-6)).toBe(true);
+    expect([...shallow.surfaceColors].some((value) => Math.abs(value - 0.5) < 1e-6)).toBe(true);
+    expect([...deep.surfaceColors].some((value) => Math.abs(value - 0.13) < 1e-6)).toBe(true);
   });
 
   it('rejects stale Water', () => {

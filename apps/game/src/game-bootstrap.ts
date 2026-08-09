@@ -450,13 +450,14 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     canvas: ui.canvas,
     context: capability.context,
     antialias: true,
+    alpha: true,
   });
   renderer.autoClear = false;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.setClearColor(0xcfe4ef, 1);
+  renderer.setClearColor(0, 0);
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0xcfe4ef);
+  scene.background = null;
   scene.add(new THREE.HemisphereLight(0xffffff, 0x4f5b45, 1.7));
   const sun = new THREE.DirectionalLight(0xffffff, 2.2);
   sun.position.set(-60, 100, -30);

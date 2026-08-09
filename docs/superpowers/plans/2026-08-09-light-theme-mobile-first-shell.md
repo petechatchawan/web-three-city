@@ -41,13 +41,13 @@
 - Produces: `THREE.WebGLRenderer({ ..., alpha: true })` (`game-bootstrap.ts:449-452`); `renderer.setClearColor(0, 0)`; `scene.background = null`; CSS sky gradient on body/`.app-shell` (light-blue → near-white → subtle-green + radial sun glow + horizon haze).
 
 **Tests (RED→GREEN):**
-- [ ] **Step 1: Color-token regression (fails on old dark values).** In a new `apps/game/src/ui/token-light-theme.test.ts`: make a hidden div, read `getComputedStyle`, assert `--city-ui-text` resolves to the light navy `#1a2236` (not `#f5f8fa`) and accent is `#2563eb`.
-- [ ] **Step 2: Renderer option regression.** In the bootstrap test, assert the created renderer was constructed with `alpha: true` (spy on `WebGLRenderer` constructor options); and `scene.background` is `null` after init.
-- [ ] **Step 3: Replace the design-token table values in `tokens.css`** (keep names), frosted-glass `background-filter: blur(...)` for `surface`, `surface-raised`.
-- [ ] **Step 4: `style.css`/`city-ui.css` legacy surface color → light sky; every hard-coded `rgb(16 28 37…)` / `#f5f8fa` wall touched in customer-visible `.panel`, `.tool-context`, `.undo-button` updated or removed where the new shell supersedes it. `.city-tool-context` stays `display:none` (activated in M3).
-- [ ] **Step 5: Sky gradient (body + `.app-shell`) per design §5** — vertical blue→white→green, radial sun glow upper-right, horizon haze; render tunnel.
-- [ ] **Step 6: Terrain/water/building/zone material constants** per design §6 table; verify no geometry/opacity change; update owning-unit snapshot expectations for any color assertions.
-- [ ] **Step 7: Owner/consumer tests.** `pnpm --filter @web-three-city/terrain-core test`, `water-core`, `building-three`, `zone-three`; then `pnpm --filter @web-three-city/game test`; `pnpm --filter @web-three-city/game typecheck`.
+- [x] **Step 1: Color-token regression (fails on old dark values).** In a new `apps/game/src/ui/token-light-theme.test.ts`: make a hidden div, read `getComputedStyle`, assert `--city-ui-text` resolves to the light navy `#1a2236` (not `#f5f8fa`) and accent is `#2563eb`.
+- [x] **Step 2: Renderer option regression.** In the bootstrap test, assert the created renderer was constructed with `alpha: true` (spy on `WebGLRenderer` constructor options); and `scene.background` is `null` after init.
+- [x] **Step 3: Replace the design-token table values in `tokens.css`** (keep names), frosted-glass `background-filter: blur(...)` for `surface`, `surface-raised`.
+- [x] **Step 4: `style.css`/`city-ui.css` legacy surface color → light sky; every hard-coded `rgb(16 28 37…)` / `#f5f8fa` wall touched in customer-visible `.panel`, `.tool-context`, `.undo-button` updated or removed where the new shell supersedes it. `.city-tool-context` stays `display:none` (activated in M3).
+- [x] **Step 5: Sky gradient (body + `.app-shell`) per design §5** — vertical blue→white→green, radial sun glow upper-right, horizon haze; render tunnel.
+- [x] **Step 6: Terrain/water/building/zone material constants** per design §6 table; verify no geometry/opacity change; update owning-unit snapshot expectations for any color assertions.
+- [x] **Step 7: Owner/consumer tests.** `pnpm --filter @web-three-city/terrain-core test`, `water-core`, `building-three`, `zone-three`; then `pnpm --filter @web-three-city/game test`; `pnpm --filter @web-three-city/game typecheck`.
 - [ ] **Step 8: ** Commit `theme: light palette, sky, transparent renderer(bright daytime assets)` — atomic.
 
 ### Task M2 — Bottom nav + subtool tray (uniform mobile shell primitive)

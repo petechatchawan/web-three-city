@@ -61,6 +61,7 @@
   padding: 0.55rem 0.7rem;
   border-radius: var(--city-ui-radius);
   background: var(--city-ui-surface);
+  backdrop-filter: blur(var(--city-ui-blur));
 }
 
 /* The committed tool projection remains the sole contextual presenter during legacy cleanup. */
@@ -80,6 +81,7 @@
   padding: 0.45rem 0.6rem;
   border-radius: var(--city-ui-radius);
   background: var(--city-ui-surface);
+  backdrop-filter: blur(var(--city-ui-blur));
   white-space: nowrap;
 }
 .city-top-actions {
@@ -99,10 +101,11 @@
 .city-ui button {
   min-width: var(--city-ui-target);
   min-height: var(--city-ui-target);
-  border: 1px solid rgb(255 255 255 / 24%);
+  border: 1px solid rgb(26 34 54 / 14%);
   border-radius: 0.65rem;
   color: inherit;
   background: var(--city-ui-surface);
+  backdrop-filter: blur(10px);
 }
 .city-dialog-backdrop {
   position: absolute;
@@ -111,7 +114,8 @@
   place-items: center;
   padding: max(0.75rem, var(--city-ui-safe-top)) max(0.75rem, var(--city-ui-safe-right))
     max(0.75rem, var(--city-ui-safe-bottom)) max(0.75rem, var(--city-ui-safe-left));
-  background: rgb(4 12 18 / 48%);
+  background: rgb(15 23 42 / 35%);
+  backdrop-filter: blur(6px);
 }
 .city-dialog-backdrop[hidden] {
   display: none;
@@ -122,7 +126,8 @@
   overflow: auto;
   border-radius: 1rem;
   background: var(--city-ui-surface-raised);
-  box-shadow: 0 1.5rem 4rem rgb(0 0 0 / 35%);
+  backdrop-filter: blur(var(--city-ui-blur));
+  box-shadow: 0 1.5rem 4rem rgb(26 34 54 / 20%);
 }
 .city-dialog > header {
   display: grid;

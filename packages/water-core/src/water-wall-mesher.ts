@@ -8,8 +8,8 @@ import { triangleIndexFor, type WaterSnapshot } from './water-snapshot.js';
 
 const WATER_SURFACE_OFFSET = 0.01;
 const WATER_WALL_OUTWARD_OFFSET = 0.01;
-const TOP_COLOR = [0.12, 0.45, 0.65] as const;
-const BASE_COLOR = [0.02, 0.12, 0.25] as const;
+const TOP_COLOR = [0.4, 0.72, 0.9] as const;
+const BASE_COLOR = [0.18, 0.42, 0.62] as const;
 
 interface Interval {
   readonly start: number;

@@ -8,7 +8,7 @@ import { selectTerrainDiagonal } from './topology.js';
 
 function colorForLevel(level: number, maximum: number): readonly [number, number, number] {
   const normalized = maximum === 0 ? 0 : level / maximum;
-  return [0.22 + normalized * 0.18, 0.42 + normalized * 0.28, 0.18 + normalized * 0.12];
+  return [0.3 + normalized * 0.2, 0.62 + normalized * 0.26, 0.24 + normalized * 0.12];
 }
 
 export function buildTerrainChunkMesh(

@@ -25,17 +25,17 @@ function overlayMaterial(color: number, opacity: number): THREE.MeshBasicMateria
 
 export function createZoneMaterials(): ZoneMaterials {
   const committed: ZoneMaterials['committed'] = Object.freeze([
-    overlayMaterial(0x55c878, 0.48),
-    overlayMaterial(0x4d8fe8, 0.48),
-    overlayMaterial(0xe4c34f, 0.48),
+    overlayMaterial(0x16a34a, 0.48),
+    overlayMaterial(0x2563eb, 0.48),
+    overlayMaterial(0xd97706, 0.48),
   ]);
   return Object.freeze({
     committed,
-    paintValidPreview: overlayMaterial(0x64e58d, 0.7),
-    paintInvalidPreview: overlayMaterial(0xef5b5b, 0.65),
-    removeValidPreview: overlayMaterial(0xe98655, 0.65),
-    removeInvalidPreview: overlayMaterial(0xb94b4b, 0.65),
-    invalidMarker: new THREE.LineBasicMaterial({ color: 0xff3232, depthTest: false }),
+    paintValidPreview: overlayMaterial(0x22c55e, 0.7),
+    paintInvalidPreview: overlayMaterial(0xf87171, 0.65),
+    removeValidPreview: overlayMaterial(0xfb923c, 0.65),
+    removeInvalidPreview: overlayMaterial(0xef4444, 0.65),
+    invalidMarker: new THREE.LineBasicMaterial({ color: 0xef4444, depthTest: false }),
   });
 }
 

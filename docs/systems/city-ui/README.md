@@ -56,7 +56,22 @@ City UI owns no authoritative persisted game state. Ephemeral dialog/navigation 
 
 - [City UI Foundation v0.1 specification](specs/2026-08-09-city-ui-foundation-v0-1.md)
 - [ADR: mobile-first dialog-based presentation](adrs/2026-08-09-mobile-first-dialog-based-presentation.md)
+- [ADR: light theme + mobile-first uniform shell](adrs/2026-08-09-light-theme-mobile-first-uniform-shell.md)
 - [TDD implementation plan](tdd/2026-08-09-city-ui-foundation-v0-1.md)
+
+## Theme and sky
+
+- Single light theme only; no dark theme and no toggle. Token source of truth is
+  `apps/game/src/ui/foundation/tokens.css` (`--city-ui-*`): surface translucent
+  white, raised `#ffffff`, text `#1a2236`, muted `#4a5878`, accent `#2563eb`,
+  danger `#dc2626`, zone tokens `#16a34a`/`#2563eb`/`#d97706`.
+- The WebGL renderer clears transparent (`alpha: true`, `setClearColor(0, 0)`,
+  `scene.background = null`); `body`/`.app-shell` paint the CSS sky (blue →
+  near-white → subtle green + radial sun glow + horizon haze).
+- World assets use bright daytime constants (terrain, water, building,
+  zone overlays); geometry and opacity are unchanged.
+- Legacy `.panel`, `.tool-context`, `.undo-button` use the light treatment while
+  awaiting shell-driven replacement.
 
 ## Implemented behavior
 

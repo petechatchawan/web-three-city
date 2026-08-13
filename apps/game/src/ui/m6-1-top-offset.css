@@ -1,4 +1,10 @@
-.city-ui .city-top-actions,
-.city-ui > .city-simulation-controls--top-actions {
+.city-ui .city-top-actions {
   top: calc(var(--city-ui-safe-top) + 3.55rem);
+}
+
+.city-ui .city-top-actions .city-simulation-controls--top-actions {
+  position: static;
+  display: flex;
+  gap: 0.25rem;
+  transform: none;
 }

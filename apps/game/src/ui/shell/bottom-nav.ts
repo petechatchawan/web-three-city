@@ -1,4 +1,4 @@
-import { createButton } from '../components/button.js';
+import { createCityIcon } from '../components/icon.js';
 
 export type NavCategory = 'navigate' | 'terrain' | 'roads' | 'zones' | 'buildings';
 
@@ -9,6 +9,14 @@ export const navCategories: readonly NavCategory[] = [
   'zones',
   'buildings',
 ];
+
+const navLabels: Readonly<Record<NavCategory, string>> = {
+  navigate: 'Navigate',
+  terrain: 'Terrain',
+  roads: 'Roads',
+  zones: 'Zones',
+  buildings: 'Buildings',
+};
 
 export interface BottomNav {
   readonly element: HTMLElement;
@@ -25,23 +33,39 @@ export function mountBottomNav(
   element.setAttribute('aria-label', 'City build categories');
   let activeCategory: NavCategory = 'navigate';
   const buttons = new Map<NavCategory, HTMLButtonElement>();
+
   const renderPressed = (): void => {
-    for (const [category, button] of buttons)
-      button.setAttribute('aria-pressed', String(category === activeCategory));
+    for (const [category, button] of buttons) {
+      const selected = category === activeCategory;
+      button.setAttribute('aria-pressed', String(selected));
+      button.classList.toggle('is-active', selected);
+    }
   };
+
   for (const category of navCategories) {
-    const button = createButton(category[0]!.toUpperCase() + category.slice(1), () => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'city-nav-item';
+    button.dataset.navCategory = category;
+    button.dataset.testid = `nav-${category}`;
+    button.setAttribute('aria-label', navLabels[category]);
+    button.append(createCityIcon(category));
+    const label = document.createElement('span');
+    label.className = 'city-nav-label';
+    label.textContent = navLabels[category];
+    button.append(label);
+    button.addEventListener('click', () => {
       activeCategory = category;
       onSelect(category);
       renderPressed();
     });
-    button.dataset.navCategory = category;
-    button.dataset.testid = `nav-${category}`;
     buttons.set(category, button);
     element.append(button);
   }
+
   parent.append(element);
   renderPressed();
+
   return Object.freeze({
     element,
     setActiveCategory(category: NavCategory): void {

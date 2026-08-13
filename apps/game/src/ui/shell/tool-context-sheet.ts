@@ -1,4 +1,5 @@
 import type { GameToolMode } from '../../game-tool-mode.js';
+import { createCityIcon } from '../components/icon.js';
 import type { UiAdapter } from '../foundation/lifecycle.js';
 
 export interface ContextualToolProjection {
@@ -20,6 +21,14 @@ export interface ToolContextSheetAdapter extends UiAdapter<ContextualToolProject
   setStatus(value: string): void;
 }
 
+function iconName(mode: GameToolMode) {
+  if (mode === 'navigate') return 'navigate' as const;
+  if (mode === 'raise' || mode === 'lower' || mode === 'flatten') return 'terrain' as const;
+  if (mode === 'road-build' || mode === 'road-bulldoze') return 'roads' as const;
+  if (mode === 'building-bulldoze') return 'buildings' as const;
+  return 'zones' as const;
+}
+
 export function mountToolContextSheet(
   parent: HTMLElement,
   callbacks: ToolContextSheetCallbacks = {},
@@ -31,42 +40,39 @@ export function mountToolContextSheet(
 
   const header = document.createElement('div');
   header.className = 'city-tool-context-header';
+  const icon = document.createElement('span');
+  icon.className = 'city-tool-context-icon';
   const name = document.createElement('span');
   name.dataset.testid = 'tool-context-name';
   const state = document.createElement('span');
   state.dataset.testid = 'tool-context-state';
   const toggle = document.createElement('button');
   toggle.type = 'button';
+  toggle.className = 'city-icon-button city-tool-context-toggle';
   toggle.dataset.testid = 'tool-context-toggle';
   toggle.setAttribute('aria-label', 'Toggle tool context');
   toggle.setAttribute('aria-expanded', 'true');
-  header.append(name, state, toggle);
+  toggle.append(createCityIcon('chevron-down'));
+  header.append(icon, name, state, toggle);
 
   const content = document.createElement('div');
   content.className = 'city-tool-context-content';
   content.dataset.testid = 'tool-context-content';
-
-  // Transient bootstrap status feed (e.g. save/load results, mutation outcomes).
-  // It is a separate line under the tool message; the latest status always shows.
   const status = document.createElement('p');
   status.className = 'city-tool-context-status';
   status.dataset.testid = 'tool-context-status';
   let statusValue: string | null = null;
   let undoAvailableState = false;
-
   element.append(header, content);
 
   toggle.addEventListener('click', () => {
     const collapsed = !content.hasAttribute('hidden');
-    if (collapsed) {
-      content.setAttribute('hidden', '');
-    } else {
-      content.removeAttribute('hidden');
-    }
+    content.toggleAttribute('hidden', collapsed);
     toggle.setAttribute('aria-expanded', String(!collapsed));
+    toggle.replaceChildren(createCityIcon(collapsed ? 'chevron-up' : 'chevron-down'));
   });
 
-  const undoPill = (available: boolean): HTMLSpanElement => {
+  const undoPill = (available: booleal): HTMLSpanElement => {
     const pill = document.createElement('span');
     pill.className = 'city-tool-context-pill';
     pill.textContent = available ? 'Undo available' : 'Undo unavailable';
@@ -76,9 +82,10 @@ export function mountToolContextSheet(
   const undoButton = (available: boolean): HTMLButtonElement => {
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = 'city-tool-context-undo';
+    button.className = 'city-icon-button city-tool-context-undo';
     button.dataset.testid = 'tool-context-undo';
-    button.textContent = 'Undo';
+    button.setAttribute('aria-label', 'Undo latest world change');
+    button.append(createCityIcon('undo'));
     button.disabled = !available;
     button.addEventListener('click', () => callbacks.onUndo?.());
     return button;
@@ -96,6 +103,7 @@ export function mountToolContextSheet(
     update(projection: ContextualToolProjection): void {
       name.textContent = projection.name;
       state.textContent = projection.state;
+      icon.replaceChildren(createCityIcon(iconName(projection.mode)));
       const message = document.createElement('p');
       message.className = 'city-tool-context-message';
       message.dataset.testid = 'tool-context-message';
@@ -111,9 +119,7 @@ export function mountToolContextSheet(
         chip.dataset.testid = 'tool-context-effective';
         chips.push(chip);
       }
-      if (projection.affordability !== undefined) {
-        chips.push(metricChip(projection.affordability));
-      }
+      if (projection.affordability !== undefined) chips.push(metricChip(projection.affordability));
       content.replaceChildren(
         message,
         ...chips,
@@ -127,18 +133,12 @@ export function mountToolContextSheet(
       const button = content.querySelector<HTMLButtonElement>('[data-testid="tool-context-undo"]');
       const pill = content.querySelector<HTMLElement>('.city-tool-context-pill');
       if (button !== null) button.disabled = !available;
-      if (pill !== null) {
-        pill.textContent = available ? 'Undo available' : 'Undo unavailable';
-      }
+      if (pill !== null) pill.textContent = available ? 'Undo available' : 'Undo unavailable';
     },
     setStatus(value: string): void {
       statusValue = value;
       status.textContent = value;
       content.append(status);
-      // A completed mutation status (e.g. "Road built") supersedes the transient
-      // "Applying change"/"Undoing" state the tool feed announced before the commit.
-      // Mirrors the legacy game-status MutationObserver that reset the tool state
-      // to "Ready" after every non-recovery status change.
       if (state.textContent === 'Applying change' || state.textContent === 'Undoing') {
         state.textContent = 'Ready';
       }

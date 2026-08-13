@@ -46,6 +46,19 @@ describe('tool context sheet', () => {
     expect(element.textContent).toContain('Undo available');
   });
 
+  it('renders compact tool chrome with a mode icon, visible collapse affordance, and icon Undo', () => {
+    const sheet = mountToolContextSheet(document.body, { onUndo: vi.fn() });
+    sheet.update(projection());
+    expect(sheet.element.querySelector('[data-city-icon="roads"]')).not.toBeNull();
+    const toggle = sheet.element.querySelector<HTMLButtonElement>('[data-testid="tool-context-toggle"]')!;
+    expect(toggle.classList.contains('city-icon-button')).toBe(true);
+    expect(toggle.querySelector('[data-city-icon]')).not.toBeNull();
+    const undo = undoButton();
+    expect(undo.classList.contains('city-icon-button')).toBe(true);
+    expect(undo.getAttribute('aria-label')).toBe('Undo latest world change');
+    expect(undo.querySelector('[data-city-icon="undo"]')).not.toBeNull();
+  });
+
   it('collapses and expands the body via the toggle', () => {
     const sheet = mountToolContextSheet(document.body);
     sheet.update(projection());

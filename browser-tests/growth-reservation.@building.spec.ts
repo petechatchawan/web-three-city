@@ -14,7 +14,7 @@ test('active Zone removal commits after background Growth skips its reserved cel
 }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(GAME_URL);
-  await expect(page.getByTestId('game-status')).toHaveText('Ready');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
   await prepareDeterministicGrowthClock(page);
   const points = await prepareBuildingFixtureWorld(page);
 
@@ -57,13 +57,13 @@ test('active Zone removal commits after background Growth skips its reserved cel
     api.setSpeed('paused');
   });
 
-  await expect(page.getByTestId('active-tool')).toHaveText('Remove Zone');
-  await expect(removeButton).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('tool-context-name')).toHaveText('Remove Zone');
   await page.mouse.up();
-  await expect(page.getByTestId('game-status')).toHaveText('Zone removed');
-  await expect(page.getByTestId('game-status')).not.toHaveText('Building rejected');
-  await expect(page.getByTestId('game-status')).not.toHaveText('Zone blocked by building');
-  await expect(page.getByTestId('zone-residential-count')).toHaveText('2');
-  await expect(page.getByTestId('active-tool')).toHaveText('Remove Zone');
-  await expect(removeButton).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Zone removed');
+  await expect(page.getByTestId('tool-context-status')).not.toHaveText('Building rejected');
+  await expect(page.getByTestId('tool-context-status')).not.toHaveText('Zone blocked by building');
+  await page.getByRole('button', { name: 'City', exact: true }).click();
+  await page.getByRole('button', { name: 'Zoning', exact: true }).click();
+  await expect(page.getByRole('dialog')).toContainText('Residential zones2');
+  await expect(page.getByTestId('tool-context-name')).toHaveText('Remove Zone');
 });

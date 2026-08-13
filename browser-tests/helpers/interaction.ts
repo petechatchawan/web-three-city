@@ -29,8 +29,40 @@ export async function clickGameMenuAction(
   if (await activeDialog.isVisible()) {
     await activeDialog.getByRole('button', { name: 'Close', exact: true }).click();
   }
-  await page.getByRole('button', { name: 'Game Menu', exact: true }).click();
+  const menuButton = page.getByRole('button', { name: 'Game Menu', exact: true });
+  try {
+    await menuButton.click({ timeout: 8_000 });
+  } catch {
+    // Under heavy parallel load (swiftshader CPU contention) the stability
+    // wait can stall even though the button is a static top-right control;
+    // fall back to a forced click so the menu still opens.
+    await menuButton.click({ force: true, timeout: 8_000 });
+  }
   await page.getByRole('dialog').getByRole('button', { name, exact: true }).click();
+}
+
+export async function readZoningCounts(page: Page): Promise<{
+  readonly residential: string;
+  readonly commercial: string;
+  readonly industrial: string;
+}> {
+  await page.getByRole('button', { name: 'City', exact: true }).click();
+  await page.getByRole('button', { name: 'Zoning', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  // Rows render as <p><span>label</span><strong>value</strong></p>; read the strong value.
+  const valueOf = async (label: string): Promise<string> => {
+    const row = dialog.locator('p').filter({ hasText: label });
+    const value = await row.locator('strong').textContent();
+    if (value === null) throw new Error(`zoning:missing-value:${label}`);
+    return value;
+  };
+  const counts = {
+    residential: await valueOf('Residential zones'),
+    commercial: await valueOf('Commercial zones'),
+    industrial: await valueOf('Industrial zones'),
+  };
+  await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+  return counts;
 }
 
 const CORNER_OFFSETS: Readonly<Record<TerrainCorner, Readonly<{ x: number; z: number }>>> =

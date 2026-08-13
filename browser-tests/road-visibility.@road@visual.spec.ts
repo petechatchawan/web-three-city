@@ -86,7 +86,7 @@ async function captureCellRegion(page: Page, point: TerrainCellScreenPoint): Pro
 async function openGame(page: Page): Promise<void> {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(GAME_URL);
-  await expect(page.getByTestId('game-status')).toHaveText('Ready');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
 }
 
 test('Road Preview and committed Road change visible pixels at the target cell', async ({
@@ -95,6 +95,7 @@ test('Road Preview and committed Road change visible pixels at the target cell',
   await openGame(page);
   const cell = findVisibleRoadCell();
   const point = await clickTerrainCell(page, cell);
+  await page.getByTestId('nav-roads').click();
   await page.getByRole('button', { name: 'Build Road' }).click();
   await page.mouse.move(point.x, point.y);
   await settleRendering(page);
@@ -106,7 +107,7 @@ test('Road Preview and committed Road change visible pixels at the target cell',
   expect(Buffer.compare(preview, before)).not.toBe(0);
 
   await page.mouse.up();
-  await expect(page.getByTestId('game-status')).toHaveText('Road built');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Road built');
   await settleRendering(page);
   const committed = await captureCellRegion(page, point);
   expect(Buffer.compare(committed, before)).not.toBe(0);

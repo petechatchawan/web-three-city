@@ -1,5 +1,4 @@
 import './style.css';
-import './growth-time.css';
 import './ui/foundation/tokens.css';
 import './ui/city-ui.css';
 import { constructionProgressAtTick } from '@web-three-city/building-core';
@@ -12,16 +11,12 @@ import { createFoundationRciRegistries } from '@web-three-city/rci-core';
 import type { SimulationSpeed } from '@web-three-city/simulation-core';
 import type { TerraformBrushSize } from '@web-three-city/terrain-core';
 import { bootstrapGame } from './game-bootstrap.js';
+import { renderGameCanvas } from './game-ui.js';
 import { bindGameKeyboardShortcuts } from './game-keyboard-shortcuts.js';
-import { createGameTimePresentation } from './game-time-presentation.js';
-import { mountGameTimeUi } from './game-time-ui.js';
 import { createSimulationRuntime } from './simulation-runtime.js';
-import { dispatchGameToolCancel, dispatchGameTransactionState } from './game-tool-events.js';
-import { bindGameToolHud } from './game-tool-hud-binding.js';
+import { dispatchGameToolCancel } from './game-tool-events.js';
 import { bindGameToolContext } from './game-tool-context-bridge.js';
 import type { GameToolMode } from './game-tool-mode.js';
-import { expandGameSecondaryControls } from './game-secondary-controls.js';
-import { undoTransaction } from './game-transaction-presentation.js';
 import { mountCityUi } from './ui/city-ui-runtime.js';
 
 interface GameTimeTestApi {
@@ -45,44 +40,14 @@ type GameTimeWindow = Window & {
 const rootElement = document.querySelector<HTMLElement>('#app');
 if (rootElement === null) throw new Error('game:missing-root');
 const root: HTMLElement = rootElement;
-const runtime = bootstrapGame(root);
+const host = renderGameCanvas(root);
+const runtime = bootstrapGame(host);
+const rciRegistries = createFoundationRciRegistries();
 
-function requireButton(action: string): HTMLButtonElement {
-  const button = root.querySelector<HTMLButtonElement>(`[data-action="${action}"]`);
-  if (button === null) throw new Error(`game:missing-action:${action}`);
-  return button;
-}
-
-const canvasElement = root.querySelector<HTMLCanvasElement>('#game-canvas');
-if (canvasElement === null) throw new Error('game:missing-canvas');
-const canvas: HTMLCanvasElement = canvasElement;
-const toolActions: Readonly<Record<GameToolMode, string>> = Object.freeze({
-  navigate: 'tool-navigate',
-  raise: 'tool-raise',
-  lower: 'tool-lower',
-  flatten: 'tool-flatten',
-  'road-build': 'tool-road-build',
-  'road-bulldoze': 'tool-road-bulldoze',
-  'zone-residential': 'tool-zone-residential',
-  'zone-commercial': 'tool-zone-commercial',
-  'zone-industrial': 'tool-zone-industrial',
-  'zone-remove': 'tool-zone-remove',
-  'building-bulldoze': 'tool-building-bulldoze',
-});
-const brushActions = Object.freeze({ 1: 'brush-1', 3: 'brush-3', 5: 'brush-5' });
-const navigateButton = requireButton('tool-navigate');
-const closeToolButton = requireButton('tool-close');
-const undoButton = requireButton('undo');
 const bindings = new AbortController();
 const automatedBrowser = navigator.webdriver === true;
 let automaticGrowthEnabled = !automatedBrowser;
-
-function currentBrush(): TerraformBrushSize {
-  for (const size of [1, 3, 5] as const) {
-    if (requireButton(brushActions[size]).getAttribute('aria-pressed') === 'true') return size;
-  }
-  return 1;
-}
+let currentBrushSize: TerraformBrushSize = 1;
 
 function cancelPreviewOrCloseTool(): void {
   const evidence = window.__WEB_THREE_CITY_INTERACTION__;
@@ -92,29 +57,19 @@ function cancelPreviewOrCloseTool(): void {
     evidence?.zone.strokeActive === true ||
     evidence?.building.strokeActive === true
   ) {
-    dispatchGameToolCancel(canvas);
+    dispatchGameToolCancel(host.canvas);
   } else {
-    navigateButton.click();
+    // Navigate through the shell so the tool context sheet projects it.
+    const navigate = root.querySelector<HTMLButtonElement>('[data-testid="nav-navigate"]');
+    if (navigate !== null) navigate.click();
+    else runtime.selectTool('navigate');
   }
-}
-
-function dispatchUndoTransaction(): void {
-  const transaction = undoTransaction(window.__WEB_THREE_CITY_INTERACTION__);
-  if (transaction === null) return;
-  dispatchGameTransactionState(canvas, transaction.state, transaction.domain);
 }
 
 const simulationRuntime = createSimulationRuntime('normal');
 let previousFrameTimestamp: number | null = null;
 let frameRequest = 0;
 const phaseByInstance = new Map<string, string>();
-
-function refreshTimeUi(world = runtime.snapshot()): void {
-  timeUi.update(
-    simulationRuntime.getState().speed,
-    createGameTimePresentation(world.simulation, world.buildings),
-  );
-}
 
 function refreshConstructionPhaseIfNeeded(world = runtime.snapshot()): void {
   let changed = false;
@@ -145,7 +100,6 @@ function synchronizeCommittedWorld(
   }
   setBuildingPresentationAbsoluteTick(world.simulation.absoluteTick);
   refreshConstructionPhaseIfNeeded(world);
-  refreshTimeUi(world);
   cityUi.update(world);
 }
 
@@ -155,7 +109,6 @@ function advanceOneLogicalTick(): void {
 
 function setSimulationSpeed(speed: SimulationSpeed): void {
   simulationRuntime.setSpeed(speed);
-  refreshTimeUi();
 }
 
 function resetSimulationForTest(): void {
@@ -165,17 +118,15 @@ function resetSimulationForTest(): void {
   const world = runtime.resetSimulationForTest();
   setBuildingPresentationAbsoluteTick(world.simulation.absoluteTick);
   refreshConstructionPhaseIfNeeded(world);
-  refreshTimeUi(world);
 }
 
-const timeUi = mountGameTimeUi(root, setSimulationSpeed, () => {
-  simulationRuntime.step(advanceOneLogicalTick);
-  refreshTimeUi();
-});
 const cityUi = mountCityUi(root, {
   setSpeed: setSimulationSpeed,
   selectTool: (mode) => runtime.selectTool(mode),
-  setTerraformBrush: (size) => runtime.setTerraformBrush(size),
+  setTerraformBrush: (size) => {
+    currentBrushSize = size;
+    runtime.setTerraformBrush(size);
+  },
   submitTaxPolicy: (policy) => runtime.submitTaxPolicy(policy),
   setInformationView: (key) => runtime.setInformationView(key),
   saveWorld: () => runtime.saveWorld(),
@@ -188,8 +139,14 @@ const cityUi = mountCityUi(root, {
   step: () => {
     simulationRuntime.step(advanceOneLogicalTick);
   },
-  rciRegistries: createFoundationRciRegistries(),
+  undo: () => runtime.undo(),
+  rciRegistries,
 });
+
+// The bootstrap status/undo feeds land on the shell tool context sheet.
+host.onStatus((value) => cityUi.toolContextSheet.setStatus(value));
+host.onUndoAvailable((available) => cityUi.toolContextSheet.setUndoAvailable(available));
+
 const unsubscribeCommittedWorld = runtime.subscribeCommittedWorld(synchronizeCommittedWorld);
 const unsubscribeWorldSelection = runtime.subscribeWorldSelection((cell) =>
   cityUi.inspectCell(cell),
@@ -198,7 +155,6 @@ const initialWorld = runtime.snapshot();
 cityUi.update(initialWorld);
 setBuildingPresentationAbsoluteTick(initialWorld.simulation.absoluteTick);
 refreshConstructionPhaseIfNeeded(initialWorld);
-refreshTimeUi(initialWorld);
 
 const timeWindow = window as GameTimeWindow;
 timeWindow.__WEB_THREE_CITY_TIME__ = Object.freeze({
@@ -231,25 +187,29 @@ function simulationFrame(timestamp: number): void {
 }
 frameRequest = requestAnimationFrame(simulationFrame);
 
-expandGameSecondaryControls(root);
 window.dispatchEvent(new Event('resize'));
-bindGameToolHud(root, canvas, bindings.signal);
-bindGameToolContext(canvas, cityUi.toolContextSheet, bindings.signal);
-closeToolButton.addEventListener('click', () => navigateButton.click(), {
-  signal: bindings.signal,
-});
-undoButton.addEventListener('click', dispatchUndoTransaction, {
-  capture: true,
-  signal: bindings.signal,
-});
+bindGameToolContext(host.canvas, cityUi.toolContextSheet, bindings.signal);
 
+// Keyboard shortcuts drive the shell tray when it is mounted, falling back to
+// the runtime directly (the legacy dock that previously owned these is retired).
+const selectTool = (mode: GameToolMode): void => {
+  const shellTool = root.querySelector<HTMLButtonElement>(`[data-toolMode="${mode}"]`);
+  if (shellTool !== null) shellTool.click();
+  else runtime.selectTool(mode);
+};
+const selectBrush = (size: TerraformBrushSize): void => {
+  currentBrushSize = size;
+  const shellBrush = root.querySelector<HTMLButtonElement>(`[data-brush-size="${size}"]`);
+  if (shellBrush !== null) shellBrush.click();
+  else runtime.setTerraformBrush(size);
+};
 bindGameKeyboardShortcuts(
   window,
   {
-    selectTool: (mode) => requireButton(toolActions[mode]).click(),
-    getBrush: currentBrush,
-    selectBrush: (size) => requireButton(brushActions[size]).click(),
-    requestUndo: () => undoButton.click(),
+    selectTool,
+    getBrush: () => currentBrushSize,
+    selectBrush,
+    requestUndo: () => runtime.undo(),
     cancelPreviewOrCloseTool,
   },
   bindings.signal,
@@ -260,7 +220,7 @@ document.addEventListener(
   () => {
     simulationRuntime.resetAfterVisibilityChange();
     previousFrameTimestamp = null;
-    if (document.visibilityState === 'hidden') dispatchGameToolCancel(canvas);
+    if (document.visibilityState === 'hidden') dispatchGameToolCancel(host.canvas);
   },
   { signal: bindings.signal },
 );
@@ -271,7 +231,6 @@ window.addEventListener(
     cancelAnimationFrame(frameRequest);
     unsubscribeCommittedWorld();
     unsubscribeWorldSelection();
-    timeUi.dispose();
     cityUi.dispose();
     bindings.abort();
     runtime.dispose();

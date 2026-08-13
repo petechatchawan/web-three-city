@@ -52,7 +52,7 @@ test.use({ trace: 'on' });
 
 async function openGame(page: import('@playwright/test').Page): Promise<void> {
   await page.goto(GAME_URL);
-  await expect(page.getByTestId('game-status')).toHaveText('Ready', {
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready', {
     timeout: READY_TIMEOUT,
   });
 }
@@ -116,7 +116,7 @@ test('captures canonical desktop and mobile interaction evidence', async ({ page
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
-  await expect(page.getByTestId('game-status')).toHaveText('Ready', {
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready', {
     timeout: READY_TIMEOUT,
   });
   expect((await readEvidence(page)).allWorldCornersInsideUsableViewport).toBe(true);
@@ -127,7 +127,7 @@ test('captures canonical desktop and mobile interaction evidence', async ({ page
 
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.reload();
-  await expect(page.getByTestId('game-status')).toHaveText('Ready', {
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready', {
     timeout: READY_TIMEOUT,
   });
 
@@ -304,7 +304,7 @@ test('captures Water and shoreline acceptance evidence', async ({ page }) => {
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
-  await expect(page.getByTestId('game-status')).toHaveText('Ready', {
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready', {
     timeout: READY_TIMEOUT,
   });
   gameEvidence = await readEvidence(page);
@@ -317,7 +317,7 @@ test('captures Water and shoreline acceptance evidence', async ({ page }) => {
 
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.reload();
-  await expect(page.getByTestId('game-status')).toHaveText('Ready', {
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready', {
     timeout: READY_TIMEOUT,
   });
   await clickGameMenuAction(page, 'Grid');
@@ -350,7 +350,7 @@ test('captures Water and shoreline acceptance evidence', async ({ page }) => {
     element.dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
     element.dispatchEvent(new Event('webglcontextrestored'));
   });
-  await expect(page.getByTestId('game-status')).toHaveText('Ready');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
   const afterRestore = await readEvidence(page);
   const geometry = createDeterministicWaterGeometryEvidence();
   const performanceEvidence: WaterPerformanceEvidence = {

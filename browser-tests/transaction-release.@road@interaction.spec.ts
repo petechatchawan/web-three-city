@@ -56,7 +56,7 @@ function findValidRoadCell(): Readonly<{ x: number; z: number }> {
 async function openGame(page: Page): Promise<void> {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(GAME_URL);
-  await expect(page.getByTestId('game-status')).toHaveText('Ready');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
 }
 
 test('Road pointer capture released outside the map commits the latest valid plan once', async ({
@@ -64,6 +64,7 @@ test('Road pointer capture released outside the map commits the latest valid pla
 }) => {
   await openGame(page);
   const point = await clickTerrainCell(page, findValidRoadCell());
+  await page.getByTestId('nav-roads').click();
   await page.getByRole('button', { name: 'Build Road' }).click();
   const before = await readEvidence(page);
 
@@ -79,7 +80,7 @@ test('Road pointer capture released outside the map commits the latest valid pla
   expect(after.road.commitCount).toBe(before.road.commitCount + 1);
   expect(after.road.committedRoadRevision).toBe(before.road.committedRoadRevision + 1);
   expect(after.road.occupiedCellCount).toBe(before.road.occupiedCellCount + 1);
-  await expect(page.getByTestId('game-status')).toHaveText('Road built');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Road built');
   await expect(page.getByRole('button', { name: 'Build Road' })).toBeEnabled();
   await expect(page.getByTestId('tool-context-state')).not.toHaveText('Applying change');
 });

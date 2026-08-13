@@ -2,6 +2,7 @@ export interface PrimaryDialogRoute {
   readonly kind: 'system' | 'inspect';
   readonly key: string;
   readonly title: string;
+  readonly live?: boolean;
 }
 
 export interface DialogNavigation {

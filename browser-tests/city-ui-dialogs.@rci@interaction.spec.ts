@@ -5,7 +5,7 @@ test('City Economy dialog refreshes and applies tax without changing the active 
   page,
 }) => {
   await page.goto(GAME_URL);
-  await expect(page.getByTestId('game-status')).toHaveText('Ready');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
   await page.getByRole('button', { name: 'Roads', exact: true }).click();
   await page.getByRole('button', { name: 'Build Road', exact: true }).last().click();
   const beforeTick = await page.evaluate(() => {
@@ -34,5 +34,5 @@ test('City Economy dialog refreshes and applies tax without changing the active 
   await dialog.getByTestId('apply-tax-policy').click();
   await expect(dialog.getByRole('status')).toHaveText('Tax policy updated');
   await dialog.getByRole('button', { name: 'Close', exact: true }).click();
-  await expect(page.getByTestId('active-tool')).toHaveText('Build Road');
+  await expect(page.getByTestId('tool-context-name')).toHaveText('Build Road');
 });

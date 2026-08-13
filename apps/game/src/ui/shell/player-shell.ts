@@ -1,19 +1,13 @@
 import { mountDialogHost, type DialogHost } from '../dialog/dialog-host.js';
 import type { GameToolMode } from '../../game-tool-mode.js';
+import { toolLabel } from '../../game-tool-context-bridge.js';
 import type { UiAdapter } from '../foundation/lifecycle.js';
-import { mountToolContextSheet, type ContextualToolProjection } from './tool-context-sheet.js';
+import { mountToolContextSheet, type ToolContextSheetAdapter } from './tool-context-sheet.js';
 import { mountBottomNav, type BottomNav, type NavCategory } from './bottom-nav.js';
 import { mountSubToolTray, type SubToolTray, type TrayCategory } from './subtool-tray.js';
 import { mountGameHud, type GameHudCallbacks, type GameHudProjection } from './game-hud.js';
 import { mountSimulationControls, type SimulationControlCallbacks } from './simulation-controls.js';
 import { mountTopActions, type TopActionCallbacks } from './top-actions.js';
-
-function toolName(mode: GameToolMode): string {
-  return mode
-    .split('-')
-    .map((word) => word[0]!.toUpperCase() + word.slice(1))
-    .join(' ');
-}
 
 const defaultToolForCategory: Readonly<Record<TrayCategory, GameToolMode>> = {
   terrain: 'raise',
@@ -27,13 +21,14 @@ export type PlayerShellCallbacks = TopActionCallbacks &
     readonly selectTool: (mode: GameToolMode) => void;
     readonly setTerraformBrush: (size: 1 | 3 | 5) => void;
     readonly onSelectMetric: GameHudCallbacks['onSelectMetric'];
+    readonly onUndo: () => void;
   };
 
 export interface PlayerShell extends UiAdapter<GameHudProjection> {
   readonly dialogHost: DialogHost;
   readonly bottomNav: BottomNav;
   readonly subToolTray: SubToolTray;
-  readonly toolContextSheet: UiAdapter<ContextualToolProjection>;
+  readonly toolContextSheet: ToolContextSheetAdapter;
 }
 
 export function mountPlayerShell(
@@ -45,13 +40,12 @@ export function mountPlayerShell(
   parent.append(element);
   const hud = mountGameHud(element, { onSelectMetric: callbacks.onSelectMetric });
   mountTopActions(element, callbacks);
-  const toolSurface = mountToolContextSheet(element);
+  const toolSurface = mountToolContextSheet(element, { onUndo: callbacks.onUndo });
   toolSurface.update({
     mode: 'navigate',
     name: 'Navigate',
     state: 'Ready',
     message: 'Inspect or move around the city',
-    undoAvailable: false,
   });
   const bottomNav = mountBottomNav(element, (category: NavCategory) => {
     if (category === 'navigate') {
@@ -62,7 +56,6 @@ export function mountPlayerShell(
         name: 'Navigate',
         state: 'Ready',
         message: 'Inspect or move around the city',
-        undoAvailable: false,
       });
       return;
     }
@@ -70,10 +63,9 @@ export function mountPlayerShell(
     callbacks.selectTool(defaultToolForCategory[category]);
     toolSurface.update({
       mode: defaultToolForCategory[category],
-      name: toolName(defaultToolForCategory[category]),
+      name: toolLabel(defaultToolForCategory[category]),
       state: 'Ready',
       message: 'Point at the world to preview this tool',
-      undoAvailable: false,
     });
   });
   mountSimulationControls(bottomNav.element, callbacks, { compact: true });
@@ -82,10 +74,9 @@ export function mountPlayerShell(
       callbacks.selectTool(mode);
       toolSurface.update({
         mode,
-        name: toolName(mode),
+        name: toolLabel(mode),
         state: 'Ready',
         message: 'Point at the world to preview this tool',
-        undoAvailable: false,
       });
     },
     onBrush: callbacks.setTerraformBrush,

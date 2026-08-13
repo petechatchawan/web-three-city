@@ -8,8 +8,7 @@ import { openInspectDialog } from './inspect/inspect-dialog.js';
 import { pickInspectTarget } from './inspect/inspect-target.js';
 import { createInformationViewRegistry } from './information-views/information-view-registry.js';
 import { mountPlayerShell, type PlayerShell } from './shell/player-shell.js';
-import type { ContextualToolProjection } from './shell/tool-context-sheet.js';
-import type { UiAdapter } from './foundation/lifecycle.js';
+import type { ToolContextSheetAdapter } from './shell/tool-context-sheet.js';
 import { createCitySystemDialogs } from './systems/city-system-dialogs.js';
 
 export interface CityUiPorts {
@@ -26,13 +25,14 @@ export interface CityUiPorts {
   readonly resetCamera: () => void;
   readonly toggleGrid: () => void;
   readonly setQuality: (quality: 'low' | 'medium' | 'high') => void;
+  readonly undo: () => void;
   readonly rciRegistries: RciDefinitionRegistries;
 }
 
 export interface CityUiRuntime {
   readonly element: HTMLElement;
   readonly dialogHost: DialogHost;
-  readonly toolContextSheet: UiAdapter<ContextualToolProjection>;
+  readonly toolContextSheet: ToolContextSheetAdapter;
   update(world: CommittedWorld): void;
   inspectCell(cell: Readonly<{ x: number; z: number }>): void;
   dispose(): void;
@@ -70,7 +70,7 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
       button.dataset.informationView = entry.key;
       button.addEventListener('click', () => {
         informationViews.replace(entry.key);
-        shell.dialogHost.update();
+        shell.dialogHost.refresh();
       });
       body.append(button);
     }
@@ -84,7 +84,7 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
       deactivate.textContent = 'Deactivate view';
       deactivate.addEventListener('click', () => {
         informationViews.deactivate();
-        shell.dialogHost.update();
+        shell.dialogHost.refresh();
       });
       body.append(legend, deactivate);
     }
@@ -94,6 +94,7 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
     step: ports.step,
     selectTool: ports.selectTool,
     setTerraformBrush: ports.setTerraformBrush,
+    onUndo: ports.undo,
     onInformationViews: () =>
       shell.dialogHost.open(
         { kind: 'system', key: 'information-views', title: 'Information Views' },
@@ -102,7 +103,14 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
     onCity: () => systemDialogs.openCity(),
     onSelectMetric: (metric) => {
       const route = shell.dialogHost.activeRoute;
-      if (metric === 'population' || metric === 'treasury' || metric === 'net') {
+      if (
+        metric === 'population' ||
+        metric === 'treasury' ||
+        metric === 'net' ||
+        metric === 'construction' ||
+        metric === 'active' ||
+        metric === 'total'
+      ) {
         if (route?.key === 'city-overview') shell.dialogHost.close();
         else systemDialogs.openCity();
       } else if (metric === 'demand') {
@@ -168,12 +176,16 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
       latestWorld = world;
       const economy = createEconomyViewProjection(world.economy);
       const rci = createRciHudModel(world.rci, ports.rciRegistries, world.simulation.absoluteTick);
+      const time = createGameTimePresentation(world.simulation, world.buildings);
       shell.update({
         population: String(rci.population),
         treasury: economy.treasury,
         net: economy.net,
         demand: `R${demandSymbol(rci.residentialDemand)} C${demandSymbol(rci.commercialDemand)} I${demandSymbol(rci.industrialDemand)}`,
-        gameTime: createGameTimePresentation(world.simulation, world.buildings).calendarLabel,
+        gameTime: time.calendarLabel,
+        construction: String(time.constructionCount),
+        active: String(time.activeCount),
+        total: String(time.totalCount),
       });
       shell.dialogHost.update();
     },

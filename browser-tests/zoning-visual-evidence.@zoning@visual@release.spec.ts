@@ -18,6 +18,7 @@ import {
   clickTerrainCell,
   dispatchCanvasTouch,
   readEvidence,
+  readZoningCounts,
   type TerrainCellScreenPoint,
 } from './helpers/interaction.js';
 
@@ -164,7 +165,7 @@ async function paint(
 ): Promise<void> {
   await page.getByRole('button', { name: type, exact: true }).click();
   await clickCell(page, points, cell);
-  await expect(page.getByTestId('game-status')).toHaveText('Zone painted');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Zone painted');
 }
 
 async function capture(page: Page, testInfo: TestInfo, fileName: string): Promise<void> {
@@ -176,7 +177,7 @@ test('captures committed R/C/I overlays, invalid depth feedback, and responsive 
 }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(GAME_URL);
-  await expect(page.getByTestId('game-status')).toHaveText('Ready');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
 
   const cells = [
     FIXTURE.road,
@@ -187,9 +188,11 @@ test('captures committed R/C/I overlays, invalid depth feedback, and responsive 
   ];
   const points = await locate(page, cells);
 
+  await page.getByTestId('nav-roads').click();
   await page.getByRole('button', { name: 'Build Road' }).click();
   await clickCell(page, points, FIXTURE.road);
-  await expect(page.getByTestId('game-status')).toHaveText('Road built');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Road built');
+  await page.getByTestId('nav-zones').click();
 
   for (const cell of FIXTURE.residential) await paint(page, points, 'Residential', cell);
   await paint(page, points, 'Commercial', FIXTURE.commercial);
@@ -201,6 +204,7 @@ test('captures committed R/C/I overlays, invalid depth feedback, and responsive 
   expect(evidence.zone.previewRootCount).toBe(0);
   await capture(page, testInfo, 'zoning-committed-desktop.png');
 
+  await page.getByTestId('nav-zones').click();
   await page.getByRole('button', { name: 'Residential', exact: true }).click();
   const invalid = pointAt(points, FIXTURE.invalidDepthFour);
   await dispatchCanvasTouch(page, 'pointerdown', 71, invalid.x, invalid.y);
@@ -214,8 +218,10 @@ test('captures committed R/C/I overlays, invalid depth feedback, and responsive 
 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByRole('button', { name: 'Residential', exact: true })).toBeVisible();
-  await expect(page.getByTestId('zone-residential-count')).toHaveText('3');
-  await expect(page.getByTestId('zone-commercial-count')).toHaveText('1');
-  await expect(page.getByTestId('zone-industrial-count')).toHaveText('1');
+  await expect(await readZoningCounts(page)).toEqual({
+    residential: '3',
+    commercial: '1',
+    industrial: '1',
+  });
   await capture(page, testInfo, 'zoning-committed-mobile.png');
 });

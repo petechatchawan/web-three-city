@@ -39,13 +39,15 @@ test('captures cross-chunk Road continuity', async ({ page }, testInfo) => {
 test('captures desktop and mobile Game Road tool dock', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(GAME_URL);
-  await expect(page.getByTestId('game-status')).toHaveText('Ready');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
+  await page.getByTestId('nav-roads').click();
   await page.getByRole('button', { name: 'Build Road' }).click();
   await page.screenshot({ path: testInfo.outputPath('road-game-desktop.png'), fullPage: true });
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
-  await expect(page.getByTestId('game-status')).toHaveText('Ready');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
+  await page.getByTestId('nav-roads').click();
   await page.getByRole('button', { name: 'Build Road' }).click();
   await page.screenshot({ path: testInfo.outputPath('road-game-mobile.png'), fullPage: true });
 });

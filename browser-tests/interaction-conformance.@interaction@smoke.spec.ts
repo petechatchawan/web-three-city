@@ -46,7 +46,7 @@ const BASE_ENVIRONMENT: RoadPlacementEnvironment = Object.freeze({
 async function openGame(page: Page, width = 1440, height = 900): Promise<void> {
   await page.setViewportSize({ width, height });
   await page.goto(GAME_URL);
-  await expect(page.getByTestId('game-status')).toHaveText('Ready');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
 }
 
 function candidateCells(): readonly Readonly<{ x: number; z: number }>[] {
@@ -122,33 +122,38 @@ async function locatePair(
   return [await clickTerrainCell(page, first), await clickTerrainCell(page, second)];
 }
 
-test('desktop HUD is map-first and separates primary, context, and secondary controls', async ({
+test('desktop HUD is map-first and separates category, context, and world controls', async ({
   page,
 }) => {
   await openGame(page);
-  await expect(page.getByTestId('primary-world-tools')).toBeVisible();
-  await expect(page.getByTestId('tool-context')).toBeVisible();
+  await expect(page.locator('.city-bottom-nav')).toBeVisible();
+  await expect(page.getByTestId('subtool-tray')).toBeHidden();
+  await page.getByTestId('nav-terrain').click();
+  await expect(page.getByTestId('subtool-tray')).toBeVisible();
+  await expect(page.locator('.city-tool-context')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Game Menu' })).toBeVisible();
   const layout = await page.evaluate(() => {
-    const panel = document.querySelector<HTMLElement>('.game-hud');
-    if (panel === null) throw new Error('missing Game HUD');
-    const rect = panel.getBoundingClientRect();
+    const hud = document.querySelector<HTMLElement>('.city-awareness-hud');
+    if (hud === null) throw new Error('missing City HUD');
+    const rect = hud.getBoundingClientRect();
     return {
       overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
       visibleMapRatio: 1 - (rect.width * rect.height) / (innerWidth * innerHeight),
     };
   });
   expect(layout.overflow).toBe(false);
-  expect(layout.visibleMapRatio).toBeGreaterThan(0.55);
+  expect(layout.visibleMapRatio).toBeGreaterThan(0.8);
 });
 
 test('accepted Terraform preview survives a later Road-occupied stamp', async ({ page }) => {
   await openGame(page);
   const line = findAcceptedThenRoadBlockedLine();
   const [start, road] = await locatePair(page, line.start, line.road);
+  await page.getByTestId('nav-roads').click();
   await page.getByRole('button', { name: 'Build Road' }).click();
   await page.mouse.click(road.x, road.y);
-  await expect(page.getByTestId('game-status')).toHaveText('Road built');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Road built');
+  await page.getByTestId('nav-terrain').click();
   await page.getByRole('button', { name: 'Raise' }).click();
 
   await page.mouse.move(start.x, start.y);
@@ -167,7 +172,7 @@ test('accepted Terraform preview survives a later Road-occupied stamp', async ({
   );
 
   await page.mouse.up();
-  await expect(page.getByTestId('game-status')).toHaveText('Terraform applied');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Terraform applied');
   expect((await readEvidence(page)).terraform.previewRootCount).toBe(0);
 });
 
@@ -175,9 +180,11 @@ test('a Road-blocked-only release changes neither Terrain nor Undo ownership', a
   await openGame(page);
   const line = findAcceptedThenRoadBlockedLine();
   const roadPoint = await clickTerrainCell(page, line.road);
+  await page.getByTestId('nav-roads').click();
   await page.getByRole('button', { name: 'Build Road' }).click();
   await page.mouse.click(roadPoint.x, roadPoint.y);
   const before = await readEvidence(page);
+  await page.getByTestId('nav-terrain').click();
   await page.getByRole('button', { name: 'Raise' }).click();
 
   await page.mouse.click(roadPoint.x, roadPoint.y);
@@ -193,6 +200,7 @@ test('a Road-blocked-only release changes neither Terrain nor Undo ownership', a
 test('invalid Road preview exposes a non-color marker and reason', async ({ page }) => {
   await openGame(page);
   const point = await clickTerrainCell(page, findWetRoadCell());
+  await page.getByTestId('nav-roads').click();
   await page.getByRole('button', { name: 'Build Road' }).click();
   await page.mouse.move(point.x, point.y);
   await page.mouse.down();
@@ -212,6 +220,7 @@ test('Escape cancels a preview before closing the active tool', async ({ page })
   await openGame(page);
   const line = findAcceptedThenRoadBlockedLine();
   const point = await clickTerrainCell(page, line.start);
+  await page.getByTestId('nav-terrain').click();
   await page.getByRole('button', { name: 'Raise' }).click();
   const before = await readEvidence(page);
   await page.mouse.move(point.x, point.y);
@@ -224,26 +233,28 @@ test('Escape cancels a preview before closing the active tool', async ({ page })
   expect(afterCancel.terraform.committedTerrainRevision).toBe(
     before.terraform.committedTerrainRevision,
   );
-  await expect(page.getByTestId('active-tool')).toHaveText('Raise');
+  await expect(page.getByTestId('tool-context-name')).toHaveText('Raise');
 
   await page.keyboard.press('Escape');
-  await expect(page.getByTestId('active-tool')).toHaveText('Navigate');
+  await expect(page.getByTestId('tool-context-name')).toHaveText('Navigate');
 });
 
-test('responsive compatibility keeps primary tools reachable without horizontal overflow', async ({
+test('responsive compatibility keeps tools reachable without horizontal overflow', async ({
   page,
 }) => {
   await openGame(page, 390, 844);
-  await expect(page.getByTestId('controls-mode')).toHaveText('compact');
-  await expect(page.getByTestId('primary-world-tools')).toBeVisible();
-  await expect(page.getByTestId('tool-context')).toBeVisible();
+  await expect(page.locator('.city-bottom-nav')).toBeVisible();
+  await expect(page.getByTestId('nav-terrain')).toBeVisible();
+  await expect(page.locator('.city-tool-context')).toBeVisible();
   const layout = await page.evaluate(() => ({
     horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
-    panelHeight:
-      document.querySelector<HTMLElement>('.game-hud')?.getBoundingClientRect().height ?? 0,
+    hudHeight:
+      document.querySelector<HTMLElement>('.city-awareness-hud')?.getBoundingClientRect().height ??
+      0,
   }));
   expect(layout.horizontalOverflow).toBe(false);
-  expect(layout.panelHeight).toBeLessThan(844 * 0.6);
+  expect(layout.hudHeight).toBeLessThan(844 * 0.3);
+  await page.getByTestId('nav-terrain').click();
   await page.getByRole('button', { name: 'Raise' }).click();
   await expect(page.getByRole('button', { name: 'Brush 1 × 1' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Brush 5 × 5' })).toBeVisible();

@@ -51,6 +51,43 @@ describe('DialogHost', () => {
     expect(host.activeRoute).toBeNull();
   });
 
+  it('re-renders only live routes on update, keeping static dialogs stable', () => {
+    const host = mountDialogHost(document.body);
+    let liveRenderCount = 0;
+    let staticRenderCount = 0;
+    host.open({ kind: 'system', key: 'city', title: 'City', live: true }, () => {
+      liveRenderCount += 1;
+    });
+    const body = host.element.querySelector<HTMLElement>('.city-sheet-body')!;
+    const marker = document.createElement('span');
+    marker.id = 'live-marker';
+    body.append(marker);
+    host.update();
+    expect(liveRenderCount).toBe(2);
+    expect(body.querySelector('#live-marker')).toBeNull();
+    host.close();
+    host.open({ kind: 'system', key: 'game-menu', title: 'Game Menu' }, () => {
+      staticRenderCount += 1;
+    });
+    const staticBody = host.element.querySelector<HTMLElement>('.city-sheet-body')!;
+    const staticMarker = document.createElement('span');
+    staticMarker.id = 'static-marker';
+    staticBody.append(staticMarker);
+    host.update();
+    expect(staticRenderCount).toBe(1);
+    expect(staticBody.querySelector('#static-marker')).not.toBeNull();
+  });
+
+  it('refresh re-renders a static route and re-reads its current title', () => {
+    const host = mountDialogHost(document.body);
+    let renderCount = 0;
+    host.open({ kind: 'system', key: 'info-views', title: 'Information Views' }, () => {
+      renderCount += 1;
+    });
+    host.refresh();
+    expect(renderCount).toBe(2);
+  });
+
   it('closes on Escape, restores focus, and dispose removes owned DOM', () => {
     const trigger = document.createElement('button');
     document.body.append(trigger);

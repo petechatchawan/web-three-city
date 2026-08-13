@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { GameToolMode } from '../../game-tool-mode.js';
+import { toolLabel } from '../../game-tool-context-bridge.js';
 import { mountPlayerShell, type PlayerShellCallbacks } from './player-shell.js';
 import type { NavCategory } from './bottom-nav.js';
 import type { TrayCategory } from './subtool-tray.js';
@@ -30,6 +31,7 @@ function mountSpyShell(callbacks: Partial<PlayerShellCallbacks> = {}) {
     selectTool: vi.fn(),
     setTerraformBrush: vi.fn(),
     onSelectMetric: vi.fn(),
+    onUndo: vi.fn(),
     ...callbacks,
   });
 }
@@ -57,10 +59,7 @@ describe('player shell wiring', () => {
       const onSelect = vi.fn();
       const shell = mountSpyShell({ selectTool: onSelect });
       const mode = defaultToolForCategory[category];
-      const expectedName = mode
-        .split('-')
-        .map((w) => w[0]!.toUpperCase() + w.slice(1))
-        .join(' ');
+      const expectedName = toolLabel(mode);
       navButton(shell, categoryButtons[category])!.click();
       expect(shell.subToolTray.element.hasAttribute('hidden')).toBe(false);
       const trayModes = Array.from(
@@ -110,7 +109,7 @@ describe('player shell wiring', () => {
     commercial.click();
     expect(onSelect).toHaveBeenLastCalledWith('zone-commercial');
     const text = contextText(shell);
-    expect(text).toContain('Zone Commercial');
+    expect(text).toContain('Commercial Zone');
     expect(text).toContain('Ready');
     expect(text).toContain('Point at the world to preview this tool');
   });

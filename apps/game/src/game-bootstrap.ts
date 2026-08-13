@@ -12,11 +12,7 @@ import {
   createInitialEconomySnapshot,
   FOUNDATION_ECONOMY_RULES,
 } from '@web-three-city/economy-core';
-import {
-  createFoundationRciRegistries,
-  createInitialRciSnapshot,
-  type RciSnapshot,
-} from '@web-three-city/rci-core';
+import { createFoundationRciRegistries, createInitialRciSnapshot } from '@web-three-city/rci-core';
 import {
   createInitialSimulationSnapshot,
   createSimulationSnapshot,
@@ -100,6 +96,7 @@ import { createBuildingWorldOccupancy } from './building-world-occupancy.js';
 import { createGameInput, type GameRenderViewport } from './game-input.js';
 import { dispatchGameTransactionState } from './game-tool-events.js';
 import type { GameToolMode } from './game-tool-mode.js';
+import type { GameTerraformInvalidReason } from './terraform-occupancy-guard.js';
 import {
   publishInteractionEvidence,
   type WaterInteractionEvidence,
@@ -113,14 +110,8 @@ import { guardTerraformPlanWithOccupancy } from './terraform-occupancy-guard.js'
 import { guardZonePlanWithBuildings, type GameZoneInvalidReason } from './zone-building-guard.js';
 import { executeGameWorldTick } from './game-world-tick.js';
 import { GameWorldStateStore } from './game-world-state.js';
-import { mountRciHud } from './rci-hud.js';
-import {
-  mountEconomyBudgetHud,
-  type EconomyBudgetHudAdapter,
-  type EconomyPolicyUiResult,
-  type EconomyTaxPolicy,
-} from './economy-budget-hud.js';
-import { renderGameUi, type GameViewportLayout, type QualityLevel } from './game-ui.js';
+import { type EconomyPolicyUiResult, type EconomyTaxPolicy } from './economy-budget-hud.js';
+import type { GameBootstrapHost, GameViewportLayout, QualityLevel } from './game-ui.js';
 
 const CURATED_SEED = 1464156977;
 const WORLD_BOUNDS = Object.freeze({
@@ -162,6 +153,7 @@ export interface GameRuntime {
   resetCamera(): void;
   toggleGrid(): void;
   setQuality(quality: QualityLevel): void;
+  undo(): void;
   dispose(): void;
 }
 
@@ -333,8 +325,18 @@ function statusForBuildingBulldozePlan(plan: BuildingMutationPlan): string {
   return 'Building bulldoze rejected';
 }
 
-export function bootstrapGame(root: HTMLElement): GameRuntime {
-  const ui = renderGameUi(root);
+function statusForTerraformReason(
+  reason: GameTerraformInvalidReason | 'terraform:no-change' | null,
+): string {
+  if (reason === null) return 'Terraform rejected';
+  if (reason === 'terraform:building-occupied') return 'Terraform blocked by building';
+  if (reason === 'terraform:zone-occupied') return 'Terraform blocked by zone';
+  if (reason === 'terraform:road-occupied') return 'Terraform blocked by road';
+  if (reason === 'terraform:no-change') return 'Terraform unchanged';
+  return 'Terraform rejected';
+}
+
+export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
   const generated = generateCoastalTerrain({ seed: CURATED_SEED, config: WORLD_CONFIG });
   if (!generated.ok) throw new Error(`game:generation-failed:${generated.error.code}`);
   const initialWaterDerivationStart = performance.now();
@@ -352,9 +354,9 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
       FOUNDATION_ECONOMY_RULES,
     ),
   });
-  const capability = detectWebGL2(ui.canvas);
+  const capability = detectWebGL2(host.canvas);
   if (!capability.supported) {
-    ui.setStatus('WebGL2 unavailable');
+    host.setStatus('WebGL2 unavailable');
     const unavailableWorld = new CommittedWorldStore(initialWorld);
     const subscribers = new Set<CommittedWorldSubscriber>();
     const selectionSubscribers = new Set<WorldSelectionSubscriber>();
@@ -387,6 +389,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
       resetCamera: () => undefined,
       toggleGrid: () => undefined,
       setQuality: () => undefined,
+      undo: () => undefined,
       dispose(): void {
         subscribers.clear();
         selectionSubscribers.clear();
@@ -400,8 +403,6 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
   let zonesSnapshot = initialWorld.zones;
   let buildingsSnapshot = initialWorld.buildings;
   const rciRegistries = createFoundationRciRegistries();
-  let simulationSnapshot = initialWorld.simulation;
-  let rciSnapshot: RciSnapshot = initialWorld.rci;
   let roadEnvironment = initialWorld.environments.road;
   let zoneEnvironment = initialWorld.environments.zone;
   let buildingEnvironment = initialWorld.environments.building;
@@ -447,7 +448,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
   };
 
   const renderer = new THREE.WebGLRenderer({
-    canvas: ui.canvas,
+    canvas: host.canvas,
     context: capability.context,
     antialias: true,
     alpha: true,
@@ -513,9 +514,6 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
   roadPresentation.loadAll(roadsSnapshot, roadEnvironment);
   zonePresentation.loadAll(zonesSnapshot);
   buildingPresentation.load(buildingsSnapshot);
-  const rciHud = mountRciHud(ui.panel);
-  rciHud.update(rciSnapshot, rciRegistries, simulationSnapshot.absoluteTick);
-  let economyHud: EconomyBudgetHudAdapter | null = null;
 
   const grid = new TerrainGridPresentation(scene, WORLD_CONFIG);
   grid.setVisible(false);
@@ -526,7 +524,6 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
 
   const setSelection = (cell: CellCoord | null): void => {
     selectedCell = cell === null ? null : { ...cell };
-    ui.setSelectedCell(selectedCell);
     if (selectedCell === null) selection.clear();
     else {
       selection.setSelection(snapshot, selectedCell);
@@ -564,12 +561,6 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     zoneEnvironment = world.environments.zone;
     buildingsSnapshot = world.buildings;
     buildingEnvironment = world.environments.building;
-    simulationSnapshot = world.simulation;
-    rciSnapshot = world.rci;
-    rciHud.update(rciSnapshot, rciRegistries, simulationSnapshot.absoluteTick);
-    economyHud?.update(world.economy);
-    ui.setZoneCounts(zoneCounts(zonesSnapshot));
-    ui.setBuildingCount(buildingCount(buildingsSnapshot));
     notifyCommittedWorld(world, reason);
   };
 
@@ -649,15 +640,12 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     const result = executeEconomyTaxPolicyCommand(transactionCoordinator, policy);
     if (result.status === 'accepted') {
       adoptCommittedWorld(transactionCoordinator.snapshot());
-      ui.setStatus('Tax policy updated');
+      host.setStatus('Tax policy updated');
       return Object.freeze({ status: 'accepted' as const });
     }
-    ui.setStatus('Tax policy rejected');
+    host.setStatus('Tax policy rejected');
     return Object.freeze({ status: 'rejected' as const, reason: result.reason });
   };
-  economyHud = mountEconomyBudgetHud(ui.panel, submitTaxPolicy);
-  economyHud.update(transactionCoordinator.snapshot().economy);
-
   const applyTerraformPlan = (plan: TerraformPlan): void => {
     const current = transactionCoordinator.snapshot();
     const candidate = guardTerraformPlanWithOccupancy(
@@ -667,28 +655,20 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
       current.buildings,
     );
     if (!candidate.valid) {
-      ui.setStatus(
-        candidate.invalidReason === 'terraform:building-occupied'
-          ? 'Terraform blocked by building'
-          : candidate.invalidReason === 'terraform:zone-occupied'
-            ? 'Terraform blocked by zone'
-            : candidate.invalidReason === 'terraform:road-occupied'
-              ? 'Terraform blocked by road'
-              : 'Terraform rejected',
-      );
-      ui.setUndoAvailable(undoCoordinator.available);
+      host.setStatus(statusForTerraformReason(candidate.invalidReason));
+      host.setUndoAvailable(undoCoordinator.available);
       return;
     }
 
     try {
       const quote = quoteTerraformCost(plan, FOUNDATION_ECONOMY_RULES);
       if (!quote.ok) {
-        ui.setStatus('Terraform rejected');
+        host.setStatus('Terraform rejected');
         return;
       }
       const payment = applyPaidActionCost(current.economy, quote, FOUNDATION_ECONOMY_RULES);
       if (!payment.ok) {
-        ui.setStatus(
+        host.setStatus(
           payment.reason === 'insufficient-funds' ? 'Insufficient funds' : 'Terraform rejected',
         );
         return;
@@ -704,14 +684,14 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
         terraformCommitCount += 1;
         terraformWaterRebuildCount += 1;
         waterDerivationDurationMs = performance.now() - derivationStart;
-        ui.setStatus('Terraform applied');
+        host.setStatus('Terraform applied');
       } else {
-        ui.setStatus('Terraform rejected');
+        host.setStatus('Terraform rejected');
       }
     } catch {
-      ui.setStatus('Terraform rejected');
+      host.setStatus('Terraform rejected');
     }
-    ui.setUndoAvailable(undoCoordinator.available);
+    host.setUndoAvailable(undoCoordinator.available);
   };
 
   const applyRoadPlan = (
@@ -739,8 +719,8 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     );
     const reason = routedReason ?? candidate.invalidReason;
     if (!candidate.valid) {
-      ui.setStatus(statusForRoadPlan(candidate.previewPlan, reason));
-      ui.setUndoAvailable(undoCoordinator.available);
+      host.setStatus(statusForRoadPlan(candidate.previewPlan, reason));
+      host.setUndoAvailable(undoCoordinator.available);
       return;
     }
 
@@ -760,12 +740,12 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
         FOUNDATION_ECONOMY_RULES,
       );
       if (!quote.ok) {
-        ui.setStatus('Road update failed');
+        host.setStatus('Road update failed');
         return;
       }
       const payment = applyPaidActionCost(current.economy, quote, FOUNDATION_ECONOMY_RULES);
       if (!payment.ok) {
-        ui.setStatus(
+        host.setStatus(
           payment.reason === 'insufficient-funds' ? 'Insufficient funds' : 'Road update failed',
         );
         return;
@@ -786,14 +766,14 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
         roadChunkRebuildCount += committed.receipt.dirtyChunks.length;
         if (committed.receipt.addedCellCount > 0) roadCommitCount += 1;
         if (committed.receipt.removedCellCount > 0) roadBulldozeCount += 1;
-        ui.setStatus(statusForRoadPlan(candidate.corePlan));
+        host.setStatus(statusForRoadPlan(candidate.corePlan));
       } else {
-        ui.setStatus('Road update failed');
+        host.setStatus('Road update failed');
       }
     } catch {
-      ui.setStatus('Road update failed');
+      host.setStatus('Road update failed');
     }
-    ui.setUndoAvailable(undoCoordinator.available);
+    host.setUndoAvailable(undoCoordinator.available);
   };
 
   const applyZonePlan = (plan: ZoneMutationPlan): void => {
@@ -808,8 +788,8 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     const reason = candidate.invalidReason;
     zoneInvalidReason = reason;
     if (!candidate.valid || reason !== null) {
-      ui.setStatus(statusForZonePlan(candidate.previewPlan, reason));
-      ui.setUndoAvailable(undoCoordinator.available);
+      host.setStatus(statusForZonePlan(candidate.previewPlan, reason));
+      host.setUndoAvailable(undoCoordinator.available);
       return;
     }
 
@@ -833,14 +813,14 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
         if (candidate.corePlan.operation === 'paint') zoneCommitCount += 1;
         else zoneRemoveCount += 1;
         zoneInvalidReason = null;
-        ui.setStatus(statusForZonePlan(candidate.corePlan));
+        host.setStatus(statusForZonePlan(candidate.corePlan));
       } else {
-        ui.setStatus('Zone update failed');
+        host.setStatus('Zone update failed');
       }
     } catch {
-      ui.setStatus('Zone update failed');
+      host.setStatus('Zone update failed');
     }
-    ui.setUndoAvailable(undoCoordinator.available);
+    host.setUndoAvailable(undoCoordinator.available);
   };
 
   const commitBuildingBulldozePlan = (plan: BuildingMutationPlan): void => {
@@ -849,12 +829,12 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     }
     buildingInvalidReason = plan.invalidReason;
     if (!plan.valid) {
-      ui.setStatus(statusForBuildingBulldozePlan(plan));
-      ui.setUndoAvailable(undoCoordinator.available);
+      host.setStatus(statusForBuildingBulldozePlan(plan));
+      host.setUndoAvailable(undoCoordinator.available);
       return;
     }
     const current = transactionCoordinator.snapshot();
-    dispatchGameTransactionState(ui.canvas, 'committing', 'building');
+    dispatchGameTransactionState(host.canvas, 'committing', 'building');
     try {
       const committed = commitBuildingMutation(
         current.buildings,
@@ -867,12 +847,12 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
         FOUNDATION_ECONOMY_RULES,
       );
       if (!quote.ok) {
-        ui.setStatus('Building update failed');
+        host.setStatus('Building update failed');
         return;
       }
       const payment = applyPaidActionCost(current.economy, quote, FOUNDATION_ECONOMY_RULES);
       if (!payment.ok) {
-        ui.setStatus(
+        host.setStatus(
           payment.reason === 'insufficient-funds' ? 'Insufficient funds' : 'Building update failed',
         );
         return;
@@ -892,14 +872,14 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
         undoCoordinator.record(publication.before, 'building', payment.receipt);
         buildingBulldozeCount += 1;
         buildingInvalidReason = null;
-        ui.setStatus(statusForBuildingBulldozePlan(plan));
+        host.setStatus(statusForBuildingBulldozePlan(plan));
       } else {
-        ui.setStatus('Building update failed');
+        host.setStatus('Building update failed');
       }
     } catch {
-      ui.setStatus('Building update failed');
+      host.setStatus('Building update failed');
     }
-    ui.setUndoAvailable(undoCoordinator.available);
+    host.setUndoAvailable(undoCoordinator.available);
   };
 
   const applyBuildingBulldozeRequest = (cell: CellCoord): void => {
@@ -987,8 +967,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
   };
 
   const resetCamera = (): void => {
-    const layout = ui.measureViewport();
-    ui.setControlsMode(layout.mode);
+    const layout = host.measureViewport();
     cameraRig.setViewport(layout.width, layout.height, layout.insets);
     cameraRig.resetToFit(WORLD_BOUNDS);
     renderViewport = toRenderViewport(layout);
@@ -996,7 +975,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
   };
 
   const input = createGameInput({
-    canvas: ui.canvas,
+    canvas: host.canvas,
     camera,
     cameraRig,
     terrain,
@@ -1033,6 +1012,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     guardZonePlan: (plan) => guardZonePlanWithBuildings(plan, buildingsSnapshot),
     onSelection: setSelection,
     onTerraformCommit: applyTerraformPlan,
+    onTerraformReject: (reason) => host.setStatus(statusForTerraformReason(reason)),
     onRoadPlan: applyRoadPlan,
     onZonePlan: applyZonePlan,
     onBuildingBulldoze: applyBuildingBulldozeRequest,
@@ -1042,8 +1022,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
 
   let viewportInitialized = false;
   const updateViewport = (): void => {
-    const layout = ui.measureViewport();
-    ui.setControlsMode(layout.mode);
+    const layout = host.measureViewport();
     renderer.setSize(layout.width, layout.height, false);
     if (viewportInitialized) {
       cameraRig.resizePreservingRelativeZoom(
@@ -1065,26 +1044,19 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     const policy = QUALITY_POLICY[quality];
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, policy.maxPixelRatio));
     renderer.shadowMap.enabled = policy.shadows;
-    ui.setQuality(policy.label);
     updateViewport();
   };
 
   const setToolMode = (mode: GameToolMode): void => {
     input.setToolMode(mode);
-    ui.setToolMode(mode);
-    if (mode !== 'navigate' && !grid.visible) {
-      grid.setVisible(true);
-      ui.setGridVisible(true);
-    }
+    if (mode !== 'navigate' && !grid.visible) grid.setVisible(true);
   };
 
   const setBrushSize = (size: TerraformBrushSize): void => {
     input.setBrushSize(size);
-    ui.setBrushSize(size);
   };
   const setInformationView = (key: InformationViewKey): void => {
     grid.setVisible(key === 'grid');
-    ui.setGridVisible(grid.visible);
   };
 
   updateViewport();
@@ -1095,129 +1067,71 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
   const saveWorld = (): void => {
     input.clearActiveSession();
     saveCoordinator.save();
-    ui.setStatus('Saved');
+    host.setStatus('Saved');
   };
   const loadWorld = (): void => {
     input.clearActiveSession();
     const result = saveCoordinator.load();
     if (result.status === 'rejected') {
-      ui.setStatus(result.reason === 'world:no-save' ? 'No save' : 'Invalid save');
+      host.setStatus(result.reason === 'world:no-save' ? 'No save' : 'Invalid save');
       return;
     }
     adoptCommittedWorld(result.world, 'load');
     undoCoordinator.clear();
-    ui.setUndoAvailable(false);
-    ui.setStatus('Loaded');
+    host.setUndoAvailable(false);
+    host.setStatus('Loaded');
   };
   const toggleGrid = (): void => {
     grid.setVisible(!grid.visible);
-    ui.setGridVisible(grid.visible);
   };
 
-  ui.qualitySelect.addEventListener(
-    'change',
-    () => applyQuality(ui.qualitySelect.value as QualityLevel),
-    listenerOptions,
-  );
-  ui.saveButton.addEventListener('click', saveWorld, listenerOptions);
-  ui.loadButton.addEventListener('click', loadWorld, listenerOptions);
-  ui.rotateLeftButton.addEventListener(
-    'click',
-    () => input.controller.rotateLeft(),
-    listenerOptions,
-  );
-  ui.rotateRightButton.addEventListener(
-    'click',
-    () => input.controller.rotateRight(),
-    listenerOptions,
-  );
-  ui.resetButton.addEventListener('click', resetCamera, listenerOptions);
-  ui.gridButton.addEventListener('click', toggleGrid, listenerOptions);
-  ui.navigateButton.addEventListener('click', () => setToolMode('navigate'), listenerOptions);
-  ui.raiseButton.addEventListener('click', () => setToolMode('raise'), listenerOptions);
-  ui.lowerButton.addEventListener('click', () => setToolMode('lower'), listenerOptions);
-  ui.flattenButton.addEventListener('click', () => setToolMode('flatten'), listenerOptions);
-  ui.roadBuildButton.addEventListener('click', () => setToolMode('road-build'), listenerOptions);
-  ui.roadBulldozeButton.addEventListener(
-    'click',
-    () => setToolMode('road-bulldoze'),
-    listenerOptions,
-  );
-  ui.zoneResidentialButton.addEventListener(
-    'click',
-    () => setToolMode('zone-residential'),
-    listenerOptions,
-  );
-  ui.zoneCommercialButton.addEventListener(
-    'click',
-    () => setToolMode('zone-commercial'),
-    listenerOptions,
-  );
-  ui.zoneIndustrialButton.addEventListener(
-    'click',
-    () => setToolMode('zone-industrial'),
-    listenerOptions,
-  );
-  ui.zoneRemoveButton.addEventListener('click', () => setToolMode('zone-remove'), listenerOptions);
-  ui.buildingBulldozeButton.addEventListener(
-    'click',
-    () => setToolMode('building-bulldoze'),
-    listenerOptions,
-  );
-  ui.brush1Button.addEventListener('click', () => setBrushSize(1), listenerOptions);
-  ui.brush3Button.addEventListener('click', () => setBrushSize(3), listenerOptions);
-  ui.brush5Button.addEventListener('click', () => setBrushSize(5), listenerOptions);
-  ui.undoButton.addEventListener(
-    'click',
-    () => {
-      input.clearActiveSession();
-      const kind = undoCoordinator.kind;
-      const before = transactionCoordinator.snapshot();
-      const result = undoCoordinator.undo();
-      if (result === null || result.status === 'rejected') {
-        ui.setUndoAvailable(undoCoordinator.available);
-        return;
-      }
-      adoptCommittedWorld(result.world, 'undo');
-      if (kind === 'terraform') {
-        terraformUndoCount += 1;
-        terraformWaterRebuildCount += 1;
-        ui.setStatus('Terraform undone');
-      } else if (kind === 'road') {
-        const dirtyChunks = roadDirtyChunksBetween(before.roads, result.world.roads);
-        roadUndoCount += 1;
-        roadLastDirtyChunkCount = dirtyChunks.length;
-        roadChunkRebuildCount += dirtyChunks.length;
-        ui.setStatus('Road undone');
-      } else if (kind === 'zone') {
-        const dirtyChunks = zoneDirtyChunksBetween(before.zones, result.world.zones);
-        zoneUndoCount += 1;
-        zoneLastDirtyChunkCount = dirtyChunks.length;
-        zoneChunkRebuildCount += dirtyChunks.length;
-        zoneInvalidReason = null;
-        ui.setStatus('Zone undone');
-      } else if (kind === 'building') {
-        buildingUndoCount += 1;
-        buildingInvalidReason = null;
-        ui.setStatus('Building undone');
-      }
-      ui.setUndoAvailable(undoCoordinator.available);
-    },
-    listenerOptions,
-  );
+  const undoLatest = (): void => {
+    input.clearActiveSession();
+    const kind = undoCoordinator.kind;
+    const before = transactionCoordinator.snapshot();
+    const result = undoCoordinator.undo();
+    if (result === null || result.status === 'rejected') {
+      host.setUndoAvailable(undoCoordinator.available);
+      return;
+    }
+    adoptCommittedWorld(result.world, 'undo');
+    if (kind === 'terraform') {
+      terraformUndoCount += 1;
+      terraformWaterRebuildCount += 1;
+      host.setStatus('Terraform undone');
+    } else if (kind === 'road') {
+      const dirtyChunks = roadDirtyChunksBetween(before.roads, result.world.roads);
+      roadUndoCount += 1;
+      roadLastDirtyChunkCount = dirtyChunks.length;
+      roadChunkRebuildCount += dirtyChunks.length;
+      host.setStatus('Road undone');
+    } else if (kind === 'zone') {
+      const dirtyChunks = zoneDirtyChunksBetween(before.zones, result.world.zones);
+      zoneUndoCount += 1;
+      zoneLastDirtyChunkCount = dirtyChunks.length;
+      zoneChunkRebuildCount += dirtyChunks.length;
+      zoneInvalidReason = null;
+      host.setStatus('Zone undone');
+    } else if (kind === 'building') {
+      buildingUndoCount += 1;
+      buildingInvalidReason = null;
+      host.setStatus('Building undone');
+    }
+    host.setUndoAvailable(undoCoordinator.available);
+  };
   window.addEventListener('resize', updateViewport, listenerOptions);
 
-  ui.canvas.addEventListener(
+  host.canvas.addEventListener(
     'webglcontextlost',
     (event) => {
       event.preventDefault();
       contextLost = true;
       input.clearActiveSession();
-      ui.setStatus('Context lost');
+      host.setStatus('Context lost');
     },
     listenerOptions,
   );
-  ui.canvas.addEventListener(
+  host.canvas.addEventListener(
     'webglcontextrestored',
     () => {
       preview.clear();
@@ -1225,7 +1139,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
       zonePreview.clear();
       presentationCoordinator.rebuildFromCommitted(transactionCoordinator.snapshot());
       contextLost = false;
-      ui.setStatus('Ready');
+      host.setStatus('Ready');
     },
     listenerOptions,
   );
@@ -1345,14 +1259,8 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     animationFrame = window.requestAnimationFrame(render);
   };
 
-  ui.setGridVisible(false);
-  ui.setSelectedCell(null);
-  ui.setToolMode('navigate');
-  ui.setBrushSize(1);
-  ui.setUndoAvailable(false);
-  ui.setZoneCounts(zoneCounts(zonesSnapshot));
-  ui.setBuildingCount(buildingCount(buildingsSnapshot));
-  ui.setStatus('Ready');
+  host.setUndoAvailable(false);
+  host.setStatus('Ready');
   render();
 
   const dispose = (): void => {
@@ -1361,8 +1269,6 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     abortController.abort();
     window.cancelAnimationFrame(animationFrame);
     input.dispose();
-    rciHud.dispose();
-    economyHud?.dispose();
     roadPreview.dispose();
     zonePreview.dispose();
     preview.dispose();
@@ -1399,6 +1305,7 @@ export function bootstrapGame(root: HTMLElement): GameRuntime {
     resetCamera,
     toggleGrid,
     setQuality: applyQuality,
+    undo: undoLatest,
     dispose,
   };
 }

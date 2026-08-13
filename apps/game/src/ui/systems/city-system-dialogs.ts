@@ -67,7 +67,7 @@ export function createCitySystemDialogs(
     ] as const;
     for (const [key, label, render] of entries) {
       const button = createButton(label, () =>
-        host.push({ kind: 'system', key, title: label }, render),
+        host.push({ kind: 'system', key, title: label, live: true }, render),
       );
       button.dataset.system = key;
       navigation.append(button);
@@ -83,7 +83,7 @@ export function createCitySystemDialogs(
       createButton('Overview', () => undefined),
       createButton('Taxation', () =>
         host.push(
-          { kind: 'system', key: 'economy-taxation', title: 'Economy · Taxation' },
+          { kind: 'system', key: 'economy-taxation', title: 'Economy · Taxation', live: true },
           renderTaxation,
         ),
       ),
@@ -194,23 +194,26 @@ export function createCitySystemDialogs(
 
   return Object.freeze({
     openCity(): void {
-      host.open({ kind: 'system', key: 'city-overview', title: 'City' }, renderOverview);
+      host.open(
+        { kind: 'system', key: 'city-overview', title: 'City', live: true },
+        renderOverview,
+      );
     },
     openEconomyTaxation(): void {
       host.open(
-        { kind: 'system', key: 'economy-taxation', title: 'Economy · Taxation' },
+        { kind: 'system', key: 'economy-taxation', title: 'Economy · Taxation', live: true },
         renderTaxation,
       );
     },
     openPopulationRci(): void {
       host.open(
-        { kind: 'system', key: 'population-rci', title: 'Population / RCI' },
+        { kind: 'system', key: 'population-rci', title: 'Population / RCI', live: true },
         renderPopulation,
       );
     },
     openSimulationTime(): void {
       host.open(
-        { kind: 'system', key: 'simulation-time', title: 'Simulation Time' },
+        { kind: 'system', key: 'simulation-time', title: 'Simulation Time', live: true },
         renderSimulationTime,
       );
     },

@@ -6,6 +6,9 @@ export interface GameHudProjection {
   readonly net: string;
   readonly demand: string;
   readonly gameTime: string;
+  readonly construction: string;
+  readonly active: string;
+  readonly total: string;
 }
 
 export type GameHudMetricId = keyof GameHudProjection;
@@ -20,6 +23,9 @@ const metrics: ReadonlyArray<readonly [GameHudMetricId, string]> = [
   ['net', 'Current net'],
   ['demand', 'RCI demand'],
   ['gameTime', 'Game time'],
+  ['construction', 'Under construction'],
+  ['active', 'Active buildings'],
+  ['total', 'Total buildings'],
 ];
 
 export function mountGameHud(

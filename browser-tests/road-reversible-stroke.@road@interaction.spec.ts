@@ -135,7 +135,7 @@ function findRoadLine(length: number): readonly CellCoord[] {
 async function openGame(page: Page): Promise<void> {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(GAME_URL);
-  await expect(page.getByTestId('game-status')).toHaveText('Ready');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
 }
 
 async function locateCells(
@@ -174,8 +174,8 @@ async function expectRoadCounts(
   requested: number,
   effective = requested,
 ): Promise<void> {
-  await expect(page.getByTestId('road-requested-count')).toHaveText(String(requested));
-  await expect(page.getByTestId('road-effective-count')).toHaveText(String(effective));
+  await expect(page.getByTestId('tool-context-requested')).toHaveText(`${requested} cells`);
+  await expect(page.getByTestId('tool-context-effective')).toHaveText(`${effective} effective`);
   expect((await readEvidence(page)).road.previewCellCount).toBe(requested);
 }
 
@@ -198,9 +198,10 @@ test('Build Preview stays isolated and exact reverse removes the abandoned tail'
   const committedPoint = points[0]!;
   const activePoints = points.slice(4, 9);
 
+  await page.getByTestId('nav-roads').click();
   await page.getByRole('button', { name: 'Build Road' }).click();
   await page.mouse.click(committedPoint.x, committedPoint.y);
-  await expect(page.getByTestId('game-status')).toHaveText('Road built');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Road built');
   const afterCommitted = await readEvidence(page);
   expect(afterCommitted.road.occupiedCellCount).toBe(1);
 
@@ -234,7 +235,7 @@ test('Build Preview stays isolated and exact reverse removes the abandoned tail'
   expect(reverseBounds.maxX).toBeLessThanOrEqual(cellMinimumX(line.active[3]!) + 0.0001);
 
   await page.mouse.up();
-  await expect(page.getByTestId('game-status')).toHaveText('Road built');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Road built');
   await settleRendering(page);
   const after = await readEvidence(page);
   expect(after.road.previewRootCount).toBe(0);
@@ -254,6 +255,7 @@ test('reverse then perpendicular movement branches from the retained Road tail',
   const branchEnd = points.at(-1)!;
   const abandonedPoint = forwardPoints.at(-1)!;
 
+  await page.getByTestId('nav-roads').click();
   await page.getByRole('button', { name: 'Build Road' }).click();
   await page.mouse.move(forwardPoints[0]!.x, forwardPoints[0]!.y);
   await settleRendering(page);
@@ -272,7 +274,7 @@ test('reverse then perpendicular movement branches from the retained Road tail',
   expect(branchBounds.maxX).toBeLessThanOrEqual(cellMinimumX(path.abandoned[0]!) + 0.0001);
 
   await page.mouse.up();
-  await expect(page.getByTestId('game-status')).toHaveText('Road built');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Road built');
   const after = await readEvidence(page);
   expect(after.road.occupiedCellCount).toBe(path.retained.length);
   expect(after.road.previewRootCount).toBe(0);
@@ -287,14 +289,16 @@ test('Bulldoze reverse restores the abandoned removal tail before release', asyn
   const cells = findRoadLine(6);
   const points = await locateCells(page, cells);
 
+  await page.getByTestId('nav-roads').click();
   await page.getByRole('button', { name: 'Build Road' }).click();
   await page.mouse.move(points[0]!.x, points[0]!.y);
   await page.mouse.down();
   await page.mouse.move(points.at(-1)!.x, points.at(-1)!.y, { steps: 10 });
   await page.mouse.up();
-  await expect(page.getByTestId('game-status')).toHaveText('Road built');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Road built');
   expect((await readEvidence(page)).road.occupiedCellCount).toBe(6);
 
+  await page.getByTestId('nav-roads').click();
   await page.getByRole('button', { name: 'Bulldoze Road' }).click();
   await page.mouse.move(points[0]!.x, points[0]!.y);
   await settleRendering(page);
@@ -320,7 +324,7 @@ test('Bulldoze reverse restores the abandoned removal tail before release', asyn
   expect(reverseBounds.maxX).toBeLessThanOrEqual(cellMinimumX(cells[4]!) + 0.0001);
 
   await page.mouse.up();
-  await expect(page.getByTestId('game-status')).toHaveText('Road bulldozed');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Road bulldozed');
   await settleRendering(page);
   const after = await readEvidence(page);
   expect(after.road.occupiedCellCount).toBe(2);

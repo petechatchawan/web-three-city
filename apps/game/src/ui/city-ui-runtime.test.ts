@@ -24,6 +24,7 @@ describe('City UI runtime', () => {
       resetCamera: vi.fn(),
       toggleGrid: vi.fn(),
       setQuality: vi.fn(),
+      undo: vi.fn(),
       rciRegistries: createFoundationRciRegistries(),
     });
     const world = createApplicationFixture();

@@ -10,6 +10,7 @@ export interface DialogHost {
   back(): void;
   close(): void;
   update(): void;
+  refresh(): void;
   dispose(): void;
 }
 
@@ -58,6 +59,10 @@ export function mountDialogHost(parent: HTMLElement): DialogHost {
     if (moveFocus) closeButton.focus();
   };
 
+  const refreshLive = (): void => {
+    if (navigation.active()?.live === true) renderActive(false);
+  };
+
   const close = (): void => {
     navigation.close();
     renderers.length = 0;
@@ -92,7 +97,8 @@ export function mountDialogHost(parent: HTMLElement): DialogHost {
       else renderActive(true);
     },
     close,
-    update: renderActive,
+    update: refreshLive,
+    refresh: () => renderActive(false),
     dispose(): void {
       abortController.abort();
       close();

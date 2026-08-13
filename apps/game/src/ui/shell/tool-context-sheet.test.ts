@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mountToolContextSheet, type ContextualToolProjection } from './tool-context-sheet.js';
 
 afterEach(() => document.body.replaceChildren());
@@ -12,15 +12,27 @@ function projection(overrides: Partial<ContextualToolProjection> = {}): Contextu
     requestedCells: 4,
     effectiveCells: 0,
     affordability: 'Unaffordable',
-    undoAvailable: true,
     ...overrides,
   };
+}
+
+function undoButton(): HTMLButtonElement {
+  const button = document.querySelector<HTMLButtonElement>('[data-testid="tool-context-undo"]');
+  if (button === null) throw new Error('tool-context-undo missing');
+  return button;
+}
+
+function undoPill(): HTMLElement {
+  const pill = document.querySelector<HTMLElement>('.city-tool-context-pill');
+  if (pill === null) throw new Error('undo pill missing');
+  return pill;
 }
 
 describe('tool context sheet', () => {
   it('renders name, state, message, metrics, affordability, and Undo without blocking the world', () => {
     const sheet = mountToolContextSheet(document.body);
     sheet.update(projection());
+    sheet.setUndoAvailable(true);
     const element = sheet.element;
     expect(element.classList.contains('city-tool-context')).toBe(true);
     expect(element.getAttribute('aria-label')).toBe('Active tool');
@@ -36,7 +48,7 @@ describe('tool context sheet', () => {
 
   it('collapses and expands the body via the toggle', () => {
     const sheet = mountToolContextSheet(document.body);
-    sheet.update(projection({ undoAvailable: false }));
+    sheet.update(projection());
     const toggle = document.querySelector<HTMLButtonElement>('[data-testid="tool-context-toggle"]');
     const content = document.querySelector<HTMLElement>('[data-testid="tool-context-content"]');
     expect(toggle).not.toBeNull();
@@ -58,12 +70,83 @@ describe('tool context sheet', () => {
       name: 'Build Road',
       state: 'Rejected',
       message: 'Insufficient funds',
-      undoAvailable: false,
     });
     const text = sheet.element.textContent ?? '';
     expect(text).toContain('Undo unavailable');
     expect(text).not.toContain('cells');
     expect(text).not.toContain('effective');
     expect(text).not.toContain('Afford');
+  });
+
+  it('wires the Undo button to onUndo and enables it only when undo is available', () => {
+    const onUndo = vi.fn();
+    const sheet = mountToolContextSheet(document.body, { onUndo });
+    sheet.update(projection());
+    expect(undoButton().disabled).toBe(true);
+    undoButton().click();
+    expect(onUndo).not.toHaveBeenCalled();
+    sheet.setUndoAvailable(true);
+    expect(undoButton().disabled).toBe(false);
+    undoButton().click();
+    expect(onUndo).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps setUndoAvailable in sync across re-renders', () => {
+    const sheet = mountToolContextSheet(document.body);
+    sheet.update(projection());
+    sheet.setUndoAvailable(true);
+    expect(undoButton().disabled).toBe(false);
+    expect(undoPill().textContent).toBe('Undo available');
+    sheet.update(projection());
+    expect(undoButton().disabled).toBe(false);
+    expect(undoPill().textContent).toBe('Undo available');
+    sheet.setUndoAvailable(false);
+    expect(undoButton().disabled).toBe(true);
+    expect(undoPill().textContent).toBe('Undo unavailable');
+  });
+
+  it('keeps the latest transient status visible across tool projections and renders the message testid', () => {
+    const sheet = mountToolContextSheet(document.body);
+    sheet.setStatus('Saved');
+    expect(sheet.element.textContent).toContain('Saved');
+    sheet.update(projection());
+    expect(sheet.element.textContent).toContain('Saved');
+    expect(document.querySelector('[data-testid="tool-context-message"]')?.textContent).toBe(
+      'Insufficient funds',
+    );
+    sheet.setStatus('Loaded');
+    expect(document.querySelector('[data-testid="tool-context-status"]')?.textContent).toBe(
+      'Loaded',
+    );
+  });
+
+  it('resets a transient Applying change state to Ready when a completion status arrives', () => {
+    const sheet = mountToolContextSheet(document.body);
+    sheet.update({
+      mode: 'road-build',
+      name: 'Build Road',
+      state: 'Applying change',
+      message: 'Applying Road change…',
+    });
+    expect(document.querySelector('[data-testid="tool-context-state"]')?.textContent).toBe(
+      'Applying change',
+    );
+    sheet.setStatus('Road built');
+    expect(document.querySelector('[data-testid="tool-context-state"]')?.textContent).toBe('Ready');
+    expect(document.querySelector('[data-testid="tool-context-status"]')?.textContent).toBe(
+      'Road built',
+    );
+  });
+
+  it('keeps a rejection state intact when its status arrives', () => {
+    const sheet = mountToolContextSheet(document.body);
+    sheet.update(projection());
+    expect(document.querySelector('[data-testid="tool-context-state"]')?.textContent).toBe(
+      'Rejected',
+    );
+    sheet.setStatus('Road blocked by water');
+    expect(document.querySelector('[data-testid="tool-context-state"]')?.textContent).toBe(
+      'Rejected',
+    );
   });
 });

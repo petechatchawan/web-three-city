@@ -138,6 +138,28 @@
   color: #315f69;
   background: #e2efeb;
 }
+
+.city-tool-context-undo {
+  padding: 0.12rem 0.6rem;
+  border-radius: var(--city-ui-radius);
+  color: #ffffff;
+  background: #315f69;
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.city-tool-context-undo:disabled {
+  color: rgb(26 34 54 / 40%);
+  background: rgb(26 34 54 / 8%);
+}
+
+.city-tool-context-status {
+  flex-basis: 100%;
+  margin: 0;
+  padding-top: 0.1rem;
+  font-size: 0.72rem;
+  color: var(--city-ui-accent, #315f69);
+}
 .city-awareness-hud {
   position: absolute;
   top: calc(var(--city-ui-safe-top) + var(--city-ui-gap));

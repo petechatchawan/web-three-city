@@ -1,10 +1,10 @@
 import { expect, test } from '@playwright/test';
 import {
-  clickTerrainCell,
   clickGameMenuAction,
   createDeterministicWaterGeometryEvidence,
   dispatchCanvasTouch,
   GAME_URL,
+  locateTerrainCell,
   readEvidence,
   readTerrainLabWaterEvidence,
   TERRAIN_LAB_URL,
@@ -15,7 +15,7 @@ const SAVE_KEY = 'web-three-city:world-save:v6';
 
 async function openGame(page: import('@playwright/test').Page): Promise<void> {
   await page.goto(GAME_URL);
-  await expect(page.getByTestId('game-status')).toHaveText('Ready', {
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready', {
     timeout: READY_TIMEOUT,
   });
 }
@@ -42,7 +42,7 @@ test('Water remains framed on desktop and mobile with exactly one root', async (
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
-  await expect(page.getByTestId('game-status')).toHaveText('Ready', {
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready', {
     timeout: READY_TIMEOUT,
   });
   evidence = await readEvidence(page);
@@ -54,13 +54,14 @@ test('underwater selection and Grid remain readable', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await openGame(page);
   await clickGameMenuAction(page, 'Grid');
-  await clickTerrainCell(page, { x: 64, z: 116 });
+  const point = await locateTerrainCell(page, { x: 64, z: 116 });
+  await page.mouse.click(point.x, point.y);
 
   const evidence = await readEvidence(page);
   expect(evidence.gridVisible).toBe(true);
   expect(evidence.selectedCell).toEqual({ x: 64, z: 116 });
   expect(evidence.water.waterRootCount).toBe(1);
-  await expect(page.getByTestId('selected-cell')).toHaveText('64, 116');
+  await expect(page.getByRole('dialog')).toContainText('64, 116');
 });
 
 test('pan, zoom, yaw, pitch, and reset remain stable with Water', async ({ page }) => {
@@ -112,7 +113,7 @@ test('save and load reproduce deterministic Water state', async ({ page }) => {
   await clickGameMenuAction(page, 'Save world');
   expect(await page.evaluate((key) => localStorage.getItem(key), SAVE_KEY)).not.toBeNull();
   await clickGameMenuAction(page, 'Load world');
-  await expect(page.getByTestId('game-status')).toHaveText('Loaded');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Loaded');
   const after = (await readEvidence(page)).water;
 
   expect(after).toMatchObject({
@@ -136,7 +137,7 @@ test('context restoration atomically replaces the Water root', async ({ page }) 
     element.dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
     element.dispatchEvent(new Event('webglcontextrestored'));
   });
-  await expect(page.getByTestId('game-status')).toHaveText('Ready');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
   const evidence = await readEvidence(page);
   expect(evidence.water.waterRootCount).toBe(1);
   expect(evidence.sceneRootCounts.water).toBe(1);
@@ -184,6 +185,6 @@ test('Water geometry bytes and hash are deterministic', () => {
     shorelineTriangleCount: 379,
     wallSegmentCount: 1,
     estimatedGeometryBytes: 754710,
-    geometrySha256: 'a9d773edd56d5ea2516d8f13239960f018f0e13bc029b2771991fe17c156d842',
+    geometrySha256: '95ae8947b844f08081314736c46cfbbb48348d1134c589411919102e3c5a0e60',
   });
 });

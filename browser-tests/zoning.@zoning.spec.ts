@@ -19,6 +19,7 @@ import {
   clickTerrainCell,
   dispatchCanvasTouch,
   readEvidence,
+  readZoningCounts,
   type TerrainCellScreenPoint,
 } from './helpers/interaction.js';
 
@@ -127,7 +128,7 @@ const FIXTURE = fixture();
 async function openGame(page: Page): Promise<void> {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(GAME_URL);
-  await expect(page.getByTestId('game-status')).toHaveText('Ready');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
 }
 
 async function locate(
@@ -151,10 +152,11 @@ async function buildFixtureRoad(
   page: Page,
   points: Map<string, TerrainCellScreenPoint>,
 ): Promise<void> {
+  await page.getByTestId('nav-roads').click();
   await page.getByRole('button', { name: 'Build Road' }).click();
   const point = at(points, FIXTURE.road);
   await page.mouse.click(point.x, point.y);
-  await expect(page.getByTestId('game-status')).toHaveText('Road built');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Road built');
 }
 
 async function paint(
@@ -166,7 +168,7 @@ async function paint(
   await page.getByRole('button', { name: type, exact: true }).click();
   const point = at(points, cell);
   await page.mouse.click(point.x, point.y);
-  await expect(page.getByTestId('game-status')).toHaveText('Zone painted');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Zone painted');
 }
 
 test('paints R/C/I at committed-Road depths 1–3 and round-trips WorldSaveV5', async ({ page }) => {
@@ -178,6 +180,7 @@ test('paints R/C/I at committed-Road depths 1–3 and round-trips WorldSaveV5', 
     FIXTURE.industrial,
   ]);
   await buildFixtureRoad(page, points);
+  await page.getByTestId('nav-zones').click();
 
   for (const cell of FIXTURE.depth.slice(0, 3)) {
     await paint(page, points, 'Residential', cell);
@@ -189,9 +192,11 @@ test('paints R/C/I at committed-Road depths 1–3 and round-trips WorldSaveV5', 
   expect(evidence.zone.counts).toEqual({ residential: 3, commercial: 1, industrial: 1, total: 5 });
   expect(evidence.zone.committedRootCount).toBe(1);
   expect(evidence.zone.previewRootCount).toBe(0);
-  await expect(page.getByTestId('zone-residential-count')).toHaveText('3');
-  await expect(page.getByTestId('zone-commercial-count')).toHaveText('1');
-  await expect(page.getByTestId('zone-industrial-count')).toHaveText('1');
+  await expect(await readZoningCounts(page)).toEqual({
+    residential: '3',
+    commercial: '1',
+    industrial: '1',
+  });
 
   await clickGameMenuAction(page, 'Save world');
   const saved = await page.evaluate((key) => localStorage.getItem(key), SAVE_KEY);
@@ -203,20 +208,21 @@ test('paints R/C/I at committed-Road depths 1–3 and round-trips WorldSaveV5', 
     rci: { schemaVersion: 1 },
   });
 
+  await page.getByTestId('nav-zones').click();
   await page.getByRole('button', { name: 'Remove Zone' }).click();
   const industrialPoint = at(points, FIXTURE.industrial);
   await page.mouse.click(industrialPoint.x, industrialPoint.y);
-  await expect(page.getByTestId('game-status')).toHaveText('Zone removed');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Zone removed');
   expect((await readEvidence(page)).zone.counts.industrial).toBe(0);
 
-  await page.getByRole('button', { name: 'Undo latest world change' }).click();
-  await expect(page.getByTestId('game-status')).toHaveText('Zone undone');
+  await page.getByTestId('tool-context-undo').click();
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Zone undone');
   evidence = await readEvidence(page);
   expect(evidence.zone.counts.industrial).toBe(1);
   expect(evidence.zone.undoCount).toBe(1);
 
   await clickGameMenuAction(page, 'Load world');
-  await expect(page.getByTestId('game-status')).toHaveText('Loaded');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Loaded');
   evidence = await readEvidence(page);
   expect(evidence.zone.counts.total).toBe(5);
   expect(evidence.sceneRootCounts.zoneCommitted).toBe(1);
@@ -229,9 +235,11 @@ test('rejects depth four and preserves Zone invariants across Road and Terraform
   await openGame(page);
   const points = await locate(page, [FIXTURE.road, FIXTURE.depth[2], FIXTURE.depth[3]]);
   await buildFixtureRoad(page, points);
+  await page.getByTestId('nav-zones').click();
   await paint(page, points, 'Residential', FIXTURE.depth[2]);
   const committed = await readEvidence(page);
 
+  await page.getByTestId('nav-zones').click();
   await page.getByRole('button', { name: 'Residential', exact: true }).click();
   const depthFour = at(points, FIXTURE.depth[3]);
   await dispatchCanvasTouch(page, 'pointerdown', 1, depthFour.x, depthFour.y);
@@ -245,22 +253,25 @@ test('rejects depth four and preserves Zone invariants across Road and Terraform
   expect(evidence.zone.committedZoneRevision).toBe(committed.zone.committedZoneRevision);
 
   const zonePoint = at(points, FIXTURE.depth[2]);
+  await page.getByTestId('nav-roads').click();
   await page.getByRole('button', { name: 'Build Road' }).click();
   await page.mouse.click(zonePoint.x, zonePoint.y);
-  await expect(page.getByTestId('game-status')).toHaveText('Road blocked by zone');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Road blocked by zone');
   expect((await readEvidence(page)).road.committedRoadRevision).toBe(
     committed.road.committedRoadRevision,
   );
 
   const roadPoint = at(points, FIXTURE.road);
+  await page.getByTestId('nav-roads').click();
   await page.getByRole('button', { name: 'Bulldoze Road' }).click();
   await page.mouse.click(roadPoint.x, roadPoint.y);
-  await expect(page.getByTestId('game-status')).toHaveText('Road required by zone');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Road required by zone');
   expect((await readEvidence(page)).road.occupiedCellCount).toBe(1);
 
+  await page.getByTestId('nav-terrain').click();
   await page.getByRole('button', { name: 'Raise' }).click();
   await page.mouse.click(zonePoint.x, zonePoint.y);
-  await expect(page.getByTestId('game-status')).toHaveText('Terraform blocked by zone');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Terraform blocked by zone');
   evidence = await readEvidence(page);
   expect(evidence.terraform.committedTerrainRevision).toBe(
     committed.terraform.committedTerrainRevision,
@@ -274,6 +285,7 @@ test('cancels isolated Zone Preview on second touch and restores one Zone root a
   await openGame(page);
   const points = await locate(page, [FIXTURE.road, FIXTURE.depth[0]]);
   await buildFixtureRoad(page, points);
+  await page.getByTestId('nav-zones').click();
   await page.getByRole('button', { name: 'Residential', exact: true }).click();
   const point = at(points, FIXTURE.depth[0]);
   const before = await readEvidence(page);
@@ -291,7 +303,7 @@ test('cancels isolated Zone Preview on second touch and restores one Zone root a
     canvas.dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
     canvas.dispatchEvent(new Event('webglcontextrestored'));
   });
-  await expect(page.getByTestId('game-status')).toHaveText('Ready');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
   evidence = await readEvidence(page);
   expect(evidence.sceneRootCounts.zoneCommitted).toBe(1);
   expect(evidence.sceneRootCounts.zonePreview).toBe(0);

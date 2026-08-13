@@ -52,7 +52,11 @@ async function runVitestList() {
     ['--filter', '@web-three-city/game', 'exec', 'vitest', 'list', '--json'],
     { cwd: repoRoot, maxBuffer: 8 * 1024 * 1024 },
   );
-  const listed = JSON.parse(stdout);
+  // pnpm may prefix the JSON with engine/registry warnings on stdout; parse
+  // the first JSON array instead of requiring clean output.
+  const jsonStart = stdout.indexOf('[');
+  if (jsonStart === -1) throw new Error(`vitest-list:missing-json\n${stdout.slice(0, 200)}`);
+  const listed = JSON.parse(stdout.slice(jsonStart));
   if (!Array.isArray(listed)) throw new Error('vitest-list:expected-array');
   return listed;
 }
@@ -89,7 +93,7 @@ test('Game TypeScript includes browser-independent game tests', async () => {
 
 test('Game test inventory matches Vitest discovery', async () => {
   assert.equal(await readGameTestFileCount(), 75);
-  assert.equal((await runVitestList()).length, 278);
+  assert.equal((await runVitestList()).length, 306);
 });
 
 test('every browser spec has approved ownership tags in its Playwright title path', async () => {

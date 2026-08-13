@@ -10,7 +10,7 @@ import {
 async function openGame(page: import('@playwright/test').Page): Promise<void> {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(GAME_URL);
-  await expect(page.getByTestId('game-status')).toHaveText('Ready');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
 }
 
 test('pinch zooms without selection', async ({ page }) => {
@@ -122,7 +122,7 @@ test('context loss clears an active session before release', async ({ page }) =>
   await page.locator('#game-canvas').evaluate((canvas) => {
     canvas.dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
   });
-  await expect(page.getByTestId('game-status')).toHaveText('Context lost');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Context lost');
   await dispatchCanvasTouch(page, 'pointerup', 1, 800, 400);
 
   const evidence = await readEvidence(page);
@@ -137,20 +137,19 @@ test('reset after resize uses the new usable viewport', async ({ page }) => {
 
   const evidence = await readEvidence(page);
   expect(evidence.allWorldCornersInsideUsableViewport).toBe(true);
-  await expect(page.getByTestId('controls-mode')).toHaveText('compact');
 });
 
 test('context restore preserves grid and selection with one root each', async ({ page }) => {
   await openGame(page);
   await page.mouse.click(900, 500);
-  await expect(page.getByTestId('selected-cell')).not.toHaveText('None');
+  await expect(page.getByRole('dialog')).toBeVisible();
   await clickGameMenuAction(page, 'Grid');
 
   await page.locator('#game-canvas').evaluate((canvas) => {
     canvas.dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
     canvas.dispatchEvent(new Event('webglcontextrestored'));
   });
-  await expect(page.getByTestId('game-status')).toHaveText('Ready');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
 
   const evidence = await readEvidence(page);
   expect(evidence.gridVisible).toBe(true);

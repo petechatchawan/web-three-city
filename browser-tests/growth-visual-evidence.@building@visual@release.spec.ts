@@ -11,12 +11,12 @@ test('captures Construction phases, variety, and responsive time controls', asyn
 }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(GAME_URL);
-  await expect(page.getByTestId('game-status')).toHaveText('Ready');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
   await prepareDeterministicGrowthClock(page);
   await prepareBuildingFixtureWorld(page);
 
   await stepLogicalTicks(page, 4);
-  await expect(page.getByTestId('building-construction-count')).toHaveText('1');
+  await expect(page.locator('[data-metric="construction"] strong')).toHaveText('1');
   await page.screenshot({
     path: testInfo.outputPath('growth-foundation-desktop.png'),
     fullPage: true,
@@ -35,8 +35,8 @@ test('captures Construction phases, variety, and responsive time controls', asyn
   });
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.getByRole('button', { name: 'Pause simulation' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Advance exactly one hour' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Set paused speed' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Advance exactly one tick' })).toBeVisible();
   await page.screenshot({
     path: testInfo.outputPath('growth-time-controls-mobile.png'),
     fullPage: true,

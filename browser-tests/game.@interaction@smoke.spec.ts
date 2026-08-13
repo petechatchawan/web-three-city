@@ -5,7 +5,7 @@ const SAVE_KEY = 'web-three-city:world-save:v6';
 
 async function waitForReady(page: import('@playwright/test').Page): Promise<void> {
   await page.goto(GAME_URL);
-  await expect(page.getByTestId('game-status')).toHaveText('Ready');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
 }
 
 test('desktop and mobile initial views fit the whole world', async ({ page }) => {
@@ -14,12 +14,10 @@ test('desktop and mobile initial views fit the whole world', async ({ page }) =>
   let evidence = await readEvidence(page);
   expect(evidence.allWorldCornersInsideUsableViewport).toBe(true);
   expect(evidence.framingMarginRatio).toBe(0.08);
-  await expect(page.getByTestId('controls-mode')).toHaveText('expanded');
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
-  await expect(page.getByTestId('game-status')).toHaveText('Ready');
-  await expect(page.getByTestId('controls-mode')).toHaveText('compact');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
   evidence = await readEvidence(page);
   expect(evidence.allWorldCornersInsideUsableViewport).toBe(true);
 });
@@ -45,7 +43,7 @@ test('tap selects, grid toggles, and reset restores defaults', async ({ page }) 
   await page.mouse.click(900, 500);
   let evidence = await readEvidence(page);
   expect(evidence.selectedCell).not.toBeNull();
-  await expect(page.getByTestId('selected-cell')).not.toHaveText('None');
+  await expect(page.getByRole('dialog')).toBeVisible();
 
   await clickGameMenuAction(page, 'Grid');
   evidence = await readEvidence(page);
@@ -83,11 +81,10 @@ test('changes quality and round-trips world save data', async ({ page }) => {
 
   await page.getByRole('button', { name: 'Game Menu', exact: true }).click();
   await page.getByRole('dialog').getByLabel('Quality').selectOption('low');
-  await expect(page.getByTestId('quality-value')).toHaveText('Low');
   await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
 
   await clickGameMenuAction(page, 'Load world');
-  await expect(page.getByTestId('game-status')).toHaveText('Loaded');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Loaded');
 });
 
 test('recovers presentation state after WebGL context loss', async ({ page }) => {
@@ -97,12 +94,12 @@ test('recovers presentation state after WebGL context loss', async ({ page }) =>
   await canvas.evaluate((element) => {
     element.dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
   });
-  await expect(page.getByTestId('game-status')).toHaveText('Context lost');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Context lost');
 
   await canvas.evaluate((element) => {
     element.dispatchEvent(new Event('webglcontextrestored'));
   });
-  await expect(page.getByTestId('game-status')).toHaveText('Ready');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
   const evidence = await readEvidence(page);
   expect(evidence.sceneRootCounts.roadCommitted).toBe(1);
   expect(evidence.sceneRootCounts.roadPreview).toBe(0);
@@ -128,7 +125,7 @@ test('save and load reproduce identical Water evidence', async ({ page }) => {
   const before = (await readEvidence(page)).water;
   await clickGameMenuAction(page, 'Save world');
   await clickGameMenuAction(page, 'Load world');
-  await expect(page.getByTestId('game-status')).toHaveText('Loaded');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Loaded');
   const after = (await readEvidence(page)).water;
   expect(after.sourceTerrainRevision).toBe(before.sourceTerrainRevision);
   expect(after.seaTriangleCount).toBe(before.seaTriangleCount);
@@ -150,7 +147,7 @@ test('restores exactly one Water, Road, Zone, and Building root after context re
     element.dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
     element.dispatchEvent(new Event('webglcontextrestored'));
   });
-  await expect(page.getByTestId('game-status')).toHaveText('Ready');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
   const evidence = await readEvidence(page);
   expect(evidence.water.waterRootCount).toBe(1);
   expect(evidence.sceneRootCounts.water).toBe(1);
@@ -166,46 +163,29 @@ test('exposes Terraform, Road, Zone, and Building tools with mode-aware brush co
 }) => {
   await waitForReady(page);
 
-  await expect(page.getByRole('button', { name: 'Navigate' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
-  for (const name of [
-    'Raise',
-    'Lower',
-    'Flatten',
-    'Build Road',
-    'Bulldoze Road',
-    'Residential',
-    'Commercial',
-    'Industrial',
-    'Remove Zone',
-    'Bulldoze Building',
-  ]) {
-    await expect(page.getByRole('button', { name })).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByTestId('nav-navigate')).toHaveAttribute('aria-pressed', 'true');
+  for (const category of ['nav-terrain', 'nav-roads', 'nav-zones', 'nav-buildings']) {
+    await expect(page.getByTestId(category)).toBeVisible();
   }
+  await expect(page.getByTestId('subtool-tray')).toBeHidden();
   await expect(page.getByRole('button', { name: 'Develop Zones' })).toHaveCount(0);
-  await expect(page.getByTestId('terraform-brush-controls')).toBeHidden();
-  await expect(page.getByRole('button', { name: 'Undo latest world change' })).toBeDisabled();
-  await expect(page.getByTestId('active-tool')).toHaveText('Navigate');
+  await expect(page.getByTestId('tool-context-undo')).toBeDisabled();
+  await expect(page.getByTestId('tool-context-name')).toHaveText('Navigate');
 
+  await page.getByTestId('nav-roads').click();
   await page.getByRole('button', { name: 'Build Road' }).click();
-  await expect(page.getByRole('button', { name: 'Build Road' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
-  await expect(page.getByTestId('active-tool')).toHaveText('Build Road');
-  await expect(page.getByTestId('terraform-brush-controls')).toBeHidden();
+  await expect(page.getByTestId('tool-context-name')).toHaveText('Build Road');
 
-  await page.getByRole('button', { name: 'Residential' }).click();
-  await expect(page.getByTestId('active-tool')).toHaveText('Residential Zone');
-  await expect(page.getByTestId('terraform-brush-controls')).toBeHidden();
+  await page.getByTestId('nav-zones').click();
+  await page.getByRole('button', { name: 'Residential', exact: true }).click();
+  await expect(page.getByTestId('tool-context-name')).toHaveText('Residential Zone');
 
-  await page.getByRole('button', { name: 'Bulldoze Building' }).click();
-  await expect(page.getByTestId('active-tool')).toHaveText('Bulldoze Building');
-  await expect(page.getByTestId('terraform-brush-controls')).toBeHidden();
+  await page.getByTestId('nav-buildings').click();
+  await page.getByRole('button', { name: 'Bulldoze Building', exact: true }).click();
+  await expect(page.getByTestId('tool-context-name')).toHaveText('Bulldoze Building');
 
-  await page.getByRole('button', { name: 'Raise' }).click();
+  await page.getByTestId('nav-terrain').click();
+  await page.getByRole('button', { name: 'Raise', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Brush 1 × 1' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Brush 5 × 5' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Brush 1 × 1' })).toHaveAttribute(

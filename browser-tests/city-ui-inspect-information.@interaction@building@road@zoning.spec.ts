@@ -17,7 +17,7 @@ test.describe.configure({ timeout: 60_000 });
 async function openGame(page: Page): Promise<void> {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(GAME_URL);
-  await expect(page.getByTestId('game-status')).toHaveText('Ready');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
 }
 
 async function closeInspect(page: Page): Promise<void> {

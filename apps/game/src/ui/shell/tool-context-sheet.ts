@@ -9,10 +9,21 @@ export interface ContextualToolProjection {
   readonly requestedCells?: number;
   readonly effectiveCells?: number;
   readonly affordability?: 'Affordable' | 'Unaffordable';
-  readonly undoAvailable: boolean;
 }
 
-export function mountToolContextSheet(parent: HTMLElement): UiAdapter<ContextualToolProjection> {
+export interface ToolContextSheetCallbacks {
+  readonly onUndo?: () => void;
+}
+
+export interface ToolContextSheetAdapter extends UiAdapter<ContextualToolProjection> {
+  setUndoAvailable(available: boolean): void;
+  setStatus(value: string): void;
+}
+
+export function mountToolContextSheet(
+  parent: HTMLElement,
+  callbacks: ToolContextSheetCallbacks = {},
+): ToolContextSheetAdapter {
   const element = document.createElement('section');
   element.className = 'city-tool-context';
   element.setAttribute('aria-label', 'Active tool');
@@ -35,6 +46,14 @@ export function mountToolContextSheet(parent: HTMLElement): UiAdapter<Contextual
   content.className = 'city-tool-context-content';
   content.dataset.testid = 'tool-context-content';
 
+  // Transient bootstrap status feed (e.g. save/load results, mutation outcomes).
+  // It is a separate line under the tool message; the latest status always shows.
+  const status = document.createElement('p');
+  status.className = 'city-tool-context-status';
+  status.dataset.testid = 'tool-context-status';
+  let statusValue: string | null = null;
+  let undoAvailableState = false;
+
   element.append(header, content);
 
   toggle.addEventListener('click', () => {
@@ -47,6 +66,31 @@ export function mountToolContextSheet(parent: HTMLElement): UiAdapter<Contextual
     toggle.setAttribute('aria-expanded', String(!collapsed));
   });
 
+  const undoPill = (available: boolean): HTMLSpanElement => {
+    const pill = document.createElement('span');
+    pill.className = 'city-tool-context-pill';
+    pill.textContent = available ? 'Undo available' : 'Undo unavailable';
+    return pill;
+  };
+
+  const undoButton = (available: boolean): HTMLButtonElement => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'city-tool-context-undo';
+    button.dataset.testid = 'tool-context-undo';
+    button.textContent = 'Undo';
+    button.disabled = !available;
+    button.addEventListener('click', () => callbacks.onUndo?.());
+    return button;
+  };
+
+  const renderStatus = (): void => {
+    if (statusValue !== null) {
+      status.textContent = statusValue;
+      content.append(status);
+    }
+  };
+
   return Object.freeze({
     element,
     update(projection: ContextualToolProjection): void {
@@ -54,21 +98,50 @@ export function mountToolContextSheet(parent: HTMLElement): UiAdapter<Contextual
       state.textContent = projection.state;
       const message = document.createElement('p');
       message.className = 'city-tool-context-message';
+      message.dataset.testid = 'tool-context-message';
       message.textContent = projection.message;
       const chips: HTMLSpanElement[] = [];
       if (projection.requestedCells !== undefined) {
-        chips.push(metricChip(`${projection.requestedCells} cells`));
+        const chip = metricChip(`${projection.requestedCells} cells`);
+        chip.dataset.testid = 'tool-context-requested';
+        chips.push(chip);
       }
       if (projection.effectiveCells !== undefined) {
-        chips.push(metricChip(`${projection.effectiveCells} effective`));
+        const chip = metricChip(`${projection.effectiveCells} effective`);
+        chip.dataset.testid = 'tool-context-effective';
+        chips.push(chip);
       }
       if (projection.affordability !== undefined) {
         chips.push(metricChip(projection.affordability));
       }
-      const undo = document.createElement('span');
-      undo.className = 'city-tool-context-pill';
-      undo.textContent = projection.undoAvailable ? 'Undo available' : 'Undo unavailable';
-      content.replaceChildren(message, ...chips, undo);
+      content.replaceChildren(
+        message,
+        ...chips,
+        undoPill(undoAvailableState),
+        undoButton(undoAvailableState),
+      );
+      renderStatus();
+    },
+    setUndoAvailable(available: boolean): void {
+      undoAvailableState = available;
+      const button = content.querySelector<HTMLButtonElement>('[data-testid="tool-context-undo"]');
+      const pill = content.querySelector<HTMLElement>('.city-tool-context-pill');
+      if (button !== null) button.disabled = !available;
+      if (pill !== null) {
+        pill.textContent = available ? 'Undo available' : 'Undo unavailable';
+      }
+    },
+    setStatus(value: string): void {
+      statusValue = value;
+      status.textContent = value;
+      content.append(status);
+      // A completed mutation status (e.g. "Road built") supersedes the transient
+      // "Applying change"/"Undoing" state the tool feed announced before the commit.
+      // Mirrors the legacy game-status MutationObserver that reset the tool state
+      // to "Ready" after every non-recovery status change.
+      if (state.textContent === 'Applying change' || state.textContent === 'Undoing') {
+        state.textContent = 'Ready';
+      }
     },
     dispose(): void {
       element.remove();

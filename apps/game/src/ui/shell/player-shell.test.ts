@@ -14,6 +14,7 @@ describe('player shell', () => {
       selectTool: vi.fn(),
       setTerraformBrush: vi.fn(),
       onSelectMetric: vi.fn(),
+      onUndo: vi.fn(),
     });
     expect(shell.element.querySelector('aside')).toBeNull();
     expect(shell.element.textContent).toContain('Information Views');

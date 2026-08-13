@@ -1,45 +1,71 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { GAME_URL, clickGameMenuAction } from './helpers/interaction.js';
 
 const SAVE_KEY = 'web-three-city:world-save:v6';
 
-async function waitForReady(page: import('@playwright/test').Page): Promise<void> {
+async function waitForReady(page: Page): Promise<void> {
   await page.goto(GAME_URL);
-  await expect(page.getByTestId('game-status')).toHaveText('Ready');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
+}
+
+function metric(page: Page, key: string) {
+  return page.locator(`[data-metric="${key}"] strong`);
+}
+
+async function readCityDialog(page: Page): Promise<{
+  population: string;
+  households: string;
+  housing: string;
+  employment: string;
+}> {
+  await page.getByRole('button', { name: 'City', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  // City overview rows render as <p><span>label</span><strong>value</strong></p>;
+  // read the strong value for each labelled row instead of parsing joined text.
+  const valueOf = async (label: string): Promise<string> => {
+    const row = dialog.locator('p').filter({ hasText: label });
+    await expect(row).toHaveCount(1);
+    const value = await row.locator('strong').textContent();
+    if (value === null) throw new Error(`rci:missing-value:${label}`);
+    return value;
+  };
+  const result = {
+    population: await valueOf('Population'),
+    households: await valueOf('Households'),
+    housing: await valueOf('Housing'),
+    employment: await valueOf('Employment'),
+  };
+  await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+  return result;
 }
 
 test('shows compact RCI statistics without changing the default tool', async ({ page }) => {
   await waitForReady(page);
-  await expect(page.getByTestId('rci-population')).toHaveText('0');
-  await expect(page.getByTestId('rci-households')).toHaveText('0');
-  await expect(page.getByTestId('rci-housing')).toHaveText('0/0');
-  await expect(page.getByTestId('rci-employment')).toHaveText('0/0');
-  await expect(page.getByTestId('rci-demand-residential')).toContainText('closed');
-  await expect(page.getByTestId('rci-demand-commercial')).toContainText('closed');
-  await expect(page.getByTestId('rci-demand-industrial')).toContainText('closed');
-  await expect(page.getByTestId('active-tool')).toHaveText('Navigate');
+  await expect(metric(page, 'population')).toHaveText('0');
+  await expect(metric(page, 'demand')).toHaveText('R→ C→ I→');
+  await expect(page.getByTestId('tool-context-name')).toHaveText('Navigate');
+
+  await page.getByRole('button', { name: 'City', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toContainText('Households0');
+  await expect(dialog).toContainText('Housing0/0');
+  await expect(dialog).toContainText('Employment0/0');
 });
 
 test('background RCI ticks do not interrupt an active zoning tool', async ({ page }) => {
   await waitForReady(page);
-  await page.getByRole('button', { name: 'Residential' }).click();
-  await expect(page.getByTestId('active-tool')).toHaveText('Residential Zone');
+  await page.getByTestId('nav-zones').click();
+  await page.getByRole('button', { name: 'Residential', exact: true }).click();
+  await expect(page.getByTestId('tool-context-name')).toHaveText('Residential Zone');
   await page.waitForTimeout(1_500);
-  await expect(page.getByTestId('active-tool')).toHaveText('Residential Zone');
-  await expect(page.getByRole('button', { name: 'Residential' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
+  await expect(page.getByTestId('tool-context-name')).toHaveText('Residential Zone');
 });
 
 test('round-trips WorldSaveV6 with RCI, Economy, and restores HUD values', async ({ page }) => {
   await waitForReady(page);
-  const before = {
-    population: await page.getByTestId('rci-population').textContent(),
-    households: await page.getByTestId('rci-households').textContent(),
-    housing: await page.getByTestId('rci-housing').textContent(),
-    employment: await page.getByTestId('rci-employment').textContent(),
-  };
+  const before = await readCityDialog(page);
+  await expect(metric(page, 'population')).toHaveText(before.population);
 
   await clickGameMenuAction(page, 'Save world');
   const saved = await page.evaluate((key) => localStorage.getItem(key), SAVE_KEY);
@@ -54,9 +80,8 @@ test('round-trips WorldSaveV6 with RCI, Economy, and restores HUD values', async
   });
 
   await clickGameMenuAction(page, 'Load world');
-  await expect(page.getByTestId('game-status')).toHaveText('Loaded');
-  await expect(page.getByTestId('rci-population')).toHaveText(before.population ?? '');
-  await expect(page.getByTestId('rci-households')).toHaveText(before.households ?? '');
-  await expect(page.getByTestId('rci-housing')).toHaveText(before.housing ?? '');
-  await expect(page.getByTestId('rci-employment')).toHaveText(before.employment ?? '');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Loaded');
+  const after = await readCityDialog(page);
+  expect(after).toEqual(before);
+  await expect(metric(page, 'population')).toHaveText(before.population);
 });

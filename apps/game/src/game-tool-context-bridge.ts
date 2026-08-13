@@ -1,9 +1,27 @@
 import type { GameToolMode } from './game-tool-mode.js';
 import { bindGameToolEvents, type GameToolEventDetail } from './game-tool-events.js';
 import { messageForGameReason } from './game-reason-catalog.js';
-import { roadPreviewStateLabel, zonePreviewStateLabel } from './game-tool-hud-binding.js';
+import type { ZoneToolMode } from './game-tool-mode.js';
 import type { UiAdapter } from './ui/foundation/lifecycle.js';
 import type { ContextualToolProjection } from './ui/shell/tool-context-sheet.js';
+
+export function roadPreviewStateLabel(
+  mode: 'road-build' | 'road-bulldoze' | null,
+  previewValid: boolean | null,
+): string {
+  if (previewValid === null) return 'Tool ready';
+  const operation = mode === 'road-bulldoze' ? 'bulldoze' : 'build';
+  return `${previewValid ? 'Valid' : 'Invalid'} ${operation}`;
+}
+
+export function zonePreviewStateLabel(
+  mode: ZoneToolMode | null,
+  previewValid: boolean | null,
+): string {
+  if (previewValid === null) return 'Tool ready';
+  const operation = mode === 'zone-remove' ? 'removal' : 'paint';
+  return `${previewValid ? 'Valid' : 'Invalid'} ${operation}`;
+}
 
 export function translateToolEvent(
   detail: GameToolEventDetail,
@@ -36,12 +54,11 @@ export function translateToolEvent(
       }
       return {
         mode,
-        name: modeTitle(mode),
+        name: toolLabel(mode),
         state: status,
         message,
         requestedCells: detail.state.acceptedAnchors.length,
         effectiveCells: detail.state.acceptedPlan?.supportCells.length ?? 0,
-        undoAvailable: false,
       };
     }
     case 'road-state': {
@@ -59,12 +76,11 @@ export function translateToolEvent(
       }
       return {
         mode,
-        name: modeTitle(mode),
+        name: toolLabel(mode),
         state: roadPreviewStateLabel(detail.state.mode, detail.state.previewValid),
         message,
         requestedCells: detail.state.previewCellCount,
         effectiveCells: detail.state.previewValid === true ? detail.state.previewCellCount : 0,
-        undoAvailable: false,
       };
     }
     case 'zone-state': {
@@ -82,24 +98,22 @@ export function translateToolEvent(
       }
       return {
         mode,
-        name: modeTitle(mode),
+        name: toolLabel(mode),
         state: zonePreviewStateLabel(detail.state.mode, detail.state.previewValid),
         message,
         requestedCells: detail.state.previewCellCount,
         effectiveCells: detail.effectiveCellCount,
-        undoAvailable: false,
       };
     }
     case 'reason': {
       const mode: GameToolMode = prior?.mode ?? 'navigate';
       return {
         mode,
-        name: modeTitle(mode),
+        name: toolLabel(mode),
         state: detail.reason.endsWith(':no-change') ? 'No change' : 'Rejected',
         message: messageForGameReason(detail.reason),
         ...(prior?.requestedCells !== undefined ? { requestedCells: prior.requestedCells } : {}),
         ...(prior?.effectiveCells !== undefined ? { effectiveCells: prior.effectiveCells } : {}),
-        undoAvailable: false,
       };
     }
     case 'transaction-state': {
@@ -112,10 +126,9 @@ export function translateToolEvent(
           : `Restoring previous ${domain} state…`;
       return {
         mode,
-        name: modeTitle(mode),
+        name: toolLabel(mode),
         state,
         message,
-        undoAvailable: false,
       };
     }
     default: {
@@ -145,11 +158,31 @@ export function bindGameToolContext(
   );
 }
 
-function modeTitle(mode: GameToolMode): string {
-  return mode
-    .split('-')
-    .map((part) => (part.length === 0 ? part : part[0]!.toUpperCase() + part.slice(1)))
-    .join(' ');
+export function toolLabel(mode: GameToolMode): string {
+  switch (mode) {
+    case 'navigate':
+      return 'Navigate';
+    case 'raise':
+      return 'Raise';
+    case 'lower':
+      return 'Lower';
+    case 'flatten':
+      return 'Flatten';
+    case 'road-build':
+      return 'Build Road';
+    case 'road-bulldoze':
+      return 'Bulldoze Road';
+    case 'zone-residential':
+      return 'Residential Zone';
+    case 'zone-commercial':
+      return 'Commercial Zone';
+    case 'zone-industrial':
+      return 'Industrial Zone';
+    case 'zone-remove':
+      return 'Remove Zone';
+    case 'building-bulldoze':
+      return 'Bulldoze Building';
+  }
 }
 
 function domainLabel(domain: 'terraform' | 'road' | 'zone' | 'building'): string {

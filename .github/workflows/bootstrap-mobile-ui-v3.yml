@@ -1,0 +1,98 @@
+name: Bootstrap mobile UI v3
+
+on:
+  push:
+    branches:
+      - fix/mobile-first-city-ui-v3
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/mobile-first-city-ui-v3
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Import presentation remediation from failed staging branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin fix/mobile-first-figma-fidelity-pr59-v2 --depth=1
+          source_ref=FETCH_HEAD
+          files=(
+            apps/game/src/ui/components/icon.ts
+            apps/game/src/ui/shell/bottom-nav.ts
+            apps/game/src/ui/shell/bottom-nav.test.ts
+            apps/game/src/ui/shell/game-hud.ts
+            apps/game/src/ui/shell/game-hud.test.ts
+            apps/game/src/ui/shell/simulation-controls.ts
+            apps/game/src/ui/shell/simulation-controls.test.ts
+            apps/game/src/ui/shell/brush-stepper.ts
+            apps/game/src/ui/shell/subtool-tray.ts
+            apps/game/src/ui/shell/subtool-tray.test.ts
+            apps/game/src/ui/shell/player-shell.ts
+            apps/game/src/ui/shell/player-shell.test.ts
+            apps/game/src/ui/shell/tool-context-sheet.ts
+            apps/game/src/ui/shell/tool-context-sheet.test.ts
+            apps/game/src/ui/shell/top-actions.ts
+            apps/game/src/ui/dialog/dialog-host.ts
+            apps/game/src/ui/dialog/dialog-host.test.ts
+            apps/game/src/ui/systems/city-system-dialogs.ts
+            apps/game/src/ui/systems/city-system-dialogs.test.ts
+            apps/game/src/ui/city-ui-runtime.ts
+            apps/game/src/ui/city-ui-runtime.test.ts
+            apps/game/src/ui/foundation/tokens.css
+            apps/game/src/ui/city-ui.css
+          )
+          for file in "${files[@]}"; do
+            mkdir -p "$(dirname "$file")"
+            git show "$source_ref:$file" > "$file"
+          done
+      - name: Repair known staging corruption and tighten mobile shell
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          runtime = Path('apps/game/src/ui/city-ui-runtime.ts')
+          text = runtime.read_text()
+          text = text.replace("(key: 'grid' | \tzoning' | null)", "(key: 'grid' | 'zoning' | null)")
+          text = text.replace("ports.setInformationView(\tzoning')", "ports.setInformationView('zoning')")
+          text = text.replace("return 'ₑ';", "return '↑';")
+          text = text.replace("deactivate.textContent = 'Deactivate view'(;", "deactivate.textContent = 'Deactivate view';")
+          runtime.write_text(text)
+
+          context = Path('apps/game/src/ui/shell/tool-context-sheet.ts')
+          text = context.read_text().replace('booleal', 'boolean')
+          context.write_text(text)
+
+          css = Path('apps/game/src/ui/city-ui.css')
+          text = css.read_text()
+          text += '''\n\n/* M6 v3 mobile-first acceptance refinements */\n@media (max-width: 600px) {\n  .city-awareness-hud {\n    width: calc(100vw - var(--city-ui-safe-left) - var(--city-ui-safe-right) - 4.25rem);\n    max-width: none;\n  }\n\n  .city-hud-primary {\n    grid-template-columns: repeat(3, minmax(0, 1fr));\n  }\n\n  .city-hud-primary [data-metric='gameTime'] {\n    grid-column: auto;\n  }\n\n  .city-hud-secondary {\n    display: none;\n  }\n\n  .city-metric--primary {\n    min-height: 2.75rem;\n    padding: 0.3rem 0.45rem;\n  }\n\n  .city-metric--primary .city-metric-label {\n    display: none;\n  }\n\n  .city-metric--primary .city-icon {\n    width: 1rem;\n    height: 1rem;\n  }\n\n  .city-top-actions {\n    gap: 0.2rem;\n  }\n\n  .city-bottom-nav {\n    width: calc(100vw - 1rem);\n  }\n\n  .city-simulation-controls {\n    bottom: calc(var(--city-ui-safe-bottom) + 4.85rem);\n  }\n}\n'''
+          css.write_text(text)
+          PY
+      - name: Format imported remediation
+        run: pnpm exec prettier --write apps/game/src/ui/components/icon.ts apps/game/src/ui/shell apps/game/src/ui/dialog/dialog-host.ts apps/game/src/ui/systems/city-system-dialogs.ts apps/game/src/ui/city-ui-runtime.ts apps/game/src/ui/foundation/tokens.css apps/game/src/ui/city-ui.css
+      - name: Verify clean remediation
+        run: pnpm check
+      - name: Commit verified presentation only
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/bootstrap-mobile-ui-v3.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/game/src/ui .github/workflows/bootstrap-mobile-ui-v3.yml
+          git commit -m "fix: rebuild mobile-first City UI presentation"
+          git push origin HEAD:fix/mobile-first-city-ui-v3

@@ -50,7 +50,9 @@ describe('tool context sheet', () => {
     const sheet = mountToolContextSheet(document.body, { onUndo: vi.fn() });
     sheet.update(projection());
     expect(sheet.element.querySelector('[data-city-icon="roads"]')).not.toBeNull();
-    const toggle = sheet.element.querySelector<HTMLButtonElement>('[data-testid="tool-context-toggle"]')!;
+    const toggle = sheet.element.querySelector<HTMLButtonElement>(
+      '[data-testid="tool-context-toggle"]',
+    )!;
     expect(toggle.classList.contains('city-icon-button')).toBe(true);
     expect(toggle.querySelector('[data-city-icon]')).not.toBeNull();
     const undo = undoButton();

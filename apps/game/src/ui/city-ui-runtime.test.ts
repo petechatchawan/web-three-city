@@ -32,9 +32,7 @@ describe('City UI runtime', () => {
     const ui = mountCityUi(document.body, runtimePorts);
     const world = createApplicationFixture();
     ui.update(world);
-    ui.element
-      .querySelector<HTMLButtonElement>('.city-top-actions button:nth-child(2)')
-      ?.click();
+    ui.element.querySelector<HTMLButtonElement>('.city-top-actions button:nth-child(2)')?.click();
     ui.update(world);
     expect(ui.dialogHost.activeRoute?.key).toBe('city-overview');
     expect(runtimePorts.setSpeed).not.toHaveBeenCalled();
@@ -45,9 +43,7 @@ describe('City UI runtime', () => {
   it('groups the Game Menu into world, camera, and presentation sections', () => {
     const ui = mountCityUi(document.body, createPorts());
     ui.update(createApplicationFixture());
-    ui.element
-      .querySelector<HTMLButtonElement>('.city-top-actions button:nth-child(3)')
-      ?.click();
+    ui.element.querySelector<HTMLButtonElement>('.city-top-actions button:nth-child(3)')?.click();
     expect(ui.dialogHost.activeRoute?.key).toBe('game-menu');
     const sections = [...ui.element.querySelectorAll<HTMLElement>('[data-menu-section]')].map(
       (section) => section.dataset.menuSection,

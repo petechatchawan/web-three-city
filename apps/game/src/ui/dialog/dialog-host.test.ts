@@ -47,9 +47,7 @@ describe('DialogHost', () => {
     const header = host.element.querySelector('.city-sheet-header');
     expect(header).not.toBeNull();
     expect(
-      header
-        ?.querySelector('[data-sheet-action="back"]')
-        ?.classList.contains('city-ghost-button'),
+      header?.querySelector('[data-sheet-action="back"]')?.classList.contains('city-ghost-button'),
     ).toBe(true);
     const close = header?.querySelector<HTMLButtonElement>('[data-sheet-action="close"]');
     expect(close?.classList.contains('city-icon-button')).toBe(true);

@@ -21,10 +21,13 @@ test('keeps the primary 390×844 shell inside the viewport with separated nav an
       const element = document.querySelector<HTMLElement>(selector);
       if (element === null || element.getClientRects().length === 0) return true;
       const rect = element.getBoundingClientRect();
-      return rect.left >= 0 && rect.top >= 0 && rect.right <= innerWidth && rect.bottom <= innerHeight;
+      return (
+        rect.left >= 0 && rect.top >= 0 && rect.right <= innerWidth && rect.bottom <= innerHeight
+      );
     };
     return {
-      horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      horizontalOverflow:
+        document.documentElement.scrollWidth > document.documentElement.clientWidth,
       hud: insideViewport('.city-awareness-hud'),
       actions: insideViewport('.city-top-actions'),
       nav: insideViewport('.city-bottom-nav'),

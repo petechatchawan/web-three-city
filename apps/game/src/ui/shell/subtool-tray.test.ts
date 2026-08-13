@@ -15,6 +15,39 @@ describe('subtool tray', () => {
     expect(tray.element.querySelectorAll<HTMLButtonElement>('[data-brush-size]').length).toBe(3);
   });
 
+  it('renders a white-tray tool language with icon tool pills and a distinct brush segment group', () => {
+    const tray = mountSubToolTray(document.body, { onSelectTool: vi.fn(), onBrush: vi.fn() });
+    tray.open('terrain');
+    expect(tray.element.classList.contains('city-subtool-tray')).toBe(true);
+    for (const button of tray.element.querySelectorAll<HTMLButtonElement>('[data-tool-mode]')) {
+      expect(button.classList.contains('city-tool-pill')).toBe(true);
+      expect(button.querySelector('[data-city-icon]')).not.toBeNull();
+      expect(button.querySelector('.city-tool-label')).not.toBeNull();
+    }
+    const brush = tray.element.querySelector('.city-brush-stepper');
+    expect(brush?.classList.contains('city-segment-group')).toBe(true);
+    for (const button of brush?.querySelectorAll<HTMLButtonElement>('[data-brush-size]') ?? []) {
+      expect(button.classList.contains('city-segment')).toBe(true);
+    }
+  });
+
+  it('marks the selected tool pill after a subtool click', () => {
+    const tray = mountSubToolTray(document.body, { onSelectTool: vi.fn(), onBrush: vi.fn() });
+    tray.open('zones');
+    const residential = tray.element.querySelector<HTMLButtonElement>(
+      '[data-tool-mode="zone-residential"]',
+    )!;
+    const commercial = tray.element.querySelector<HTMLButtonElement>(
+      '[data-tool-mode="zone-commercial"]',
+    )!;
+    expect(residential.getAttribute('aria-pressed')).toBe('false');
+    residential.click();
+    expect(residential.getAttribute('aria-pressed')).toBe('true');
+    commercial.click();
+    expect(residential.getAttribute('aria-pressed')).toBe('false');
+    expect(commercial.getAttribute('aria-pressed')).toBe('true');
+  });
+
   it('emits selectTool for a subtool click and brush for a brush pill', () => {
     const onSelectTool = vi.fn();
     const onBrush = vi.fn();

@@ -1,0 +1,62 @@
+name: Staging mobile visual evidence
+
+on:
+  push:
+    branches:
+      - fix/mobile-first-figma-fidelity-pr59-v2
+
+permissions:
+  contents: read
+
+jobs:
+  visual-evidence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm build:browser
+      - run: pnpm exec playwright install chromium
+      - name: Start game preview
+        run: |
+          pnpm --filter @web-three-city/game preview --host 127.0.0.1 --port 4173 >/tmp/game-preview.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:4173 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/game-preview.log
+          exit 1
+      - name: Capture mobile-first evidence
+        run: |
+          mkdir -p visual-evidence
+          node --input-type=module <<'NODE'
+          import { chromium } from '@playwright/test';
+          const browser = await chromium.launch({ headless: true });
+          const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+          await page.goto('http://127.0.0.1:4173', { waitUntil: 'networkidle' });
+          await page.screenshot({ path: 'visual-evidence/01-mobile-idle-390x844.png' });
+          await page.getByRole('button', { name: 'Zones', exact: true }).click();
+          await page.screenshot({ path: 'visual-evidence/02-mobile-zones-390x844.png' });
+          await page.getByRole('button', { name: 'City', exact: true }).click();
+          await page.screenshot({ path: 'visual-evidence/03-mobile-city-390x844.png' });
+          await page.getByRole('button', { name: 'Close', exact: true }).click();
+          await page.getByRole('button', { name: 'Game Menu', exact: true }).click();
+          await page.screenshot({ path: 'visual-evidence/04-mobile-game-menu-390x844.png' });
+          await page.setViewportSize({ width: 844, height: 390 });
+          await page.getByRole('button', { name: 'Close', exact: true }).click();
+          await page.screenshot({ path: 'visual-evidence/05-landscape-844x390.png' });
+          await page.setViewportSize({ width: 1440, height: 900 });
+          await page.screenshot({ path: 'visual-evidence/06-desktop-1440x900.png' });
+          await browser.close();
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mobile-fidelity-evidence
+          path: visual-evidence
+          if-no-files-found: error

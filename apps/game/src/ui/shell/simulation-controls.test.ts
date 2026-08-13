@@ -16,7 +16,12 @@ describe('simulation controls', () => {
       '4×',
       'Step',
     ]);
+    expect(controls.classList.contains('city-simulation-capsule')).toBe(true);
+    expect(buttons.every((button) => button.classList.contains('city-segment'))).toBe(true);
+    expect(buttons[0]?.getAttribute('aria-pressed')).toBe('true');
     buttons[2]?.click();
+    expect(buttons[0]?.getAttribute('aria-pressed')).toBe('false');
+    expect(buttons[2]?.getAttribute('aria-pressed')).toBe('true');
     buttons[4]?.click();
     expect(setSpeed).toHaveBeenCalledWith('fast');
     expect(step).toHaveBeenCalledOnce();

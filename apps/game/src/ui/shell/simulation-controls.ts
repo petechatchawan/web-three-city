@@ -7,16 +7,8 @@ export interface SimulationControlCallbacks {
 }
 
 const speedCycle: readonly SimulationSpeed[] = ['paused', 'normal', 'fast', 'faster'];
-
 const speedLabel: Readonly<Record<SimulationSpeed, string>> = {
   paused: 'Ⅱ',
-  normal: '1×',
-  fast: '2×',
-  faster: '4×',
-};
-
-const speedName: Readonly<Record<SimulationSpeed, string>> = {
-  paused: 'Paused',
   normal: '1×',
   fast: '2×',
   faster: '4×',
@@ -25,19 +17,19 @@ const speedName: Readonly<Record<SimulationSpeed, string>> = {
 export function mountSimulationControls(
   parent: HTMLElement,
   callbacks: SimulationControlCallbacks,
-  _options: { compact?: boolean } = {},
+  options: { compact?: boolean } = {},
 ): HTMLElement {
   const element = document.createElement('div');
-  element.className = 'city-simulation-controls city-simulation-controls--top-actions';
+  element.className = options.compact
+    ? 'city-simulation-controls city-simulation-controls--top-actions city-simulation-controls--compact'
+    : 'city-simulation-controls city-simulation-controls--top-actions';
   element.setAttribute('role', 'group');
   element.setAttribute('aria-label', 'Simulation speed');
 
   let activeSpeed: SimulationSpeed = 'paused';
-
   const speedButton = document.createElement('button');
   speedButton.type = 'button';
   speedButton.className = 'city-icon-button city-speed-toggle';
-  speedButton.dataset.simulationSpeed = activeSpeed;
 
   const render = (): void => {
     speedButton.textContent = speedLabel[activeSpeed];
@@ -46,9 +38,9 @@ export function mountSimulationControls(
     const nextSpeed = speedCycle[(index + 1) % speedCycle.length]!;
     speedButton.setAttribute(
       'aria-label',
-      `Simulation ${speedName[activeSpeed]}; switch to ${speedName[nextSpeed]}`,
+      `Simulation ${speedLabel[activeSpeed]}; switch to ${speedLabel[nextSpeed]}`,
     );
-    speedButton.title = `Simulation: ${speedName[activeSpeed]}`;
+    speedButton.title = `Simulation speed: ${speedLabel[activeSpeed]}`;
 
     const existingStep = element.querySelector('[data-simulation-step]');
     if (activeSpeed !== 'paused') {

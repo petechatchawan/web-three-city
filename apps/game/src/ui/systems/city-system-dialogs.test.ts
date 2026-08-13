@@ -24,6 +24,22 @@ describe('City system dialogs', () => {
     expect(host.element.textContent).toContain('Road maintenance');
   });
 
+  it('uses KPI cards, compact details, and deliberate system shortcuts in City Overview', () => {
+    const world = createApplicationFixture();
+    const host = mountDialogHost(document.body);
+    const dialogs = createCitySystemDialogs(host, {
+      getWorld: () => world,
+      rciRegistries: createFoundationRciRegistries(),
+      submitTaxPolicy: vi.fn(() => ({ status: 'accepted' as const })),
+    });
+    dialogs.openCity();
+    expect(host.element.querySelector('.city-kpi-grid')).not.toBeNull();
+    expect(host.element.querySelectorAll('.city-kpi-card')).toHaveLength(3);
+    expect(host.element.querySelector('.city-detail-card')).not.toBeNull();
+    expect(host.element.querySelector('.city-system-grid')).not.toBeNull();
+    expect(host.element.querySelectorAll('.city-system-grid [data-system]')).toHaveLength(4);
+  });
+
   it('submits a typed tax policy and reports bounded status', () => {
     const submitTaxPolicy = vi.fn(() => ({ status: 'accepted' as const }));
     const host = mountDialogHost(document.body);

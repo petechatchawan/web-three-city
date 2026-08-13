@@ -4,7 +4,7 @@ import { mountPlayerShell } from './player-shell.js';
 afterEach(() => document.body.replaceChildren());
 
 describe('player shell', () => {
-  it('mounts world-centric semantic actions without a sidebar', () => {
+  it('mounts a compact mobile control hierarchy without a sidebar', () => {
     const shell = mountPlayerShell(document.body, {
       onInformationViews: vi.fn(),
       onCity: vi.fn(),
@@ -17,24 +17,26 @@ describe('player shell', () => {
       onUndo: vi.fn(),
     });
     expect(shell.element.querySelector('aside')).toBeNull();
-    expect(shell.element.textContent).toContain('Information Views');
-    expect(shell.element.textContent).toContain('City');
-    expect(shell.element.textContent).toContain('Game Menu');
-    expect(shell.element.textContent).toContain('Step');
     expect(shell.element.querySelectorAll('.city-bottom-nav [data-nav-category]')).toHaveLength(5);
-    expect(shell.element.querySelector('.city-bottom-nav .city-simulation-controls')).toBeNull();
-    expect(
-      shell.element.querySelector('.city-simulation-controls.city-simulation-capsule'),
-    ).not.toBeNull();
-    const actions = [
-      ...shell.element.querySelectorAll<HTMLButtonElement>('.city-top-actions button'),
-    ];
-    expect(actions.map((button) => button.getAttribute('aria-label'))).toEqual([
+
+    const topActions = shell.element.querySelector('.city-top-actions')!;
+    expect(topActions.querySelector('[data-simulation-speed]')).not.toBeNull();
+    expect(topActions.querySelector('[data-simulation-step]')).not.toBeNull();
+    expect(shell.element.querySelector(':scope > .city-simulation-controls')).toBeNull();
+
+    const terrain = shell.bottomNav.element.querySelector<HTMLButtonElement>(
+      '[data-testid="nav-terrain"]',
+    )!;
+    terrain.click();
+    expect(shell.toolContextSheet.element.parentElement).toBe(shell.subToolTray.element);
+    expect(shell.subToolTray.element.hasAttribute('hidden')).toBe(false);
+
+    const actions = [...topActions.querySelectorAll<HTMLButtonElement>(':scope > button')];
+    expect(actions.slice(0, 3).map((button) => button.getAttribute('aria-label'))).toEqual([
       'Information Views',
       'City',
       'Game Menu',
     ]);
-    expect(actions.every((button) => button.classList.contains('city-icon-button'))).toBe(true);
     shell.dispose();
     expect(document.body.contains(shell.element)).toBe(false);
   });

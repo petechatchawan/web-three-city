@@ -41,6 +41,17 @@ describe('DialogHost', () => {
     expect(sheet.querySelector('.city-sheet-body')).not.toBeNull();
   });
 
+  it('renders mobile sheet chrome with explicit back and icon-close variants', () => {
+    const host = mountDialogHost(document.body);
+    host.open({ kind: 'system', key: 'city', title: 'City' }, () => undefined);
+    const header = host.element.querySelector('.city-sheet-header');
+    expect(header).not.toBeNull();
+    expect(header?.querySelector('[data-sheet-action="back"]')?.classList.contains('city-ghost-button')).toBe(true);
+    const close = header?.querySelector<HTMLButtonElement>('[data-sheet-action="close"]');
+    expect(close?.classList.contains('city-icon-button')).toBe(true);
+    expect(close?.querySelector('[data-city-icon="close"]')).not.toBeNull();
+  });
+
   it('closes on a backdrop tap but stays open when the sheet itself is clicked', () => {
     const host = mountDialogHost(document.body);
     host.open({ kind: 'system', key: 'city', title: 'City' }, () => undefined);

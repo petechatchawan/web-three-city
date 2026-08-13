@@ -35,8 +35,8 @@ test('captures Construction phases, variety, and responsive time controls', asyn
   });
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.getByRole('button', { name: 'Set paused speed' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Advance exactly one tick' })).toBeVisible();
+  await expect(page.locator('[data-simulation-speed]')).toHaveText('Ⅱ');
+  await expect(page.locator('[data-simulation-step]')).toBeVisible();
   await page.screenshot({
     path: testInfo.outputPath('growth-time-controls-mobile.png'),
     fullPage: true,

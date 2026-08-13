@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&display=swap');
+@import './ui/m6-1.css';
 
 :root {
   font-family:
@@ -38,7 +39,6 @@ body {
 .app-shell {
   position: relative;
   isolation: isolate;
-  /* CSS sky: light blue → near-white → subtle green horizon */
   background:
     radial-gradient(
       ellipse at 72% 8%,

@@ -245,7 +245,8 @@ test('responsive compatibility keeps tools reachable without horizontal overflow
   await openGame(page, 390, 844);
   await expect(page.locator('.city-bottom-nav')).toBeVisible();
   await expect(page.getByTestId('nav-terrain')).toBeVisible();
-  await expect(page.locator('.city-tool-context')).toBeVisible();
+  await expect(page.getByTestId('subtool-tray')).toBeHidden();
+  await expect(page.locator('.city-tool-context')).toBeHidden();
   const layout = await page.evaluate(() => ({
     horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
     hudHeight:
@@ -255,6 +256,8 @@ test('responsive compatibility keeps tools reachable without horizontal overflow
   expect(layout.horizontalOverflow).toBe(false);
   expect(layout.hudHeight).toBeLessThan(844 * 0.3);
   await page.getByTestId('nav-terrain').click();
+  await expect(page.getByTestId('subtool-tray')).toBeVisible();
+  await expect(page.locator('.city-subtool-tray .city-tool-context')).toBeVisible();
   await page.getByRole('button', { name: 'Raise' }).click();
   await expect(page.getByRole('button', { name: 'Brush 1 × 1' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Brush 5 × 5' })).toBeVisible();

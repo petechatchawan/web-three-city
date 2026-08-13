@@ -44,6 +44,10 @@ describe('tool context sheet', () => {
     expect(element.textContent).toContain('0 effective');
     expect(element.textContent).toContain('Unaffordable');
     expect(element.textContent).toContain('Undo available');
+    expect(element.querySelector('[data-city-icon="roads"]')).not.toBeNull();
+    const undo = undoButton();
+    expect(undo.classList.contains('city-icon-button')).toBe(true);
+    expect(undo.getAttribute('aria-label')).toBe('Undo latest world change');
   });
 
   it('collapses and expands the body via the toggle', () => {
@@ -53,6 +57,8 @@ describe('tool context sheet', () => {
     const content = document.querySelector<HTMLElement>('[data-testid="tool-context-content"]');
     expect(toggle).not.toBeNull();
     expect(content).not.toBeNull();
+    expect(toggle!.classList.contains('city-icon-button')).toBe(true);
+    expect(toggle!.querySelector('[data-city-icon]')).not.toBeNull();
     expect(toggle!.getAttribute('aria-expanded')).toBe('true');
     expect(content!.hasAttribute('hidden')).toBe(false);
     toggle!.click();

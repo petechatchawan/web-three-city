@@ -24,6 +24,12 @@ describe('game HUD', () => {
     expect(hud.element.textContent).toContain('5');
     expect(hud.element.textContent).toContain('7');
     expect(hud.element.hasAttribute('aria-live')).toBe(false);
+    expect(hud.element.querySelector('.city-hud-primary')).not.toBeNull();
+    expect(hud.element.querySelector('.city-hud-secondary')).not.toBeNull();
+    const population = hud.element.querySelector('[data-metric="population"]');
+    expect(population?.classList.contains('city-metric--primary')).toBe(true);
+    expect(population?.querySelector('[data-city-icon="population"]')).not.toBeNull();
+    expect(population?.querySelector('.city-metric-value')?.textContent).toBe('337');
     hud.dispose();
     expect(document.body.contains(hud.element)).toBe(false);
   });

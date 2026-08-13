@@ -10,6 +10,11 @@ describe('bottom nav', () => {
     const nav = mountBottomNav(document.body, vi.fn());
     const buttons = nav.element.querySelectorAll<HTMLButtonElement>('[data-nav-category]');
     expect(Array.from(buttons, (b) => b.dataset.navCategory)).toEqual(categories);
+    for (const button of buttons) {
+      expect(button.classList.contains('city-nav-item')).toBe(true);
+      expect(button.querySelector('[data-city-icon]')).not.toBeNull();
+      expect(button.querySelector('.city-nav-label')).not.toBeNull();
+    }
   });
 
   it('fires onSelect with the tapped category', () => {

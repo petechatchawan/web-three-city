@@ -39,6 +39,12 @@ describe('DialogHost', () => {
     expect(sheet.style.height > '90vh').toBe(false);
     expect(sheet.querySelector('.city-sheet-handle')).not.toBeNull();
     expect(sheet.querySelector('.city-sheet-body')).not.toBeNull();
+    const header = sheet.querySelector('.city-sheet-header');
+    expect(header).not.toBeNull();
+    expect(header?.querySelector('[data-sheet-action="back"]')).not.toBeNull();
+    const close = header?.querySelector<HTMLButtonElement>('[data-sheet-action="close"]');
+    expect(close?.classList.contains('city-icon-button')).toBe(true);
+    expect(close?.querySelector('[data-city-icon="close"]')).not.toBeNull();
   });
 
   it('closes on a backdrop tap but stays open when the sheet itself is clicked', () => {

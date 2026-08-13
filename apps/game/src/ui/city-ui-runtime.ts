@@ -3,6 +3,7 @@ import type { CommittedWorld } from '../application/committed-world.js';
 import { createEconomyViewProjection } from '../economy-budget-hud.js';
 import { createGameTimePresentation } from '../game-time-presentation.js';
 import { createRciHudModel } from '../rci-hud.js';
+import { createCityIcon, type CityIconName } from './components/icon.js';
 import type { DialogHost } from './dialog/dialog-host.js';
 import { openInspectDialog } from './inspect/inspect-dialog.js';
 import { pickInspectTarget } from './inspect/inspect-target.js';
@@ -44,6 +45,38 @@ function demandSymbol(value: number): string {
   return '→';
 }
 
+function menuSection(body: HTMLElement, key: string, title: string): HTMLElement {
+  const section = document.createElement('section');
+  section.className = 'city-menu-section';
+  section.dataset.menuSection = key;
+  const heading = document.createElement('h3');
+  heading.className = 'city-section-title';
+  heading.textContent = title;
+  const grid = document.createElement('div');
+  grid.className = 'city-action-grid';
+  section.append(heading, grid);
+  body.append(section);
+  return grid;
+}
+
+function menuAction(
+  parent: HTMLElement,
+  label: string,
+  icon: CityIconName,
+  action: () => void,
+): void {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'city-menu-tile';
+  button.setAttribute('aria-label', label);
+  button.append(createCityIcon(icon));
+  const copy = document.createElement('span');
+  copy.textContent = label;
+  button.append(copy);
+  button.addEventListener('click', action);
+  parent.append(button);
+}
+
 export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRuntime {
   let latestWorld: CommittedWorld | null = null;
   const informationViews = createInformationViewRegistry([
@@ -62,33 +95,43 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
       deactivate: () => ports.setInformationView(null),
     },
   ]);
+
   const renderInformationViews = (body: HTMLElement): void => {
+    const grid = document.createElement('div');
+    grid.className = 'city-action-grid';
     for (const entry of informationViews.entries()) {
       const button = document.createElement('button');
       button.type = 'button';
+      button.className = 'city-sheet-action';
       button.textContent = entry.title;
       button.dataset.informationView = entry.key;
       button.addEventListener('click', () => {
         informationViews.replace(entry.key);
         shell.dialogHost.refresh();
       });
-      body.append(button);
+      grid.append(button);
     }
+    body.append(grid);
     const active = informationViews.projection();
     if (active !== null) {
+      const card = document.createElement('section');
+      card.className = 'city-card city-information-card';
       const legend = document.createElement('p');
       legend.dataset.testid = 'information-view-legend';
       legend.textContent = `${active.title}: ${active.legend}`;
       const deactivate = document.createElement('button');
       deactivate.type = 'button';
+      deactivate.className = 'city-ghost-button';
       deactivate.textContent = 'Deactivate view';
       deactivate.addEventListener('click', () => {
         informationViews.deactivate();
         shell.dialogHost.refresh();
       });
-      body.append(legend, deactivate);
+      card.append(legend, deactivate);
+      body.append(card);
     }
   };
+
   const shell: PlayerShell = mountPlayerShell(parent, {
     setSpeed: ports.setSpeed,
     step: ports.step,
@@ -123,26 +166,36 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
     },
     onGameMenu: () =>
       shell.dialogHost.open({ kind: 'system', key: 'game-menu', title: 'Game Menu' }, (body) => {
-        const actions = [
-          ['Save world', ports.saveWorld],
-          ['Load world', ports.loadWorld],
-          ['Rotate left', ports.rotateLeft],
-          ['Rotate right', ports.rotateRight],
-          ['Reset camera', ports.resetCamera],
-          ['Grid', ports.toggleGrid],
+        const world = menuSection(body, 'world', 'World');
+        menuAction(world, 'Save world', 'save', () => {
+          ports.saveWorld();
+          shell.dialogHost.close();
+        });
+        menuAction(world, 'Load world', 'load', () => {
+          ports.loadWorld();
+          shell.dialogHost.close();
+        });
+
+        const camera = menuSection(body, 'camera', 'Camera');
+        const cameraActions = [
+          ['Rotate left', 'rotate-left', ports.rotateLeft],
+          ['Rotate right', 'rotate-right', ports.rotateRight],
+          ['Reset camera', 'reset-camera', ports.resetCamera],
+          ['Grid', 'grid', ports.toggleGrid],
         ] as const;
-        for (const [label, action] of actions) {
-          const button = document.createElement('button');
-          button.type = 'button';
-          button.textContent = label;
-          button.addEventListener('click', () => {
+        for (const [label, icon, action] of cameraActions) {
+          menuAction(camera, label, icon, () => {
             action();
             shell.dialogHost.close();
           });
-          body.append(button);
         }
-        const qualityLabel = document.createElement('label');
-        qualityLabel.textContent = 'Quality';
+
+        const presentation = menuSection(body, 'presentation', 'Presentation');
+        const qualityCard = document.createElement('label');
+        qualityCard.className = 'city-quality-card';
+        qualityCard.append(createCityIcon('quality'));
+        const text = document.createElement('span');
+        text.textContent = 'Quality';
         const quality = document.createElement('select');
         quality.setAttribute('aria-label', 'Quality');
         for (const value of ['low', 'medium', 'high'] as const) {
@@ -155,10 +208,11 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
         quality.addEventListener('change', () =>
           ports.setQuality(quality.value as 'low' | 'medium' | 'high'),
         );
-        qualityLabel.append(quality);
-        body.append(qualityLabel);
+        qualityCard.append(text, quality);
+        presentation.append(qualityCard);
       }),
   });
+
   const systemDialogs = createCitySystemDialogs(shell.dialogHost, {
     getWorld: () => {
       if (latestWorld === null) throw new Error('city-ui:world-unavailable');

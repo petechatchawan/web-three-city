@@ -1,0 +1,4 @@
+.city-ui .city-top-actions,
+.city-ui > .city-simulation-controls--top-actions {
+  top: calc(var(--city-ui-safe-top) + 3.55rem);
+}

@@ -1,0 +1,10 @@
+.city-ui .city-speed-toggle,
+.city-ui .city-step-action {
+  color: var(--city-ui-text);
+  background: rgb(255 255 255 / 0.94);
+}
+
+.city-ui .city-speed-toggle {
+  font-size: var(--city-ui-type-caption);
+  font-weight: 700;
+}

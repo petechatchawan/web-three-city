@@ -1,65 +1,81 @@
 import type { SimulationSpeed } from '@web-three-city/simulation-core';
-import { createButton } from '../components/button.js';
+import { createCityIcon } from '../components/icon.js';
 
 export interface SimulationControlCallbacks {
   readonly setSpeed: (speed: SimulationSpeed) => void;
   readonly step: () => void;
 }
 
-type SpeedControl = Readonly<{
-  speed: SimulationSpeed;
-  label: string;
-  ariaLabel: string;
-}>;
+const speedCycle: readonly SimulationSpeed[] = ['paused', 'normal', 'fast', 'faster'];
 
-const speeds: readonly SpeedControl[] = [
-  { speed: 'paused', label: 'Paused', ariaLabel: 'Set paused speed' },
-  { speed: 'normal', label: '1×', ariaLabel: 'Set normal speed' },
-  { speed: 'fast', label: '2×', ariaLabel: 'Set fast speed' },
-  { speed: 'faster', label: '4×', ariaLabel: 'Set faster speed' },
-];
+const speedLabel: Readonly<Record<SimulationSpeed, string>> = {
+  paused: 'Ⅱ',
+  normal: '1×',
+  fast: '2×',
+  faster: '4×',
+};
+
+const speedName: Readonly<Record<SimulationSpeed, string>> = {
+  paused: 'Paused',
+  normal: '1×',
+  fast: '2×',
+  faster: '4×',
+};
 
 export function mountSimulationControls(
   parent: HTMLElement,
   callbacks: SimulationControlCallbacks,
-  options: { compact?: boolean } = {},
+  _options: { compact?: boolean } = {},
 ): HTMLElement {
   const element = document.createElement('div');
-  element.className = options.compact
-    ? 'city-simulation-controls city-simulation-controls--compact city-simulation-capsule'
-    : 'city-simulation-controls city-simulation-capsule';
+  element.className = 'city-simulation-controls city-simulation-controls--top-actions';
   element.setAttribute('role', 'group');
   element.setAttribute('aria-label', 'Simulation speed');
 
   let activeSpeed: SimulationSpeed = 'paused';
-  const speedButtons = new Map<SimulationSpeed, HTMLButtonElement>();
-  const renderPressed = (): void => {
-    for (const [speed, button] of speedButtons) {
-      const selected = speed === activeSpeed;
-      button.setAttribute('aria-pressed', String(selected));
-      button.classList.toggle('is-active', selected);
+
+  const speedButton = document.createElement('button');
+  speedButton.type = 'button';
+  speedButton.className = 'city-icon-button city-speed-toggle';
+  speedButton.dataset.simulationSpeed = activeSpeed;
+
+  const render = (): void => {
+    speedButton.textContent = speedLabel[activeSpeed];
+    speedButton.dataset.simulationSpeed = activeSpeed;
+    const index = speedCycle.indexOf(activeSpeed);
+    const nextSpeed = speedCycle[(index + 1) % speedCycle.length]!;
+    speedButton.setAttribute(
+      'aria-label',
+      `Simulation ${speedName[activeSpeed]}; switch to ${speedName[nextSpeed]}`,
+    );
+    speedButton.title = `Simulation: ${speedName[activeSpeed]}`;
+
+    const existingStep = element.querySelector('[data-simulation-step]');
+    if (activeSpeed !== 'paused') {
+      existingStep?.remove();
+      return;
     }
+    if (existingStep !== null) return;
+    const stepButton = document.createElement('button');
+    stepButton.type = 'button';
+    stepButton.className = 'city-icon-button city-step-action';
+    stepButton.dataset.simulationStep = '';
+    stepButton.setAttribute('aria-label', 'Advance exactly one tick');
+    stepButton.title = 'Step one tick';
+    stepButton.append(createCityIcon('step'));
+    stepButton.addEventListener('click', callbacks.step);
+    element.append(stepButton);
   };
 
-  for (const control of speeds) {
-    const button = createButton(control.label, () => {
-      activeSpeed = control.speed;
-      renderPressed();
-      callbacks.setSpeed(control.speed);
-    });
-    button.className = 'city-segment';
-    button.dataset.simulationSpeed = control.speed;
-    button.setAttribute('aria-label', control.ariaLabel);
-    speedButtons.set(control.speed, button);
-    element.append(button);
-  }
+  speedButton.addEventListener('click', () => {
+    const index = speedCycle.indexOf(activeSpeed);
+    activeSpeed = speedCycle[(index + 1) % speedCycle.length]!;
+    callbacks.setSpeed(activeSpeed);
+    render();
+  });
 
-  const stepButton = createButton('Step', callbacks.step);
-  stepButton.className = 'city-segment city-segment--step';
-  stepButton.dataset.simulationStep = '';
-  stepButton.setAttribute('aria-label', 'Advance exactly one tick');
-  element.append(stepButton);
+  element.append(speedButton);
   parent.append(element);
-  renderPressed();
+  render();
   return element;
 }

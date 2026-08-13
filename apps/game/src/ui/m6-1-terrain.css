@@ -1,0 +1,24 @@
+/* Terrain keeps a second compact brush row; other categories stay one-row. */
+.city-ui .city-subtool-tray[data-category='terrain'] .city-subtool-tray-content {
+  flex-wrap: wrap;
+  overflow-x: visible;
+}
+
+.city-ui .city-subtool-tray[data-category='terrain'] .city-tool-pill {
+  flex: 1 1 0;
+  min-width: 0 !important;
+}
+
+.city-ui .city-subtool-tray[data-category='terrain'] .city-brush-stepper {
+  flex: 0 0 100%;
+  gap: 0.15rem;
+}
+
+.city-ui:has(.city-subtool-tray[data-category='terrain']:not([hidden])) .city-tool-context {
+  bottom: calc(var(--city-ui-safe-bottom) + 10.3rem);
+}
+
+.city-ui .city-brush-stepper .city-segment {
+  min-height: 2.35rem !important;
+  height: 2.35rem;
+}

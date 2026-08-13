@@ -39,7 +39,9 @@ describe('player shell', () => {
     });
     expect(shell.element.querySelectorAll('.city-bottom-nav [data-nav-category]')).toHaveLength(5);
     expect(shell.element.querySelector('.city-bottom-nav .city-simulation-controls')).toBeNull();
-    expect(shell.element.querySelector('.city-simulation-controls.city-simulation-capsule')).not.toBeNull();
+    expect(
+      shell.element.querySelector('.city-simulation-controls.city-simulation-capsule'),
+    ).not.toBeNull();
     shell.dispose();
   });
 
@@ -55,7 +57,9 @@ describe('player shell', () => {
       onSelectMetric: vi.fn(),
       onUndo: vi.fn(),
     });
-    const actions = [...shell.element.querySelectorAll<HTMLButtonElement>('.city-top-actions button')];
+    const actions = [
+      ...shell.element.querySelectorAll<HTMLButtonElement>('.city-top-actions button'),
+    ];
     expect(actions).toHaveLength(3);
     expect(actions.map((button) => button.getAttribute('aria-label'))).toEqual([
       'Information Views',

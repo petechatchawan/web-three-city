@@ -21,10 +21,8 @@ async function readCityDialog(page: Page): Promise<{
   await page.getByRole('button', { name: 'City', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
-  // City overview rows render as <p><span>label</span><strong>value</strong></p>;
-  // read the strong value for each labelled row instead of parsing joined text.
   const valueOf = async (label: string): Promise<string> => {
-    const row = dialog.locator('p').filter({ hasText: label });
+    const row = dialog.locator('.city-kpi-card, .city-detail-row').filter({ hasText: label });
     await expect(row).toHaveCount(1);
     const value = await row.locator('strong').textContent();
     if (value === null) throw new Error(`rci:missing-value:${label}`);

@@ -40,34 +40,44 @@ export function mountPlayerShell(
   parent.append(element);
 
   const hud = mountGameHud(element, { onSelectMetric: callbacks.onSelectMetric });
-  mountTopActions(element, callbacks);
+  const topActions = mountTopActions(element, callbacks);
+  mountSimulationControls(topActions, callbacks, { compact: true });
 
-  const toolSurface = mountToolContextSheet(element, { onUndo: callbacks.onUndo });
-  toolSurface.update({
+  let toolSurface: ToolContextSheetAdapter | null = null;
+  const projectTool = (mode: GameToolMode): void => {
+    toolSurface?.update({
+      mode,
+      name: toolLabel(mode),
+      state: 'Ready',
+      message: 'Point at the world to preview this tool',
+    });
+  };
+
+  const subToolTray = mountSubToolTray(element, {
+    onSelectTool: (mode) => {
+      callbacks.selectTool(mode);
+      projectTool(mode);
+    },
+    onBrush: callbacks.setTerraformBrush,
+  });
+
+  const toolSurfaceAdapter = mountToolContextSheet(subToolTray.element, {
+    onUndo: callbacks.onUndo,
+  });
+  toolSurface = toolSurfaceAdapter;
+  subToolTray.element.prepend(toolSurfaceAdapter.element);
+  toolSurfaceAdapter.update({
     mode: 'navigate',
     name: 'Navigate',
     state: 'Ready',
     message: 'Inspect or move around the city',
   });
 
-  const subToolTray = mountSubToolTray(element, {
-    onSelectTool: (mode) => {
-      callbacks.selectTool(mode);
-      toolSurface.update({
-        mode,
-        name: toolLabel(mode),
-        state: 'Ready',
-        message: 'Point at the world to preview this tool',
-      });
-    },
-    onBrush: callbacks.setTerraformBrush,
-  });
-
   const bottomNav = mountBottomNav(element, (category: NavCategory) => {
     if (category === 'navigate') {
       subToolTray.close();
       callbacks.selectTool('navigate');
-      toolSurface.update({
+      toolSurfaceAdapter.update({
         mode: 'navigate',
         name: 'Navigate',
         state: 'Ready',
@@ -78,15 +88,9 @@ export function mountPlayerShell(
     subToolTray.open(category);
     const mode = defaultToolForCategory[category];
     callbacks.selectTool(mode);
-    toolSurface.update({
-      mode,
-      name: toolLabel(mode),
-      state: 'Ready',
-      message: 'Point at the world to preview this tool',
-    });
+    projectTool(mode);
   });
 
-  mountSimulationControls(element, callbacks, { compact: true });
   const dialogHost = mountDialogHost(element);
 
   return Object.freeze({
@@ -94,7 +98,7 @@ export function mountPlayerShell(
     dialogHost,
     bottomNav,
     subToolTray,
-    toolContextSheet: toolSurface,
+    toolContextSheet: toolSurfaceAdapter,
     update(projection: GameHudProjection): void {
       hud.update(projection);
     },
@@ -102,7 +106,7 @@ export function mountPlayerShell(
       dialogHost.dispose();
       bottomNav.dispose();
       subToolTray.dispose();
-      toolSurface.dispose();
+      toolSurfaceAdapter.dispose();
       element.remove();
     },
   });

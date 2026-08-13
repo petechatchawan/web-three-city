@@ -1,0 +1,25 @@
+FAIL exit=2
+
+
+> web-three-city@ check /home/runner/work/web-three-city/web-three-city
+> pnpm format:check && pnpm lint && pnpm typecheck && pnpm provenance:check && pnpm test:deployment && pnpm test && pnpm build
+
+
+> web-three-city@ format:check /home/runner/work/web-three-city/web-three-city
+> prettier --check "**/*.{ts,js,yml,yaml}"
+
+Checking formatting...
+[[31merror[39m] apps/game/src/ui/city-ui-runtime.ts: SyntaxError: Unterminated string literal. (21:72)
+[[31merror[39m]   19 |   readonly setTerraformBrush: Parameters<typeof mountPlayerShell>[1]['setTerraformBrush'];
+[[31merror[39m]   20 |   readonly submitTaxPolicy: Parameters<typeof createCitySystemDialogs>[1]['submitTaxPolicy'];
+[[31merror[39m] > 21 |   readonly setInformationView: (key: 'grid' | 	zoning' | null) => void;
+[[31merror[39m]      |                                               	                        ^
+[[31merror[39m]   22 |   readonly saveWorld: () => void;
+[[31merror[39m]   23 |   readonly loadWorld: () => void;
+[[31merror[39m]   24 |   readonly rotateLeft: () => void;
+[[33mwarn[39m] apps/game/src/ui/components/icon.ts
+[[33mwarn[39m] apps/game/src/ui/shell/subtool-tray.ts
+[[33mwarn[39m] apps/game/src/ui/systems/city-system-dialogs.ts
+Error occurred when checking code style in the above file.
+ ELIFECYCLE  Command failed with exit code 2.
+ ELIFECYCLE  Command failed with exit code 2.

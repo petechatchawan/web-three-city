@@ -19,6 +19,10 @@ describe('City system dialogs', () => {
     expect(host.element.textContent).toContain('City Overview');
     expect(host.element.textContent).toContain('Population / RCI');
     expect(host.element.textContent).not.toContain('Loans');
+    expect(host.element.querySelector('.city-kpi-grid')).not.toBeNull();
+    expect(host.element.querySelectorAll('.city-kpi-card')).toHaveLength(3);
+    expect(host.element.querySelector('.city-detail-card')).not.toBeNull();
+    expect(host.element.querySelector('.city-system-grid')).not.toBeNull();
     host.element.querySelector<HTMLButtonElement>('[data-system="economy"]')?.click();
     expect(host.element.textContent).toContain('Treasury');
     expect(host.element.textContent).toContain('Road maintenance');

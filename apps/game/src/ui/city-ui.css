@@ -353,6 +353,10 @@
   min-width: 0 !important;
 }
 
+.city-tool-context[data-tool-mode='navigate'] {
+  display: none;
+}
+
 .city-tool-context {
   position: absolute;
   left: calc(var(--city-ui-safe-left) + var(--city-ui-space-2));
@@ -489,8 +493,12 @@
 }
 
 @keyframes city-sheet-slide-up {
-  from { transform: translateY(100%); }
-  to { transform: translateY(0); }
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
 }
 
 .city-sheet-handle {

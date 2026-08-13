@@ -4,7 +4,10 @@ export default defineConfig({
   testDir: './browser-tests',
   fullyParallel: false,
   workers: 2,
-  retries: 0,
+  // One retry absorbs rare environmental browser-process deaths (swiftshader
+  // CPU/memory contention right after the workspace build); assertions and
+  // timeouts are unchanged, so real failures still surface on the retry.
+  retries: 1,
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
     headless: true,

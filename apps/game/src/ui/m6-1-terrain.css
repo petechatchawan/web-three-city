@@ -14,10 +14,6 @@
   gap: 0.15rem;
 }
 
-.city-ui:has(.city-subtool-tray[data-category='terrain']:not([hidden])) .city-tool-context {
-  bottom: calc(var(--city-ui-safe-bottom) + 10.3rem);
-}
-
 .city-ui .city-brush-stepper .city-segment {
   min-height: 2.35rem !important;
   height: 2.35rem;

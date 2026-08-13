@@ -1,0 +1,31 @@
+name: M6.1 Format
+on:
+  push:
+    branches:
+      - fix/m6-1-browser-and-composition
+permissions:
+  contents: write
+jobs:
+  format:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/m6-1-browser-and-composition
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm exec prettier --write "browser-tests/growth.@building.spec.ts"
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "4189823+github-actions[bot]@users.noreply.github.com"
+          git add "browser-tests/growth.@building.spec.ts"
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "style: format M6.1 browser migration"
+          git push origin HEAD:fix/m6-1-browser-and-composition

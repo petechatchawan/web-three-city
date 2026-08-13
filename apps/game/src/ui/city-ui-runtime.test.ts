@@ -29,9 +29,7 @@ describe('City UI runtime', () => {
     });
     const world = createApplicationFixture();
     ui.update(world);
-    ui.element
-      .querySelector<HTMLButtonElement>('.city-top-actions button:nth-child(2)')
-      ?.click();
+    ui.element.querySelector<HTMLButtonElement>('.city-top-actions button:nth-child(2)')?.click();
     ui.update(world);
     expect(ui.dialogHost.activeRoute?.key).toBe('city-overview');
     expect(setSpeed).not.toHaveBeenCalled();
@@ -39,9 +37,7 @@ describe('City UI runtime', () => {
     expect(toolSentinel).toEqual({ active: 'road-build', undo: true });
 
     ui.dialogHost.close();
-    ui.element
-      .querySelector<HTMLButtonElement>('.city-top-actions button:nth-child(3)')
-      ?.click();
+    ui.element.querySelector<HTMLButtonElement>('.city-top-actions button:nth-child(3)')?.click();
     expect(ui.dialogHost.activeRoute?.key).toBe('game-menu');
     const sections = [...ui.element.querySelectorAll<HTMLElement>('[data-menu-section]')].map(
       (section) => section.dataset.menuSection,

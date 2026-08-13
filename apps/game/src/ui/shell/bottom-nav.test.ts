@@ -12,6 +12,18 @@ describe('bottom nav', () => {
     expect(Array.from(buttons, (b) => b.dataset.navCategory)).toEqual(categories);
   });
 
+  it('renders every category as an icon + label game-nav item', () => {
+    const nav = mountBottomNav(document.body, vi.fn());
+    for (const category of categories) {
+      const button = nav.element.querySelector<HTMLButtonElement>(
+        `[data-nav-category="${category}"]`,
+      );
+      expect(button?.classList.contains('city-nav-item')).toBe(true);
+      expect(button?.querySelector(`[data-city-icon="${category}"]`)).not.toBeNull();
+      expect(button?.querySelector('.city-nav-label')?.textContent?.toLowerCase()).toBe(category);
+    }
+  });
+
   it('fires onSelect with the tapped category', () => {
     const onSelect = vi.fn();
     const nav = mountBottomNav(document.body, onSelect);

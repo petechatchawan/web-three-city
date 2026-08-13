@@ -71,6 +71,7 @@ jobs:
           text = text.replace("ports.setInformationView(\tzoning')", "ports.setInformationView('zoning')")
           text = text.replace("return 'ₑ';", "return '↑';")
           text = text.replace("deactivate.textContent = 'Deactivate view'(;", "deactivate.textContent = 'Deactivate view';")
+          text = text.replace("inspectCell(cell: Readonly<{ x: number; z: number }): void;", "inspectCell(cell: Readonly<{ x: number; z: number }>): void;")
           runtime.write_text(text)
 
           context = Path('apps/game/src/ui/shell/tool-context-sheet.ts')

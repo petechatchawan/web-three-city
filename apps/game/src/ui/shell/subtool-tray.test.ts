@@ -7,11 +7,16 @@ describe('subtool tray', () => {
   it('mounts terrain category content with brush controls', () => {
     const tray = mountSubToolTray(document.body, { onSelectTool: vi.fn(), onBrush: vi.fn() });
     tray.open('terrain');
-    const modes = Array.from(
-      tray.element.querySelectorAll<HTMLButtonElement>('[data-tool-mode]'),
-      (b) => b.dataset.toolMode,
-    );
+    const buttons = tray.element.querySelectorAll<HTMLButtonElement>('[data-tool-mode]');
+    const modes = Array.from(buttons, (button) => button.dataset.toolMode);
     expect(modes).toEqual(['raise', 'lower', 'flatten']);
+    for (const button of buttons) {
+      expect(button.classList.contains('city-tool-pill')).toBe(true);
+      expect(button.querySelector('[data-city-icon]')).not.toBeNull();
+      expect(button.querySelector('.city-tool-label')).not.toBeNull();
+    }
+    const brush = tray.element.querySelector('.city-brush-stepper');
+    expect(brush?.classList.contains('city-segment-group')).toBe(true);
     expect(tray.element.querySelectorAll<HTMLButtonElement>('[data-brush-size]').length).toBe(3);
   });
 
@@ -20,9 +25,13 @@ describe('subtool tray', () => {
     const onBrush = vi.fn();
     const tray = mountSubToolTray(document.body, { onSelectTool, onBrush });
     tray.open('terrain');
-    tray.element.querySelector<HTMLButtonElement>('[data-tool-mode="raise"]')?.click();
+    const raise = tray.element.querySelector<HTMLButtonElement>('[data-tool-mode="raise"]')!;
+    raise.click();
     expect(onSelectTool).toHaveBeenCalledWith('raise');
-    tray.element.querySelector<HTMLButtonElement>('[data-brush-size="3"]')?.click();
+    expect(raise.getAttribute('aria-pressed')).toBe('true');
+    const brush = tray.element.querySelector<HTMLButtonElement>('[data-brush-size="3"]')!;
+    expect(brush.classList.contains('city-segment')).toBe(true);
+    brush.click();
     expect(onBrush).toHaveBeenCalledWith(3);
   });
 

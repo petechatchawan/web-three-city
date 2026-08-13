@@ -29,11 +29,24 @@ describe('City UI runtime', () => {
     });
     const world = createApplicationFixture();
     ui.update(world);
-    ui.element.querySelector<HTMLButtonElement>('.city-top-actions button:nth-child(2)')?.click();
+    ui.element
+      .querySelector<HTMLButtonElement>('.city-top-actions button:nth-child(2)')
+      ?.click();
     ui.update(world);
     expect(ui.dialogHost.activeRoute?.key).toBe('city-overview');
     expect(setSpeed).not.toHaveBeenCalled();
     expect(step).not.toHaveBeenCalled();
     expect(toolSentinel).toEqual({ active: 'road-build', undo: true });
+
+    ui.dialogHost.close();
+    ui.element
+      .querySelector<HTMLButtonElement>('.city-top-actions button:nth-child(3)')
+      ?.click();
+    expect(ui.dialogHost.activeRoute?.key).toBe('game-menu');
+    const sections = [...ui.element.querySelectorAll<HTMLElement>('[data-menu-section]')].map(
+      (section) => section.dataset.menuSection,
+    );
+    expect(sections).toEqual(['world', 'camera', 'presentation']);
+    expect(ui.element.querySelectorAll('.city-menu-tile').length).toBeGreaterThanOrEqual(6);
   });
 });

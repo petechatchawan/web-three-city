@@ -25,11 +25,20 @@ async function openGrowthGame(page: import('@playwright/test').Page): Promise<vo
 test('exposes the simple calendar and deterministic time controls', async ({ page }) => {
   await openGrowthGame(page);
   await expect(page.locator('[data-metric="gameTime"] strong')).toHaveText('Y1 M1 D1 08:00');
-  await expect(page.getByRole('button', { name: 'Set paused speed' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Set normal speed' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Set fast speed' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Set faster speed' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Advance exactly one tick' })).toBeEnabled();
+  const speed = page.locator('[data-simulation-speed]');
+  await expect(speed).toHaveText('Ⅱ');
+  await expect(page.locator('[data-simulation-step]')).toBeEnabled();
+
+  await speed.click();
+  await expect(speed).toHaveText('1×');
+  await expect(page.locator('[data-simulation-step]')).toHaveCount(0);
+  await speed.click();
+  await expect(speed).toHaveText('2×');
+  await speed.click();
+  await expect(speed).toHaveText('4×');
+  await speed.click();
+  await expect(speed).toHaveText('Ⅱ');
+  await expect(page.locator('[data-simulation-step]')).toBeEnabled();
 
   const after = await stepLogicalTicks(page, 1);
   expect(after.simulation.absoluteTick).toBe(9);
@@ -82,8 +91,7 @@ test('automatic Growth preserves the active Zoning tool and in-progress stroke',
       probe.navigateClicks += 1;
     });
     canvas.addEventListener('web-three-city:game-tool-presentation', (event) => {
-      const detail = (event as CustomEvent<{ readonly type?: string; readonly domain?: string }>)
-        .detail;
+      const detail = (event as CustomEvent<{ readonly type?: string; readonly domain?: string }>).detail;
       if (detail?.type === 'transaction-state' && detail.domain === 'building') {
         probe.buildingTransactions += 1;
       }

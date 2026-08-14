@@ -1,3 +1,4 @@
+import { waitForCityUi } from './helpers/city-ui.js';
 import { expect, test } from '@playwright/test';
 import {
   clickGameMenuAction,
@@ -15,9 +16,7 @@ const SAVE_KEY = 'web-three-city:world-save:v6';
 
 async function openGame(page: import('@playwright/test').Page): Promise<void> {
   await page.goto(GAME_URL);
-  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready', {
-    timeout: READY_TIMEOUT,
-  });
+  await waitForCityUi(page);
 }
 
 async function openWaterFixture(
@@ -42,9 +41,7 @@ test('Water remains framed on desktop and mobile with exactly one root', async (
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
-  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready', {
-    timeout: READY_TIMEOUT,
-  });
+  await waitForCityUi(page);
   evidence = await readEvidence(page);
   expect(evidence.allWorldCornersInsideUsableViewport).toBe(true);
   expect(evidence.water.waterRootCount).toBe(1);
@@ -137,7 +134,7 @@ test('context restoration atomically replaces the Water root', async ({ page }) 
     element.dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
     element.dispatchEvent(new Event('webglcontextrestored'));
   });
-  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
+  await waitForCityUi(page);
   const evidence = await readEvidence(page);
   expect(evidence.water.waterRootCount).toBe(1);
   expect(evidence.sceneRootCounts.water).toBe(1);

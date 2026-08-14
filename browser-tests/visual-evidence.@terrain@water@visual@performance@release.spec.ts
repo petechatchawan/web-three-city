@@ -1,3 +1,4 @@
+import { waitForCityUi } from './helpers/city-ui.js';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import {
@@ -52,9 +53,7 @@ test.use({ trace: 'on' });
 
 async function openGame(page: import('@playwright/test').Page): Promise<void> {
   await page.goto(GAME_URL);
-  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready', {
-    timeout: READY_TIMEOUT,
-  });
+  await waitForCityUi(page);
 }
 
 test('captures exact-head visual and performance evidence', async ({ page }) => {
@@ -116,9 +115,7 @@ test('captures canonical desktop and mobile interaction evidence', async ({ page
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
-  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready', {
-    timeout: READY_TIMEOUT,
-  });
+  await waitForCityUi(page);
   expect((await readEvidence(page)).allWorldCornersInsideUsableViewport).toBe(true);
   await page.screenshot({
     path: `${OUTPUT_DIRECTORY}/interaction-mobile-portrait-initial-fit.png`,
@@ -127,9 +124,7 @@ test('captures canonical desktop and mobile interaction evidence', async ({ page
 
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.reload();
-  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready', {
-    timeout: READY_TIMEOUT,
-  });
+  await waitForCityUi(page);
 
   await clickGameMenuAction(page, 'Grid');
   expect((await readEvidence(page)).gridVisible).toBe(true);
@@ -304,9 +299,7 @@ test('captures Water and shoreline acceptance evidence', async ({ page }) => {
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
-  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready', {
-    timeout: READY_TIMEOUT,
-  });
+  await waitForCityUi(page);
   gameEvidence = await readEvidence(page);
   expect(gameEvidence.allWorldCornersInsideUsableViewport).toBe(true);
   expect(gameEvidence.water.waterRootCount).toBe(1);
@@ -317,9 +310,7 @@ test('captures Water and shoreline acceptance evidence', async ({ page }) => {
 
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.reload();
-  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready', {
-    timeout: READY_TIMEOUT,
-  });
+  await waitForCityUi(page);
   await clickGameMenuAction(page, 'Grid');
   await clickTerrainCell(page, { x: 64, z: 116 });
   gameEvidence = await readEvidence(page);
@@ -350,7 +341,7 @@ test('captures Water and shoreline acceptance evidence', async ({ page }) => {
     element.dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
     element.dispatchEvent(new Event('webglcontextrestored'));
   });
-  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
+  await waitForCityUi(page);
   const afterRestore = await readEvidence(page);
   const geometry = createDeterministicWaterGeometryEvidence();
   const performanceEvidence: WaterPerformanceEvidence = {

@@ -1,0 +1,31 @@
+name: M6.2 targeted regression verification
+
+on:
+  push:
+    branches:
+      - fix/m6-2-mobile-build-dock
+
+permissions:
+  contents: read
+
+jobs:
+  camera:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/m6-2-mobile-build-dock
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm build:browser
+      - run: ./node_modules/.bin/playwright install chromium
+      - name: Verify camera rotation/pan regression
+        env:
+          CI: '1'
+        run: pnpm exec playwright test browser-tests/road-operation-aware-interaction.@road@interaction.spec.ts --grep "camera pan remains screen-relative"

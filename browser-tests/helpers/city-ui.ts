@@ -3,29 +3,32 @@ import { expect, type Page } from '@playwright/test';
 export type BuildCategory = 'terrain' | 'roads' | 'zones' | 'buildings';
 
 export async function waitForCityUi(page: Page): Promise<void> {
-  await expect(page.getByTestId('nav-terrain')).toBeVisible();
+  await expect(page.getByTestId('nav-build')).toBeVisible();
   await expect(page.getByTestId('nav-city')).toBeVisible();
+  for (const retired of ['nav-terrain', 'nav-roads', 'nav-zones', 'nav-buildings']) {
+    await expect(page.getByTestId(retired)).toHaveCount(0);
+  }
   await expect(page.locator('.city-awareness-hud')).toBeVisible();
 }
 
 export async function openBuildCategory(page: Page, category: BuildCategory): Promise<void> {
-  const nav = page.getByTestId(`nav-${category}`);
-  if ((await nav.getAttribute('aria-pressed')) !== 'true') await nav.click();
-  await expect(nav).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByTestId('subtool-tray')).toBeVisible();
+  const build = page.getByTestId('nav-build');
+  const picker = page.getByTestId('build-picker');
+  if (!(await picker.isVisible())) await build.click();
+  await expect(build).toHaveAttribute('aria-pressed', 'true');
+  await expect(picker).toBeVisible();
+  if ((await picker.getAttribute('data-category')) !== category) {
+    await page.getByTestId(`build-category-${category}`).click();
+  }
+  await expect(picker).toHaveAttribute('data-category', category);
 }
 
 export async function closeBuild(page: Page): Promise<void> {
-  const active = page.locator(
-    '.city-bottom-nav [data-nav-category]:not([data-nav-category="city"])[aria-pressed="true"]',
-  );
-  if ((await active.count()) > 0) await active.first().click();
-  await expect(page.getByTestId('subtool-tray')).toBeHidden();
-  await expect(
-    page.locator(
-      '.city-bottom-nav [data-nav-category]:not([data-nav-category="city"])[aria-pressed="true"]',
-    ),
-  ).toHaveCount(0);
+  const build = page.getByTestId('nav-build');
+  const picker = page.getByTestId('build-picker');
+  if (await picker.isVisible()) await build.click();
+  await expect(picker).toBeHidden();
+  await expect(build).toHaveAttribute('aria-pressed', 'false');
 }
 
 export async function openCityManagement(page: Page): Promise<void> {

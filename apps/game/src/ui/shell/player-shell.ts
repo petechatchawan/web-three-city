@@ -83,18 +83,17 @@ export function mountPlayerShell(
     callbacks.selectTool(mode);
   };
 
-  let bottomNav: BottomNav;
   const subToolTray = mountSubToolTray(
     element,
     {
       onSelectTool: selectTool,
       onBrush: callbacks.setTerraformBrush,
-      onClose: () => bottomNav?.setBuildOpen(false),
+      onClose: () => bottomNav.setBuildOpen(false),
     },
     locale,
   );
 
-  bottomNav = mountBottomNav(
+  const bottomNav = mountBottomNav(
     element,
     (selection) => {
       if (selection === 'city') {

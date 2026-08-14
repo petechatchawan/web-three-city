@@ -91,6 +91,7 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
   let latestWorld: CommittedWorld | null = null;
   let locale: UiLocale = readStoredUiLocale();
   let inspectSurface: InspectSurface | null = null;
+  let activeToolMode: GameToolMode = 'navigate';
   let applyLocale: ((nextLocale: UiLocale) => void) | null = null;
 
   const informationViews = createInformationViewRegistry([
@@ -237,7 +238,11 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
     {
       setSpeed: ports.setSpeed,
       step: ports.step,
-      selectTool: ports.selectTool,
+      selectTool: (mode) => {
+        activeToolMode = mode;
+        if (mode !== 'navigate') inspectSurface?.close();
+        ports.selectTool(mode);
+      },
       setTerraformBrush: ports.setTerraformBrush,
       onUndo: ports.undo,
       onInformationViews: openInformationViews,
@@ -334,6 +339,10 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
     },
     inspectCell(cell: Readonly<{ x: number; z: number }>): void {
       if (latestWorld === null || inspectSurface === null) return;
+      if (activeToolMode !== 'navigate') {
+        inspectSurface.close();
+        return;
+      }
       const target = pickInspectTarget(latestWorld, cell);
       inspectSurface.open(createInspectProjection(latestWorld, target, ports.rciRegistries));
     },

@@ -79,6 +79,9 @@ function menuAction(
 
 export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRuntime {
   let latestWorld: CommittedWorld | null = null;
+  let shell: PlayerShell;
+  let systemDialogs: ReturnType<typeof createCitySystemDialogs>;
+
   const informationViews = createInformationViewRegistry([
     {
       key: 'grid',
@@ -132,17 +135,69 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
     }
   };
 
-  const shell: PlayerShell = mountPlayerShell(parent, {
+  const openInformationViews = (): void => {
+    shell.dialogHost.open(
+      { kind: 'system', key: 'information-views', title: 'Information Views' },
+      renderInformationViews,
+    );
+  };
+
+  const openGameMenu = (): void => {
+    shell.dialogHost.open({ kind: 'system', key: 'game-menu', title: 'Game Menu' }, (body) => {
+      const world = menuSection(body, 'world', 'World');
+      menuAction(world, 'Save world', 'save', () => {
+        ports.saveWorld();
+        shell.dialogHost.close();
+      });
+      menuAction(world, 'Load world', 'load', () => {
+        ports.loadWorld();
+        shell.dialogHost.close();
+      });
+
+      const camera = menuSection(body, 'camera', 'Camera');
+      const cameraActions = [
+        ['Rotate left', 'rotate-left', ports.rotateLeft],
+        ['Rotate right', 'rotate-right', ports.rotateRight],
+        ['Reset camera', 'reset-camera', ports.resetCamera],
+        ['Grid', 'grid', ports.toggleGrid],
+      ] as const;
+      for (const [label, icon, action] of cameraActions) {
+        menuAction(camera, label, icon, () => {
+          action();
+          shell.dialogHost.close();
+        });
+      }
+
+      const presentation = menuSection(body, 'presentation', 'Presentation');
+      const qualityCard = document.createElement('label');
+      qualityCard.className = 'city-quality-card';
+      qualityCard.append(createCityIcon('quality'));
+      const text = document.createElement('span');
+      text.textContent = 'Quality';
+      const quality = document.createElement('select');
+      quality.setAttribute('aria-label', 'Quality');
+      for (const value of ['low', 'medium', 'high'] as const) {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = value[0]!.toUpperCase() + value.slice(1);
+        quality.append(option);
+      }
+      quality.value = 'medium';
+      quality.addEventListener('change', () =>
+        ports.setQuality(quality.value as 'low' | 'medium' | 'high'),
+      );
+      qualityCard.append(text, quality);
+      presentation.append(qualityCard);
+    });
+  };
+
+  shell = mountPlayerShell(parent, {
     setSpeed: ports.setSpeed,
     step: ports.step,
     selectTool: ports.selectTool,
     setTerraformBrush: ports.setTerraformBrush,
     onUndo: ports.undo,
-    onInformationViews: () =>
-      shell.dialogHost.open(
-        { kind: 'system', key: 'information-views', title: 'Information Views' },
-        renderInformationViews,
-      ),
+    onInformationViews: openInformationViews,
     onCity: () => systemDialogs.openCity(),
     onSelectMetric: (metric) => {
       const route = shell.dialogHost.activeRoute;
@@ -164,62 +219,18 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
         else systemDialogs.openSimulationTime();
       }
     },
-    onGameMenu: () =>
-      shell.dialogHost.open({ kind: 'system', key: 'game-menu', title: 'Game Menu' }, (body) => {
-        const world = menuSection(body, 'world', 'World');
-        menuAction(world, 'Save world', 'save', () => {
-          ports.saveWorld();
-          shell.dialogHost.close();
-        });
-        menuAction(world, 'Load world', 'load', () => {
-          ports.loadWorld();
-          shell.dialogHost.close();
-        });
-
-        const camera = menuSection(body, 'camera', 'Camera');
-        const cameraActions = [
-          ['Rotate left', 'rotate-left', ports.rotateLeft],
-          ['Rotate right', 'rotate-right', ports.rotateRight],
-          ['Reset camera', 'reset-camera', ports.resetCamera],
-          ['Grid', 'grid', ports.toggleGrid],
-        ] as const;
-        for (const [label, icon, action] of cameraActions) {
-          menuAction(camera, label, icon, () => {
-            action();
-            shell.dialogHost.close();
-          });
-        }
-
-        const presentation = menuSection(body, 'presentation', 'Presentation');
-        const qualityCard = document.createElement('label');
-        qualityCard.className = 'city-quality-card';
-        qualityCard.append(createCityIcon('quality'));
-        const text = document.createElement('span');
-        text.textContent = 'Quality';
-        const quality = document.createElement('select');
-        quality.setAttribute('aria-label', 'Quality');
-        for (const value of ['low', 'medium', 'high'] as const) {
-          const option = document.createElement('option');
-          option.value = value;
-          option.textContent = value[0]!.toUpperCase() + value.slice(1);
-          quality.append(option);
-        }
-        quality.value = 'medium';
-        quality.addEventListener('change', () =>
-          ports.setQuality(quality.value as 'low' | 'medium' | 'high'),
-        );
-        qualityCard.append(text, quality);
-        presentation.append(qualityCard);
-      }),
+    onGameMenu: openGameMenu,
   });
 
-  const systemDialogs = createCitySystemDialogs(shell.dialogHost, {
+  systemDialogs = createCitySystemDialogs(shell.dialogHost, {
     getWorld: () => {
       if (latestWorld === null) throw new Error('city-ui:world-unavailable');
       return latestWorld;
     },
     rciRegistries: ports.rciRegistries,
     submitTaxPolicy: ports.submitTaxPolicy,
+    openInformationViews,
+    openGameMenu,
   });
 
   return Object.freeze({

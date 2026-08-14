@@ -30,6 +30,11 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Print exact M6.4 prettier output
+        run: |
+          pnpm prettier browser-tests/city-ui-m6-4-mobile-declutter.@interaction@rci@release.spec.ts --write
+          cat browser-tests/city-ui-m6-4-mobile-declutter.@interaction@rci@release.spec.ts
+          exit 1
       - run: pnpm check
       - name: Archive lean build outputs
         run: tar -czf lean-builds.tar.gz apps/game/dist apps/terrain-lab/dist

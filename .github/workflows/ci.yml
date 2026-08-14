@@ -30,11 +30,6 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
-      - name: Capture exact game smoke formatting
-        run: |
-          pnpm prettier browser-tests/game.@interaction@smoke.spec.ts --write
-          cat browser-tests/game.@interaction@smoke.spec.ts
-          exit 1
       - run: pnpm check
       - name: Archive lean build outputs
         run: tar -czf lean-builds.tar.gz apps/game/dist apps/terrain-lab/dist

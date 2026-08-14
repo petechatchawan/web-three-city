@@ -8,92 +8,98 @@ function projection(overrides: Partial<ContextualToolProjection> = {}): Contextu
   return {
     mode: 'road-build',
     name: 'Build Road',
-    state: 'Rejected',
-    message: 'Insufficient funds',
+    state: 'Ready',
+    message: 'Point at the world to preview this tool',
     requestedCells: 4,
-    effectiveCells: 0,
-    affordability: 'Unaffordable',
+    effectiveCells: 4,
+    affordability: 'Affordable',
     ...overrides,
   };
 }
 
-function feedbackButton(): HTMLButtonElement | null {
+function toggle(): HTMLButtonElement | null {
+  return document.querySelector<HTMLButtonElement>('[data-testid="tool-context-toggle"]');
+}
+
+function undo(): HTMLButtonElement | null {
   return document.querySelector<HTMLButtonElement>('[data-testid="tool-context-undo"]');
 }
 
-describe('M6.2 transient status feedback', () => {
-  it('reserves no permanent map space while idle or host-ready', () => {
-    const feedback = mountStatusFeedback(document.body);
-    expect(feedback.element.classList.contains('city-status-feedback')).toBe(true);
-    expect(feedback.element.hidden).toBe(true);
-    feedback.setStatus('Ready');
-    expect(feedback.element.hidden).toBe(true);
-    expect(feedback.element.textContent).not.toContain('Ready');
-    expect(feedback.element.textContent).not.toContain('Point at the world');
-    expect(feedback.element.textContent).not.toContain('Undo unavailable');
+describe('M6.3 Figma contextual tool sheet', () => {
+  it('stays hidden in Navigate mode', () => {
+    const sheet = mountStatusFeedback(document.body);
+    sheet.update(projection({ mode: 'navigate', name: 'Navigate' }));
+    expect(sheet.element.hidden).toBe(true);
   });
 
-  it('shows host completion status as compact feedback', () => {
-    const feedback = mountStatusFeedback(document.body);
-    feedback.setStatus('Road built');
-    expect(feedback.element.hidden).toBe(false);
-    expect(feedback.element.querySelector('[data-testid="tool-context-status"]')?.textContent).toBe(
-      'Road built',
+  it('shows active tool name and Ready state in a collapsed sheet without routine helper copy', () => {
+    const sheet = mountStatusFeedback(document.body);
+    sheet.update(projection());
+    expect(sheet.element.hidden).toBe(false);
+    expect(sheet.element.dataset.expanded).toBe('false');
+    expect(sheet.element.textContent).toContain('Build Road');
+    expect(sheet.element.textContent).toContain('Ready');
+    expect(sheet.element.textContent).not.toContain('Point at the world to preview this tool');
+    expect(toggle()).not.toBeNull();
+  });
+
+  it('expands authoritative requested, effective, and affordability metadata on demand', () => {
+    const sheet = mountStatusFeedback(document.body);
+    sheet.update(projection());
+    toggle()?.click();
+    expect(sheet.element.dataset.expanded).toBe('true');
+    expect(sheet.element.textContent).toContain('Requested cells');
+    expect(sheet.element.textContent).toContain('4');
+    expect(sheet.element.textContent).toContain('Effective cells');
+    expect(sheet.element.textContent).toContain('Affordable');
+  });
+
+  it('shows rejection and invalid messages as contextual validation', () => {
+    const sheet = mountStatusFeedback(document.body);
+    sheet.update(
+      projection({ state: 'Rejected', message: 'Insufficient funds', affordability: 'Unaffordable' }),
     );
+    expect(sheet.element.textContent).toContain('Rejected');
+    expect(sheet.element.textContent).toContain('Insufficient funds');
+    sheet.update(projection({ state: 'Invalid build', message: 'Road blocked by water' }));
+    expect(sheet.element.textContent).toContain('Road blocked by water');
   });
 
-  it('shows rejected tool projections but ignores default tool-ready projection', () => {
-    const feedback = mountStatusFeedback(document.body);
-    feedback.update(
-      projection({ state: 'Tool ready', message: 'Point at the world to preview this tool' }),
-    );
-    expect(feedback.element.hidden).toBe(true);
-    feedback.update(projection());
-    expect(feedback.element.hidden).toBe(false);
-    expect(feedback.element.textContent).toContain('Insufficient funds');
+  it('keeps Undo inside expanded disclosure and only enables it when authority allows', () => {
+    const sheet = mountStatusFeedback(document.body, { onUndo: vi.fn() });
+    sheet.update(projection());
+    sheet.setUndoAvailable(true);
+    expect(undo()).toBeNull();
+    toggle()?.click();
+    expect(undo()).not.toBeNull();
+    expect(undo()?.disabled).toBe(false);
   });
 
-  it('shows invalid and no-change feedback as meaningful events', () => {
-    const feedback = mountStatusFeedback(document.body);
-    feedback.update(projection({ state: 'Invalid build', message: 'Road blocked by water' }));
-    expect(feedback.element.textContent).toContain('Road blocked by water');
-    feedback.update(projection({ state: 'No change', message: 'No terrain change' }));
-    expect(feedback.element.textContent).toContain('No terrain change');
-  });
-
-  it('shows Undo only when Undo is available', () => {
-    const feedback = mountStatusFeedback(document.body, { onUndo: vi.fn() });
-    feedback.setStatus('Road built');
-    feedback.setUndoAvailable(false);
-    expect(feedbackButton()).toBeNull();
-    feedback.setUndoAvailable(true);
-    expect(feedbackButton()).not.toBeNull();
-    expect(feedbackButton()?.disabled).toBe(false);
-  });
-
-  it('wires the compact Undo action to the existing Undo authority', () => {
+  it('wires expanded Undo to the existing Undo authority', () => {
     const onUndo = vi.fn();
-    const feedback = mountStatusFeedback(document.body, { onUndo });
-    feedback.setUndoAvailable(true);
-    feedbackButton()?.click();
+    const sheet = mountStatusFeedback(document.body, { onUndo });
+    sheet.update(projection());
+    sheet.setUndoAvailable(true);
+    toggle()?.click();
+    undo()?.click();
     expect(onUndo).toHaveBeenCalledTimes(1);
   });
 
-  it('clearStatus hides feedback when Undo is unavailable', () => {
-    const feedback = mountStatusFeedback(document.body);
-    feedback.setStatus('Saved');
-    feedback.clearStatus();
-    expect(feedback.element.hidden).toBe(true);
-    expect(feedback.element.textContent).not.toContain('Saved');
+  it('allows host completion status to override then clear back to the current tool projection', () => {
+    const sheet = mountStatusFeedback(document.body);
+    sheet.update(projection());
+    sheet.setStatus('Road built');
+    expect(sheet.element.textContent).toContain('Road built');
+    sheet.clearStatus();
+    expect(sheet.element.textContent).not.toContain('Road built');
+    expect(sheet.element.textContent).toContain('Build Road');
+    expect(sheet.element.textContent).toContain('Ready');
   });
 
-  it('clearStatus preserves a compact surface while Undo remains available', () => {
-    const feedback = mountStatusFeedback(document.body, { onUndo: vi.fn() });
-    feedback.setStatus('Road built');
-    feedback.setUndoAvailable(true);
-    feedback.clearStatus();
-    expect(feedback.element.hidden).toBe(false);
-    expect(feedbackButton()).not.toBeNull();
-    expect(feedback.element.textContent).not.toContain('Road built');
+  it('does not create a context surface from host Ready before an active tool exists', () => {
+    const sheet = mountStatusFeedback(document.body);
+    sheet.setStatus('Ready');
+    expect(sheet.element.hidden).toBe(true);
+    expect(sheet.element.textContent).not.toContain('Ready');
   });
 });

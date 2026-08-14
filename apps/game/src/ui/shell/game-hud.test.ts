@@ -28,9 +28,7 @@ describe('M6.4 mobile game HUD', () => {
     }
     expect(hud.element.querySelectorAll('[data-rci-demand-bar]')).toHaveLength(3);
     expect(
-      hud.element
-        .querySelector('[data-rci-demand-bar="residential"]')
-        ?.getAttribute('aria-label'),
+      hud.element.querySelector('[data-rci-demand-bar="residential"]')?.getAttribute('aria-label'),
     ).toContain('Residential demand 42');
     expect(hud.element.textContent).toContain('337');
     expect(hud.element.textContent).toContain('100K');
@@ -69,9 +67,7 @@ describe('M6.4 mobile game HUD', () => {
     hud.update(projection);
     hud.setLocale('th');
     expect(
-      hud.element
-        .querySelector('[data-rci-demand-bar="residential"]')
-        ?.getAttribute('aria-label'),
+      hud.element.querySelector('[data-rci-demand-bar="residential"]')?.getAttribute('aria-label'),
     ).toContain('ความต้องการที่อยู่อาศัย 42');
     expect(projection.residentialDemand).toBe(42);
   });

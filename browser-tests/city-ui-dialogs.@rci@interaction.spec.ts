@@ -20,9 +20,9 @@ test('City Economy dialog refreshes and applies tax without changing the active 
   await page.goto(GAME_URL);
   await waitForCityUi(page);
   await openBuildCategory(page, 'roads');
-  const buildRoad = page.getByRole('button', { name: 'Build Road', exact: true });
-  await buildRoad.click();
-  await expect(buildRoad).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Build Road', exact: true }).click();
+  await expect(page.getByTestId('build-picker')).toBeHidden();
+  await expect(page.locator('.city-tool-context-name')).toHaveText('Build Road');
   const beforeTick = await readAbsoluteTick(page);
 
   await page.getByRole('button', { name: 'City', exact: true }).click();
@@ -46,6 +46,6 @@ test('City Economy dialog refreshes and applies tax without changing the active 
   await dialog.getByTestId('apply-tax-policy').click();
   await expect(dialog.getByRole('status')).toHaveText('Tax policy updated');
   await dialog.getByRole('button', { name: 'Close', exact: true }).click();
-  await expect(buildRoad).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByTestId('nav-roads')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.city-tool-context-name')).toHaveText('Build Road');
+  await expect(page.getByTestId('nav-build')).toHaveAttribute('aria-pressed', 'false');
 });

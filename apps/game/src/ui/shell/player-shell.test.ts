@@ -36,9 +36,7 @@ describe('player shell M6.4 mobile declutter state model', () => {
     expect(shell.subToolTray.element.querySelectorAll('[data-tool-mode]').length).toBe(3);
     expect(shell.subToolTray.element.querySelectorAll('[data-brush-size]').length).toBe(3);
 
-    shell.subToolTray.element
-      .querySelector<HTMLButtonElement>('[data-tool-mode="lower"]')!
-      .click();
+    shell.subToolTray.element.querySelector<HTMLButtonElement>('[data-tool-mode="lower"]')!.click();
     expect(selectTool).toHaveBeenLastCalledWith('lower');
     expect(shell.subToolTray.element.hidden).toBe(true);
     expect(shell.toolContextSheet.element.hidden).toBe(false);

@@ -1,5 +1,5 @@
-import type { UiAdapter } from '../foundation/lifecycle.js';
 import { createCityIcon, type CityIconName } from '../components/icon.js';
+import type { UiAdapter } from '../foundation/lifecycle.js';
 
 export interface GameHudProjection {
   readonly population: string;
@@ -19,21 +19,15 @@ export interface GameHudCallbacks {
 }
 
 type MetricDefinition = Readonly<{
-  key: GameHudMetricId;
+  key: 'population' | 'treasury' | 'gameTime';
   label: string;
   icon: CityIconName;
-  group: 'primary' | 'secondary';
 }>;
 
 const metrics: readonly MetricDefinition[] = [
-  { key: 'population', label: 'Population', icon: 'population', group: 'primary' },
-  { key: 'treasury', label: 'Treasury', icon: 'treasury', group: 'primary' },
-  { key: 'gameTime', label: 'Game time', icon: 'time', group: 'primary' },
-  { key: 'net', label: 'Current net', icon: 'net', group: 'secondary' },
-  { key: 'demand', label: 'RCI demand', icon: 'demand', group: 'secondary' },
-  { key: 'construction', label: 'Under construction', icon: 'construction', group: 'secondary' },
-  { key: 'active', label: 'Active buildings', icon: 'active', group: 'secondary' },
-  { key: 'total', label: 'Total buildings', icon: 'total', group: 'secondary' },
+  { key: 'population', label: 'Population', icon: 'population' },
+  { key: 'treasury', label: 'Treasury', icon: 'treasury' },
+  { key: 'gameTime', label: 'Game time', icon: 'time' },
 ];
 
 export function mountGameHud(
@@ -46,15 +40,13 @@ export function mountGameHud(
 
   const primary = document.createElement('div');
   primary.className = 'city-hud-primary';
-  const secondary = document.createElement('div');
-  secondary.className = 'city-hud-secondary';
-  const values = new Map<GameHudMetricId, HTMLElement>();
+  const values = new Map<MetricDefinition['key'], HTMLElement>();
 
   for (const definition of metrics) {
     const chip = document.createElement('button');
     chip.type = 'button';
     chip.setAttribute('role', 'button');
-    chip.className = `city-metric city-metric--${definition.group}`;
+    chip.className = 'city-metric city-metric--primary';
     chip.dataset.metric = definition.key;
     chip.setAttribute('aria-label', definition.label);
     chip.addEventListener('click', () => callbacks.onSelectMetric(definition.key));
@@ -71,10 +63,10 @@ export function mountGameHud(
     text.append(label, value);
     chip.append(text);
     values.set(definition.key, value);
-    (definition.group === 'primary' ? primary : secondary).append(chip);
+    primary.append(chip);
   }
 
-  element.append(primary, secondary);
+  element.append(primary);
   parent.append(element);
 
   return Object.freeze({

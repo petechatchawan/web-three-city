@@ -48,6 +48,10 @@ describe('player shell M6.4 mobile declutter state model', () => {
     ).toBe('false');
 
     shell.element.querySelector<HTMLButtonElement>('[data-testid="nav-build"]')!.click();
+    expect(shell.subToolTray.element.dataset.category).toBe('terrain');
+    expect(shell.subToolTray.element.querySelector('[data-tool-mode="raise"]')).not.toBeNull();
+    expect(shell.subToolTray.element.querySelectorAll('[data-build-category]').length).toBe(0);
+
     shell.element.querySelector<HTMLButtonElement>('[data-testid="nav-city"]')!.click();
     expect(onCity).toHaveBeenCalledTimes(1);
     expect(shell.subToolTray.element.hidden).toBe(true);

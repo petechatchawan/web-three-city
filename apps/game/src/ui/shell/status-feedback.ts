@@ -48,6 +48,18 @@ function detailRow(labelText: string, valueText: string): HTMLElement {
   return row;
 }
 
+function statusForProjection(projection: ContextualToolProjection | null): string {
+  if (projection === null) return '';
+  if (
+    isMeaningfulValidation(projection) &&
+    projection.message.trim() !== '' &&
+    !isRoutineMessage(projection.message)
+  ) {
+    return projection.message;
+  }
+  return projection.state;
+}
+
 export function mountStatusFeedback(
   parent: HTMLElement,
   callbacks: StatusFeedbackCallbacks = {},
@@ -92,6 +104,7 @@ export function mountStatusFeedback(
     header.type = 'button';
     header.className = 'city-tool-context-header';
     header.dataset.testid = 'tool-context-toggle';
+    header.setAttribute('aria-label', 'Tool Context');
     header.setAttribute('aria-expanded', String(expanded));
     header.disabled = projection === null;
 
@@ -105,7 +118,7 @@ export function mountStatusFeedback(
     const status = document.createElement('span');
     status.className = 'city-tool-context-status';
     status.dataset.testid = 'tool-context-status';
-    status.textContent = transientStatus || projection?.state || '';
+    status.textContent = transientStatus || statusForProjection(projection);
 
     header.append(identity, status);
     if (projection !== null)
@@ -118,6 +131,7 @@ export function mountStatusFeedback(
     element.append(header);
 
     if (
+      expanded &&
       projection !== null &&
       isMeaningfulValidation(projection) &&
       projection.message.trim() !== '' &&

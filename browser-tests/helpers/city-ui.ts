@@ -13,10 +13,7 @@ export async function openBuild(page: Page): Promise<void> {
   await expect(page.getByTestId('build-category-dock')).toBeVisible();
 }
 
-export async function openBuildCategory(
-  page: Page,
-  category: BuildCategory,
-): Promise<void> {
+export async function openBuildCategory(page: Page, category: BuildCategory): Promise<void> {
   await openBuild(page);
   await page.getByTestId(`build-category-${category}`).click();
   await expect(page.getByTestId('subtool-tray')).toBeVisible();

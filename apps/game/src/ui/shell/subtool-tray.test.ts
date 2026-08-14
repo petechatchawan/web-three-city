@@ -11,9 +11,7 @@ describe('M6.2 contextual tool dock', () => {
     });
     dock.open('terrain');
     expect(dock.element.classList.contains('city-contextual-tool-dock')).toBe(true);
-    expect(
-      dock.element.querySelector('.city-contextual-tool-dock-content'),
-    ).not.toBeNull();
+    expect(dock.element.querySelector('.city-contextual-tool-dock-content')).not.toBeNull();
     const buttons = dock.element.querySelectorAll<HTMLButtonElement>('[data-tool-mode]');
     expect(Array.from(buttons, (button) => button.dataset.toolMode)).toEqual([
       'raise',
@@ -48,12 +46,7 @@ describe('M6.2 contextual tool dock', () => {
         dock.element.querySelectorAll<HTMLButtonElement>('[data-tool-mode]'),
         (button) => button.dataset.toolMode,
       ),
-    ).toEqual([
-      'zone-residential',
-      'zone-commercial',
-      'zone-industrial',
-      'zone-remove',
-    ]);
+    ).toEqual(['zone-residential', 'zone-commercial', 'zone-industrial', 'zone-remove']);
     expect(dock.element.querySelector('[data-brush-size]')).toBeNull();
   });
 

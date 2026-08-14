@@ -1,9 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { mountToolContextSheet, type ContextualToolProjection } from './tool-context-sheet.js';
+import type { ContextualToolProjection } from './status-feedback.js';
+import { mountStatusFeedback } from './status-feedback.js';
 
 afterEach(() => document.body.replaceChildren());
 
-function projection(overrides: Partial<ContextualToolProjection> = {}): ContextualToolProjection {
+function projection(
+  overrides: Partial<ContextualToolProjection> = {},
+): ContextualToolProjection {
   return {
     mode: 'road-build',
     name: 'Build Road',
@@ -16,143 +19,84 @@ function projection(overrides: Partial<ContextualToolProjection> = {}): Contextu
   };
 }
 
-function undoButton(): HTMLButtonElement {
-  const button = document.querySelector<HTMLButtonElement>('[data-testid="tool-context-undo"]');
-  if (button === null) throw new Error('tool-context-undo missing');
-  return button;
+function feedbackButton(): HTMLButtonElement | null {
+  return document.querySelector<HTMLButtonElement>(
+    '[data-testid="tool-context-undo"]',
+  );
 }
 
-function undoPill(): HTMLElement {
-  const pill = document.querySelector<HTMLElement>('.city-tool-context-pill');
-  if (pill === null) throw new Error('undo pill missing');
-  return pill;
-}
-
-describe('tool context sheet', () => {
-  it('renders name, state, message, metrics, affordability, and Undo without blocking the world', () => {
-    const sheet = mountToolContextSheet(document.body);
-    sheet.update(projection());
-    sheet.setUndoAvailable(true);
-    const element = sheet.element;
-    expect(element.classList.contains('city-tool-context')).toBe(true);
-    expect(element.getAttribute('aria-label')).toBe('Active tool');
-    expect(element.hasAttribute('data-world-input-block')).toBe(false);
-    expect(element.textContent).toContain('Build Road');
-    expect(element.textContent).toContain('Rejected');
-    expect(element.textContent).toContain('Insufficient funds');
-    expect(element.textContent).toContain('4 cells');
-    expect(element.textContent).toContain('0 effective');
-    expect(element.textContent).toContain('Unaffordable');
-    expect(element.textContent).toContain('Undo available');
-    expect(element.querySelector('[data-city-icon="roads"]')).not.toBeNull();
-    const undo = undoButton();
-    expect(undo.classList.contains('city-icon-button')).toBe(true);
-    expect(undo.getAttribute('aria-label')).toBe('Undo latest world change');
+describe('M6.2 transient status feedback', () => {
+  it('reserves no permanent map space while idle', () => {
+    const feedback = mountStatusFeedback(document.body);
+    expect(feedback.element.classList.contains('city-status-feedback')).toBe(true);
+    expect(feedback.element.hidden).toBe(true);
+    expect(feedback.element.textContent).not.toContain('Ready');
+    expect(feedback.element.textContent).not.toContain('Point at the world');
+    expect(feedback.element.textContent).not.toContain('Undo unavailable');
   });
 
-  it('collapses and expands the body via the toggle', () => {
-    const sheet = mountToolContextSheet(document.body);
-    sheet.update(projection());
-    const toggle = document.querySelector<HTMLButtonElement>('[data-testid="tool-context-toggle"]');
-    const content = document.querySelector<HTMLElement>('[data-testid="tool-context-content"]');
-    expect(toggle).not.toBeNull();
-    expect(content).not.toBeNull();
-    expect(toggle!.classList.contains('city-icon-button')).toBe(true);
-    expect(toggle!.querySelector('[data-city-icon]')).not.toBeNull();
-    expect(toggle!.getAttribute('aria-expanded')).toBe('true');
-    expect(content!.hasAttribute('hidden')).toBe(false);
-    toggle!.click();
-    expect(toggle!.getAttribute('aria-expanded')).toBe('false');
-    expect(content!.hasAttribute('hidden')).toBe(true);
-    toggle!.click();
-    expect(toggle!.getAttribute('aria-expanded')).toBe('true');
-    expect(content!.hasAttribute('hidden')).toBe(false);
+  it('shows host completion status as compact feedback', () => {
+    const feedback = mountStatusFeedback(document.body);
+    feedback.setStatus('Road built');
+    expect(feedback.element.hidden).toBe(false);
+    expect(
+      feedback.element.querySelector('[data-testid="tool-context-status"]')
+        ?.textContent,
+    ).toBe('Road built');
   });
 
-  it('omits metric chips and affordability when absent, and renders unavailable Undo', () => {
-    const sheet = mountToolContextSheet(document.body);
-    sheet.update({
-      mode: 'road-build',
-      name: 'Build Road',
-      state: 'Rejected',
-      message: 'Insufficient funds',
-    });
-    const text = sheet.element.textContent ?? '';
-    expect(text).toContain('Undo unavailable');
-    expect(text).not.toContain('cells');
-    expect(text).not.toContain('effective');
-    expect(text).not.toContain('Afford');
+  it('shows rejected tool projections but ignores default tool-ready projection', () => {
+    const feedback = mountStatusFeedback(document.body);
+    feedback.update(
+      projection({ state: 'Tool ready', message: 'Point at the world to preview this tool' }),
+    );
+    expect(feedback.element.hidden).toBe(true);
+    feedback.update(projection());
+    expect(feedback.element.hidden).toBe(false);
+    expect(feedback.element.textContent).toContain('Insufficient funds');
   });
 
-  it('wires the Undo button to onUndo and enables it only when undo is available', () => {
+  it('shows invalid and no-change feedback as meaningful events', () => {
+    const feedback = mountStatusFeedback(document.body);
+    feedback.update(projection({ state: 'Invalid build', message: 'Road blocked by water' }));
+    expect(feedback.element.textContent).toContain('Road blocked by water');
+    feedback.update(projection({ state: 'No change', message: 'No terrain change' }));
+    expect(feedback.element.textContent).toContain('No terrain change');
+  });
+
+  it('shows Undo only when Undo is available', () => {
+    const feedback = mountStatusFeedback(document.body, { onUndo: vi.fn() });
+    feedback.setStatus('Road built');
+    feedback.setUndoAvailable(false);
+    expect(feedbackButton()).toBeNull();
+    feedback.setUndoAvailable(true);
+    expect(feedbackButton()).not.toBeNull();
+    expect(feedbackButton()?.disabled).toBe(false);
+  });
+
+  it('wires the compact Undo action to the existing Undo authority', () => {
     const onUndo = vi.fn();
-    const sheet = mountToolContextSheet(document.body, { onUndo });
-    sheet.update(projection());
-    expect(undoButton().disabled).toBe(true);
-    undoButton().click();
-    expect(onUndo).not.toHaveBeenCalled();
-    sheet.setUndoAvailable(true);
-    expect(undoButton().disabled).toBe(false);
-    undoButton().click();
+    const feedback = mountStatusFeedback(document.body, { onUndo });
+    feedback.setUndoAvailable(true);
+    feedbackButton()?.click();
     expect(onUndo).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps setUndoAvailable in sync across re-renders', () => {
-    const sheet = mountToolContextSheet(document.body);
-    sheet.update(projection());
-    sheet.setUndoAvailable(true);
-    expect(undoButton().disabled).toBe(false);
-    expect(undoPill().textContent).toBe('Undo available');
-    sheet.update(projection());
-    expect(undoButton().disabled).toBe(false);
-    expect(undoPill().textContent).toBe('Undo available');
-    sheet.setUndoAvailable(false);
-    expect(undoButton().disabled).toBe(true);
-    expect(undoPill().textContent).toBe('Undo unavailable');
+  it('clearStatus hides feedback when Undo is unavailable', () => {
+    const feedback = mountStatusFeedback(document.body);
+    feedback.setStatus('Saved');
+    feedback.clearStatus();
+    expect(feedback.element.hidden).toBe(true);
+    expect(feedback.element.textContent).not.toContain('Saved');
   });
 
-  it('keeps the latest transient status visible across tool projections and renders the message testid', () => {
-    const sheet = mountToolContextSheet(document.body);
-    sheet.setStatus('Saved');
-    expect(sheet.element.textContent).toContain('Saved');
-    sheet.update(projection());
-    expect(sheet.element.textContent).toContain('Saved');
-    expect(document.querySelector('[data-testid="tool-context-message"]')?.textContent).toBe(
-      'Insufficient funds',
-    );
-    sheet.setStatus('Loaded');
-    expect(document.querySelector('[data-testid="tool-context-status"]')?.textContent).toBe(
-      'Loaded',
-    );
-  });
-
-  it('resets a transient Applying change state to Ready when a completion status arrives', () => {
-    const sheet = mountToolContextSheet(document.body);
-    sheet.update({
-      mode: 'road-build',
-      name: 'Build Road',
-      state: 'Applying change',
-      message: 'Applying Road change…',
-    });
-    expect(document.querySelector('[data-testid="tool-context-state"]')?.textContent).toBe(
-      'Applying change',
-    );
-    sheet.setStatus('Road built');
-    expect(document.querySelector('[data-testid="tool-context-state"]')?.textContent).toBe('Ready');
-    expect(document.querySelector('[data-testid="tool-context-status"]')?.textContent).toBe(
-      'Road built',
-    );
-  });
-
-  it('keeps a rejection state intact when its status arrives', () => {
-    const sheet = mountToolContextSheet(document.body);
-    sheet.update(projection());
-    expect(document.querySelector('[data-testid="tool-context-state"]')?.textContent).toBe(
-      'Rejected',
-    );
-    sheet.setStatus('Road blocked by water');
-    expect(document.querySelector('[data-testid="tool-context-state"]')?.textContent).toBe(
-      'Rejected',
-    );
+  it('clearStatus preserves a compact surface while Undo remains available', () => {
+    const feedback = mountStatusFeedback(document.body, { onUndo: vi.fn() });
+    feedback.setStatus('Road built');
+    feedback.setUndoAvailable(true);
+    feedback.clearStatus();
+    expect(feedback.element.hidden).toBe(false);
+    expect(feedbackButton()).not.toBeNull();
+    expect(feedback.element.textContent).not.toContain('Road built');
   });
 });

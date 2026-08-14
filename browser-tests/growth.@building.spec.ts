@@ -74,27 +74,28 @@ test('automatic Growth preserves the active Zoning tool and in-progress stroke',
   await openGrowthGame(page);
   const points = await prepareBuildingFixtureWorld(page);
   await openBuildCategory(page, 'zones');
-  const industrialButton = page.getByRole('button', { name: 'Industrial', exact: true });
-  await industrialButton.click();
-  await expect(industrialButton).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Industrial', exact: true }).click();
+  await expect(page.getByTestId('build-picker')).toBeHidden();
+  await expect(page.getByTestId('nav-build')).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator('.city-tool-context-name')).toHaveText('Industrial');
   await expect(page.getByRole('button', { name: 'Develop Zones' })).toHaveCount(0);
   await expandToolContext(page);
 
   await page.evaluate(() => {
     const canvas = document.querySelector<HTMLCanvasElement>('#game-canvas');
-    const zones = document.querySelector<HTMLButtonElement>('[data-testid="nav-zones"]');
+    const activeTool = document.querySelector<HTMLElement>('.city-tool-context-name');
     const status = document.querySelector<HTMLElement>('.city-status-feedback');
-    if (canvas === null || zones === null || status === null) {
+    if (canvas === null || activeTool === null || status === null) {
       throw new Error('growth:missing-isolation-probe-target');
     }
     const probe = {
-      categoryMutations: 0,
+      toolContextMutations: 0,
       buildingTransactions: 0,
       statusValues: [] as string[],
     };
     new MutationObserver(() => {
-      probe.categoryMutations += 1;
-    }).observe(zones, { attributes: true, attributeFilter: ['aria-pressed'] });
+      probe.toolContextMutations += 1;
+    }).observe(activeTool, { childList: true, characterData: true, subtree: true });
     canvas.addEventListener('web-three-city:game-tool-presentation', (event) => {
       const detail = (event as CustomEvent<{ readonly type?: string; readonly domain?: string }>)
         .detail;
@@ -159,8 +160,8 @@ test('automatic Growth preserves the active Zoning tool and in-progress stroke',
   expect(snapshot.simulation.absoluteTick).toBeGreaterThanOrEqual(12);
   expect(snapshot.simulation.growthSequence).toBeGreaterThanOrEqual(1);
   expect(snapshot.buildingCount).toBeGreaterThanOrEqual(1);
-  await expect(industrialButton).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByTestId('nav-zones')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.city-tool-context-name')).toHaveText('Industrial');
+  await expect(page.getByTestId('nav-build')).toHaveAttribute('aria-pressed', 'false');
   await expect
     .poll(() =>
       page.evaluate(() => window.__WEB_THREE_CITY_INTERACTION__?.zone.strokeActive ?? false),
@@ -172,7 +173,7 @@ test('automatic Growth preserves the active Zoning tool and in-progress stroke',
     const value = (
       window as Window & {
         __WEB_THREE_CITY_GROWTH_ISOLATION_PROBE__?: {
-          readonly categoryMutations: number;
+          readonly toolContextMutations: number;
           readonly buildingTransactions: number;
           readonly statusValues: readonly string[];
         };
@@ -181,13 +182,13 @@ test('automatic Growth preserves the active Zoning tool and in-progress stroke',
     if (value === undefined) throw new Error('growth:missing-isolation-probe');
     return value;
   });
-  expect(probe.categoryMutations).toBe(0);
+  expect(probe.toolContextMutations).toBe(0);
   expect(probe.buildingTransactions).toBe(0);
   expect(probe.statusValues).not.toContain('Zones developed');
 
   await page.mouse.move(endPoint.x, endPoint.y);
   await page.mouse.up();
-  await expect(industrialButton).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.city-tool-context-name')).toHaveText('Industrial');
 });
 
 test('persists WorldSaveV6 and loads paused at the exact logical tick', async ({ page }) => {

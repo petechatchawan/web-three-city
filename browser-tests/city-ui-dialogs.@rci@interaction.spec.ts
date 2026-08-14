@@ -39,5 +39,5 @@ test('City Economy dialog refreshes and applies tax without changing the active 
   await expect(dialog.getByRole('status')).toHaveText('Tax policy updated');
   await dialog.getByRole('button', { name: 'Close', exact: true }).click();
   await expect(buildRoad).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByTestId('build-category-roads')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('nav-roads')).toHaveAttribute('aria-pressed', 'true');
 });

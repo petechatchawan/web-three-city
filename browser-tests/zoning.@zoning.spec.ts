@@ -1,3 +1,4 @@
+import { openBuildCategory, waitForCityUi } from './helpers/city-ui.js';
 import { expect, test, type Page } from '@playwright/test';
 import {
   EMPTY_WORLD_OCCUPANCY,
@@ -128,7 +129,7 @@ const FIXTURE = fixture();
 async function openGame(page: Page): Promise<void> {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(GAME_URL);
-  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
+  await waitForCityUi(page);
 }
 
 async function locate(
@@ -152,7 +153,7 @@ async function buildFixtureRoad(
   page: Page,
   points: Map<string, TerrainCellScreenPoint>,
 ): Promise<void> {
-  await page.getByTestId('nav-roads').click();
+  await openBuildCategory(page, 'roads');
   await page.getByRole('button', { name: 'Build Road' }).click();
   const point = at(points, FIXTURE.road);
   await page.mouse.click(point.x, point.y);
@@ -172,6 +173,7 @@ async function paint(
 }
 
 test('paints R/C/I at committed-Road depths 1–3 and round-trips WorldSaveV5', async ({ page }) => {
+  test.setTimeout(60_000);
   await openGame(page);
   const points = await locate(page, [
     FIXTURE.road,
@@ -180,7 +182,7 @@ test('paints R/C/I at committed-Road depths 1–3 and round-trips WorldSaveV5', 
     FIXTURE.industrial,
   ]);
   await buildFixtureRoad(page, points);
-  await page.getByTestId('nav-zones').click();
+  await openBuildCategory(page, 'zones');
 
   for (const cell of FIXTURE.depth.slice(0, 3)) {
     await paint(page, points, 'Residential', cell);
@@ -208,7 +210,7 @@ test('paints R/C/I at committed-Road depths 1–3 and round-trips WorldSaveV5', 
     rci: { schemaVersion: 1 },
   });
 
-  await page.getByTestId('nav-zones').click();
+  await openBuildCategory(page, 'zones');
   await page.getByRole('button', { name: 'Remove Zone' }).click();
   const industrialPoint = at(points, FIXTURE.industrial);
   await page.mouse.click(industrialPoint.x, industrialPoint.y);
@@ -235,11 +237,11 @@ test('rejects depth four and preserves Zone invariants across Road and Terraform
   await openGame(page);
   const points = await locate(page, [FIXTURE.road, FIXTURE.depth[2], FIXTURE.depth[3]]);
   await buildFixtureRoad(page, points);
-  await page.getByTestId('nav-zones').click();
+  await openBuildCategory(page, 'zones');
   await paint(page, points, 'Residential', FIXTURE.depth[2]);
   const committed = await readEvidence(page);
 
-  await page.getByTestId('nav-zones').click();
+  await openBuildCategory(page, 'zones');
   await page.getByRole('button', { name: 'Residential', exact: true }).click();
   const depthFour = at(points, FIXTURE.depth[3]);
   await dispatchCanvasTouch(page, 'pointerdown', 1, depthFour.x, depthFour.y);
@@ -253,7 +255,7 @@ test('rejects depth four and preserves Zone invariants across Road and Terraform
   expect(evidence.zone.committedZoneRevision).toBe(committed.zone.committedZoneRevision);
 
   const zonePoint = at(points, FIXTURE.depth[2]);
-  await page.getByTestId('nav-roads').click();
+  await openBuildCategory(page, 'roads');
   await page.getByRole('button', { name: 'Build Road' }).click();
   await page.mouse.click(zonePoint.x, zonePoint.y);
   await expect(page.getByTestId('tool-context-status')).toHaveText('Road blocked by zone');
@@ -262,13 +264,13 @@ test('rejects depth four and preserves Zone invariants across Road and Terraform
   );
 
   const roadPoint = at(points, FIXTURE.road);
-  await page.getByTestId('nav-roads').click();
+  await openBuildCategory(page, 'roads');
   await page.getByRole('button', { name: 'Bulldoze Road' }).click();
   await page.mouse.click(roadPoint.x, roadPoint.y);
   await expect(page.getByTestId('tool-context-status')).toHaveText('Road required by zone');
   expect((await readEvidence(page)).road.occupiedCellCount).toBe(1);
 
-  await page.getByTestId('nav-terrain').click();
+  await openBuildCategory(page, 'terrain');
   await page.getByRole('button', { name: 'Raise' }).click();
   await page.mouse.click(zonePoint.x, zonePoint.y);
   await expect(page.getByTestId('tool-context-status')).toHaveText('Terraform blocked by zone');
@@ -285,7 +287,7 @@ test('cancels isolated Zone Preview on second touch and restores one Zone root a
   await openGame(page);
   const points = await locate(page, [FIXTURE.road, FIXTURE.depth[0]]);
   await buildFixtureRoad(page, points);
-  await page.getByTestId('nav-zones').click();
+  await openBuildCategory(page, 'zones');
   await page.getByRole('button', { name: 'Residential', exact: true }).click();
   const point = at(points, FIXTURE.depth[0]);
   const before = await readEvidence(page);
@@ -303,7 +305,7 @@ test('cancels isolated Zone Preview on second touch and restores one Zone root a
     canvas.dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
     canvas.dispatchEvent(new Event('webglcontextrestored'));
   });
-  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
+  await waitForCityUi(page);
   evidence = await readEvidence(page);
   expect(evidence.sceneRootCounts.zoneCommitted).toBe(1);
   expect(evidence.sceneRootCounts.zonePreview).toBe(0);

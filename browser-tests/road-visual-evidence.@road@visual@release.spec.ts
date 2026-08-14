@@ -1,4 +1,5 @@
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
+import { openBuildCategory, waitForCityUi } from './helpers/city-ui.js';
 import { GAME_URL, TERRAIN_LAB_URL } from './helpers/interaction.js';
 
 async function captureFixture(
@@ -36,18 +37,15 @@ test('captures cross-chunk Road continuity', async ({ page }, testInfo) => {
   await captureFixture(page, testInfo, 'road-chunk-boundary', 'road-chunk-boundary.png');
 });
 
-test('captures desktop and mobile Game Road tool dock', async ({ page }, testInfo) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
+test('captures the canonical mobile Game Road Build dock', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 414, height: 896 });
   await page.goto(GAME_URL);
-  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
-  await page.getByTestId('nav-roads').click();
+  await waitForCityUi(page);
+  await openBuildCategory(page, 'roads');
   await page.getByRole('button', { name: 'Build Road' }).click();
-  await page.screenshot({ path: testInfo.outputPath('road-game-desktop.png'), fullPage: true });
-
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.reload();
-  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
-  await page.getByTestId('nav-roads').click();
-  await page.getByRole('button', { name: 'Build Road' }).click();
+  await expect(page.getByRole('button', { name: 'Build Road' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   await page.screenshot({ path: testInfo.outputPath('road-game-mobile.png'), fullPage: true });
 });

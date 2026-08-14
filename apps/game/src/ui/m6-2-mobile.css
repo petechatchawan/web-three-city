@@ -1,0 +1,343 @@
+/* M6.2 canonical mobile presentation: 414 × 896 portrait. */
+
+.city-ui .city-awareness-hud {
+  top: calc(var(--city-ui-safe-top) + 0.5rem);
+  right: calc(var(--city-ui-safe-right) + 0.5rem);
+  left: calc(var(--city-ui-safe-left) + 0.5rem);
+  width: auto;
+  max-width: none;
+}
+
+.city-ui .city-hud-primary {
+  display: grid;
+  grid-template-columns: 0.86fr 1.08fr 1.18fr;
+  gap: 0.3rem;
+}
+
+.city-ui .city-hud-primary [data-metric='gameTime'] {
+  grid-column: auto;
+}
+
+.city-ui .city-metric--primary {
+  min-width: 0;
+  min-height: 3.1rem;
+  gap: 0.35rem;
+  padding: 0.35rem 0.45rem;
+  border-radius: 0.9rem;
+  background: rgb(255 255 255 / 0.9);
+  box-shadow: 0 0.3rem 1rem rgb(20 31 55 / 10%);
+}
+
+.city-ui .city-metric--primary .city-icon {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.city-ui .city-metric-label {
+  font-size: 0.54rem;
+  line-height: 1;
+}
+
+.city-ui .city-metric-value {
+  font-size: 0.66rem;
+  line-height: 1.15;
+}
+
+.city-ui .city-hud-secondary {
+  display: none;
+}
+
+.city-ui .city-top-actions {
+  top: calc(var(--city-ui-safe-top) + 4rem);
+  right: calc(var(--city-ui-safe-right) + 0.5rem);
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.city-ui .city-top-actions .city-icon-button,
+.city-ui .city-top-actions .city-speed-toggle,
+.city-ui .city-top-actions .city-step-action {
+  width: 2.75rem;
+  min-width: 2.75rem !important;
+  height: 2.75rem;
+  min-height: 2.75rem !important;
+  border-radius: 0.85rem;
+  background: rgb(255 255 255 / 0.92);
+  box-shadow: 0 0.3rem 1rem rgb(20 31 55 / 12%);
+}
+
+.city-ui .city-top-actions > .city-simulation-controls,
+.city-ui .city-top-actions > .city-simulation-controls--compact,
+.city-ui .city-top-actions > .city-simulation-controls--top-actions {
+  position: static;
+  inset: auto;
+  display: flex;
+  gap: 0.3rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+.city-ui .city-primary-actions {
+  position: absolute;
+  right: calc(var(--city-ui-safe-right) + 0.5rem);
+  bottom: calc(var(--city-ui-safe-bottom) + 0.5rem);
+  left: calc(var(--city-ui-safe-left) + 0.5rem);
+  display: grid;
+  grid-template-columns: 5rem minmax(0, 1fr);
+  gap: 0.45rem;
+  pointer-events: auto;
+}
+
+.city-ui .city-primary-action,
+.city-ui .city-build-cta {
+  display: flex;
+  min-width: 0 !important;
+  min-height: 3.75rem !important;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border: 1px solid var(--city-ui-border-subtle) !important;
+  border-radius: 1.15rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.city-ui .city-primary-action {
+  flex-direction: column;
+  color: var(--city-ui-text);
+  background: rgb(255 255 255 / 0.94);
+  box-shadow: var(--city-ui-shadow-float);
+}
+
+.city-ui .city-primary-action .city-icon {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.city-ui .city-build-cta {
+  color: #ffffff;
+  background: linear-gradient(180deg, #3280f5 0%, var(--city-ui-accent) 100%);
+  box-shadow: 0 0.55rem 1.35rem rgb(37 99 235 / 28%);
+  font-size: 1rem;
+  text-transform: uppercase;
+}
+
+.city-ui .city-build-cta .city-icon {
+  width: 1.6rem;
+  height: 1.6rem;
+}
+
+.city-ui .city-build-cta.is-active {
+  background: var(--city-ui-text);
+}
+
+.city-ui .city-build-category-dock {
+  position: absolute;
+  right: calc(var(--city-ui-safe-right) + 0.5rem);
+  bottom: calc(var(--city-ui-safe-bottom) + 4.75rem);
+  left: calc(var(--city-ui-safe-left) + 0.5rem);
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.1rem;
+  padding: 0.3rem;
+  border: 1px solid var(--city-ui-border-subtle);
+  border-radius: 1.1rem;
+  background: rgb(255 255 255 / 0.95);
+  box-shadow: var(--city-ui-shadow-tray);
+  backdrop-filter: blur(var(--city-ui-blur));
+  pointer-events: auto;
+}
+
+.city-ui .city-build-category {
+  display: flex;
+  min-width: 0 !important;
+  min-height: 3.25rem !important;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  padding: 0.2rem;
+  border-radius: 0.8rem;
+  color: var(--city-ui-muted);
+  background: transparent;
+}
+
+.city-ui .city-build-category .city-icon {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.city-ui .city-build-category span {
+  overflow: hidden;
+  max-width: 100%;
+  font-size: 0.55rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.city-ui .city-build-category.is-active,
+.city-ui .city-build-category[aria-pressed='true'] {
+  color: var(--city-ui-accent);
+  background: var(--city-ui-surface-selected);
+}
+
+.city-ui .city-build-category--close {
+  color: var(--city-ui-muted);
+}
+
+.city-ui .city-contextual-tool-dock,
+.city-ui .city-subtool-tray {
+  right: calc(var(--city-ui-safe-right) + 0.5rem);
+  bottom: calc(var(--city-ui-safe-bottom) + 8.65rem);
+  left: calc(var(--city-ui-safe-left) + 0.5rem);
+  width: auto;
+  max-width: none;
+  padding: 0.35rem;
+  border: 1px solid var(--city-ui-border-subtle);
+  border-radius: 1.05rem;
+  background: rgb(255 255 255 / 0.96);
+  box-shadow: var(--city-ui-shadow-tray);
+  transform: none;
+  backdrop-filter: blur(var(--city-ui-blur));
+}
+
+.city-ui .city-contextual-tool-dock-content,
+.city-ui .city-subtool-tray-content {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.35rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.city-ui .city-contextual-tool-dock-content::-webkit-scrollbar,
+.city-ui .city-subtool-tray-content::-webkit-scrollbar {
+  display: none;
+}
+
+.city-ui .city-tool-pill {
+  flex: 0 0 auto;
+  min-width: max-content !important;
+  min-height: 2.75rem !important;
+  gap: 0.35rem;
+  padding: 0 0.8rem;
+  border-radius: 0.85rem;
+  color: #ffffff !important;
+  background: var(--city-ui-text);
+}
+
+.city-ui .city-tool-pill .city-icon,
+.city-ui .city-tool-pill .city-tool-label {
+  color: #ffffff;
+}
+
+.city-ui .city-tool-pill.is-active,
+.city-ui .city-tool-pill[aria-pressed='true'] {
+  color: #ffffff !important;
+  background: var(--city-ui-accent);
+}
+
+.city-ui .city-tool-label {
+  font-size: 0.68rem;
+}
+
+.city-ui .city-contextual-tool-dock[data-category='terrain'],
+.city-ui .city-subtool-tray[data-category='terrain'] {
+  bottom: calc(var(--city-ui-safe-bottom) + 8.65rem);
+}
+
+.city-ui .city-contextual-tool-dock[data-category='terrain'] .city-contextual-tool-dock-content,
+.city-ui .city-subtool-tray[data-category='terrain'] .city-subtool-tray-content {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.3rem;
+  overflow: visible;
+}
+
+.city-ui .city-contextual-tool-dock[data-category='terrain'] .city-tool-pill,
+.city-ui .city-subtool-tray[data-category='terrain'] .city-tool-pill {
+  min-width: 0 !important;
+  padding: 0 0.45rem;
+}
+
+.city-ui .city-contextual-tool-dock[data-category='terrain'] .city-brush-stepper,
+.city-ui .city-subtool-tray[data-category='terrain'] .city-brush-stepper {
+  grid-column: 1 / -1;
+}
+
+.city-ui .city-brush-stepper {
+  gap: 0.2rem;
+  padding-top: 0.05rem;
+}
+
+.city-ui .city-brush-stepper .city-segment {
+  min-height: 2.75rem !important;
+  color: var(--city-ui-muted);
+}
+
+.city-ui .city-brush-stepper .city-segment.is-active,
+.city-ui .city-brush-stepper .city-segment[aria-pressed='true'] {
+  color: #ffffff;
+}
+
+.city-ui .city-status-feedback {
+  position: absolute;
+  right: calc(var(--city-ui-safe-right) + 0.75rem);
+  bottom: calc(var(--city-ui-safe-bottom) + 4.9rem);
+  left: calc(var(--city-ui-safe-left) + 0.75rem);
+  display: flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.4rem 0.55rem 0.4rem 0.75rem;
+  border-radius: 0.9rem;
+  color: #ffffff;
+  background: rgb(26 34 54 / 0.94);
+  box-shadow: var(--city-ui-shadow-float);
+  pointer-events: auto;
+}
+
+.city-ui:has(.city-build-category-dock:not([hidden])) .city-status-feedback {
+  bottom: calc(var(--city-ui-safe-bottom) + 8.8rem);
+}
+
+.city-ui:has(.city-contextual-tool-dock:not([hidden])) .city-status-feedback {
+  bottom: calc(var(--city-ui-safe-bottom) + 12.7rem);
+}
+
+.city-ui:has(.city-contextual-tool-dock[data-category='terrain']:not([hidden]))
+  .city-status-feedback {
+  bottom: calc(var(--city-ui-safe-bottom) + 15.7rem);
+}
+
+.city-ui .city-status-feedback-message {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.city-ui .city-status-undo {
+  display: grid;
+  width: 2.75rem;
+  min-width: 2.75rem !important;
+  height: 2.75rem;
+  min-height: 2.75rem !important;
+  place-items: center;
+  border-radius: 0.75rem;
+  color: var(--city-ui-accent);
+  background: #ffffff;
+}
+
+.city-ui .city-bottom-nav,
+.city-ui .city-tool-context {
+  display: none !important;
+}

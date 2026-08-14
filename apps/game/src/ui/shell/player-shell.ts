@@ -1,9 +1,9 @@
 import type { GameToolMode } from '../../game-tool-mode.js';
-import { toolLabel } from '../../game-tool-context-bridge.js';
 import { mountDialogHost, type DialogHost } from '../dialog/dialog-host.js';
 import type { UiAdapter } from '../foundation/lifecycle.js';
-import { mountBottomNav, type BottomNav, type NavCategory } from './bottom-nav.js';
+import { mountBuildCategoryDock, type BuildCategoryDock } from './build-category-dock.js';
 import { mountGameHud, type GameHudCallbacks, type GameHudProjection } from './game-hud.js';
+import { mountPrimaryActions, type PrimaryActions } from './primary-actions.js';
 import { mountSimulationControls, type SimulationControlCallbacks } from './simulation-controls.js';
 import { mountSubToolTray, type SubToolTray, type TrayCategory } from './subtool-tray.js';
 import { mountToolContextSheet, type ToolContextSheetAdapter } from './tool-context-sheet.js';
@@ -26,7 +26,8 @@ export type PlayerShellCallbacks = TopActionCallbacks &
 
 export interface PlayerShell extends UiAdapter<GameHudProjection> {
   readonly dialogHost: DialogHost;
-  readonly bottomNav: BottomNav;
+  readonly primaryActions: PrimaryActions;
+  readonly buildCategoryDock: BuildCategoryDock;
   readonly subToolTray: SubToolTray;
   readonly toolContextSheet: ToolContextSheetAdapter;
 }
@@ -43,52 +44,50 @@ export function mountPlayerShell(
   const topActions = mountTopActions(element, callbacks);
   mountSimulationControls(topActions, callbacks, { compact: true });
 
-  let toolSurface: ToolContextSheetAdapter | null = null;
-  const projectTool = (mode: GameToolMode): void => {
-    toolSurface?.update({
-      mode,
-      name: toolLabel(mode),
-      state: 'Ready',
-      message: 'Point at the world to preview this tool',
-    });
-  };
+  const toolContextSheet = mountToolContextSheet(element, {
+    onUndo: callbacks.onUndo,
+  });
 
   const subToolTray = mountSubToolTray(element, {
-    onSelectTool: (mode) => {
-      callbacks.selectTool(mode);
-      projectTool(mode);
-    },
+    onSelectTool: callbacks.selectTool,
     onBrush: callbacks.setTerraformBrush,
   });
 
-  const toolSurfaceAdapter = mountToolContextSheet(subToolTray.element, {
-    onUndo: callbacks.onUndo,
-  });
-  toolSurface = toolSurfaceAdapter;
-  subToolTray.element.prepend(toolSurfaceAdapter.element);
-  toolSurfaceAdapter.update({
-    mode: 'navigate',
-    name: 'Navigate',
-    state: 'Ready',
-    message: 'Inspect or move around the city',
+  let buildOpen = false;
+
+  const closeBuild = (): void => {
+    buildOpen = false;
+    primaryActions.setBuildOpen(false);
+    buildCategoryDock.close();
+    subToolTray.close();
+    callbacks.selectTool('navigate');
+  };
+
+  const buildCategoryDock = mountBuildCategoryDock(element, {
+    onSelectCategory: (category) => {
+      buildOpen = true;
+      primaryActions.setBuildOpen(true);
+      buildCategoryDock.open();
+      buildCategoryDock.setActiveCategory(category);
+      subToolTray.open(category);
+      callbacks.selectTool(defaultToolForCategory[category]);
+    },
+    onClose: closeBuild,
   });
 
-  const bottomNav = mountBottomNav(element, (category: NavCategory) => {
-    if (category === 'navigate') {
+  const primaryActions = mountPrimaryActions(element, {
+    onNavigate: closeBuild,
+    onToggleBuild: () => {
+      if (buildOpen) {
+        closeBuild();
+        return;
+      }
+      buildOpen = true;
+      primaryActions.setBuildOpen(true);
+      buildCategoryDock.open();
+      buildCategoryDock.setActiveCategory(null);
       subToolTray.close();
-      callbacks.selectTool('navigate');
-      toolSurfaceAdapter.update({
-        mode: 'navigate',
-        name: 'Navigate',
-        state: 'Ready',
-        message: 'Inspect or move around the city',
-      });
-      return;
-    }
-    subToolTray.open(category);
-    const mode = defaultToolForCategory[category];
-    callbacks.selectTool(mode);
-    projectTool(mode);
+    },
   });
 
   const dialogHost = mountDialogHost(element);
@@ -96,17 +95,19 @@ export function mountPlayerShell(
   return Object.freeze({
     element,
     dialogHost,
-    bottomNav,
+    primaryActions,
+    buildCategoryDock,
     subToolTray,
-    toolContextSheet: toolSurfaceAdapter,
+    toolContextSheet,
     update(projection: GameHudProjection): void {
       hud.update(projection);
     },
     dispose(): void {
       dialogHost.dispose();
-      bottomNav.dispose();
+      primaryActions.dispose();
+      buildCategoryDock.dispose();
       subToolTray.dispose();
-      toolSurfaceAdapter.dispose();
+      toolContextSheet.dispose();
       element.remove();
     },
   });

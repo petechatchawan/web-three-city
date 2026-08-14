@@ -1,59 +1,36 @@
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import {
+  ROAD_PLACEMENT_ENVIRONMENT,
   WORLD_CONFIG,
   createEmptyRoadSnapshot,
-  deriveWaterSnapshot,
-  generateCoastalTerrain,
   planRoadMutation,
-  terrainCellSurfaceProfile,
-  triangleIndexFor,
   type CellCoord,
-  type RoadPlacementEnvironment,
 } from './helpers/domain-fixtures.js';
+import { openBuildCategory, waitForCityUi } from './helpers/city-ui.js';
 import {
   GAME_URL,
-  clickGameMenuAction,
   clickTerrainCell,
   dispatchCanvasTouch,
   readEvidence,
 } from './helpers/interaction.js';
 
-test.describe.configure({ timeout: 90_000 });
-
-const TERRAIN = (() => {
-  const result = generateCoastalTerrain({ seed: 1_464_156_977, config: WORLD_CONFIG });
-  if (!result.ok) throw new Error(result.error.code);
-  return result.value;
-})();
-const WATER = (() => {
-  const result = deriveWaterSnapshot(TERRAIN, WORLD_CONFIG);
-  if (!result.ok) throw new Error(result.error.code);
-  return result.value;
-})();
-const ENVIRONMENT: RoadPlacementEnvironment = Object.freeze({
-  terrainRevision: TERRAIN.revision,
-  waterSourceTerrainRevision: WATER.sourceTerrainRevision,
-  surfaceAt(cell: CellCoord) {
-    return terrainCellSurfaceProfile(TERRAIN, cell, WORLD_CONFIG);
-  },
-  isDry(cell: CellCoord) {
-    const first = triangleIndexFor(cell.x, cell.z, 0, WORLD_CONFIG.mapWidth);
-    const second = triangleIndexFor(cell.x, cell.z, 1, WORLD_CONFIG.mapWidth);
-    return WATER.seaTriangleMask[first] === 0 && WATER.seaTriangleMask[second] === 0;
-  },
-});
-
 function findLine(): readonly CellCoord[] {
-  for (let z = 20; z < WORLD_CONFIG.mapHeight - 20; z += 1) {
-    for (let x = 20; x < WORLD_CONFIG.mapWidth - 24; x += 1) {
-      const cells = Array.from({ length: 4 }, (_, index) => ({ x: x + index, z }));
+  const empty = createEmptyRoadSnapshot(WORLD_CONFIG);
+  for (let z = 6; z < WORLD_CONFIG.mapHeight - 6; z += 1) {
+    for (let x = 6; x < WORLD_CONFIG.mapWidth - 10; x += 1) {
+      const cells = Object.freeze([
+        Object.freeze({ x, z }),
+        Object.freeze({ x: x + 1, z }),
+        Object.freeze({ x: x + 2, z }),
+        Object.freeze({ x: x + 3, z }),
+      ]);
       const plan = planRoadMutation(
-        createEmptyRoadSnapshot(WORLD_CONFIG),
+        empty,
         { operation: 'build', definitionId: 'basic-road', cells },
-        ENVIRONMENT,
+        ROAD_PLACEMENT_ENVIRONMENT,
         WORLD_CONFIG,
       );
-      if (plan.valid) return Object.freeze(cells);
+      if (plan.valid) return cells;
     }
   }
   throw new Error('operation-aware:no-valid-line');
@@ -62,7 +39,21 @@ function findLine(): readonly CellCoord[] {
 async function openGame(page: Page): Promise<void> {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(GAME_URL);
-  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
+  await waitForCityUi(page);
+}
+
+async function clickCameraMenuAction(
+  page: Page,
+  name: 'Rotate right' | 'Reset camera',
+): Promise<void> {
+  const activeDialog = page.getByRole('dialog');
+  if (await activeDialog.isVisible()) {
+    await activeDialog.getByRole('button', { name: 'Close', exact: true }).click();
+  }
+  await page.getByRole('button', { name: 'Game Menu', exact: true }).click();
+  const action = page.getByRole('dialog').getByRole('button', { name, exact: true });
+  await expect(action).toBeAttached();
+  await action.evaluate((button) => (button as HTMLButtonElement).click());
 }
 
 async function attachViewport(page: Page, testInfo: TestInfo, name: string): Promise<void> {
@@ -77,30 +68,38 @@ test('Road operations expose distinct Preview and release outside Terrain commit
   const points = [];
   for (const cell of cells) points.push(await clickTerrainCell(page, cell));
 
-  await page.getByTestId('nav-roads').click();
-  await page.getByRole('button', { name: 'Build Road' }).click();
+  await openBuildCategory(page, 'roads');
+  const buildRoad = page.getByRole('button', { name: 'Build Road' });
+  await buildRoad.click();
   await dispatchCanvasTouch(page, 'pointerdown', 1, points[0]!.x, points[0]!.y);
   await dispatchCanvasTouch(page, 'pointermove', 1, points.at(-1)!.x, points.at(-1)!.y);
-  await expect(page.getByTestId('tool-context-state')).toHaveText('Valid build');
+  let evidence = await readEvidence(page);
+  expect(evidence.road.previewValid).toBe(true);
+  expect(evidence.road.previewCellCount).toBe(cells.length);
+  await expect(buildRoad).toHaveAttribute('aria-pressed', 'true');
   await attachViewport(page, testInfo, 'valid-build-preview');
   await dispatchCanvasTouch(page, 'pointerup', 1, 20, 450);
   await expect(page.getByTestId('tool-context-status')).toHaveText('Road built');
   expect((await readEvidence(page)).road.occupiedCellCount).toBe(cells.length);
 
   await dispatchCanvasTouch(page, 'pointerdown', 2, points[0]!.x, points[0]!.y);
-  await expect(page.getByTestId('tool-context-state')).toHaveText('Invalid build');
-  expect((await readEvidence(page)).road.invalidMarkerCount).toBe(1);
+  evidence = await readEvidence(page);
+  expect(evidence.road.previewValid).toBe(false);
+  expect(evidence.road.invalidMarkerCount).toBe(1);
   await attachViewport(page, testInfo, 'invalid-build-preview');
   await dispatchCanvasTouch(page, 'pointerup', 2, points[0]!.x, points[0]!.y);
   await expect(page.getByTestId('tool-context-status')).toHaveText('Road unchanged');
   expect((await readEvidence(page)).road.occupiedCellCount).toBe(cells.length);
 
-  await page.getByTestId('nav-roads').click();
-  await page.getByRole('button', { name: 'Bulldoze Road' }).click();
+  await openBuildCategory(page, 'roads');
+  const bulldozeRoad = page.getByRole('button', { name: 'Bulldoze Road' });
+  await bulldozeRoad.click();
   await dispatchCanvasTouch(page, 'pointerdown', 3, points[0]!.x, points[0]!.y);
   await dispatchCanvasTouch(page, 'pointermove', 3, points.at(-1)!.x, points.at(-1)!.y);
-  await expect(page.getByTestId('tool-context-state')).toHaveText('Valid bulldoze');
-  expect((await readEvidence(page)).road.bulldozeMarkerCount).toBe(1);
+  evidence = await readEvidence(page);
+  expect(evidence.road.previewValid).toBe(true);
+  expect(evidence.road.bulldozeMarkerCount).toBe(1);
+  await expect(bulldozeRoad).toHaveAttribute('aria-pressed', 'true');
   await attachViewport(page, testInfo, 'valid-bulldoze-preview');
   await dispatchCanvasTouch(page, 'pointerup', 3, points.at(-1)!.x, points.at(-1)!.y);
   await expect(page.getByTestId('tool-context-status')).toHaveText('Road bulldozed');
@@ -110,10 +109,12 @@ test('Road operations expose distinct Preview and release outside Terrain commit
 test('camera pan remains screen-relative after every quarter-turn rotation', async ({
   page,
 }, testInfo) => {
+  test.setTimeout(60_000);
   await openGame(page);
   for (let turns = 0; turns < 4; turns += 1) {
-    await clickGameMenuAction(page, 'Reset camera');
-    for (let index = 0; index < turns; index += 1) await clickGameMenuAction(page, 'Rotate right');
+    await clickCameraMenuAction(page, 'Reset camera');
+    for (let index = 0; index < turns; index += 1)
+      await clickCameraMenuAction(page, 'Rotate right');
     const beforeRight = (await readEvidence(page)).camera;
     await page.mouse.move(900, 500);
     await page.mouse.down();
@@ -128,8 +129,9 @@ test('camera pan remains screen-relative after every quarter-turn rotation', asy
     expect(deltaX * expectedX + deltaZ * expectedZ).toBeGreaterThan(0);
     expect(Math.abs(deltaX * expectedZ - deltaZ * expectedX)).toBeLessThan(0.01);
 
-    await clickGameMenuAction(page, 'Reset camera');
-    for (let index = 0; index < turns; index += 1) await clickGameMenuAction(page, 'Rotate right');
+    await clickCameraMenuAction(page, 'Reset camera');
+    for (let index = 0; index < turns; index += 1)
+      await clickCameraMenuAction(page, 'Rotate right');
     const beforeUp = (await readEvidence(page)).camera;
     await page.mouse.move(900, 550);
     await page.mouse.down();

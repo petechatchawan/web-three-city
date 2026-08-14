@@ -4,6 +4,7 @@ import {
   pointFor,
   prepareBuildingFixtureWorld,
 } from './helpers/building-fixture.js';
+import { openBuildCategory, waitForCityUi } from './helpers/city-ui.js';
 import { prepareDeterministicGrowthClock, stepLogicalTicks } from './helpers/growth-fixture.js';
 import { GAME_URL, clickGameMenuAction, readEvidence } from './helpers/interaction.js';
 
@@ -45,7 +46,7 @@ function findTerraformSupportCell(
 async function openGame(page: Page): Promise<void> {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(GAME_URL);
-  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
+  await waitForCityUi(page);
   await prepareDeterministicGrowthClock(page);
 }
 
@@ -53,7 +54,6 @@ async function growAllEligibleBuildings(page: Page): Promise<void> {
   const snapshot = await stepLogicalTicks(page, 16);
   expect(snapshot.simulation.absoluteTick).toBe(24);
   expect(snapshot.buildingCount).toBe(3);
-  await expect(page.locator('[data-metric="total"] strong')).toHaveText('3');
 }
 
 async function setAutomaticGrowthEnabled(page: Page, enabled: boolean): Promise<void> {
@@ -78,9 +78,8 @@ async function saveWorldFixture(page: Page): Promise<SavedWorldFixture> {
 test('exposes headless Building Growth and interactive Bulldoze evidence', async ({ page }) => {
   await openGame(page);
   await expect(page.getByRole('button', { name: 'Develop Zones' })).toHaveCount(0);
-  await page.getByTestId('nav-buildings').click();
+  await openBuildCategory(page, 'buildings');
   await expect(page.getByRole('button', { name: 'Bulldoze Building' })).toBeVisible();
-  await expect(page.locator('[data-metric="total"] strong')).toHaveText('0');
   const evidence = await readEvidence(page);
   expect(evidence.building.committedBuildingRevision).toBe(0);
   expect(evidence.building.count).toBe(0);
@@ -90,15 +89,14 @@ test('exposes headless Building Growth and interactive Bulldoze evidence', async
 
 test('headless Growth fails closed before eligible Zones exist', async ({ page }) => {
   await openGame(page);
-  const statusBeforeGrowth = (await page.getByTestId('tool-context-status').textContent()) ?? '';
+  await expect(page.locator('.city-status-feedback')).toBeHidden();
   const snapshot = await stepLogicalTicks(page, 4);
 
   expect(snapshot.simulation.absoluteTick).toBe(12);
   expect(snapshot.buildingCount).toBe(0);
-  await expect(page.locator('[data-metric="total"] strong')).toHaveText('0');
-  await expect(page.getByTestId('tool-context-name')).toHaveText('Navigate');
-  await expect(page.getByTestId('tool-context-status')).toHaveText(statusBeforeGrowth);
-  await expect(page.getByTestId('tool-context-status')).not.toHaveText('Zones developed');
+  await expect(page.locator('.city-status-feedback')).toBeHidden();
+  await expect(page.getByTestId('build-category-dock')).toBeHidden();
+  await expect(page.getByTestId('subtool-tray')).toBeHidden();
 });
 
 test('grows deterministic R/C/I content and preserves authority across guards, Undo, and Save V5', async ({
@@ -120,7 +118,6 @@ test('grows deterministic R/C/I content and preserves authority across guards, U
   expect(evidence.building.definitionIds).toEqual(EXPECTED_DEFINITION_IDS);
   expect(evidence.building.commitCount).toBe(3);
   expect(evidence.sceneRootCounts.buildingCommitted).toBe(1);
-  await expect(page.locator('[data-metric="total"] strong')).toHaveText('3');
 
   await setAutomaticGrowthEnabled(page, false);
   const parsedSave = await saveWorldFixture(page);
@@ -150,24 +147,24 @@ test('grows deterministic R/C/I content and preserves authority across guards, U
   );
   const bulldozedDefinitionId = commercialInstance.buildingDefinitionId;
 
-  await page.getByTestId('nav-roads').click();
+  await openBuildCategory(page, 'roads');
   await page.getByRole('button', { name: 'Build Road' }).click();
   await page.mouse.click(commercialOccupiedCell.x, commercialOccupiedCell.y);
   await expect(page.getByTestId('tool-context-status')).toHaveText('Road blocked by building');
 
-  await page.getByTestId('nav-zones').click();
+  await openBuildCategory(page, 'zones');
   await page.getByRole('button', { name: 'Remove Zone' }).click();
   await page.mouse.click(commercialOccupiedCell.x, commercialOccupiedCell.y);
   await expect(page.getByTestId('tool-context-status')).toHaveText('Zone blocked by building');
 
   // Always use a rear-row fixture cell whose Terraform vertex support touches the occupied 1x1
   // Building without also touching the frontage Road. Road occupancy has higher precedence.
-  await page.getByTestId('nav-terrain').click();
+  await openBuildCategory(page, 'terrain');
   await page.getByRole('button', { name: 'Raise' }).click();
   await page.mouse.click(commercialSupportCell.x, commercialSupportCell.y);
   await expect(page.getByTestId('tool-context-status')).toHaveText('Terraform blocked by building');
 
-  await page.getByTestId('nav-roads').click();
+  await openBuildCategory(page, 'roads');
   await page.getByRole('button', { name: 'Bulldoze Road' }).click();
   const firstRoad = pointFor(points, BUILDING_FIXTURES.commercial.roadCells[0]);
   const secondRoad = pointFor(points, BUILDING_FIXTURES.commercial.roadCells[1]);
@@ -181,7 +178,7 @@ test('grows deterministic R/C/I content and preserves authority across guards, U
   expect(evidence.building.count).toBe(3);
   expect(evidence.zone.counts.commercial).toBe(4);
 
-  await page.getByTestId('nav-buildings').click();
+  await openBuildCategory(page, 'buildings');
   await page.getByRole('button', { name: 'Bulldoze Building' }).click();
   await page.mouse.click(commercialOccupiedCell.x, commercialOccupiedCell.y);
   await expect(page.getByTestId('tool-context-status')).toHaveText('Building bulldozed');
@@ -198,7 +195,7 @@ test('grows deterministic R/C/I content and preserves authority across guards, U
   expect(evidence.building.definitionIds).toEqual(EXPECTED_DEFINITION_IDS);
   expect(evidence.building.undoCount).toBe(1);
 
-  await page.getByTestId('nav-buildings').click();
+  await openBuildCategory(page, 'buildings');
   await page.getByRole('button', { name: 'Bulldoze Building' }).click();
   await page.mouse.click(commercialOccupiedCell.x, commercialOccupiedCell.y);
   await expect(page.getByTestId('tool-context-status')).toHaveText('Building bulldozed');

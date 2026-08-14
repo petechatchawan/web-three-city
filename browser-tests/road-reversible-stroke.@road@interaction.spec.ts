@@ -1,3 +1,4 @@
+import { openBuildCategory, waitForCityUi } from './helpers/city-ui.js';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import {
   GAME_SEED,
@@ -135,7 +136,7 @@ function findRoadLine(length: number): readonly CellCoord[] {
 async function openGame(page: Page): Promise<void> {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(GAME_URL);
-  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
+  await waitForCityUi(page);
 }
 
 async function locateCells(
@@ -169,14 +170,10 @@ async function attachPng(testInfo: TestInfo, name: string, body: Buffer): Promis
   await testInfo.attach(name, { body, contentType: 'image/png' });
 }
 
-async function expectRoadCounts(
-  page: Page,
-  requested: number,
-  effective = requested,
-): Promise<void> {
-  await expect(page.getByTestId('tool-context-requested')).toHaveText(`${requested} cells`);
-  await expect(page.getByTestId('tool-context-effective')).toHaveText(`${effective} effective`);
-  expect((await readEvidence(page)).road.previewCellCount).toBe(requested);
+async function expectRoadCounts(page: Page, requested: number): Promise<void> {
+  const evidence = await readEvidence(page);
+  expect(evidence.road.previewValid).toBe(true);
+  expect(evidence.road.previewCellCount).toBe(requested);
 }
 
 function cellMinimumX(cell: CellCoord): number {
@@ -198,7 +195,7 @@ test('Build Preview stays isolated and exact reverse removes the abandoned tail'
   const committedPoint = points[0]!;
   const activePoints = points.slice(4, 9);
 
-  await page.getByTestId('nav-roads').click();
+  await openBuildCategory(page, 'roads');
   await page.getByRole('button', { name: 'Build Road' }).click();
   await page.mouse.click(committedPoint.x, committedPoint.y);
   await expect(page.getByTestId('tool-context-status')).toHaveText('Road built');
@@ -255,7 +252,7 @@ test('reverse then perpendicular movement branches from the retained Road tail',
   const branchEnd = points.at(-1)!;
   const abandonedPoint = forwardPoints.at(-1)!;
 
-  await page.getByTestId('nav-roads').click();
+  await openBuildCategory(page, 'roads');
   await page.getByRole('button', { name: 'Build Road' }).click();
   await page.mouse.move(forwardPoints[0]!.x, forwardPoints[0]!.y);
   await settleRendering(page);
@@ -289,7 +286,7 @@ test('Bulldoze reverse restores the abandoned removal tail before release', asyn
   const cells = findRoadLine(6);
   const points = await locateCells(page, cells);
 
-  await page.getByTestId('nav-roads').click();
+  await openBuildCategory(page, 'roads');
   await page.getByRole('button', { name: 'Build Road' }).click();
   await page.mouse.move(points[0]!.x, points[0]!.y);
   await page.mouse.down();
@@ -298,7 +295,7 @@ test('Bulldoze reverse restores the abandoned removal tail before release', asyn
   await expect(page.getByTestId('tool-context-status')).toHaveText('Road built');
   expect((await readEvidence(page)).road.occupiedCellCount).toBe(6);
 
-  await page.getByTestId('nav-roads').click();
+  await openBuildCategory(page, 'roads');
   await page.getByRole('button', { name: 'Bulldoze Road' }).click();
   await page.mouse.move(points[0]!.x, points[0]!.y);
   await settleRendering(page);

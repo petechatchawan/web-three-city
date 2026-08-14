@@ -1,3 +1,4 @@
+import { waitForCityUi } from './helpers/city-ui.js';
 import { expect, test } from '@playwright/test';
 import {
   GAME_URL,
@@ -10,7 +11,7 @@ import {
 async function openGame(page: import('@playwright/test').Page): Promise<void> {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(GAME_URL);
-  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
+  await waitForCityUi(page);
 }
 
 test('pinch zooms without selection', async ({ page }) => {
@@ -149,7 +150,7 @@ test('context restore preserves grid and selection with one root each', async ({
     canvas.dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
     canvas.dispatchEvent(new Event('webglcontextrestored'));
   });
-  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
+  await waitForCityUi(page);
 
   const evidence = await readEvidence(page);
   expect(evidence.gridVisible).toBe(true);

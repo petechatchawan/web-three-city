@@ -1,25 +1,20 @@
 import { expect, test } from '@playwright/test';
+import { openBuildCategory, waitForCityUi } from './helpers/city-ui.js';
 import { GAME_URL, clickGameMenuAction, readEvidence } from './helpers/interaction.js';
 
 const SAVE_KEY = 'web-three-city:world-save:v6';
 
 async function waitForReady(page: import('@playwright/test').Page): Promise<void> {
   await page.goto(GAME_URL);
-  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
+  await waitForCityUi(page);
 }
 
-test('desktop and mobile initial views fit the whole world', async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
+test('canonical mobile initial view fits the whole world', async ({ page }) => {
+  await page.setViewportSize({ width: 414, height: 896 });
   await waitForReady(page);
-  let evidence = await readEvidence(page);
+  const evidence = await readEvidence(page);
   expect(evidence.allWorldCornersInsideUsableViewport).toBe(true);
   expect(evidence.framingMarginRatio).toBe(0.08);
-
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.reload();
-  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
-  evidence = await readEvidence(page);
-  expect(evidence.allWorldCornersInsideUsableViewport).toBe(true);
 });
 
 test('drag pans without selecting', async ({ page }) => {
@@ -99,9 +94,9 @@ test('recovers presentation state after WebGL context loss', async ({ page }) =>
   await canvas.evaluate((element) => {
     element.dispatchEvent(new Event('webglcontextrestored'));
   });
-  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
+  await expect(page.locator('.city-status-feedback')).toBeHidden();
+  await expect.poll(async () => (await readEvidence(page)).sceneRootCounts.roadCommitted).toBe(1);
   const evidence = await readEvidence(page);
-  expect(evidence.sceneRootCounts.roadCommitted).toBe(1);
   expect(evidence.sceneRootCounts.roadPreview).toBe(0);
   expect(evidence.sceneRootCounts.zoneCommitted).toBe(1);
   expect(evidence.sceneRootCounts.zonePreview).toBe(0);
@@ -147,9 +142,9 @@ test('restores exactly one Water, Road, Zone, and Building root after context re
     element.dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
     element.dispatchEvent(new Event('webglcontextrestored'));
   });
-  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
+  await expect(page.locator('.city-status-feedback')).toBeHidden();
+  await expect.poll(async () => (await readEvidence(page)).water.waterRootCount).toBe(1);
   const evidence = await readEvidence(page);
-  expect(evidence.water.waterRootCount).toBe(1);
   expect(evidence.sceneRootCounts.water).toBe(1);
   expect(evidence.sceneRootCounts.roadCommitted).toBe(1);
   expect(evidence.sceneRootCounts.roadPreview).toBe(0);
@@ -158,34 +153,38 @@ test('restores exactly one Water, Road, Zone, and Building root after context re
   expect(evidence.sceneRootCounts.buildingCommitted).toBe(1);
 });
 
-test('exposes Terraform, Road, Zone, and Building tools with mode-aware brush controls', async ({
+test('exposes Build categories and mode-aware contextual tools only on demand', async ({
   page,
 }) => {
+  await page.setViewportSize({ width: 414, height: 896 });
   await waitForReady(page);
 
-  await expect(page.getByTestId('nav-navigate')).toHaveAttribute('aria-pressed', 'true');
-  for (const category of ['nav-terrain', 'nav-roads', 'nav-zones', 'nav-buildings']) {
-    await expect(page.getByTestId(category)).toBeVisible();
-  }
+  await expect(page.getByTestId('build-cta')).toBeVisible();
+  await expect(page.getByTestId('build-category-dock')).toBeHidden();
   await expect(page.getByTestId('subtool-tray')).toBeHidden();
   await expect(page.getByRole('button', { name: 'Develop Zones' })).toHaveCount(0);
-  await expect(page.getByTestId('tool-context-undo')).toBeDisabled();
-  await expect(page.getByTestId('tool-context-name')).toHaveText('Navigate');
+  await expect(page.getByTestId('tool-context-undo')).toHaveCount(0);
+  await expect(page.locator('.city-tool-context')).toHaveCount(0);
 
-  await page.getByTestId('nav-roads').click();
-  await page.getByRole('button', { name: 'Build Road' }).click();
-  await expect(page.getByTestId('tool-context-name')).toHaveText('Build Road');
+  await openBuildCategory(page, 'roads');
+  const buildRoad = page.getByRole('button', { name: 'Build Road', exact: true });
+  await buildRoad.click();
+  await expect(buildRoad).toHaveAttribute('aria-pressed', 'true');
 
-  await page.getByTestId('nav-zones').click();
-  await page.getByRole('button', { name: 'Residential', exact: true }).click();
-  await expect(page.getByTestId('tool-context-name')).toHaveText('Residential Zone');
+  await openBuildCategory(page, 'zones');
+  const residential = page.getByRole('button', { name: 'Residential', exact: true });
+  await residential.click();
+  await expect(residential).toHaveAttribute('aria-pressed', 'true');
 
-  await page.getByTestId('nav-buildings').click();
-  await page.getByRole('button', { name: 'Bulldoze Building', exact: true }).click();
-  await expect(page.getByTestId('tool-context-name')).toHaveText('Bulldoze Building');
+  await openBuildCategory(page, 'buildings');
+  const bulldoze = page.getByRole('button', { name: 'Bulldoze Building', exact: true });
+  await bulldoze.click();
+  await expect(bulldoze).toHaveAttribute('aria-pressed', 'true');
 
-  await page.getByTestId('nav-terrain').click();
-  await page.getByRole('button', { name: 'Raise', exact: true }).click();
+  await openBuildCategory(page, 'terrain');
+  const raise = page.getByRole('button', { name: 'Raise', exact: true });
+  await raise.click();
+  await expect(raise).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByRole('button', { name: 'Brush 1 × 1' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Brush 5 × 5' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Brush 1 × 1' })).toHaveAttribute(

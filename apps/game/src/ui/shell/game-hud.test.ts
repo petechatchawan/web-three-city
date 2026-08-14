@@ -14,46 +14,44 @@ const projection: GameHudProjection = {
   total: '7',
 };
 
-describe('game HUD', () => {
-  it('updates awareness metrics without announcing every tick and disposes', () => {
+describe('M6.2 mobile game HUD', () => {
+  it('renders only Population, Treasury, and Game time in persistent chrome', () => {
     const hud = mountGameHud(document.body, { onSelectMetric: vi.fn() });
     hud.update(projection);
+    expect(
+      Array.from(
+        hud.element.querySelectorAll<HTMLElement>('[data-metric]'),
+        (metric) => metric.dataset.metric,
+      ),
+    ).toEqual(['population', 'population', 'treasury', 'treasury', 'gameTime', 'gameTime']);
     expect(hud.element.textContent).toContain('337');
+    expect(hud.element.textContent).toContain('100K');
     expect(hud.element.textContent).toContain('Y1 M5 D19 06:45');
-    expect(hud.element.textContent).toContain('2');
-    expect(hud.element.textContent).toContain('5');
-    expect(hud.element.textContent).toContain('7');
-    expect(hud.element.hasAttribute('aria-live')).toBe(false);
-    expect(hud.element.querySelector('.city-hud-primary')).not.toBeNull();
-    expect(hud.element.querySelector('.city-hud-secondary')).not.toBeNull();
-    const population = hud.element.querySelector('[data-metric="population"]');
-    expect(population?.classList.contains('city-metric--primary')).toBe(true);
-    expect(population?.querySelector('[data-city-icon="population"]')).not.toBeNull();
-    expect(population?.querySelector('.city-metric-value')?.textContent).toBe('337');
-    hud.dispose();
-    expect(document.body.contains(hud.element)).toBe(false);
+    expect(hud.element.textContent).not.toContain('+7K');
+    expect(hud.element.textContent).not.toContain('R↑ C↑ I→');
+    expect(hud.element.textContent).not.toContain('2');
+    expect(hud.element.querySelector('.city-hud-secondary')).toBeNull();
   });
 
-  it('exposes each metric chip as a role=button and dispatches onSelectMetric on tap', () => {
+  it('keeps primary metrics accessible and forwards metric taps', () => {
     const onSelectMetric = vi.fn();
     const hud = mountGameHud(document.body, { onSelectMetric });
-    const chip = hud.element.querySelector<HTMLButtonElement>('[data-metric="population"]')!;
-    expect(chip.getAttribute('role')).toBe('button');
-    expect(chip.getAttribute('aria-label')).toBe('Population');
-    chip.click();
-    expect(onSelectMetric).toHaveBeenCalledWith('population');
-    hud.dispose();
+    for (const metric of ['population', 'treasury', 'gameTime'] as const) {
+      const chip = hud.element.querySelector<HTMLButtonElement>(`button[data-metric="${metric}"]`);
+      expect(chip).not.toBeNull();
+      expect(chip?.getAttribute('role')).toBe('button');
+      chip?.click();
+      expect(onSelectMetric).toHaveBeenLastCalledWith(metric);
+    }
   });
 
-  it('exposes calendar and building lifecycle chips as data-metric values', () => {
+  it('keeps secondary projection fields out of persistent DOM without changing the projection API', () => {
     const hud = mountGameHud(document.body, { onSelectMetric: vi.fn() });
     hud.update(projection);
-    const value = (metric: string): string | null | undefined =>
-      hud.element.querySelector(`[data-metric="${metric}"] strong`)?.textContent;
-    expect(value('gameTime')).toBe('Y1 M5 D19 06:45');
-    expect(value('construction')).toBe('2');
-    expect(value('active')).toBe('5');
-    expect(value('total')).toBe('7');
-    hud.dispose();
+    for (const metric of ['net', 'demand', 'construction', 'active', 'total']) {
+      expect(hud.element.querySelector(`[data-metric="${metric}"]`)).toBeNull();
+    }
+    expect(projection.net).toBe('+7K');
+    expect(projection.total).toBe('7');
   });
 });

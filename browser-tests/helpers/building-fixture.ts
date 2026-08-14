@@ -14,6 +14,7 @@ import {
   type CellCoord,
   type ZoneDefinitionId,
 } from './domain-fixtures.js';
+import { openBuildCategory } from './city-ui.js';
 import { clickTerrainCell, locateTerrainCell, type TerrainCellScreenPoint } from './interaction.js';
 
 export interface BuildingLotFixture {
@@ -166,7 +167,7 @@ async function buildRoad(
   points: BuildingFixturePoints,
   fixture: BuildingLotFixture,
 ): Promise<void> {
-  await page.getByTestId('nav-roads').click();
+  await openBuildCategory(page, 'roads');
   await page.getByRole('button', { name: 'Build Road', exact: true }).click();
   const start = pointFor(points, fixture.roadCells[0]);
   const end = pointFor(points, fixture.roadCells[1]);
@@ -182,7 +183,7 @@ async function paintZone(
   points: BuildingFixturePoints,
   fixture: BuildingLotFixture,
 ): Promise<void> {
-  await page.getByTestId('nav-zones').click();
+  await openBuildCategory(page, 'zones');
   await page.getByRole('button', { name: fixture.zoneButtonName, exact: true }).click();
   for (const cell of fixture.zoneCells) {
     const point = pointFor(points, cell);

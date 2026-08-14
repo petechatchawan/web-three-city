@@ -1,3 +1,4 @@
+import { waitForCityUi } from './helpers/city-ui.js';
 import { expect, test, type Page } from '@playwright/test';
 import {
   CENTER_BUILDING_FIXTURE,
@@ -17,7 +18,7 @@ test.describe.configure({ timeout: 60_000 });
 async function openGame(page: Page): Promise<void> {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(GAME_URL);
-  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
+  await waitForCityUi(page);
 }
 
 async function closeInspect(page: Page): Promise<void> {

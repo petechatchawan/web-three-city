@@ -1,40 +1,44 @@
 import { expect, test } from '@playwright/test';
 import { prepareBuildingFixtureWorld } from './helpers/building-fixture.js';
+import { waitForCityUi } from './helpers/city-ui.js';
 import { prepareDeterministicGrowthClock, stepLogicalTicks } from './helpers/growth-fixture.js';
 import { GAME_URL } from './helpers/interaction.js';
 
 // Hosted Chromium visual capture has a measured ~66s floor on current runners.
 test.describe.configure({ timeout: 90_000 });
 
-test('captures Construction phases, variety, and responsive time controls', async ({
+test('captures Construction phases, variety, and canonical mobile time controls', async ({
   page,
 }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(GAME_URL);
-  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
+  await waitForCityUi(page);
   await prepareDeterministicGrowthClock(page);
   await prepareBuildingFixtureWorld(page);
 
-  await stepLogicalTicks(page, 4);
-  await expect(page.locator('[data-metric="construction"] strong')).toHaveText('1');
+  let snapshot = await stepLogicalTicks(page, 4);
+  expect(snapshot.buildingCount).toBe(1);
+  await page.setViewportSize({ width: 414, height: 896 });
+  await page.evaluate(() => window.dispatchEvent(new Event('resize')));
   await page.screenshot({
-    path: testInfo.outputPath('growth-foundation-desktop.png'),
+    path: testInfo.outputPath('growth-foundation-mobile.png'),
     fullPage: true,
   });
 
-  await stepLogicalTicks(page, 32);
+  snapshot = await stepLogicalTicks(page, 32);
+  expect(snapshot.buildingCount).toBeGreaterThanOrEqual(1);
   await page.screenshot({
-    path: testInfo.outputPath('growth-frame-and-variety-desktop.png'),
+    path: testInfo.outputPath('growth-frame-and-variety-mobile.png'),
     fullPage: true,
   });
 
-  await stepLogicalTicks(page, 32);
+  snapshot = await stepLogicalTicks(page, 32);
+  expect(snapshot.buildingCount).toBeGreaterThanOrEqual(1);
   await page.screenshot({
-    path: testInfo.outputPath('growth-shell-and-variety-desktop.png'),
+    path: testInfo.outputPath('growth-shell-and-variety-mobile.png'),
     fullPage: true,
   });
 
-  await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator('[data-simulation-speed]')).toHaveText('Ⅱ');
   await expect(page.locator('[data-simulation-step]')).toBeVisible();
   await page.screenshot({

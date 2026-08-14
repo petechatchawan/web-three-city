@@ -1,3 +1,4 @@
+import { openBuildCategory, waitForCityUi } from './helpers/city-ui.js';
 import { expect, test, type Page } from '@playwright/test';
 import {
   GAME_SEED,
@@ -51,7 +52,7 @@ const BASE_ENVIRONMENT: RoadPlacementEnvironment = Object.freeze({
 async function openGame(page: Page): Promise<void> {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(GAME_URL);
-  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
+  await waitForCityUi(page);
 }
 
 function interiorCells(): readonly Readonly<{ x: number; z: number }>[] {
@@ -117,7 +118,7 @@ async function locateCells(
 
 async function buildRoadTap(page: Page, cell: Readonly<{ x: number; z: number }>): Promise<void> {
   const point = await clickTerrainCell(page, cell);
-  await page.getByTestId('nav-roads').click();
+  await openBuildCategory(page, 'roads');
   await page.getByRole('button', { name: 'Build Road' }).click();
   await page.mouse.click(point.x, point.y);
   await expect(page.getByTestId('tool-context-status')).toHaveText('Road built');
@@ -212,7 +213,7 @@ test('desktop drag previews and commits one Road transaction without touching Wa
   await openGame(page);
   const cells = findRoadLine();
   const points = await locateCells(page, [cells[0]!, cells.at(-1)!]);
-  await page.getByTestId('nav-roads').click();
+  await openBuildCategory(page, 'roads');
   await page.getByRole('button', { name: 'Build Road' }).click();
   const before = await readEvidence(page);
 
@@ -243,14 +244,14 @@ test('Bulldoze updates topology and tagged Undo restores the Road only', async (
   await openGame(page);
   const cells = findRoadLine(3);
   const points = await locateCells(page, [cells[0]!, cells.at(-1)!]);
-  await page.getByTestId('nav-roads').click();
+  await openBuildCategory(page, 'roads');
   await page.getByRole('button', { name: 'Build Road' }).click();
   await page.mouse.move(points[0]!.x, points[0]!.y);
   await page.mouse.down();
   await page.mouse.move(points[1]!.x, points[1]!.y, { steps: 4 });
   await page.mouse.up();
   const built = await readEvidence(page);
-  await page.getByTestId('nav-roads').click();
+  await openBuildCategory(page, 'roads');
   await page.getByRole('button', { name: 'Bulldoze Road' }).click();
   await page.mouse.click(points[1]!.x, points[1]!.y);
   await expect(page.getByTestId('tool-context-status')).toHaveText('Road bulldozed');
@@ -274,7 +275,7 @@ test('second touch cancels Road Preview and transfers to camera gesture ownershi
   await openGame(page);
   const cell = findRoadLine(1)[0]!;
   const point = await clickTerrainCell(page, cell);
-  await page.getByTestId('nav-roads').click();
+  await openBuildCategory(page, 'roads');
   await page.getByRole('button', { name: 'Build Road' }).click();
   const before = await readEvidence(page);
 
@@ -303,7 +304,7 @@ test('Terraform touching one Road cell invalidates Preview and rejects the whole
   await buildRoadTap(page, cell);
   const before = await readEvidence(page);
   const point = await clickTerrainCell(page, cell);
-  await page.getByTestId('nav-terrain').click();
+  await openBuildCategory(page, 'terrain');
   await page.getByRole('button', { name: 'Raise' }).click();
 
   await page.mouse.move(point.x, point.y);
@@ -335,7 +336,7 @@ test('WorldSaveV5 restores Roads and legacy Terrain saves migrate to empty Roads
   expect(worldSave).not.toBeNull();
 
   const point = await clickTerrainCell(page, cell);
-  await page.getByTestId('nav-roads').click();
+  await openBuildCategory(page, 'roads');
   await page.getByRole('button', { name: 'Bulldoze Road' }).click();
   await page.mouse.click(point.x, point.y);
   expect((await readEvidence(page)).road.occupiedCellCount).toBe(0);
@@ -368,7 +369,7 @@ test('WebGL context restoration keeps committed Roads and clears Preview', async
   if (committedPoint === undefined || previewPoint === undefined) {
     throw new Error('road-browser:missing-context-restore-points');
   }
-  await page.getByTestId('nav-roads').click();
+  await openBuildCategory(page, 'roads');
   await page.getByRole('button', { name: 'Build Road' }).click();
   await page.mouse.click(committedPoint.x, committedPoint.y);
   await expect(page.getByTestId('tool-context-status')).toHaveText('Road built');
@@ -380,7 +381,7 @@ test('WebGL context restoration keeps committed Roads and clears Preview', async
     element.dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
     element.dispatchEvent(new Event('webglcontextrestored'));
   });
-  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
+  await waitForCityUi(page);
   const restored = await readEvidence(page);
   expect(restored.road.occupiedCellCount).toBe(1);
   expect(restored.road.committedRootCount).toBe(1);

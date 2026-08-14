@@ -1,8 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { GameToolMode } from '../../game-tool-mode.js';
-import { toolLabel } from '../../game-tool-context-bridge.js';
 import { mountPlayerShell, type PlayerShellCallbacks } from './player-shell.js';
-import type { NavCategory } from './bottom-nav.js';
 import type { TrayCategory } from './subtool-tray.js';
 
 const defaultToolForCategory: Readonly<Record<TrayCategory, GameToolMode>> = {
@@ -10,13 +8,6 @@ const defaultToolForCategory: Readonly<Record<TrayCategory, GameToolMode>> = {
   roads: 'road-build',
   zones: 'zone-residential',
   buildings: 'building-bulldoze',
-};
-
-const categoryButtons: Readonly<Record<TrayCategory, NavCategory>> = {
-  terrain: 'terrain',
-  roads: 'roads',
-  zones: 'zones',
-  buildings: 'buildings',
 };
 
 afterEach(() => document.body.replaceChildren());
@@ -36,81 +27,68 @@ function mountSpyShell(callbacks: Partial<PlayerShellCallbacks> = {}) {
   });
 }
 
-function navButton(shell: ReturnType<typeof mountSpyShell>, category: NavCategory) {
-  return shell.bottomNav.element.querySelector<HTMLButtonElement>(
-    `[data-testid="nav-${category}"]`,
-  );
+function openBuild(shell: ReturnType<typeof mountSpyShell>): void {
+  shell.element.querySelector<HTMLButtonElement>('[data-testid="build-cta"]')?.click();
 }
 
-function contextText(shell: ReturnType<typeof mountSpyShell>): string {
-  return shell.element.querySelector<HTMLElement>('.city-tool-context')?.textContent ?? '';
+function selectCategory(shell: ReturnType<typeof mountSpyShell>, category: TrayCategory): void {
+  shell.element.querySelector<HTMLButtonElement>(`[data-build-category="${category}"]`)?.click();
 }
 
-describe('player shell wiring', () => {
-  it('renders the navigate projection on boot', () => {
+describe('player shell M6.2 wiring', () => {
+  it('boots in Navigate with Build closed and no permanent Tool Context copy', () => {
     const shell = mountSpyShell();
-    expect(contextText(shell)).toContain('Navigate');
-    expect(contextText(shell)).toContain('Inspect or move around the city');
-    expect(contextText(shell)).toContain('Undo unavailable');
+    expect(shell.buildCategoryDock.element.hidden).toBe(true);
+    expect(shell.subToolTray.element.hidden).toBe(true);
+    expect(shell.toolContextSheet.element.hidden).toBe(true);
+    expect(shell.element.textContent).not.toContain('Inspect or move around the city');
+    expect(shell.element.textContent).not.toContain('Undo unavailable');
   });
 
-  it('opens the matching tray, selects the default tool, and projects it for every category', () => {
+  it('selects the default tool only after a Build category is chosen', () => {
     for (const category of Object.keys(defaultToolForCategory) as TrayCategory[]) {
       const onSelect = vi.fn();
       const shell = mountSpyShell({ selectTool: onSelect });
-      const mode = defaultToolForCategory[category];
-      const expectedName = toolLabel(mode);
-      navButton(shell, categoryButtons[category])!.click();
-      expect(shell.subToolTray.element.hasAttribute('hidden')).toBe(false);
-      const trayModes = Array.from(
-        shell.subToolTray.element.querySelectorAll<HTMLButtonElement>('[data-tool-mode]'),
-        (b) => b.dataset.toolMode,
-      );
-      expect(trayModes).toContain(mode);
-      expect(trayModes.length).toBeGreaterThan(0);
-      expect(onSelect).toHaveBeenCalledWith(mode);
-      const text = contextText(shell);
-      expect(text).toContain(expectedName);
-      expect(text).toContain('Ready');
-      expect(text).toContain('Point at the world to preview this tool');
+      openBuild(shell);
+      expect(onSelect).not.toHaveBeenCalled();
+      selectCategory(shell, category);
+      expect(onSelect).toHaveBeenLastCalledWith(defaultToolForCategory[category]);
+      expect(shell.subToolTray.element.hidden).toBe(false);
       shell.dispose();
     }
   });
 
-  it('empty tray and navigate back: closes the tray, selects navigate, projects navigate', () => {
+  it('Close Build returns to Navigate and hides both conditional docks', () => {
     const onSelect = vi.fn();
     const shell = mountSpyShell({ selectTool: onSelect });
-    navButton(shell, 'zones')!.click();
+    openBuild(shell);
+    selectCategory(shell, 'zones');
     expect(onSelect).toHaveBeenLastCalledWith('zone-residential');
-    navButton(shell, 'navigate')!.click();
+    shell.element.querySelector<HTMLButtonElement>('[data-testid="build-close"]')?.click();
     expect(onSelect).toHaveBeenLastCalledWith('navigate');
-    expect(shell.subToolTray.element.hasAttribute('hidden')).toBe(true);
-    expect(shell.subToolTray.element.querySelectorAll('[data-tool-mode]').length).toBe(0);
-    const text = contextText(shell);
-    expect(text).toContain('Navigate');
-    expect(text).toContain('Inspect or move around the city');
+    expect(shell.buildCategoryDock.element.hidden).toBe(true);
+    expect(shell.subToolTray.element.hidden).toBe(true);
   });
 
   it('forwards awareness metric taps on the HUD to onSelectMetric', () => {
     const onSelectMetric = vi.fn();
     const shell = mountSpyShell({ onSelectMetric });
-    shell.element.querySelector<HTMLButtonElement>('[data-metric="population"]')!.click();
+    shell.element.querySelector<HTMLButtonElement>('[data-metric="population"]')?.click();
     expect(onSelectMetric).toHaveBeenCalledWith('population');
     shell.dispose();
   });
 
-  it('tray subtool click selects that exact mode and projects it', () => {
+  it('selects an exact contextual subtool without creating permanent status copy', () => {
     const onSelect = vi.fn();
     const shell = mountSpyShell({ selectTool: onSelect });
-    navButton(shell, 'zones')!.click();
+    openBuild(shell);
+    selectCategory(shell, 'zones');
     const commercial = shell.subToolTray.element.querySelector<HTMLButtonElement>(
       '[data-tool-mode="zone-commercial"]',
-    )!;
-    commercial.click();
+    );
+    commercial?.click();
     expect(onSelect).toHaveBeenLastCalledWith('zone-commercial');
-    const text = contextText(shell);
-    expect(text).toContain('Commercial Zone');
-    expect(text).toContain('Ready');
-    expect(text).toContain('Point at the world to preview this tool');
+    expect(shell.toolContextSheet.element.hidden).toBe(true);
+    expect(shell.element.textContent).not.toContain('Point at the world to preview this tool');
   });
 });

@@ -1,0 +1,155 @@
+name: M6.3 authority browser migration
+
+on:
+  push:
+    branches:
+      - fix/m6-3-figma-fidelity
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/m6-3-figma-fidelity
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Apply exact M6.3 authority migrations
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          def replace_exact(path: str, old: str, new: str) -> None:
+              file = Path(path)
+              text = file.read_text()
+              if old not in text:
+                  raise SystemExit(f'missing exact migration block: {path}')
+              file.write_text(text.replace(old, new))
+
+          runtime = Path('apps/game/src/ui/city-ui-runtime.ts')
+          text = runtime.read_text()
+          text = text.replace(
+              "  readonly toolContextSheet: ToolContextSheetAdapter;\n  update(world: CommittedWorld): void;",
+              "  readonly toolContextSheet: ToolContextSheetAdapter;\n  setSimulationSpeed(speed: Parameters<CityUiPorts['setSpeed']>[0]): void;\n  update(world: CommittedWorld): void;",
+          )
+          text = text.replace(
+              "    toolContextSheet: shell.toolContextSheet,\n    update(world: CommittedWorld): void {",
+              "    toolContextSheet: shell.toolContextSheet,\n    setSimulationSpeed(speed: Parameters<CityUiPorts['setSpeed']>[0]): void {\n      shell.simulationControls.setSpeed(speed);\n    },\n    update(world: CommittedWorld): void {",
+          )
+          runtime.write_text(text)
+
+          main = Path('apps/game/src/main.ts')
+          text = main.read_text()
+          text = text.replace(
+              "const phaseByInstance = new Map<string, string>();\n",
+              "const phaseByInstance = new Map<string, string>();\nlet cityUi: ReturnType<typeof mountCityUi>;\n",
+          )
+          text = text.replace("simulationRuntime.setSpeed('paused');", "setSimulationSpeed('paused');")
+          text = text.replace(
+              "function setSimulationSpeed(speed: SimulationSpeed): void {\n  simulationRuntime.setSpeed(speed);\n}",
+              "function setSimulationSpeed(speed: SimulationSpeed): void {\n  simulationRuntime.setSpeed(speed);\n  cityUi.setSimulationSpeed(speed);\n}",
+          )
+          text = text.replace("const cityUi = mountCityUi(root, {", "cityUi = mountCityUi(root, {")
+          main.write_text(text)
+
+          interaction = Path('browser-tests/helpers/interaction.ts')
+          text = interaction.read_text()
+          if "import { openGameMenu } from './city-ui.js';" not in text:
+              text = text.replace(
+                  "import * as THREE from 'three';\n",
+                  "import * as THREE from 'three';\nimport { openGameMenu } from './city-ui.js';\n",
+              )
+          old = """export async function clickGameMenuAction(
+            page: Page,
+            name: 'Save world' | 'Load world' | 'Rotate left' | 'Rotate right' | 'Reset camera' | 'Grid',
+          ): Promise<void> {
+            const activeDialog = page.getByRole('dialog');
+            if (await activeDialog.isVisible()) {
+              await activeDialog.getByRole('button', { name: 'Close', exact: true }).click();
+            }
+            const menuButton = page.getByRole('button', { name: 'Game Menu', exact: true });
+            try {
+              await menuButton.click({ timeout: 8_000 });
+            } catch {
+              // Under heavy parallel load (swiftshader CPU contention) the stability
+              // wait can stall even though the button is a static top-right control;
+              // fall back to a forced click so the menu still opens.
+              await menuButton.click({ force: true, timeout: 8_000 });
+            }
+            await page.getByRole('dialog').getByRole('button', { name, exact: true }).click();
+          }
+          """
+          new = """export async function clickGameMenuAction(
+            page: Page,
+            name: 'Save world' | 'Load world' | 'Rotate left' | 'Rotate right' | 'Reset camera' | 'Grid',
+          ): Promise<void> {
+            await openGameMenu(page);
+            await page.getByRole('dialog').getByRole('button', { name, exact: true }).click();
+          }
+          """
+          if old not in text:
+              raise SystemExit('missing interaction Game Menu helper block')
+          interaction.write_text(text.replace(old, new))
+
+          undo_files = [
+              'browser-tests/terraform-visual-evidence.@terrain@visual@performance@release.spec.ts',
+              'browser-tests/zoning.@zoning.spec.ts',
+              'browser-tests/terraform.@terrain.spec.ts',
+              'browser-tests/road.@road.spec.ts',
+              'browser-tests/building.@building@smoke.spec.ts',
+          ]
+          for name in undo_files:
+              file = Path(name)
+              text = file.read_text()
+              text = text.replace(
+                  "await page.getByTestId('tool-context-undo').click();",
+                  "await clickToolUndo(page);",
+              )
+              match = re.search(r"import \{([^}]*)\} from './helpers/city-ui\.js';", text, re.S)
+              if not match:
+                  raise SystemExit(f'missing city-ui helper import: {name}')
+              imports = [part.strip() for part in match.group(1).split(',') if part.strip()]
+              if 'clickToolUndo' not in imports:
+                  imports.insert(0, 'clickToolUndo')
+              replacement = "import { " + ", ".join(imports) + " } from './helpers/city-ui.js';"
+              text = text[:match.start()] + replacement + text[match.end():]
+              file.write_text(text)
+
+          for file in Path('browser-tests').rglob('*.ts'):
+              text = file.read_text()
+              text = text.replace("getByTestId('build-category-roads')", "getByTestId('nav-roads')")
+              text = text.replace("getByTestId('build-category-zones')", "getByTestId('nav-zones')")
+              file.write_text(text)
+          PY
+      - name: Format migrated files
+        run: |
+          pnpm exec prettier --write \
+            apps/game/src/main.ts \
+            apps/game/src/ui/city-ui-runtime.ts \
+            browser-tests/helpers/interaction.ts \
+            browser-tests/terraform-visual-evidence.@terrain@visual@performance@release.spec.ts \
+            browser-tests/zoning.@zoning.spec.ts \
+            browser-tests/terraform.@terrain.spec.ts \
+            browser-tests/road.@road.spec.ts \
+            browser-tests/building.@building@smoke.spec.ts \
+            browser-tests/city-ui-dialogs.@rci@interaction.spec.ts \
+            browser-tests/rci.@rci@smoke.spec.ts
+      - name: Commit migration
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add apps/game/src/main.ts apps/game/src/ui/city-ui-runtime.ts browser-tests
+          git commit -m "test: migrate shared M6.3 browser authorities"
+          git push origin HEAD:fix/m6-3-figma-fidelity

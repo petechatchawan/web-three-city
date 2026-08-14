@@ -44,7 +44,7 @@ function findTerraformSupportCell(
 }
 
 async function openGame(page: Page): Promise<void> {
-  await page.setViewportSize({ width: 414, height: 896 });
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(GAME_URL);
   await waitForCityUi(page);
   await prepareDeterministicGrowthClock(page);

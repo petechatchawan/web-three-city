@@ -17,7 +17,7 @@ test.describe.configure({ timeout: 60_000 });
 const SAVE_KEY = 'web-three-city:world-save:v6';
 
 async function openGrowthGame(page: import('@playwright/test').Page): Promise<void> {
-  await page.setViewportSize({ width: 414, height: 896 });
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(GAME_URL);
   await waitForCityUi(page);
   await prepareDeterministicGrowthClock(page);

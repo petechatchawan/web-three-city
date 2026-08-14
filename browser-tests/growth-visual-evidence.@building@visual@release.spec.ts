@@ -10,7 +10,7 @@ test.describe.configure({ timeout: 90_000 });
 test('captures Construction phases, variety, and canonical mobile time controls', async ({
   page,
 }, testInfo) => {
-  await page.setViewportSize({ width: 414, height: 896 });
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(GAME_URL);
   await waitForCityUi(page);
   await prepareDeterministicGrowthClock(page);
@@ -18,6 +18,8 @@ test('captures Construction phases, variety, and canonical mobile time controls'
 
   let snapshot = await stepLogicalTicks(page, 4);
   expect(snapshot.buildingCount).toBe(1);
+  await page.setViewportSize({ width: 414, height: 896 });
+  await page.evaluate(() => window.dispatchEvent(new Event('resize')));
   await page.screenshot({
     path: testInfo.outputPath('growth-foundation-mobile.png'),
     fullPage: true,

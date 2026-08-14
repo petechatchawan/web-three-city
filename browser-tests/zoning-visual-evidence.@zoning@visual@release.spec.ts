@@ -176,7 +176,7 @@ async function capture(page: Page, testInfo: TestInfo, fileName: string): Promis
 test('captures committed R/C/I overlays, invalid depth feedback, and canonical mobile Zone dock', async ({
   page,
 }, testInfo) => {
-  await page.setViewportSize({ width: 414, height: 896 });
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(GAME_URL);
   await waitForCityUi(page);
 
@@ -219,6 +219,11 @@ test('captures committed R/C/I overlays, invalid depth feedback, and canonical m
   await capture(page, testInfo, 'zoning-invalid-depth-four-mobile.png');
   await dispatchCanvasTouch(page, 'pointercancel', 71, invalid.x, invalid.y);
   expect((await readEvidence(page)).zone.previewRootCount).toBe(0);
+
+  await page.setViewportSize({ width: 414, height: 896 });
+  await page.evaluate(() => window.dispatchEvent(new Event('resize')));
+  await openBuildCategory(page, 'zones');
+  await capture(page, testInfo, 'zoning-dock-mobile.png');
 
   await expect(page.getByRole('button', { name: 'Residential', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Commercial', exact: true })).toBeVisible();

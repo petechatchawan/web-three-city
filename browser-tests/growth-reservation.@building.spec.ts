@@ -13,7 +13,7 @@ test.describe.configure({ timeout: 60_000 });
 test('active Zone removal commits after background Growth skips its reserved cells', async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 414, height: 896 });
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(GAME_URL);
   await waitForCityUi(page);
   await prepareDeterministicGrowthClock(page);

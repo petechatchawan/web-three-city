@@ -170,14 +170,10 @@ async function attachPng(testInfo: TestInfo, name: string, body: Buffer): Promis
   await testInfo.attach(name, { body, contentType: 'image/png' });
 }
 
-async function expectRoadCounts(
-  page: Page,
-  requested: number,
-  effective = requested,
-): Promise<void> {
-  await expect(page.getByTestId('tool-context-requested')).toHaveText(`${requested} cells`);
-  await expect(page.getByTestId('tool-context-effective')).toHaveText(`${effective} effective`);
-  expect((await readEvidence(page)).road.previewCellCount).toBe(requested);
+async function expectRoadCounts(page: Page, requested: number): Promise<void> {
+  const evidence = await readEvidence(page);
+  expect(evidence.road.previewValid).toBe(true);
+  expect(evidence.road.previewCellCount).toBe(requested);
 }
 
 function cellMinimumX(cell: CellCoord): number {

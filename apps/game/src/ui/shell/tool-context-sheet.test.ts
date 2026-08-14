@@ -21,6 +21,10 @@ function toggle(): HTMLButtonElement | null {
   return document.querySelector<HTMLButtonElement>('[data-testid="tool-context-toggle"]');
 }
 
+function status(): HTMLElement | null {
+  return document.querySelector<HTMLElement>('[data-testid="tool-context-status"]');
+}
+
 function undo(): HTMLButtonElement | null {
   return document.querySelector<HTMLButtonElement>('[data-testid="tool-context-undo"]');
 }
@@ -41,6 +45,7 @@ describe('M6.3 Figma contextual tool sheet', () => {
     expect(sheet.element.textContent).toContain('Ready');
     expect(sheet.element.textContent).not.toContain('Point at the world to preview this tool');
     expect(toggle()).not.toBeNull();
+    expect(toggle()?.getAttribute('aria-label')).toBe('Tool Context');
   });
 
   it('expands authoritative requested, effective, and affordability metadata on demand', () => {
@@ -54,7 +59,7 @@ describe('M6.3 Figma contextual tool sheet', () => {
     expect(sheet.element.textContent).toContain('Affordable');
   });
 
-  it('shows rejection and invalid messages as contextual validation', () => {
+  it('promotes rejection and invalid reasons into the collapsed authoritative status', () => {
     const sheet = mountStatusFeedback(document.body);
     sheet.update(
       projection({
@@ -63,10 +68,9 @@ describe('M6.3 Figma contextual tool sheet', () => {
         affordability: 'Unaffordable',
       }),
     );
-    expect(sheet.element.textContent).toContain('Rejected');
-    expect(sheet.element.textContent).toContain('Insufficient funds');
+    expect(status()?.textContent).toBe('Insufficient funds');
     sheet.update(projection({ state: 'Invalid build', message: 'Road blocked by water' }));
-    expect(sheet.element.textContent).toContain('Road blocked by water');
+    expect(status()?.textContent).toBe('Road blocked by water');
   });
 
   it('keeps Undo inside expanded disclosure and only enables it when authority allows', () => {

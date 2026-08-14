@@ -113,7 +113,8 @@ test('camera pan remains screen-relative after every quarter-turn rotation', asy
   await openGame(page);
   for (let turns = 0; turns < 4; turns += 1) {
     await clickCameraMenuAction(page, 'Reset camera');
-    for (let index = 0; index < turns; index += 1) await clickCameraMenuAction(page, 'Rotate right');
+    for (let index = 0; index < turns; index += 1)
+      await clickCameraMenuAction(page, 'Rotate right');
     const beforeRight = (await readEvidence(page)).camera;
     await page.mouse.move(900, 500);
     await page.mouse.down();
@@ -129,7 +130,8 @@ test('camera pan remains screen-relative after every quarter-turn rotation', asy
     expect(Math.abs(deltaX * expectedZ - deltaZ * expectedX)).toBeLessThan(0.01);
 
     await clickCameraMenuAction(page, 'Reset camera');
-    for (let index = 0; index < turns; index += 1) await clickCameraMenuAction(page, 'Rotate right');
+    for (let index = 0; index < turns; index += 1)
+      await clickCameraMenuAction(page, 'Rotate right');
     const beforeUp = (await readEvidence(page)).camera;
     await page.mouse.move(900, 550);
     await page.mouse.down();

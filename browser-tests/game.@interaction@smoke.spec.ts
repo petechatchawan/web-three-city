@@ -176,17 +176,17 @@ test('exposes one Build entry and closes the picker after concrete tool selectio
   await page.getByRole('button', { name: 'Build Road', exact: true }).click();
   await expect(page.getByTestId('build-picker')).toBeHidden();
   await expect(page.getByTestId('tool-context-toggle')).toBeVisible();
-  await expect(page.getByTestId('tool-context-title')).toHaveText('Build Road');
+  await expect(page.locator('.city-tool-context-name')).toHaveText('Build Road');
 
   await openBuildCategory(page, 'zones');
   await page.getByRole('button', { name: 'Residential', exact: true }).click();
   await expect(page.getByTestId('build-picker')).toBeHidden();
-  await expect(page.getByTestId('tool-context-title')).toHaveText('Residential');
+  await expect(page.locator('.city-tool-context-name')).toHaveText('Residential');
 
   await openBuildCategory(page, 'buildings');
   await page.getByRole('button', { name: 'Bulldoze Building', exact: true }).click();
   await expect(page.getByTestId('build-picker')).toBeHidden();
-  await expect(page.getByTestId('tool-context-title')).toHaveText('Bulldoze Building');
+  await expect(page.locator('.city-tool-context-name')).toHaveText('Bulldoze Building');
 
   await openBuildCategory(page, 'terrain');
   await expect(page.getByRole('button', { name: 'Brush 1 × 1' })).toHaveAttribute(
@@ -203,5 +203,5 @@ test('exposes one Build entry and closes the picker after concrete tool selectio
   );
   await page.getByRole('button', { name: 'Raise', exact: true }).click();
   await expect(page.getByTestId('build-picker')).toBeHidden();
-  await expect(page.getByTestId('tool-context-title')).toHaveText('Raise');
+  await expect(page.locator('.city-tool-context-name')).toHaveText('Raise');
 });

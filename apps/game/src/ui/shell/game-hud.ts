@@ -1,4 +1,4 @@
-import { createCityIcon, type CityIconName } from '../components/icon.js';
+import { createCityIcon } from '../components/icon.js';
 import type { UiAdapter } from '../foundation/lifecycle.js';
 
 export interface GameHudProjection {
@@ -18,62 +18,72 @@ export interface GameHudCallbacks {
   readonly onSelectMetric: (metric: GameHudMetricId) => void;
 }
 
-type MetricDefinition = Readonly<{
-  key: 'population' | 'treasury' | 'gameTime';
-  label: string;
-  icon: CityIconName;
-}>;
-
-const metrics: readonly MetricDefinition[] = [
-  { key: 'population', label: 'Population', icon: 'population' },
-  { key: 'treasury', label: 'Treasury', icon: 'treasury' },
-  { key: 'gameTime', label: 'Game time', icon: 'time' },
-];
-
 export function mountGameHud(
   parent: HTMLElement,
   callbacks: GameHudCallbacks,
 ): UiAdapter<GameHudProjection> {
   const element = document.createElement('section');
-  element.className = 'city-awareness-hud';
+  element.className = 'city-awareness-hud city-mobile-hud';
   element.setAttribute('aria-label', 'City status');
 
-  const primary = document.createElement('div');
-  primary.className = 'city-hud-primary';
-  const values = new Map<MetricDefinition['key'], HTMLElement>();
+  const values = new Map<'population' | 'treasury' | 'net' | 'demand' | 'gameTime', HTMLElement>();
 
-  for (const definition of metrics) {
-    const chip = document.createElement('button');
-    chip.type = 'button';
-    chip.setAttribute('role', 'button');
-    chip.className = 'city-metric city-metric--primary';
-    chip.dataset.metric = definition.key;
-    chip.setAttribute('aria-label', definition.label);
-    chip.addEventListener('click', () => callbacks.onSelectMetric(definition.key));
-    chip.append(createCityIcon(definition.icon));
+  const cityValues = document.createElement('button');
+  cityValues.type = 'button';
+  cityValues.className = 'city-mobile-hud-group city-mobile-hud-group--city';
+  cityValues.dataset.metricGroup = 'city-values';
+  cityValues.setAttribute('aria-label', 'City overview');
+  cityValues.addEventListener('click', () => callbacks.onSelectMetric('population'));
 
-    const text = document.createElement('span');
-    text.className = 'city-metric-copy';
-    const label = document.createElement('span');
-    label.className = 'city-metric-label';
-    label.textContent = definition.label;
+  for (const definition of [
+    ['population', 'population', 'Population'],
+    ['treasury', 'treasury', 'Treasury'],
+    ['net', 'net', 'Net'],
+  ] as const) {
+    const metric = document.createElement('span');
+    metric.className = `city-mobile-hud-metric city-mobile-hud-metric--${definition[0]}`;
+    metric.dataset.metric = definition[0];
+    metric.append(createCityIcon(definition[1]));
     const value = document.createElement('strong');
-    value.className = 'city-metric-value';
-    value.dataset.metric = definition.key;
-    text.append(label, value);
-    chip.append(text);
-    values.set(definition.key, value);
-    primary.append(chip);
+    value.className = 'city-mobile-hud-value';
+    value.setAttribute('aria-label', definition[2]);
+    metric.append(value);
+    values.set(definition[0], value);
+    cityValues.append(metric);
   }
 
-  element.append(primary);
+  const demand = document.createElement('button');
+  demand.type = 'button';
+  demand.className = 'city-mobile-hud-group city-mobile-hud-group--demand';
+  demand.dataset.metric = 'demand';
+  demand.setAttribute('aria-label', 'RCI demand');
+  demand.append(createCityIcon('demand'));
+  const demandValue = document.createElement('strong');
+  demandValue.className = 'city-mobile-hud-value city-mobile-hud-value--demand';
+  demand.append(demandValue);
+  values.set('demand', demandValue);
+  demand.addEventListener('click', () => callbacks.onSelectMetric('demand'));
+
+  const time = document.createElement('button');
+  time.type = 'button';
+  time.className = 'city-mobile-hud-group city-mobile-hud-group--time';
+  time.dataset.metric = 'gameTime';
+  time.setAttribute('aria-label', 'Game time');
+  time.append(createCityIcon('time'));
+  const timeValue = document.createElement('strong');
+  timeValue.className = 'city-mobile-hud-value city-mobile-hud-value--time';
+  time.append(timeValue);
+  values.set('gameTime', timeValue);
+  time.addEventListener('click', () => callbacks.onSelectMetric('gameTime'));
+
+  element.append(cityValues, demand, time);
   parent.append(element);
 
   return Object.freeze({
     element,
     update(projection: GameHudProjection): void {
-      for (const definition of metrics) {
-        values.get(definition.key)!.textContent = projection[definition.key];
+      for (const key of ['population', 'treasury', 'net', 'demand', 'gameTime'] as const) {
+        values.get(key)!.textContent = projection[key];
       }
     },
     dispose(): void {

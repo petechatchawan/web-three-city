@@ -1,0 +1,31 @@
+name: M6.3 residual GREEN
+
+on:
+  push:
+    branches:
+      - verify/m6-3-residual-green
+
+permissions:
+  contents: read
+
+jobs:
+  residual:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: verify/m6-3-residual-green
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm build:browser
+      - run: ./node_modules/.bin/playwright install chromium
+      - name: Verify transaction release GREEN
+        env:
+          CI: '1'
+        run: pnpm exec playwright test browser-tests/transaction-release.@road@interaction.spec.ts --workers=1

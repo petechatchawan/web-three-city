@@ -180,8 +180,8 @@ test('captures Terraform Foundation visual and timing evidence', async ({ page }
   await closeBuild(page);
   const fiveCellPoint = await clickTerrainCell(page, validRaiseCell(BASE_TERRAIN, 5));
   await openBuildCategory(page, 'terrain');
-  await page.getByRole('button', { name: 'Raise' }).click();
   await page.getByRole('button', { name: 'Brush 5 × 5' }).click();
+  await page.getByRole('button', { name: 'Raise' }).click();
   await page.mouse.move(fiveCellPoint.x, fiveCellPoint.y);
   await page.mouse.down();
   evidence = await readEvidence(page);
@@ -198,8 +198,8 @@ test('captures Terraform Foundation visual and timing evidence', async ({ page }
   await closeBuild(page);
   const invalidPoint = await clickTerrainCell(page, flatCell());
   await openBuildCategory(page, 'terrain');
-  await page.getByRole('button', { name: 'Flatten' }).click();
   await page.getByRole('button', { name: 'Brush 1 × 1' }).click();
+  await page.getByRole('button', { name: 'Flatten' }).click();
   await page.mouse.move(invalidPoint.x, invalidPoint.y);
   await page.mouse.down();
   evidence = await readEvidence(page);

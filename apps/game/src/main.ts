@@ -72,7 +72,6 @@ const simulationRuntime = createSimulationRuntime('paused');
 let previousFrameTimestamp: number | null = null;
 let frameRequest = 0;
 const phaseByInstance = new Map<string, string>();
-let cityUi: ReturnType<typeof mountCityUi>;
 
 function refreshConstructionPhaseIfNeeded(world = runtime.snapshot()): void {
   let changed = false;
@@ -124,7 +123,7 @@ function resetSimulationForTest(): void {
   refreshConstructionPhaseIfNeeded(world);
 }
 
-cityUi = mountCityUi(root, {
+const cityUi = mountCityUi(root, {
   setSpeed: setSimulationSpeed,
   selectTool: (mode) => runtime.selectTool(mode),
   setTerraformBrush: (size) => {

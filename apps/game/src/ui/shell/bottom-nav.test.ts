@@ -1,35 +1,57 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { mountBottomNav, type NavCategory } from './bottom-nav.js';
-
-const categories: NavCategory[] = ['navigate', 'terrain', 'roads', 'zones', 'buildings'];
+import { mountBuildCategoryDock } from './build-category-dock.js';
+import { mountPrimaryActions } from './primary-actions.js';
 
 afterEach(() => document.body.replaceChildren());
 
-describe('bottom nav', () => {
-  it('renders exactly the five rail tabs', () => {
-    const nav = mountBottomNav(document.body, vi.fn());
-    const buttons = nav.element.querySelectorAll<HTMLButtonElement>('[data-nav-category]');
-    expect(Array.from(buttons, (b) => b.dataset.navCategory)).toEqual(categories);
-    for (const button of buttons) {
-      expect(button.classList.contains('city-nav-item')).toBe(true);
-      expect(button.querySelector('[data-city-icon]')).not.toBeNull();
-      expect(button.querySelector('.city-nav-label')).not.toBeNull();
-    }
+describe('M6.2 mobile primary actions and Build category dock', () => {
+  it('keeps only Navigate and the prominent Build CTA in persistent bottom chrome', () => {
+    const actions = mountPrimaryActions(document.body, {
+      onNavigate: vi.fn(),
+      onToggleBuild: vi.fn(),
+    });
+
+    expect(actions.element.querySelector('[data-testid="primary-navigate"]')).not.toBeNull();
+    const build = actions.element.querySelector<HTMLButtonElement>('[data-testid="build-cta"]');
+    expect(build).not.toBeNull();
+    expect(build?.textContent).toContain('Build');
+    expect(build?.getAttribute('aria-expanded')).toBe('false');
+    expect(actions.element.querySelector('[data-build-category]')).toBeNull();
   });
 
-  it('fires onSelect with the tapped category', () => {
-    const onSelect = vi.fn();
-    const nav = mountBottomNav(document.body, onSelect);
-    nav.element.querySelector<HTMLButtonElement>('[data-nav-category="zones"]')?.click();
-    expect(onSelect).toHaveBeenCalledWith('zones');
+  it('opens a conditional Terrain/Roads/Zones/Buildings/Close dock without selecting a tool', () => {
+    const onSelectCategory = vi.fn();
+    const onClose = vi.fn();
+    const dock = mountBuildCategoryDock(document.body, { onSelectCategory, onClose });
+
+    expect(dock.element.hidden).toBe(true);
+    dock.open();
+    expect(dock.element.hidden).toBe(false);
+    expect(onSelectCategory).not.toHaveBeenCalled();
+    expect(
+      Array.from(
+        dock.element.querySelectorAll<HTMLButtonElement>('[data-build-category]'),
+        (button) => button.dataset.buildCategory,
+      ),
+    ).toEqual(['terrain', 'roads', 'zones', 'buildings']);
+    expect(dock.element.querySelector('[data-testid="build-close"]')).not.toBeNull();
   });
 
-  it('marks the active tab with aria-pressed', () => {
-    const nav = mountBottomNav(document.body, vi.fn());
-    nav.setActiveCategory('terrain');
-    const terrain = nav.element.querySelector<HTMLButtonElement>('[data-nav-category="terrain"]');
-    const navigate = nav.element.querySelector<HTMLButtonElement>('[data-nav-category="navigate"]');
-    expect(terrain?.getAttribute('aria-pressed')).toBe('true');
-    expect(navigate?.getAttribute('aria-pressed')).toBe('false');
+  it('marks the selected Build category and exposes Close independently', () => {
+    const onSelectCategory = vi.fn();
+    const onClose = vi.fn();
+    const dock = mountBuildCategoryDock(document.body, { onSelectCategory, onClose });
+    dock.open();
+    dock.setActiveCategory('zones');
+
+    const zones = dock.element.querySelector<HTMLButtonElement>('[data-build-category="zones"]');
+    const terrain = dock.element.querySelector<HTMLButtonElement>('[data-build-category="terrain"]');
+    expect(zones?.getAttribute('aria-pressed')).toBe('true');
+    expect(terrain?.getAttribute('aria-pressed')).toBe('false');
+
+    zones?.click();
+    expect(onSelectCategory).toHaveBeenCalledWith('zones');
+    dock.element.querySelector<HTMLButtonElement>('[data-testid="build-close"]')?.click();
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

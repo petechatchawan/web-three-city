@@ -11,6 +11,11 @@ import { GAME_URL, clickTerrainCell, readEvidence } from './helpers/interaction.
 
 function findValidRoadCell(): CellCoord {
   const roads = createEmptyRoadSnapshot(WORLD_CONFIG);
+  const centerX = (WORLD_CONFIG.mapWidth - 1) / 2;
+  const centerZ = (WORLD_CONFIG.mapHeight - 1) / 2;
+  let nearest: CellCoord | null = null;
+  let nearestDistanceSquared = Number.POSITIVE_INFINITY;
+
   for (let z = 4; z < WORLD_CONFIG.mapHeight - 4; z += 1) {
     for (let x = 4; x < WORLD_CONFIG.mapWidth - 4; x += 1) {
       const cell = Object.freeze({ x, z });
@@ -20,9 +25,19 @@ function findValidRoadCell(): CellCoord {
         ROAD_PLACEMENT_ENVIRONMENT,
         WORLD_CONFIG,
       );
-      if (plan.valid) return cell;
+      if (!plan.valid) continue;
+
+      const dx = x - centerX;
+      const dz = z - centerZ;
+      const distanceSquared = dx * dx + dz * dz;
+      if (distanceSquared < nearestDistanceSquared) {
+        nearest = cell;
+        nearestDistanceSquared = distanceSquared;
+      }
     }
   }
+
+  if (nearest !== null) return nearest;
   throw new Error('transaction-release:no-valid-road-cell');
 }
 

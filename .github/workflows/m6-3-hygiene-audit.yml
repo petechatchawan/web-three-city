@@ -1,0 +1,46 @@
+name: M6.3 hygiene audit
+
+on:
+  push:
+    branches:
+      - fix/m6-3-figma-fidelity
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/m6-3-figma-fidelity
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Format migrated unit integration
+        run: pnpm exec prettier --write apps/game/src/ui/city-ui-runtime.test.ts
+      - name: Audit retired M6.2 browser contracts
+        run: |
+          echo '=== M6.2 shell selectors ==='
+          grep -RInE 'build-cta|primary-navigate|build-category-|build-category-dock|build-close|city-top-actions' browser-tests || true
+          echo '=== direct management entry assumptions ==='
+          grep -RInE "Game Menu|Information Views" browser-tests || true
+          echo '=== simulation speed contracts ==='
+          grep -RInE 'simulation-speed|simulationStep|simulation-step|1×|2×|4×|Ⅱ' browser-tests || true
+          echo '=== Tool Context contracts ==='
+          grep -RInE 'tool-context-toggle|tool-context-status|tool-context-undo|status-feedback' browser-tests || true
+      - name: Commit formatting
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add apps/game/src/ui/city-ui-runtime.test.ts
+          git commit -m "style: format M6.3 runtime integration test"
+          git push origin HEAD:fix/m6-3-figma-fidelity

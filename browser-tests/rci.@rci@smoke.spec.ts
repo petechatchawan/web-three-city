@@ -43,8 +43,8 @@ async function readCityDialog(page: Page): Promise<{
 test('shows compact RCI statistics without changing the default tool', async ({ page }) => {
   await waitForReady(page);
   await expect(metric(page, 'population')).toHaveText('0');
-  await expect(page.locator('[data-metric="demand"]')).toHaveCount(0);
-  await expect(page.getByTestId('build-category-dock')).toBeHidden();
+  await expect(metric(page, 'demand')).toHaveText(/R[↑↓→] C[↑↓→] I[↑↓→]/);
+  await expect(page.getByTestId('build-category-dock')).toHaveCount(0);
   await expect(page.getByTestId('subtool-tray')).toBeHidden();
 
   await page.getByRole('button', { name: 'City', exact: true }).click();
@@ -66,7 +66,7 @@ test('background RCI ticks do not interrupt an active zoning tool', async ({ pag
   await expect(residential).toHaveAttribute('aria-pressed', 'true');
   await page.waitForTimeout(1_500);
   await expect(residential).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByTestId('build-category-zones')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('nav-zones')).toHaveAttribute('aria-pressed', 'true');
 });
 
 test('round-trips WorldSaveV6 with RCI, Economy, and restores HUD values', async ({ page }) => {

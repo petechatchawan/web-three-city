@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { openBuildCategory, waitForCityUi } from './helpers/city-ui.js';
+import { openBuildCategory, openGameMenu, waitForCityUi } from './helpers/city-ui.js';
 import { GAME_URL, clickGameMenuAction, readEvidence } from './helpers/interaction.js';
 
 const SAVE_KEY = 'web-three-city:world-save:v6';
@@ -74,7 +74,7 @@ test('changes quality and round-trips world save data', async ({ page }) => {
     rci: { kind: 'rci-save', schemaVersion: 1 },
   });
 
-  await page.getByRole('button', { name: 'Game Menu', exact: true }).click();
+  await openGameMenu(page);
   await page.getByRole('dialog').getByLabel('Quality').selectOption('low');
   await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
 
@@ -153,14 +153,15 @@ test('restores exactly one Water, Road, Zone, and Building root after context re
   expect(evidence.sceneRootCounts.buildingCommitted).toBe(1);
 });
 
-test('exposes Build categories and mode-aware contextual tools only on demand', async ({
-  page,
-}) => {
+test('exposes Figma build categories and contextual tools only on demand', async ({ page }) => {
   await page.setViewportSize({ width: 414, height: 896 });
   await waitForReady(page);
 
-  await expect(page.getByTestId('build-cta')).toBeVisible();
-  await expect(page.getByTestId('build-category-dock')).toBeHidden();
+  for (const category of ['terrain', 'roads', 'zones', 'buildings', 'city'] as const) {
+    await expect(page.getByTestId(`nav-${category}`)).toBeVisible();
+  }
+  await expect(page.getByTestId('build-cta')).toHaveCount(0);
+  await expect(page.getByTestId('build-category-dock')).toHaveCount(0);
   await expect(page.getByTestId('subtool-tray')).toBeHidden();
   await expect(page.getByRole('button', { name: 'Develop Zones' })).toHaveCount(0);
   await expect(page.getByTestId('tool-context-undo')).toHaveCount(0);
@@ -170,6 +171,7 @@ test('exposes Build categories and mode-aware contextual tools only on demand', 
   const buildRoad = page.getByRole('button', { name: 'Build Road', exact: true });
   await buildRoad.click();
   await expect(buildRoad).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('tool-context-toggle')).toBeVisible();
 
   await openBuildCategory(page, 'zones');
   const residential = page.getByRole('button', { name: 'Residential', exact: true });

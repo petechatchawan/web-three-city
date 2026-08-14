@@ -6,7 +6,7 @@ import {
   planRoadMutation,
   type CellCoord,
 } from './helpers/domain-fixtures.js';
-import { openBuildCategory, waitForCityUi } from './helpers/city-ui.js';
+import { openBuildCategory, openGameMenu, waitForCityUi } from './helpers/city-ui.js';
 import {
   GAME_URL,
   clickTerrainCell,
@@ -46,11 +46,7 @@ async function clickCameraMenuAction(
   page: Page,
   name: 'Rotate right' | 'Reset camera',
 ): Promise<void> {
-  const activeDialog = page.getByRole('dialog');
-  if (await activeDialog.isVisible()) {
-    await activeDialog.getByRole('button', { name: 'Close', exact: true }).click();
-  }
-  await page.getByRole('button', { name: 'Game Menu', exact: true }).click();
+  await openGameMenu(page);
   const action = page.getByRole('dialog').getByRole('button', { name, exact: true });
   await expect(action).toBeAttached();
   await action.evaluate((button) => (button as HTMLButtonElement).click());

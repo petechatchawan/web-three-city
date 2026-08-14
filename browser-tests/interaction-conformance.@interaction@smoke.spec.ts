@@ -126,19 +126,24 @@ async function locatePair(
 test('canonical mobile HUD keeps Figma gameplay hierarchy map-first', async ({ page }) => {
   await openGame(page, 414, 896);
   await expect(page.locator('.city-bottom-nav')).toBeVisible();
-  for (const category of ['terrain', 'roads', 'zones', 'buildings', 'city'] as const) {
-    await expect(page.getByTestId(`nav-${category}`)).toBeVisible();
+  await expect(page.getByTestId('nav-build')).toBeVisible();
+  await expect(page.getByTestId('nav-city')).toBeVisible();
+  for (const retired of ['nav-terrain', 'nav-roads', 'nav-zones', 'nav-buildings']) {
+    await expect(page.getByTestId(retired)).toHaveCount(0);
   }
   await expect(page.getByTestId('build-cta')).toHaveCount(0);
   await expect(page.getByTestId('build-category-dock')).toHaveCount(0);
-  await expect(page.getByTestId('subtool-tray')).toBeHidden();
+  await expect(page.getByTestId('build-picker')).toBeHidden();
   await expect(page.locator('.city-tool-context')).toHaveCount(0);
   await expect(page.locator('[data-simulation-speed]')).toHaveCount(4);
 
   await openBuildCategory(page, 'terrain');
   await expect(page.getByRole('button', { name: 'Raise', exact: true })).toBeVisible();
-  await expect(page.getByTestId('tool-context-toggle')).toBeVisible();
+  await expect(page.getByTestId('tool-context-toggle')).toBeHidden();
   await expect(page.getByRole('button', { name: 'Game Menu' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Raise', exact: true }).click();
+  await expect(page.getByTestId('build-picker')).toBeHidden();
+  await expect(page.getByTestId('tool-context-toggle')).toBeVisible();
 
   const layout = await page.evaluate(() => {
     const hud = document.querySelector<HTMLElement>('.city-awareness-hud');
@@ -222,13 +227,12 @@ test('invalid Road preview exposes a non-color marker and reason', async ({ page
   await page.mouse.up();
 });
 
-test('Escape cancels a preview before clearing the active Figma category', async ({ page }) => {
+test('Escape cancels a preview before clearing the active tool', async ({ page }) => {
   await openGame(page);
   const line = findAcceptedThenRoadBlockedLine();
   const point = await clickTerrainCell(page, line.start);
   await openBuildCategory(page, 'terrain');
-  const raise = page.getByRole('button', { name: 'Raise', exact: true });
-  await raise.click();
+  await page.getByRole('button', { name: 'Raise', exact: true }).click();
   const before = await readEvidence(page);
   await page.mouse.move(point.x, point.y);
   await page.mouse.down();
@@ -240,12 +244,11 @@ test('Escape cancels a preview before clearing the active Figma category', async
   expect(afterCancel.terraform.committedTerrainRevision).toBe(
     before.terraform.committedTerrainRevision,
   );
-  await expect(raise).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByTestId('nav-terrain')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.city-tool-context-name')).toHaveText('Raise');
+  await expect(page.getByTestId('nav-build')).toHaveAttribute('aria-pressed', 'false');
 
   await page.keyboard.press('Escape');
-  await expect(page.getByTestId('nav-terrain')).toHaveAttribute('aria-pressed', 'false');
-  await expect(page.getByTestId('subtool-tray')).toBeHidden();
+  await expect(page.getByTestId('build-picker')).toBeHidden();
   await expect(page.getByTestId('tool-context-toggle')).toBeHidden();
 });
 
@@ -254,7 +257,7 @@ test('canonical 414x896 Figma tools remain reachable without horizontal page ove
 }) => {
   await openGame(page, 414, 896);
   await expect(page.locator('.city-bottom-nav')).toBeVisible();
-  await expect(page.getByTestId('subtool-tray')).toBeHidden();
+  await expect(page.getByTestId('build-picker')).toBeHidden();
   const layout = await page.evaluate(() => ({
     horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
     hudHeight:
@@ -268,8 +271,8 @@ test('canonical 414x896 Figma tools remain reachable without horizontal page ove
   await expect(page.getByRole('button', { name: 'Raise', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Brush 1 × 1' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Brush 5 × 5' })).toBeVisible();
-  await expect(page.getByTestId('tool-context-toggle')).toBeVisible();
+  await expect(page.getByTestId('tool-context-toggle')).toBeHidden();
 
   await closeBuild(page);
-  await expect(page.getByTestId('subtool-tray')).toBeHidden();
+  await expect(page.getByTestId('build-picker')).toBeHidden();
 });

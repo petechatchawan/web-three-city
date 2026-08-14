@@ -95,7 +95,8 @@ test('automatic Growth preserves the active Zoning tool and in-progress stroke',
       probe.navigateClicks += 1;
     });
     canvas.addEventListener('web-three-city:game-tool-presentation', (event) => {
-      const detail = (event as CustomEvent<{ readonly type?: string; readonly domain?: string }>).detail;
+      const detail = (event as CustomEvent<{ readonly type?: string; readonly domain?: string }>)
+        .detail;
       if (detail?.type === 'transaction-state' && detail.domain === 'building') {
         probe.buildingTransactions += 1;
       }

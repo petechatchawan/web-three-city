@@ -40,10 +40,7 @@ export async function openCityManagement(page: Page): Promise<void> {
 
 export async function openGameMenu(page: Page): Promise<void> {
   await openCityManagement(page);
-  await page
-    .getByRole('dialog')
-    .getByRole('button', { name: 'Game Menu', exact: true })
-    .click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Game Menu', exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText('World');
 }
 

@@ -69,7 +69,9 @@ export function mountPlayerShell(
     subToolTray.open(selection);
     callbacks.selectTool(defaultToolForCategory[selection]);
   });
-  const simulationControls = mountSimulationControls(bottomNav.element, callbacks, { compact: true });
+  const simulationControls = mountSimulationControls(bottomNav.element, callbacks, {
+    compact: true,
+  });
 
   const dialogHost = mountDialogHost(element);
 

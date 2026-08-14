@@ -22,7 +22,9 @@ describe('M6.3 Figma simulation controls', () => {
     const normal = controls.element.querySelector<HTMLButtonElement>(
       '[data-simulation-speed="normal"]',
     )!;
-    const fast = controls.element.querySelector<HTMLButtonElement>('[data-simulation-speed="fast"]')!;
+    const fast = controls.element.querySelector<HTMLButtonElement>(
+      '[data-simulation-speed="fast"]',
+    )!;
     const faster = controls.element.querySelector<HTMLButtonElement>(
       '[data-simulation-speed="faster"]',
     )!;

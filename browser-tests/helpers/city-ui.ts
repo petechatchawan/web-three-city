@@ -17,6 +17,12 @@ export async function openBuildCategory(page: Page, category: BuildCategory): Pr
   if (!(await picker.isVisible())) await build.click();
   await expect(build).toHaveAttribute('aria-pressed', 'true');
   await expect(picker).toBeVisible();
+
+  const currentCategory = await picker.getAttribute('data-category');
+  if (currentCategory !== null && currentCategory !== category) {
+    await picker.locator('.city-build-picker-back').click();
+    await expect(picker).not.toHaveAttribute('data-category', currentCategory);
+  }
   if ((await picker.getAttribute('data-category')) !== category) {
     await page.getByTestId(`build-category-${category}`).click();
   }

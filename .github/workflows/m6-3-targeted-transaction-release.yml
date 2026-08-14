@@ -1,0 +1,30 @@
+name: M6.3 targeted transaction release
+
+on:
+  push:
+    branches:
+      - fix/m6-3-figma-fidelity
+
+permissions:
+  contents: read
+
+jobs:
+  targeted:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/m6-3-figma-fidelity
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm build
+      - run: ./node_modules/.bin/playwright install chromium
+      - run: pnpm exec playwright test browser-tests/transaction-release.@road@interaction.spec.ts

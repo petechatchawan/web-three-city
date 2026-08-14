@@ -28,9 +28,7 @@ export interface GameHud extends UiAdapter<GameHudProjection> {
 
 type DemandKind = 'residential' | 'commercial' | 'industrial';
 
-const demandCopy: Readonly<
-  Record<UiLocale, Readonly<Record<DemandKind, string>>>
-> = Object.freeze({
+const demandCopy: Readonly<Record<UiLocale, Readonly<Record<DemandKind, string>>>> = Object.freeze({
   en: Object.freeze({
     residential: 'Residential demand',
     commercial: 'Commercial demand',

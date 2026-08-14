@@ -214,7 +214,7 @@ test('captures committed R/C/I overlays, invalid depth feedback, and canonical m
   expect(evidence.zone.previewInvalidReason).toBe('zone:road-access-required');
   expect(evidence.zone.previewRootCount).toBe(1);
   await expect(page.getByTestId('tool-context-status')).toHaveText(
-    'Zones require Road access within three cells',
+    'Zones must be within three cells of a road',
   );
   await capture(page, testInfo, 'zoning-invalid-depth-four-mobile.png');
   await dispatchCanvasTouch(page, 'pointercancel', 71, invalid.x, invalid.y);

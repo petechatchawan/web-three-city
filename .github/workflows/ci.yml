@@ -30,11 +30,6 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
-      - name: Capture exact Build picker formatting
-        run: |
-          pnpm prettier apps/game/src/ui/shell/subtool-tray.ts --write
-          cat apps/game/src/ui/shell/subtool-tray.ts
-          exit 1
       - run: pnpm check
       - name: Archive lean build outputs
         run: tar -czf lean-builds.tar.gz apps/game/dist apps/terrain-lab/dist

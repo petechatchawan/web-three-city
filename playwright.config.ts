@@ -3,7 +3,10 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './browser-tests',
   fullyParallel: false,
-  workers: 2,
+  // SwiftShader-backed browser suites are CPU-heavy on GitHub-hosted runners.
+  // Keep local feedback parallel, but serialize CI to avoid cross-test browser
+  // starvation that manifests as page.evaluate/screenshot/click timeouts.
+  workers: process.env.CI ? 1 : 2,
   // One retry absorbs rare environmental browser-process deaths (swiftshader
   // CPU/memory contention right after the workspace build); assertions and
   // timeouts are unchanged, so real failures still surface on the retry.

@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 jobs:
-  camera:
+  zoning:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,7 +25,7 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm build:browser
       - run: ./node_modules/.bin/playwright install chromium
-      - name: Verify camera rotation/pan regression
+      - name: Verify zoning round-trip regression
         env:
           CI: '1'
-        run: pnpm exec playwright test browser-tests/road-operation-aware-interaction.@road@interaction.spec.ts --grep "camera pan remains screen-relative"
+        run: pnpm exec playwright test browser-tests/zoning.@zoning.spec.ts --grep "paints R/C/I at committed-Road depths 1–3"

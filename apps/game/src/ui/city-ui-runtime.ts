@@ -12,6 +12,7 @@ import { createInformationViewRegistry } from './information-views/information-v
 import {
   persistUiLocale,
   readStoredUiLocale,
+  uiText,
   type UiLocale,
 } from './presentation-locale.js';
 import { mountPlayerShell } from './shell/player-shell.js';
@@ -88,6 +89,7 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
   let latestWorld: CommittedWorld | null = null;
   let locale: UiLocale = readStoredUiLocale();
   let inspectSurface: InspectSurface | null = null;
+  let applyLocale: ((nextLocale: UiLocale) => void) | null = null;
 
   const informationViews = createInformationViewRegistry([
     {
@@ -202,6 +204,32 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
     });
   };
 
+  const appendLocaleSelector = (): void => {
+    if (shell.dialogHost.activeRoute?.key !== 'city-overview') return;
+    const body = shell.dialogHost.element.querySelector<HTMLElement>('.city-sheet-body');
+    if (body === null || body.querySelector('.city-locale-selector') !== null) return;
+
+    const section = document.createElement('section');
+    section.className = 'city-card city-locale-card';
+    const heading = document.createElement('h3');
+    heading.className = 'city-section-title';
+    heading.textContent = uiText(locale, 'language');
+    const selector = document.createElement('div');
+    selector.className = 'city-locale-selector';
+
+    for (const nextLocale of ['en', 'th'] as const) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.dataset.testid = `locale-${nextLocale}`;
+      button.setAttribute('aria-pressed', String(locale === nextLocale));
+      button.textContent = uiText(locale, nextLocale === 'en' ? 'english' : 'thai');
+      button.addEventListener('click', () => applyLocale?.(nextLocale));
+      selector.append(button);
+    }
+    section.append(heading, selector);
+    body.append(section);
+  };
+
   const shell = mountPlayerShell(
     parent,
     {
@@ -212,7 +240,10 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
       onUndo: ports.undo,
       onInformationViews: openInformationViews,
       onBuildOpen: () => inspectSurface?.collapse(),
-      onCity: () => systemDialogs.openCity(),
+      onCity: () => {
+        systemDialogs.openCity();
+        appendLocaleSelector();
+      },
       onSelectMetric: (metric) => {
         const route = shell.dialogHost.activeRoute;
         if (
@@ -224,7 +255,10 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
           metric === 'total'
         ) {
           if (route?.key === 'city-overview') shell.dialogHost.close();
-          else systemDialogs.openCity();
+          else {
+            systemDialogs.openCity();
+            appendLocaleSelector();
+          }
         } else if (
           metric === 'demand' ||
           metric === 'residentialDemand' ||
@@ -245,12 +279,13 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
 
   inspectSurface = mountInspectSurface(shell.element, locale);
 
-  const setLocale = (nextLocale: UiLocale): void => {
+  applyLocale = (nextLocale: UiLocale): void => {
     locale = nextLocale;
     persistUiLocale(locale);
     shell.setLocale(locale);
     inspectSurface?.setLocale(locale);
     shell.dialogHost.refresh();
+    appendLocaleSelector();
   };
 
   const systemDialogs = createCitySystemDialogs(shell.dialogHost, {
@@ -262,8 +297,6 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
     submitTaxPolicy: ports.submitTaxPolicy,
     openInformationViews,
     openGameMenu,
-    getLocale: () => locale,
-    setLocale,
   });
 
   return Object.freeze({
@@ -292,6 +325,7 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
         total: String(time.totalCount),
       });
       shell.dialogHost.update();
+      appendLocaleSelector();
     },
     inspectCell(cell: Readonly<{ x: number; z: number }>): void {
       if (latestWorld === null || inspectSurface === null) return;

@@ -108,7 +108,8 @@ export function mountStatusFeedback(
     status.textContent = transientStatus || projection?.state || '';
 
     header.append(identity, status);
-    if (projection !== null) header.append(createCityIcon(expanded ? 'chevron-down' : 'chevron-up'));
+    if (projection !== null)
+      header.append(createCityIcon(expanded ? 'chevron-down' : 'chevron-up'));
     header.addEventListener('click', () => {
       if (projection === null) return;
       expanded = !expanded;

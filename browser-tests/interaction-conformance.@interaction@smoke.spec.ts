@@ -194,9 +194,7 @@ test('a Road-blocked-only release changes neither Terrain nor Undo ownership', a
   await page.getByRole('button', { name: 'Raise' }).click();
 
   await page.mouse.click(roadPoint.x, roadPoint.y);
-  await expect(page.getByTestId('tool-context-status')).toHaveText(
-    'Remove the road before changing this terrain',
-  );
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Terraform blocked by road');
   const after = await readEvidence(page);
   expect(after.terraform.committedTerrainRevision).toBe(before.terraform.committedTerrainRevision);
   expect(after.road.undoKind).toBe('road');

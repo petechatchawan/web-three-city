@@ -1,4 +1,4 @@
-import { waitForCityUi } from './helpers/city-ui.js';
+import { closeBuild, openInformationViews, waitForCityUi } from './helpers/city-ui.js';
 import { expect, test, type Page } from '@playwright/test';
 import {
   CENTER_BUILDING_FIXTURE,
@@ -39,7 +39,7 @@ test('inspects terrain and replaces then deactivates the primary information vie
   await expect(dialog).toContainText('Water');
   await closeInspect(page);
 
-  await page.getByRole('button', { name: 'Information Views' }).click();
+  await openInformationViews(page);
   await page.getByRole('button', { name: 'Canonical Grid' }).click();
   await expect(page.getByTestId('information-view-legend')).toContainText('Canonical Grid');
   expect((await readEvidence(page)).gridVisible).toBe(true);
@@ -58,7 +58,7 @@ test('uses Building over Zone and inspects Road and remaining Zone cells', async
   await prepareDeterministicGrowthClock(page);
   const points = await prepareSingleBuildingFixtureWorld(page, CENTER_BUILDING_FIXTURE);
 
-  await page.getByRole('button', { name: 'Navigate', exact: true }).first().click();
+  await closeBuild(page);
   const roadCell = CENTER_BUILDING_FIXTURE.roadCells[0];
   const roadPoint = pointFor(points, roadCell);
   await page.mouse.click(roadPoint.x, roadPoint.y);

@@ -57,7 +57,11 @@ describe('M6.3 Figma contextual tool sheet', () => {
   it('shows rejection and invalid messages as contextual validation', () => {
     const sheet = mountStatusFeedback(document.body);
     sheet.update(
-      projection({ state: 'Rejected', message: 'Insufficient funds', affordability: 'Unaffordable' }),
+      projection({
+        state: 'Rejected',
+        message: 'Insufficient funds',
+        affordability: 'Unaffordable',
+      }),
     );
     expect(sheet.element.textContent).toContain('Rejected');
     expect(sheet.element.textContent).toContain('Insufficient funds');

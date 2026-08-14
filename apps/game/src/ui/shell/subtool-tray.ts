@@ -58,11 +58,11 @@ export function mountSubToolTray(
   callbacks: SubToolTrayCallbacks,
 ): SubToolTray {
   const element = document.createElement('div');
-  element.className = 'city-subtool-tray';
+  element.className = 'city-contextual-tool-dock city-subtool-tray';
   element.dataset.testid = 'subtool-tray';
   element.hidden = true;
   const slot = document.createElement('div');
-  slot.className = 'city-subtool-tray-content';
+  slot.className = 'city-contextual-tool-dock-content city-subtool-tray-content';
   element.append(slot);
   let activeBrush: 1 | 3 | 5 = 1;
   let activeMode: GameToolMode | null = null;

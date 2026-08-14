@@ -49,7 +49,8 @@ export function mountInspectSurface(
     const firstField = latest.fields?.[0];
     const summary = document.createElement('span');
     summary.className = 'city-inspect-summary';
-    summary.textContent = firstField === undefined ? '' : `${firstField.label}: ${firstField.value}`;
+    summary.textContent =
+      firstField === undefined ? '' : `${firstField.label}: ${firstField.value}`;
     identity.append(eyebrow, title, summary);
 
     const actions = document.createElement('div');

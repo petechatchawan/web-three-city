@@ -1,6 +1,7 @@
 import './style.css';
 import './ui/foundation/tokens.css';
 import './ui/city-ui.css';
+import './ui/m6-2-mobile.css';
 import { constructionProgressAtTick } from '@web-three-city/building-core';
 import {
   constructionVisualPhase,
@@ -59,8 +60,7 @@ function cancelPreviewOrCloseTool(): void {
   ) {
     dispatchGameToolCancel(host.canvas);
   } else {
-    // Navigate through the shell so the tool context sheet projects it.
-    const navigate = root.querySelector<HTMLButtonElement>('[data-testid="nav-navigate"]');
+    const navigate = root.querySelector<HTMLButtonElement>('[data-testid="primary-navigate"]');
     if (navigate !== null) navigate.click();
     else runtime.selectTool('navigate');
   }
@@ -143,7 +143,7 @@ const cityUi = mountCityUi(root, {
   rciRegistries,
 });
 
-// The bootstrap status/undo feeds land on the shell tool context sheet.
+// Bootstrap completion/status feeds land on the compact M6.2 feedback surface.
 host.onStatus((value) => cityUi.toolContextSheet.setStatus(value));
 host.onUndoAvailable((available) => cityUi.toolContextSheet.setUndoAvailable(available));
 
@@ -190,8 +190,8 @@ frameRequest = requestAnimationFrame(simulationFrame);
 window.dispatchEvent(new Event('resize'));
 bindGameToolContext(host.canvas, cityUi.toolContextSheet, bindings.signal);
 
-// Keyboard shortcuts drive the shell tray when it is mounted, falling back to
-// the runtime directly (the legacy dock that previously owned these is retired).
+// Keyboard shortcuts drive the contextual tool dock when it is mounted, falling back to
+// the runtime directly when the requested tool is not currently exposed in presentation.
 const selectTool = (mode: GameToolMode): void => {
   const shellTool = root.querySelector<HTMLButtonElement>(`[data-toolMode="${mode}"]`);
   if (shellTool !== null) shellTool.click();

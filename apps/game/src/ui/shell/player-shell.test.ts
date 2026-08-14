@@ -3,40 +3,41 @@ import { mountPlayerShell } from './player-shell.js';
 
 afterEach(() => document.body.replaceChildren());
 
-describe('player shell', () => {
-  it('mounts simulation controls inside top actions and tool context inside the active tray', () => {
+describe('player shell M6.2 mobile state model', () => {
+  it('moves from Navigate to Build open to category active and back without persistent build chrome', () => {
+    const selectTool = vi.fn();
     const shell = mountPlayerShell(document.body, {
       onInformationViews: vi.fn(),
       onCity: vi.fn(),
       onGameMenu: vi.fn(),
       setSpeed: vi.fn(),
       step: vi.fn(),
-      selectTool: vi.fn(),
+      selectTool,
       setTerraformBrush: vi.fn(),
       onSelectMetric: vi.fn(),
       onUndo: vi.fn(),
     });
 
     expect(shell.element.querySelector('aside')).toBeNull();
-    expect(shell.element.querySelectorAll('.city-bottom-nav [data-nav-category]')).toHaveLength(5);
-
-    const topActions = shell.element.querySelector('.city-top-actions')!;
-    const simulation = shell.element.querySelector('.city-simulation-controls--top-actions')!;
-    expect(topActions.contains(simulation)).toBe(true);
-    expect(simulation.querySelector('[data-simulation-speed]')).not.toBeNull();
-    expect(simulation.querySelector('[data-simulation-step]')).not.toBeNull();
-
+    expect(shell.element.querySelector('[data-testid="build-cta"]')).not.toBeNull();
+    expect(shell.element.querySelector('.city-build-category-dock')?.hasAttribute('hidden')).toBe(true);
     expect(shell.subToolTray.element.hasAttribute('hidden')).toBe(true);
-    shell.bottomNav.element
-      .querySelector<HTMLButtonElement>('[data-testid="nav-terrain"]')!
-      .click();
-    expect(shell.subToolTray.element.hasAttribute('hidden')).toBe(false);
-    expect(shell.toolContextSheet.element.parentElement).toBe(shell.subToolTray.element);
-    expect(shell.toolContextSheet.element.dataset.toolMode).toBe('raise');
+    expect(shell.element.querySelector('.city-tool-context')).toBeNull();
 
-    shell.bottomNav.element
-      .querySelector<HTMLButtonElement>('[data-testid="nav-navigate"]')!
-      .click();
+    shell.element.querySelector<HTMLButtonElement>('[data-testid="build-cta"]')!.click();
+    expect(shell.element.querySelector('.city-build-category-dock')?.hasAttribute('hidden')).toBe(false);
+    expect(shell.subToolTray.element.hasAttribute('hidden')).toBe(true);
+    expect(selectTool).not.toHaveBeenCalled();
+
+    shell.element.querySelector<HTMLButtonElement>('[data-build-category="terrain"]')!.click();
+    expect(selectTool).toHaveBeenLastCalledWith('raise');
+    expect(shell.subToolTray.element.hasAttribute('hidden')).toBe(false);
+    expect(shell.subToolTray.element.querySelectorAll('[data-tool-mode]').length).toBe(3);
+    expect(shell.subToolTray.element.querySelectorAll('[data-brush-size]').length).toBe(3);
+
+    shell.element.querySelector<HTMLButtonElement>('[data-testid="build-close"]')!.click();
+    expect(selectTool).toHaveBeenLastCalledWith('navigate');
+    expect(shell.element.querySelector('.city-build-category-dock')?.hasAttribute('hidden')).toBe(true);
     expect(shell.subToolTray.element.hasAttribute('hidden')).toBe(true);
 
     shell.dispose();

@@ -27,30 +27,25 @@ function mountSpyShell(callbacks: Partial<PlayerShellCallbacks> = {}) {
   });
 }
 
-function openBuild(shell: ReturnType<typeof mountSpyShell>): void {
-  shell.element.querySelector<HTMLButtonElement>('[data-testid="build-cta"]')?.click();
-}
-
 function selectCategory(shell: ReturnType<typeof mountSpyShell>, category: TrayCategory): void {
-  shell.element.querySelector<HTMLButtonElement>(`[data-build-category="${category}"]`)?.click();
+  shell.element.querySelector<HTMLButtonElement>(`[data-testid="nav-${category}"]`)?.click();
 }
 
-describe('player shell M6.2 wiring', () => {
-  it('boots in Navigate with Build closed and no permanent Tool Context copy', () => {
+describe('player shell M6.3 Figma wiring', () => {
+  it('boots in implicit Navigate with only the persistent Figma bottom bar', () => {
     const shell = mountSpyShell();
-    expect(shell.buildCategoryDock.element.hidden).toBe(true);
     expect(shell.subToolTray.element.hidden).toBe(true);
     expect(shell.toolContextSheet.element.hidden).toBe(true);
-    expect(shell.element.textContent).not.toContain('Inspect or move around the city');
-    expect(shell.element.textContent).not.toContain('Undo unavailable');
+    expect(shell.element.querySelector('.city-bottom-nav')).not.toBeNull();
+    expect(shell.element.querySelector('.city-top-actions')).toBeNull();
+    expect(shell.element.querySelector('[data-testid="build-cta"]')).toBeNull();
+    expect(shell.element.textContent).not.toContain('Navigate');
   });
 
-  it('selects the default tool only after a Build category is chosen', () => {
+  it('selects each default tool directly from its persistent build category', () => {
     for (const category of Object.keys(defaultToolForCategory) as TrayCategory[]) {
       const onSelect = vi.fn();
       const shell = mountSpyShell({ selectTool: onSelect });
-      openBuild(shell);
-      expect(onSelect).not.toHaveBeenCalled();
       selectCategory(shell, category);
       expect(onSelect).toHaveBeenLastCalledWith(defaultToolForCategory[category]);
       expect(shell.subToolTray.element.hidden).toBe(false);
@@ -58,37 +53,47 @@ describe('player shell M6.2 wiring', () => {
     }
   });
 
-  it('Close Build returns to Navigate and hides both conditional docks', () => {
+  it('tapping the active category again returns to Navigate and closes contextual tools', () => {
     const onSelect = vi.fn();
     const shell = mountSpyShell({ selectTool: onSelect });
-    openBuild(shell);
     selectCategory(shell, 'zones');
     expect(onSelect).toHaveBeenLastCalledWith('zone-residential');
-    shell.element.querySelector<HTMLButtonElement>('[data-testid="build-close"]')?.click();
+    selectCategory(shell, 'zones');
     expect(onSelect).toHaveBeenLastCalledWith('navigate');
-    expect(shell.buildCategoryDock.element.hidden).toBe(true);
     expect(shell.subToolTray.element.hidden).toBe(true);
   });
 
-  it('forwards awareness metric taps on the HUD to onSelectMetric', () => {
+  it('forwards Figma HUD groups through existing metric authority', () => {
     const onSelectMetric = vi.fn();
     const shell = mountSpyShell({ onSelectMetric });
-    shell.element.querySelector<HTMLButtonElement>('[data-metric="population"]')?.click();
-    expect(onSelectMetric).toHaveBeenCalledWith('population');
+    shell.element.querySelector<HTMLButtonElement>('[data-metric="demand"]')?.click();
+    expect(onSelectMetric).toHaveBeenCalledWith('demand');
+    shell.element.querySelector<HTMLButtonElement>('[data-metric="gameTime"]')?.click();
+    expect(onSelectMetric).toHaveBeenLastCalledWith('gameTime');
     shell.dispose();
   });
 
-  it('selects an exact contextual subtool without creating permanent status copy', () => {
+  it('selects an exact contextual subtool and exposes a collapsed authoritative context sheet', () => {
     const onSelect = vi.fn();
     const shell = mountSpyShell({ selectTool: onSelect });
-    openBuild(shell);
     selectCategory(shell, 'zones');
     const commercial = shell.subToolTray.element.querySelector<HTMLButtonElement>(
       '[data-tool-mode="zone-commercial"]',
     );
     commercial?.click();
     expect(onSelect).toHaveBeenLastCalledWith('zone-commercial');
-    expect(shell.toolContextSheet.element.hidden).toBe(true);
-    expect(shell.element.textContent).not.toContain('Point at the world to preview this tool');
+
+    shell.toolContextSheet.update({
+      mode: 'zone-commercial',
+      name: 'Commercial Zone',
+      state: 'Ready',
+      message: 'Point at the world to preview this tool',
+    });
+    expect(shell.toolContextSheet.element.hidden).toBe(false);
+    expect(shell.toolContextSheet.element.textContent).toContain('Commercial Zone');
+    expect(shell.toolContextSheet.element.textContent).toContain('Ready');
+    expect(shell.toolContextSheet.element.textContent).not.toContain(
+      'Point at the world to preview this tool',
+    );
   });
 });

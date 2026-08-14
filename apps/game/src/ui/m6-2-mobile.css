@@ -311,7 +311,8 @@
   bottom: calc(var(--city-ui-safe-bottom) + 12.7rem);
 }
 
-.city-ui:has(.city-contextual-tool-dock[data-category='terrain']:not([hidden])) .city-status-feedback {
+.city-ui:has(.city-contextual-tool-dock[data-category='terrain']:not([hidden]))
+  .city-status-feedback {
   bottom: calc(var(--city-ui-safe-bottom) + 15.7rem);
 }
 

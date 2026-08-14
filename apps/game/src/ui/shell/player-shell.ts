@@ -1,13 +1,12 @@
 import type { GameToolMode } from '../../game-tool-mode.js';
 import { mountDialogHost, type DialogHost } from '../dialog/dialog-host.js';
 import type { UiAdapter } from '../foundation/lifecycle.js';
-import { mountBuildCategoryDock, type BuildCategoryDock } from './build-category-dock.js';
+import { mountBottomNav, type BottomNav } from './bottom-nav.js';
 import { mountGameHud, type GameHudCallbacks, type GameHudProjection } from './game-hud.js';
-import { mountPrimaryActions, type PrimaryActions } from './primary-actions.js';
 import { mountSimulationControls, type SimulationControlCallbacks } from './simulation-controls.js';
 import { mountSubToolTray, type SubToolTray, type TrayCategory } from './subtool-tray.js';
 import { mountToolContextSheet, type ToolContextSheetAdapter } from './tool-context-sheet.js';
-import { mountTopActions, type TopActionCallbacks } from './top-actions.js';
+import type { TopActionCallbacks } from './top-actions.js';
 
 const defaultToolForCategory: Readonly<Record<TrayCategory, GameToolMode>> = {
   terrain: 'raise',
@@ -26,8 +25,7 @@ export type PlayerShellCallbacks = TopActionCallbacks &
 
 export interface PlayerShell extends UiAdapter<GameHudProjection> {
   readonly dialogHost: DialogHost;
-  readonly primaryActions: PrimaryActions;
-  readonly buildCategoryDock: BuildCategoryDock;
+  readonly bottomNav: BottomNav;
   readonly subToolTray: SubToolTray;
   readonly toolContextSheet: ToolContextSheetAdapter;
 }
@@ -41,8 +39,6 @@ export function mountPlayerShell(
   parent.append(element);
 
   const hud = mountGameHud(element, { onSelectMetric: callbacks.onSelectMetric });
-  const topActions = mountTopActions(element, callbacks);
-  mountSimulationControls(topActions, callbacks, { compact: true });
 
   const toolContextSheet = mountToolContextSheet(element, {
     onUndo: callbacks.onUndo,
@@ -53,50 +49,29 @@ export function mountPlayerShell(
     onBrush: callbacks.setTerraformBrush,
   });
 
-  let buildOpen = false;
+  const bottomNav = mountBottomNav(element, (selection) => {
+    if (selection === 'city') {
+      callbacks.onCity();
+      return;
+    }
 
-  const closeBuild = (): void => {
-    buildOpen = false;
-    primaryActions.setBuildOpen(false);
-    buildCategoryDock.close();
-    subToolTray.close();
-    callbacks.selectTool('navigate');
-  };
-
-  const buildCategoryDock = mountBuildCategoryDock(element, {
-    onSelectCategory: (category) => {
-      buildOpen = true;
-      primaryActions.setBuildOpen(true);
-      buildCategoryDock.open();
-      buildCategoryDock.setActiveCategory(category);
-      subToolTray.open(category);
-      callbacks.selectTool(defaultToolForCategory[category]);
-    },
-    onClose: closeBuild,
-  });
-
-  const primaryActions = mountPrimaryActions(element, {
-    onNavigate: closeBuild,
-    onToggleBuild: () => {
-      if (buildOpen) {
-        closeBuild();
-        return;
-      }
-      buildOpen = true;
-      primaryActions.setBuildOpen(true);
-      buildCategoryDock.open();
-      buildCategoryDock.setActiveCategory(null);
+    if (selection === null) {
       subToolTray.close();
-    },
+      callbacks.selectTool('navigate');
+      return;
+    }
+
+    subToolTray.open(selection);
+    callbacks.selectTool(defaultToolForCategory[selection]);
   });
+  mountSimulationControls(bottomNav.element, callbacks, { compact: true });
 
   const dialogHost = mountDialogHost(element);
 
   return Object.freeze({
     element,
     dialogHost,
-    primaryActions,
-    buildCategoryDock,
+    bottomNav,
     subToolTray,
     toolContextSheet,
     update(projection: GameHudProjection): void {
@@ -104,8 +79,7 @@ export function mountPlayerShell(
     },
     dispose(): void {
       dialogHost.dispose();
-      primaryActions.dispose();
-      buildCategoryDock.dispose();
+      bottomNav.dispose();
       subToolTray.dispose();
       toolContextSheet.dispose();
       element.remove();

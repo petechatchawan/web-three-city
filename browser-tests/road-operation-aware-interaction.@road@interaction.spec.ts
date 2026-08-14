@@ -9,6 +9,7 @@ import {
 import { openBuildCategory, waitForCityUi } from './helpers/city-ui.js';
 import {
   GAME_URL,
+  clickGameMenuAction,
   clickTerrainCell,
   dispatchCanvasTouch,
   readEvidence,
@@ -90,4 +91,43 @@ test('Road operations expose distinct Preview and release outside Terrain commit
   await dispatchCanvasTouch(page, 'pointerup', 3, points.at(-1)!.x, points.at(-1)!.y);
   await expect(page.getByTestId('tool-context-status')).toHaveText('Road bulldozed');
   expect((await readEvidence(page)).road.occupiedCellCount).toBe(0);
+});
+
+test('camera pan remains screen-relative after every quarter-turn rotation', async ({
+  page,
+}, testInfo) => {
+  await openGame(page);
+  for (let turns = 0; turns < 4; turns += 1) {
+    await clickGameMenuAction(page, 'Reset camera');
+    for (let index = 0; index < turns; index += 1) await clickGameMenuAction(page, 'Rotate right');
+    const beforeRight = (await readEvidence(page)).camera;
+    await page.mouse.move(900, 500);
+    await page.mouse.down();
+    await page.mouse.move(980, 500, { steps: 6 });
+    await page.mouse.up();
+    const afterRight = (await readEvidence(page)).camera;
+    const yaw = (beforeRight.yawDegrees * Math.PI) / 180;
+    const deltaX = afterRight.targetX - beforeRight.targetX;
+    const deltaZ = afterRight.targetZ - beforeRight.targetZ;
+    const expectedX = -Math.cos(yaw);
+    const expectedZ = Math.sin(yaw);
+    expect(deltaX * expectedX + deltaZ * expectedZ).toBeGreaterThan(0);
+    expect(Math.abs(deltaX * expectedZ - deltaZ * expectedX)).toBeLessThan(0.01);
+
+    await clickGameMenuAction(page, 'Reset camera');
+    for (let index = 0; index < turns; index += 1) await clickGameMenuAction(page, 'Rotate right');
+    const beforeUp = (await readEvidence(page)).camera;
+    await page.mouse.move(900, 550);
+    await page.mouse.down();
+    await page.mouse.move(900, 470, { steps: 6 });
+    await page.mouse.up();
+    const afterUp = (await readEvidence(page)).camera;
+    const upDeltaX = afterUp.targetX - beforeUp.targetX;
+    const upDeltaZ = afterUp.targetZ - beforeUp.targetZ;
+    const expectedUpX = Math.sin(yaw);
+    const expectedUpZ = Math.cos(yaw);
+    expect(upDeltaX * expectedUpX + upDeltaZ * expectedUpZ).toBeGreaterThan(0);
+    expect(Math.abs(upDeltaX * expectedUpZ - upDeltaZ * expectedUpX)).toBeLessThan(0.01);
+  }
+  await attachViewport(page, testInfo, 'camera-pan-after-rotations');
 });

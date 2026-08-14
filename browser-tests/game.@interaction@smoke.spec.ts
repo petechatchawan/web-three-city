@@ -31,14 +31,17 @@ test('drag pans without selecting', async ({ page }) => {
   expect(evidence.selectedCell).toBeNull();
 });
 
-test('tap selects, grid toggles, and reset restores defaults', async ({ page }) => {
+test('tap selects, contextual Inspect opens, grid toggles, and reset restores defaults', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await waitForReady(page);
 
   await page.mouse.click(900, 500);
   let evidence = await readEvidence(page);
   expect(evidence.selectedCell).not.toBeNull();
-  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.getByTestId('inspect-surface')).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
 
   await clickGameMenuAction(page, 'Grid');
   evidence = await readEvidence(page);
@@ -153,42 +156,39 @@ test('restores exactly one Water, Road, Zone, and Building root after context re
   expect(evidence.sceneRootCounts.buildingCommitted).toBe(1);
 });
 
-test('exposes Figma build categories and contextual tools only on demand', async ({ page }) => {
+test('exposes one Build entry and closes the picker after concrete tool selection', async ({ page }) => {
   await page.setViewportSize({ width: 414, height: 896 });
   await waitForReady(page);
 
-  for (const category of ['terrain', 'roads', 'zones', 'buildings', 'city'] as const) {
-    await expect(page.getByTestId(`nav-${category}`)).toBeVisible();
+  await expect(page.getByTestId('nav-build')).toBeVisible();
+  await expect(page.getByTestId('nav-city')).toBeVisible();
+  for (const retired of ['nav-terrain', 'nav-roads', 'nav-zones', 'nav-buildings']) {
+    await expect(page.getByTestId(retired)).toHaveCount(0);
   }
   await expect(page.getByTestId('build-cta')).toHaveCount(0);
   await expect(page.getByTestId('build-category-dock')).toHaveCount(0);
-  await expect(page.getByTestId('subtool-tray')).toBeHidden();
+  await expect(page.getByTestId('build-picker')).toBeHidden();
   await expect(page.getByRole('button', { name: 'Develop Zones' })).toHaveCount(0);
   await expect(page.getByTestId('tool-context-undo')).toHaveCount(0);
   await expect(page.locator('.city-tool-context')).toHaveCount(0);
 
   await openBuildCategory(page, 'roads');
-  const buildRoad = page.getByRole('button', { name: 'Build Road', exact: true });
-  await buildRoad.click();
-  await expect(buildRoad).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Build Road', exact: true }).click();
+  await expect(page.getByTestId('build-picker')).toBeHidden();
   await expect(page.getByTestId('tool-context-toggle')).toBeVisible();
+  await expect(page.getByTestId('tool-context-title')).toHaveText('Build Road');
 
   await openBuildCategory(page, 'zones');
-  const residential = page.getByRole('button', { name: 'Residential', exact: true });
-  await residential.click();
-  await expect(residential).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Residential', exact: true }).click();
+  await expect(page.getByTestId('build-picker')).toBeHidden();
+  await expect(page.getByTestId('tool-context-title')).toHaveText('Residential');
 
   await openBuildCategory(page, 'buildings');
-  const bulldoze = page.getByRole('button', { name: 'Bulldoze Building', exact: true });
-  await bulldoze.click();
-  await expect(bulldoze).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Bulldoze Building', exact: true }).click();
+  await expect(page.getByTestId('build-picker')).toBeHidden();
+  await expect(page.getByTestId('tool-context-title')).toHaveText('Bulldoze Building');
 
   await openBuildCategory(page, 'terrain');
-  const raise = page.getByRole('button', { name: 'Raise', exact: true });
-  await raise.click();
-  await expect(raise).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByRole('button', { name: 'Brush 1 × 1' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Brush 5 × 5' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Brush 1 × 1' })).toHaveAttribute(
     'aria-pressed',
     'true',
@@ -201,4 +201,7 @@ test('exposes Figma build categories and contextual tools only on demand', async
     'aria-pressed',
     'false',
   );
+  await page.getByRole('button', { name: 'Raise', exact: true }).click();
+  await expect(page.getByTestId('build-picker')).toBeHidden();
+  await expect(page.getByTestId('tool-context-title')).toHaveText('Raise');
 });

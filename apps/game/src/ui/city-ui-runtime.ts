@@ -1,6 +1,7 @@
 import type { RciDefinitionRegistries } from '@web-three-city/rci-core';
 import type { CommittedWorld } from '../application/committed-world.js';
 import { createEconomyViewProjection } from '../economy-budget-hud.js';
+import type { GameToolMode } from '../game-tool-mode.js';
 import { createGameTimePresentation } from '../game-time-presentation.js';
 import { createRciHudModel } from '../rci-hud.js';
 import { createCityIcon, type CityIconName } from './components/icon.js';
@@ -41,6 +42,7 @@ export interface CityUiRuntime {
   readonly element: HTMLElement;
   readonly dialogHost: DialogHost;
   readonly toolContextSheet: ToolContextSheetAdapter;
+  selectTool(mode: GameToolMode): void;
   setSimulationSpeed(speed: Parameters<CityUiPorts['setSpeed']>[0]): void;
   update(world: CommittedWorld): void;
   inspectCell(cell: Readonly<{ x: number; z: number }>): void;
@@ -303,6 +305,9 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
     element: shell.element,
     dialogHost: shell.dialogHost,
     toolContextSheet: shell.toolContextSheet,
+    selectTool(mode: GameToolMode): void {
+      shell.selectTool(mode);
+    },
     setSimulationSpeed(speed: Parameters<CityUiPorts['setSpeed']>[0]): void {
       shell.simulationControls.setSpeed(speed);
     },

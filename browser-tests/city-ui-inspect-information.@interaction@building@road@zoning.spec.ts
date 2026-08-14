@@ -71,6 +71,9 @@ test('uses Building over Zone and inspects Road and remaining Zone cells', async
   const points = await prepareSingleBuildingFixtureWorld(page, CENTER_BUILDING_FIXTURE);
 
   await closeBuild(page);
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('tool-context-toggle')).toHaveCount(0);
+
   const roadCell = CENTER_BUILDING_FIXTURE.roadCells[0];
   const roadPoint = pointFor(points, roadCell);
   await page.mouse.click(roadPoint.x, roadPoint.y);

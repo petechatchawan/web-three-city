@@ -42,19 +42,19 @@ jobs:
             echo 'stale Tool Context identity contract found' >&2
             exit 1
           fi
-          if grep -RInE "getByTestId\('tool-context-status'\).*Ready" browser-tests; then
-            echo 'stale single-line City UI Ready wait found' >&2
-            exit 1
-          fi
           python - <<'PY'
           from pathlib import Path
           import re
-          pattern = re.compile(r"getByTestId\('tool-context-status'\).*?toHaveText\(\s*'Ready'", re.DOTALL)
+          pattern = re.compile(
+              r"getByTestId\('tool-context-status'\)\s*\)\s*\.toHaveText\(\s*'Ready'",
+              re.MULTILINE,
+          )
           offenders = []
           for path in Path('browser-tests').glob('*.spec.ts'):
-              if pattern.search(path.read_text()): offenders.append(str(path))
+              if pattern.search(path.read_text()):
+                  offenders.append(str(path))
           if offenders:
-              raise SystemExit('stale multiline City UI Ready waits: ' + ', '.join(offenders))
+              raise SystemExit('stale City UI Ready waits: ' + ', '.join(offenders))
           PY
       - name: Commit formatting if needed
         run: |

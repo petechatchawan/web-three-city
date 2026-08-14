@@ -79,8 +79,6 @@ function menuAction(
 
 export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRuntime {
   let latestWorld: CommittedWorld | null = null;
-  let shell: PlayerShell;
-  let systemDialogs: ReturnType<typeof createCitySystemDialogs>;
 
   const informationViews = createInformationViewRegistry([
     {
@@ -191,7 +189,7 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
     });
   };
 
-  shell = mountPlayerShell(parent, {
+  const shell = mountPlayerShell(parent, {
     setSpeed: ports.setSpeed,
     step: ports.step,
     selectTool: ports.selectTool,
@@ -222,7 +220,7 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
     onGameMenu: openGameMenu,
   });
 
-  systemDialogs = createCitySystemDialogs(shell.dialogHost, {
+  const systemDialogs = createCitySystemDialogs(shell.dialogHost, {
     getWorld: () => {
       if (latestWorld === null) throw new Error('city-ui:world-unavailable');
       return latestWorld;

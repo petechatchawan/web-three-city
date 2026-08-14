@@ -38,6 +38,13 @@ const toolIcons: Readonly<Record<GameToolMode, CityIconName>> = {
   'building-bulldoze': 'remove',
 };
 
+const semanticClass: Partial<Record<GameToolMode, string>> = {
+  'zone-residential': 'city-tool-pill--residential',
+  'zone-commercial': 'city-tool-pill--commercial',
+  'zone-industrial': 'city-tool-pill--industrial',
+  'zone-remove': 'city-tool-pill--remove',
+};
+
 export interface SubToolTrayCallbacks {
   readonly onSelectTool: (mode: GameToolMode) => void;
   readonly onBrush?: (size: 1 | 3 | 5) => void;
@@ -84,6 +91,8 @@ export function mountSubToolTray(
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'city-tool-pill';
+      const semantic = semanticClass[mode];
+      if (semantic !== undefined) button.classList.add(semantic);
       button.dataset.toolMode = mode;
       button.setAttribute('aria-label', label);
       button.append(createCityIcon(toolIcons[mode]));
@@ -119,6 +128,7 @@ export function mountSubToolTray(
     close(): void {
       slot.replaceChildren();
       element.hidden = true;
+      delete element.dataset.category;
     },
     dispose(): void {
       element.remove();

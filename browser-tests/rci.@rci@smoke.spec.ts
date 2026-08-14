@@ -40,12 +40,24 @@ async function readCityDialog(page: Page): Promise<{
   return result;
 }
 
-test('shows compact RCI statistics without changing the default tool', async ({ page }) => {
+test('shows compact RCI demand bars without changing the default tool', async ({ page }) => {
   await waitForReady(page);
   await expect(metric(page, 'population')).toHaveText('0');
-  await expect(metric(page, 'demand')).toHaveText(/R[↑↓→] C[↑↓→] I[↑↓→]/);
+  await expect(page.locator('[data-rci-demand-bar]')).toHaveCount(3);
+  await expect(page.locator('[data-rci-demand-bar="residential"]')).toHaveAttribute(
+    'aria-label',
+    /Residential demand/,
+  );
+  await expect(page.locator('[data-rci-demand-bar="commercial"]')).toHaveAttribute(
+    'aria-label',
+    /Commercial demand/,
+  );
+  await expect(page.locator('[data-rci-demand-bar="industrial"]')).toHaveAttribute(
+    'aria-label',
+    /Industrial demand/,
+  );
   await expect(page.getByTestId('build-category-dock')).toHaveCount(0);
-  await expect(page.getByTestId('subtool-tray')).toBeHidden();
+  await expect(page.getByTestId('build-picker')).toBeHidden();
 
   await page.getByRole('button', { name: 'City', exact: true }).click();
   const dialog = page.getByRole('dialog');
@@ -61,12 +73,12 @@ test('shows compact RCI statistics without changing the default tool', async ({ 
 test('background RCI ticks do not interrupt an active zoning tool', async ({ page }) => {
   await waitForReady(page);
   await openBuildCategory(page, 'zones');
-  const residential = page.getByRole('button', { name: 'Residential', exact: true });
-  await residential.click();
-  await expect(residential).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Residential', exact: true }).click();
+  await expect(page.getByTestId('build-picker')).toBeHidden();
+  await expect(page.locator('.city-tool-context-name')).toHaveText('Residential');
   await page.waitForTimeout(1_500);
-  await expect(residential).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByTestId('nav-zones')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.city-tool-context-name')).toHaveText('Residential');
+  await expect(page.getByTestId('nav-build')).toHaveAttribute('aria-pressed', 'false');
 });
 
 test('round-trips WorldSaveV6 with RCI, Economy, and restores HUD values', async ({ page }) => {

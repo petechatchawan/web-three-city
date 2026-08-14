@@ -22,9 +22,11 @@ function feedbackButton(): HTMLButtonElement | null {
 }
 
 describe('M6.2 transient status feedback', () => {
-  it('reserves no permanent map space while idle', () => {
+  it('reserves no permanent map space while idle or host-ready', () => {
     const feedback = mountStatusFeedback(document.body);
     expect(feedback.element.classList.contains('city-status-feedback')).toBe(true);
+    expect(feedback.element.hidden).toBe(true);
+    feedback.setStatus('Ready');
     expect(feedback.element.hidden).toBe(true);
     expect(feedback.element.textContent).not.toContain('Ready');
     expect(feedback.element.textContent).not.toContain('Point at the world');

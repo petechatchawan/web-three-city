@@ -1,3 +1,4 @@
+import { waitForCityUi } from './helpers/city-ui.js';
 import { expect, test } from '@playwright/test';
 import { prepareBuildingFixtureWorld } from './helpers/building-fixture.js';
 import { prepareDeterministicGrowthClock, stepLogicalTicks } from './helpers/growth-fixture.js';
@@ -21,7 +22,7 @@ test('captures deterministic Residential, Commercial, and Industrial prototypes'
 }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(GAME_URL);
-  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
+  await waitForCityUi(page);
   await prepareDeterministicGrowthClock(page);
   await prepareBuildingFixtureWorld(page);
 

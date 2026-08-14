@@ -95,9 +95,7 @@ test('recovers presentation state after WebGL context loss', async ({ page }) =>
     element.dispatchEvent(new Event('webglcontextrestored'));
   });
   await expect(page.locator('.city-status-feedback')).toBeHidden();
-  await expect
-    .poll(async () => (await readEvidence(page)).sceneRootCounts.roadCommitted)
-    .toBe(1);
+  await expect.poll(async () => (await readEvidence(page)).sceneRootCounts.roadCommitted).toBe(1);
   const evidence = await readEvidence(page);
   expect(evidence.sceneRootCounts.roadPreview).toBe(0);
   expect(evidence.sceneRootCounts.zoneCommitted).toBe(1);
@@ -155,7 +153,9 @@ test('restores exactly one Water, Road, Zone, and Building root after context re
   expect(evidence.sceneRootCounts.buildingCommitted).toBe(1);
 });
 
-test('exposes Build categories and mode-aware contextual tools only on demand', async ({ page }) => {
+test('exposes Build categories and mode-aware contextual tools only on demand', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 414, height: 896 });
   await waitForReady(page);
 

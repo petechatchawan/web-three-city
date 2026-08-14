@@ -1,3 +1,4 @@
+import { closeBuild, openBuildCategory, waitForCityUi } from './helpers/city-ui.js';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import {
@@ -81,7 +82,7 @@ function flatCell(): Readonly<{ x: number; z: number }> {
 
 async function openGame(page: import('@playwright/test').Page): Promise<void> {
   await page.goto(GAME_URL);
-  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
+  await waitForCityUi(page);
 }
 
 interface VisibleTerrainSample {
@@ -160,7 +161,7 @@ test('captures Terraform Foundation visual and timing evidence', async ({ page }
   });
 
   const oneCellPoint = await clickTerrainCell(page, validRaiseCell(BASE_TERRAIN, 1));
-  await page.getByTestId('nav-terrain').click();
+  await openBuildCategory(page, 'terrain');
   await page.getByRole('button', { name: 'Raise' }).click();
   await page.mouse.move(oneCellPoint.x, oneCellPoint.y);
   await page.mouse.down();
@@ -176,9 +177,9 @@ test('captures Terraform Foundation visual and timing evidence', async ({ page }
   await page.getByTestId('tool-context-undo').click();
   await expect(page.getByTestId('tool-context-status')).toHaveText('Terraform undone');
 
-  await page.getByTestId('nav-navigate').click();
+  await closeBuild(page);
   const fiveCellPoint = await clickTerrainCell(page, validRaiseCell(BASE_TERRAIN, 5));
-  await page.getByTestId('nav-terrain').click();
+  await openBuildCategory(page, 'terrain');
   await page.getByRole('button', { name: 'Raise' }).click();
   await page.getByRole('button', { name: 'Brush 5 × 5' }).click();
   await page.mouse.move(fiveCellPoint.x, fiveCellPoint.y);
@@ -194,9 +195,9 @@ test('captures Terraform Foundation visual and timing evidence', async ({ page }
   await page.getByTestId('tool-context-undo').click();
   await expect(page.getByTestId('tool-context-status')).toHaveText('Terraform undone');
 
-  await page.getByTestId('nav-navigate').click();
+  await closeBuild(page);
   const invalidPoint = await clickTerrainCell(page, flatCell());
-  await page.getByTestId('nav-terrain').click();
+  await openBuildCategory(page, 'terrain');
   await page.getByRole('button', { name: 'Flatten' }).click();
   await page.getByRole('button', { name: 'Brush 1 × 1' }).click();
   await page.mouse.move(invalidPoint.x, invalidPoint.y);
@@ -209,9 +210,9 @@ test('captures Terraform Foundation visual and timing evidence', async ({ page }
   });
   await page.mouse.up();
 
-  await page.getByTestId('nav-navigate').click();
+  await closeBuild(page);
   const commitPoint = await clickTerrainCell(page, validRaiseCell(BASE_TERRAIN, 1));
-  await page.getByTestId('nav-terrain').click();
+  await openBuildCategory(page, 'terrain');
   await page.getByRole('button', { name: 'Raise' }).click();
   const commitStart = await page.evaluate(() => performance.now());
   await page.mouse.click(commitPoint.x, commitPoint.y);
@@ -238,14 +239,14 @@ test('captures Terraform Foundation visual and timing evidence', async ({ page }
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
-  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
+  await waitForCityUi(page);
   await page.screenshot({
     path: `${OUTPUT_DIRECTORY}/${SCREENSHOTS[6]}`,
     fullPage: true,
   });
 
   const line = await findVisibleRaiseLine(page);
-  await page.getByTestId('nav-terrain').click();
+  await openBuildCategory(page, 'terrain');
   await page.getByRole('button', { name: 'Raise' }).click();
   await page.mouse.move(line.start.x, line.start.y);
   await page.mouse.down();

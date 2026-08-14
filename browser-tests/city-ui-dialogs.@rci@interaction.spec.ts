@@ -1,3 +1,4 @@
+import { waitForCityUi } from './helpers/city-ui.js';
 import { expect, test } from '@playwright/test';
 import { GAME_URL } from './helpers/interaction.js';
 
@@ -5,7 +6,7 @@ test('City Economy dialog refreshes and applies tax without changing the active 
   page,
 }) => {
   await page.goto(GAME_URL);
-  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
+  await waitForCityUi(page);
   await page.getByRole('button', { name: 'Roads', exact: true }).click();
   await page.getByRole('button', { name: 'Build Road', exact: true }).last().click();
   const beforeTick = await page.evaluate(() => {

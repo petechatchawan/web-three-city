@@ -1,3 +1,4 @@
+import { openBuildCategory, waitForCityUi } from './helpers/city-ui.js';
 import { expect, test, type Page } from '@playwright/test';
 import {
   GAME_SEED,
@@ -56,7 +57,7 @@ function findValidRoadCell(): Readonly<{ x: number; z: number }> {
 async function openGame(page: Page): Promise<void> {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(GAME_URL);
-  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
+  await waitForCityUi(page);
 }
 
 test('Road pointer capture released outside the map commits the latest valid plan once', async ({
@@ -64,7 +65,7 @@ test('Road pointer capture released outside the map commits the latest valid pla
 }) => {
   await openGame(page);
   const point = await clickTerrainCell(page, findValidRoadCell());
-  await page.getByTestId('nav-roads').click();
+  await openBuildCategory(page, 'roads');
   await page.getByRole('button', { name: 'Build Road' }).click();
   const before = await readEvidence(page);
 

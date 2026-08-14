@@ -79,9 +79,7 @@ test('automatic Growth preserves the active Zoning tool and in-progress stroke',
 
   await page.evaluate(() => {
     const canvas = document.querySelector<HTMLCanvasElement>('#game-canvas');
-    const navigate = document.querySelector<HTMLButtonElement>(
-      '[data-testid="primary-navigate"]',
-    );
+    const navigate = document.querySelector<HTMLButtonElement>('[data-testid="primary-navigate"]');
     const status = document.querySelector<HTMLElement>('.city-status-feedback');
     if (canvas === null || navigate === null || status === null) {
       throw new Error('growth:missing-isolation-probe-target');

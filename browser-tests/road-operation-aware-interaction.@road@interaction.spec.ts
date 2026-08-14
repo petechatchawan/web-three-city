@@ -1,3 +1,4 @@
+import { openBuildCategory, waitForCityUi } from './helpers/city-ui.js';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import {
   WORLD_CONFIG,
@@ -62,7 +63,7 @@ function findLine(): readonly CellCoord[] {
 async function openGame(page: Page): Promise<void> {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(GAME_URL);
-  await expect(page.getByTestId('tool-context-status')).toHaveText('Ready');
+  await waitForCityUi(page);
 }
 
 async function attachViewport(page: Page, testInfo: TestInfo, name: string): Promise<void> {
@@ -77,7 +78,7 @@ test('Road operations expose distinct Preview and release outside Terrain commit
   const points = [];
   for (const cell of cells) points.push(await clickTerrainCell(page, cell));
 
-  await page.getByTestId('nav-roads').click();
+  await openBuildCategory(page, 'roads');
   await page.getByRole('button', { name: 'Build Road' }).click();
   await dispatchCanvasTouch(page, 'pointerdown', 1, points[0]!.x, points[0]!.y);
   await dispatchCanvasTouch(page, 'pointermove', 1, points.at(-1)!.x, points.at(-1)!.y);
@@ -95,7 +96,7 @@ test('Road operations expose distinct Preview and release outside Terrain commit
   await expect(page.getByTestId('tool-context-status')).toHaveText('Road unchanged');
   expect((await readEvidence(page)).road.occupiedCellCount).toBe(cells.length);
 
-  await page.getByTestId('nav-roads').click();
+  await openBuildCategory(page, 'roads');
   await page.getByRole('button', { name: 'Bulldoze Road' }).click();
   await dispatchCanvasTouch(page, 'pointerdown', 3, points[0]!.x, points[0]!.y);
   await dispatchCanvasTouch(page, 'pointermove', 3, points.at(-1)!.x, points.at(-1)!.y);

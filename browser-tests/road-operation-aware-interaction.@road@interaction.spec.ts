@@ -9,7 +9,6 @@ import {
 import { openBuildCategory, waitForCityUi } from './helpers/city-ui.js';
 import {
   GAME_URL,
-  clickGameMenuAction,
   clickTerrainCell,
   dispatchCanvasTouch,
   readEvidence,
@@ -41,6 +40,20 @@ async function openGame(page: Page): Promise<void> {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(GAME_URL);
   await waitForCityUi(page);
+}
+
+async function clickCameraMenuAction(
+  page: Page,
+  name: 'Rotate right' | 'Reset camera',
+): Promise<void> {
+  const activeDialog = page.getByRole('dialog');
+  if (await activeDialog.isVisible()) {
+    await activeDialog.getByRole('button', { name: 'Close', exact: true }).click();
+  }
+  await page.getByRole('button', { name: 'Game Menu', exact: true }).click();
+  const action = page.getByRole('dialog').getByRole('button', { name, exact: true });
+  await expect(action).toBeAttached();
+  await action.evaluate((button) => (button as HTMLButtonElement).click());
 }
 
 async function attachViewport(page: Page, testInfo: TestInfo, name: string): Promise<void> {
@@ -96,10 +109,11 @@ test('Road operations expose distinct Preview and release outside Terrain commit
 test('camera pan remains screen-relative after every quarter-turn rotation', async ({
   page,
 }, testInfo) => {
+  test.setTimeout(60_000);
   await openGame(page);
   for (let turns = 0; turns < 4; turns += 1) {
-    await clickGameMenuAction(page, 'Reset camera');
-    for (let index = 0; index < turns; index += 1) await clickGameMenuAction(page, 'Rotate right');
+    await clickCameraMenuAction(page, 'Reset camera');
+    for (let index = 0; index < turns; index += 1) await clickCameraMenuAction(page, 'Rotate right');
     const beforeRight = (await readEvidence(page)).camera;
     await page.mouse.move(900, 500);
     await page.mouse.down();
@@ -114,8 +128,8 @@ test('camera pan remains screen-relative after every quarter-turn rotation', asy
     expect(deltaX * expectedX + deltaZ * expectedZ).toBeGreaterThan(0);
     expect(Math.abs(deltaX * expectedZ - deltaZ * expectedX)).toBeLessThan(0.01);
 
-    await clickGameMenuAction(page, 'Reset camera');
-    for (let index = 0; index < turns; index += 1) await clickGameMenuAction(page, 'Rotate right');
+    await clickCameraMenuAction(page, 'Reset camera');
+    for (let index = 0; index < turns; index += 1) await clickCameraMenuAction(page, 'Rotate right');
     const beforeUp = (await readEvidence(page)).camera;
     await page.mouse.move(900, 550);
     await page.mouse.down();

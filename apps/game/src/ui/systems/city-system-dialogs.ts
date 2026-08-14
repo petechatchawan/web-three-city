@@ -14,6 +14,8 @@ export interface CitySystemDialogPorts {
   readonly getWorld: () => CommittedWorld;
   readonly rciRegistries: RciDefinitionRegistries;
   readonly submitTaxPolicy: (policy: EconomyTaxPolicy) => EconomyPolicyUiResult;
+  readonly openInformationViews?: () => void;
+  readonly openGameMenu?: () => void;
 }
 
 export interface CitySystemDialogs {
@@ -119,6 +121,32 @@ export function createCitySystemDialogs(
       navigation.append(button);
     }
     body.append(navigation);
+
+    const managementHeading = document.createElement('h3');
+    managementHeading.className = 'city-section-title';
+    managementHeading.textContent = 'Management';
+    body.append(managementHeading);
+
+    const management = document.createElement('nav');
+    management.className = 'city-system-grid city-management-grid';
+    management.setAttribute('aria-label', 'City management');
+    const managementEntries = [
+      ['information-views', 'Information Views', 'info', ports.openInformationViews],
+      ['game-menu', 'Game Menu', 'menu', ports.openGameMenu],
+    ] as const;
+    for (const [key, label, icon, action] of managementEntries) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'city-sheet-action';
+      button.dataset.management = key;
+      button.append(createCityIcon(icon));
+      const text = document.createElement('span');
+      text.textContent = label;
+      button.append(text);
+      button.addEventListener('click', () => action?.());
+      management.append(button);
+    }
+    body.append(management);
   };
 
   const renderEconomyOverview = (body: HTMLElement): void => {

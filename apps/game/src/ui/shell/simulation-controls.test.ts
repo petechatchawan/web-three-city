@@ -3,31 +3,39 @@ import { mountSimulationControls } from './simulation-controls.js';
 
 afterEach(() => document.body.replaceChildren());
 
-describe('simulation controls', () => {
-  it('cycles one top-action speed toggle and shows Step only while paused', () => {
+describe('M6.3 Figma simulation controls', () => {
+  it('exposes direct Pause, Play, 2×, and 4× controls with Step only while paused', () => {
     const setSpeed = vi.fn();
     const step = vi.fn();
     const controls = mountSimulationControls(document.body, { setSpeed, step });
-    const speed = controls.querySelector<HTMLButtonElement>('[data-simulation-speed]')!;
-    expect(speed.textContent).toBe('Ⅱ');
+
+    expect(
+      Array.from(
+        controls.querySelectorAll<HTMLButtonElement>('[data-simulation-speed]'),
+        (button) => button.dataset.simulationSpeed,
+      ),
+    ).toEqual(['paused', 'normal', 'fast', 'faster']);
+
+    const paused = controls.querySelector<HTMLButtonElement>('[data-simulation-speed="paused"]')!;
+    const normal = controls.querySelector<HTMLButtonElement>('[data-simulation-speed="normal"]')!;
+    const fast = controls.querySelector<HTMLButtonElement>('[data-simulation-speed="fast"]')!;
+    const faster = controls.querySelector<HTMLButtonElement>('[data-simulation-speed="faster"]')!;
+
+    expect(paused.getAttribute('aria-pressed')).toBe('true');
     expect(controls.querySelector('[data-simulation-step]')).not.toBeNull();
 
-    speed.click();
+    normal.click();
     expect(setSpeed).toHaveBeenLastCalledWith('normal');
-    expect(speed.textContent).toBe('1×');
+    expect(normal.getAttribute('aria-pressed')).toBe('true');
     expect(controls.querySelector('[data-simulation-step]')).toBeNull();
 
-    speed.click();
+    fast.click();
     expect(setSpeed).toHaveBeenLastCalledWith('fast');
-    expect(speed.textContent).toBe('2×');
-
-    speed.click();
+    faster.click();
     expect(setSpeed).toHaveBeenLastCalledWith('faster');
-    expect(speed.textContent).toBe('4×');
-
-    speed.click();
+    paused.click();
     expect(setSpeed).toHaveBeenLastCalledWith('paused');
-    expect(speed.textContent).toBe('Ⅱ');
+
     const stepButton = controls.querySelector<HTMLButtonElement>('[data-simulation-step]')!;
     stepButton.click();
     expect(step).toHaveBeenCalledOnce();

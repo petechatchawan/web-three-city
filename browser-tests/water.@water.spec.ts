@@ -58,7 +58,10 @@ test('underwater selection and Grid remain readable', async ({ page }) => {
   expect(evidence.gridVisible).toBe(true);
   expect(evidence.selectedCell).toEqual({ x: 64, z: 116 });
   expect(evidence.water.waterRootCount).toBe(1);
-  await expect(page.getByRole('dialog')).toContainText('64, 116');
+  const inspect = page.getByTestId('inspect-surface');
+  await expect(inspect).toBeVisible();
+  await expect(inspect).toContainText('64, 116');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
 });
 
 test('pan, zoom, yaw, pitch, and reset remain stable with Water', async ({ page }) => {

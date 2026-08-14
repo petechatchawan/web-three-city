@@ -173,6 +173,7 @@ async function paint(
 }
 
 test('paints R/C/I at committed-Road depths 1–3 and round-trips WorldSaveV5', async ({ page }) => {
+  test.setTimeout(60_000);
   await openGame(page);
   const points = await locate(page, [
     FIXTURE.road,

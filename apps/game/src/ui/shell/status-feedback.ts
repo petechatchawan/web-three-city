@@ -73,6 +73,13 @@ export function mountStatusFeedback(
     element.hidden = statusValue === '' && !undoAvailable;
   };
 
+  const clearStatus = (): void => {
+    cancelDismiss();
+    statusValue = '';
+    message.textContent = '';
+    render();
+  };
+
   const scheduleDismiss = (): void => {
     cancelDismiss();
     if (statusValue === '') return;
@@ -101,17 +108,17 @@ export function mountStatusFeedback(
       render();
     },
     setStatus(value: string): void {
-      statusValue = value.trim();
-      message.textContent = statusValue;
+      const normalized = value.trim();
+      if (normalized === '' || normalized === 'Ready') {
+        clearStatus();
+        return;
+      }
+      statusValue = normalized;
+      message.textContent = normalized;
       render();
       scheduleDismiss();
     },
-    clearStatus(): void {
-      cancelDismiss();
-      statusValue = '';
-      message.textContent = '';
-      render();
-    },
+    clearStatus,
     dispose(): void {
       cancelDismiss();
       element.remove();

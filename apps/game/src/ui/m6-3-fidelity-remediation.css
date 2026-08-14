@@ -1,9 +1,15 @@
 /* M6.3 fidelity hardening after browser acceptance evidence. */
 
+/* The full-width HUD owns only visual gradient/layout; only its actual metric buttons own input. */
+.city-ui .city-awareness-hud.city-mobile-hud {
+  pointer-events: none;
+}
+
 /* Preserve the repository-wide 44px interactive-target contract while keeping the HUD visually compact. */
 .city-ui .city-mobile-hud-group {
   min-width: 2.75rem !important;
   min-height: 2.75rem !important;
+  pointer-events: auto;
 }
 
 .city-ui .city-nav-item {

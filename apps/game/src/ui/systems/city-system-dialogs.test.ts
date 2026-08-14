@@ -7,7 +7,7 @@ import { createCitySystemDialogs } from './city-system-dialogs.js';
 afterEach(() => document.body.replaceChildren());
 
 describe('City system dialogs', () => {
-  it('renders only authoritative system entries and Economy details', () => {
+  it('keeps authoritative City systems and exposes secondary mobile management entries', () => {
     const world = createApplicationFixture();
     const host = mountDialogHost(document.body);
     const dialogs = createCitySystemDialogs(host, {
@@ -18,11 +18,15 @@ describe('City system dialogs', () => {
     dialogs.openCity();
     expect(host.element.textContent).toContain('City Overview');
     expect(host.element.textContent).toContain('Population / RCI');
+    expect(host.element.textContent).toContain('Information Views');
+    expect(host.element.textContent).toContain('Game Menu');
     expect(host.element.textContent).not.toContain('Loans');
     expect(host.element.querySelector('.city-kpi-grid')).not.toBeNull();
     expect(host.element.querySelectorAll('.city-kpi-card')).toHaveLength(3);
     expect(host.element.querySelector('.city-detail-card')).not.toBeNull();
     expect(host.element.querySelector('.city-system-grid')).not.toBeNull();
+    expect(host.element.querySelector('[data-management="information-views"]')).not.toBeNull();
+    expect(host.element.querySelector('[data-management="game-menu"]')).not.toBeNull();
     host.element.querySelector<HTMLButtonElement>('[data-system="economy"]')?.click();
     expect(host.element.textContent).toContain('Treasury');
     expect(host.element.textContent).toContain('Road maintenance');

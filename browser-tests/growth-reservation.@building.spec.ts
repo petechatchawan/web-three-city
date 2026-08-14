@@ -20,9 +20,9 @@ test('active Zone removal commits after background Growth skips its reserved cel
   const points = await prepareBuildingFixtureWorld(page);
 
   await openBuildCategory(page, 'zones');
-  const removeButton = page.getByRole('button', { name: 'Remove Zone' });
-  await removeButton.click();
-  await expect(removeButton).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Remove Zone' }).click();
+  await expect(page.getByTestId('build-picker')).toBeHidden();
+  await expect(page.locator('.city-tool-context-name')).toHaveText('Remove Zone');
   const start = pointFor(points, BUILDING_FIXTURES.residential.zoneCells[0]);
   const end = pointFor(points, BUILDING_FIXTURES.residential.zoneCells[1]);
   await page.mouse.move(start.x, start.y);
@@ -60,7 +60,8 @@ test('active Zone removal commits after background Growth skips its reserved cel
     api.setSpeed('paused');
   });
 
-  await expect(removeButton).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.city-tool-context-name')).toHaveText('Remove Zone');
+  await expect(page.getByTestId('nav-build')).toHaveAttribute('aria-pressed', 'false');
   await page.mouse.up();
   await expect(page.getByTestId('tool-context-status')).toHaveText('Zone removed');
   await expect(page.getByTestId('tool-context-status')).not.toHaveText('Building rejected');
@@ -68,5 +69,5 @@ test('active Zone removal commits after background Growth skips its reserved cel
   await page.getByRole('button', { name: 'City', exact: true }).click();
   await page.getByRole('button', { name: 'Zoning', exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText('Residential zones2');
-  await expect(removeButton).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.city-tool-context-name')).toHaveText('Remove Zone');
 });

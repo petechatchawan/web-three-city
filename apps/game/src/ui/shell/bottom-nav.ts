@@ -2,7 +2,7 @@ import { createCityIcon, type CityIconName } from '../components/icon.js';
 import { uiText, type UiLocale } from '../presentation-locale.js';
 
 export type BottomNavCategory = 'build' | 'city';
-export type BottomNavSelection = BottomNavCategory | null;
+export type BottomNavSelection = BottomNavCategory;
 
 export const navCategories: readonly BottomNavCategory[] = ['build', 'city'];
 
@@ -65,14 +65,10 @@ export function mountBottomNav(
     button.append(label);
 
     button.addEventListener('click', () => {
-      if (category === 'build') {
-        buildOpen = !buildOpen;
-        onSelect(buildOpen ? 'build' : null);
-      } else {
-        buildOpen = false;
-        onSelect('city');
-      }
+      if (category === 'build') buildOpen = !buildOpen;
+      else buildOpen = false;
       render();
+      onSelect(category);
     });
 
     buttons.set(category, button);

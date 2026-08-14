@@ -3,7 +3,11 @@ import { mountDialogHost, type DialogHost } from '../dialog/dialog-host.js';
 import type { UiAdapter } from '../foundation/lifecycle.js';
 import { mountBottomNav, type BottomNav } from './bottom-nav.js';
 import { mountGameHud, type GameHudCallbacks, type GameHudProjection } from './game-hud.js';
-import { mountSimulationControls, type SimulationControlCallbacks } from './simulation-controls.js';
+import {
+  mountSimulationControls,
+  type SimulationControlCallbacks,
+  type SimulationControls,
+} from './simulation-controls.js';
 import { mountSubToolTray, type SubToolTray, type TrayCategory } from './subtool-tray.js';
 import { mountToolContextSheet, type ToolContextSheetAdapter } from './tool-context-sheet.js';
 import type { TopActionCallbacks } from './top-actions.js';
@@ -26,6 +30,7 @@ export type PlayerShellCallbacks = TopActionCallbacks &
 export interface PlayerShell extends UiAdapter<GameHudProjection> {
   readonly dialogHost: DialogHost;
   readonly bottomNav: BottomNav;
+  readonly simulationControls: SimulationControls;
   readonly subToolTray: SubToolTray;
   readonly toolContextSheet: ToolContextSheetAdapter;
 }
@@ -64,7 +69,7 @@ export function mountPlayerShell(
     subToolTray.open(selection);
     callbacks.selectTool(defaultToolForCategory[selection]);
   });
-  mountSimulationControls(bottomNav.element, callbacks, { compact: true });
+  const simulationControls = mountSimulationControls(bottomNav.element, callbacks, { compact: true });
 
   const dialogHost = mountDialogHost(element);
 
@@ -72,6 +77,7 @@ export function mountPlayerShell(
     element,
     dialogHost,
     bottomNav,
+    simulationControls,
     subToolTray,
     toolContextSheet,
     update(projection: GameHudProjection): void {
@@ -79,6 +85,7 @@ export function mountPlayerShell(
     },
     dispose(): void {
       dialogHost.dispose();
+      simulationControls.dispose();
       bottomNav.dispose();
       subToolTray.dispose();
       toolContextSheet.dispose();

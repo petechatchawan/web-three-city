@@ -103,13 +103,12 @@ export function mountPlayerShell(
         return;
       }
 
-      if (selection === null) {
+      if (subToolTray.element.hidden) {
+        callbacks.onBuildOpen?.();
+        subToolTray.open();
+      } else {
         subToolTray.close();
-        return;
       }
-
-      callbacks.onBuildOpen?.();
-      subToolTray.open();
     },
     locale,
   );

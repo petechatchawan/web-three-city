@@ -70,10 +70,7 @@ jobs:
           test -d apps/terrain-lab/dist
           rm lean-builds.tar.gz
       - run: ./node_modules/.bin/playwright install chromium
-      - run: >-
-          pnpm exec playwright test
-          browser-tests/city-ui-m6-4-mobile-declutter.@interaction@rci@release.spec.ts
-          --project=chromium --workers=1
+      - run: pnpm test:browser:only
       - run: node tooling/verify-clean-worktree.mjs
       - uses: actions/upload-artifact@v4
         if: always()

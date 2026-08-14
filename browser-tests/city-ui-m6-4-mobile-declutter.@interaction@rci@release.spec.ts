@@ -32,6 +32,10 @@ test('M6.4 exposes one Build entry and closes the picker after a concrete tool i
   await expect(picker).toBeHidden();
   await expect(page.getByTestId('tool-context-toggle')).toBeVisible();
 
+  const activePoint = await locateTerrainCell(page, { x: 64, z: 64 });
+  await page.mouse.click(activePoint.x, activePoint.y);
+  await expect(page.getByTestId('inspect-surface')).toBeHidden();
+
   const contextHeight = await page
     .getByTestId('status-feedback')
     .evaluate((element) => element.getBoundingClientRect().height);

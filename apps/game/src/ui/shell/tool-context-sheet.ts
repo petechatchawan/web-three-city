@@ -103,7 +103,8 @@ export function mountToolContextSheet(
     update(projection: ContextualToolProjection): void {
       name.textContent = projection.name;
       state.textContent = projection.state;
-      element.dataset.toolMode = projection.mode;
+      if (projection.mode === 'navigate') delete element.dataset.toolMode;
+      else element.dataset.toolMode = projection.mode;
       icon.replaceChildren(createCityIcon(iconName(projection.mode)));
       const message = document.createElement('p');
       message.className = 'city-tool-context-message';

@@ -1,9 +1,25 @@
 /* M6.1 compact contextual toolbar */
 .city-ui .city-subtool-tray {
   bottom: calc(var(--city-ui-safe-bottom) + 4.45rem);
-  padding: 0.4rem 0.5rem 0.5rem;
-  border-radius: 0 0 var(--city-ui-radius-card) var(--city-ui-radius-card);
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.45rem 0.5rem 0.5rem;
+  border-radius: var(--city-ui-radius-card);
   box-shadow: var(--city-ui-shadow-tray);
+}
+
+.city-ui .city-subtool-tray > .city-tool-context {
+  position: static;
+  left: auto;
+  bottom: auto;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  transform: none;
 }
 
 .city-ui .city-subtool-tray-content {
@@ -23,16 +39,6 @@
   padding: 0 0.75rem;
 }
 
-.city-ui .city-tool-context {
-  left: 50%;
-  bottom: calc(var(--city-ui-safe-bottom) + 7.95rem);
-  width: min(calc(100vw - 1rem), 32rem);
-  padding: 0.4rem 0.5rem;
-  border-radius: var(--city-ui-radius-card) var(--city-ui-radius-card) 0 0;
-  box-shadow: none;
-  transform: translateX(-50%);
-}
-
 .city-ui .city-tool-context-header {
   gap: 0.35rem;
 }
@@ -48,6 +54,7 @@
 
 .city-ui .city-tool-context-message {
   flex: 1 1 70%;
+  margin: 0;
   font-size: var(--city-ui-type-micro);
 }
 

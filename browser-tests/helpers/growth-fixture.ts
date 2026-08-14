@@ -23,7 +23,8 @@ export async function prepareDeterministicGrowthClock(page: Page): Promise<void>
     timeWindow.__WEB_THREE_CITY_TIME__?.resetForTest?.();
     timeWindow.__WEB_THREE_CITY_TIME__?.setSpeed('paused');
   });
-  await expect(page.getByRole('button', { name: 'Set paused speed' })).toBeVisible();
+  await expect(page.locator('[data-simulation-speed]')).toHaveText('Ⅱ');
+  await expect(page.locator('[data-simulation-step]')).toBeVisible();
 }
 
 export async function readTimeSnapshot(page: Page): Promise<TimeSnapshot> {

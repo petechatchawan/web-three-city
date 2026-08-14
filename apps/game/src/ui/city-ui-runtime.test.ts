@@ -6,14 +6,15 @@ import { mountCityUi } from './city-ui-runtime.js';
 afterEach(() => document.body.replaceChildren());
 
 describe('City UI runtime', () => {
-  it('opens and refreshes a dialog without emitting simulation or gameplay intents', () => {
+  it('opens and refreshes management without emitting simulation or gameplay intents', () => {
     const setSpeed = vi.fn();
     const step = vi.fn();
+    const selectTool = vi.fn();
     const toolSentinel = { active: 'road-build', undo: true } as const;
     const ui = mountCityUi(document.body, {
       setSpeed,
       step,
-      selectTool: vi.fn(),
+      selectTool,
       setTerraformBrush: vi.fn(),
       submitTaxPolicy: vi.fn(() => ({ status: 'accepted' as const })),
       setInformationView: vi.fn(),
@@ -29,20 +30,23 @@ describe('City UI runtime', () => {
     });
     const world = createApplicationFixture();
     ui.update(world);
-    ui.element.querySelector<HTMLButtonElement>('.city-top-actions button:nth-child(2)')?.click();
+    ui.element.querySelector<HTMLButtonElement>('[data-testid="nav-city"]')?.click();
     ui.update(world);
     expect(ui.dialogHost.activeRoute?.key).toBe('city-overview');
     expect(setSpeed).not.toHaveBeenCalled();
     expect(step).not.toHaveBeenCalled();
+    expect(selectTool).not.toHaveBeenCalled();
     expect(toolSentinel).toEqual({ active: 'road-build', undo: true });
 
-    ui.dialogHost.close();
-    ui.element.querySelector<HTMLButtonElement>('.city-top-actions button:nth-child(3)')?.click();
+    ui.element
+      .querySelector<HTMLButtonElement>('[data-management="game-menu"]')
+      ?.click();
     expect(ui.dialogHost.activeRoute?.key).toBe('game-menu');
     const sections = [...ui.element.querySelectorAll<HTMLElement>('[data-menu-section]')].map(
       (section) => section.dataset.menuSection,
     );
     expect(sections).toEqual(['world', 'camera', 'presentation']);
     expect(ui.element.querySelectorAll('.city-menu-tile').length).toBeGreaterThanOrEqual(6);
+    expect(selectTool).not.toHaveBeenCalled();
   });
 });

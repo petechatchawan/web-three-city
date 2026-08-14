@@ -30,7 +30,7 @@ test('shows the compact municipal budget without changing world tools', async ({
   await expect(dialog).toContainText('Expenses0.00');
   await expect(dialog).toContainText('Net0.00');
   await expect(page.getByTestId('build-category-dock')).toHaveCount(0);
-  await expect(page.getByTestId('subtool-tray')).toBeHidden();
+  await expect(page.getByTestId('build-picker')).toBeHidden();
 });
 
 test('applies typed tax policy and round-trips the committed Economy save', async ({ page }) => {

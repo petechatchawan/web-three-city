@@ -1,77 +1,82 @@
 import assert from 'node:assert/strict';
-import { readdir, readFile } from 'node:fs/promises';
-import { spawn } from 'node:child_process';
+import { execFile } from 'node:child_process';
+import { readdir, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
-import test from 'node:test';
+import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
+import test from 'node:test';
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const approvedTag = /@(smoke|release|interaction|e2e|visual)/;
-const approvedDomainTag = /@(terrain|road|zoning|building|economy|rci|simulation|water|interaction)/;
+const execFileAsync = promisify(execFile);
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const approvedDomainTag = /@(terrain|water|road|zoning|building|rci|interaction)/;
+const approvedTag =
+  /@(smoke|terrain|water|road|zoning|building|rci|interaction|visual|performance|release)/;
 
-async function readRepoText(relativePath) {
-  return readFile(path.join(root, relativePath), 'utf8');
+async function exists(file) {
+  try {
+    await stat(file);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
-async function filesUnder(directory) {
-  const absolute = path.join(root, directory);
-  const entries = await readdir(absolute, { withFileTypes: true });
+async function walk(dir) {
+  if (!(await exists(dir))) return [];
   const files = [];
-  for (const entry of entries) {
-    const relative = path.posix.join(directory, entry.name);
-    if (entry.isDirectory()) files.push(...(await filesUnder(relative)));
-    else files.push(relative);
+  for (const entry of await readdir(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) files.push(...(await walk(full)));
+    else files.push(full);
   }
   return files;
 }
 
+const readRepoText = (file) => readFile(path.join(repoRoot, file), 'utf8');
+
 async function readGameTestFileCount() {
-  const files = await filesUnder('apps/game');
-  return files.filter((file) => file.endsWith('.test.ts')).length;
+  const files = (
+    await Promise.all([
+      walk(path.join(repoRoot, 'apps/game/src')),
+      walk(path.join(repoRoot, 'apps/game/test')),
+    ])
+  )
+    .flat()
+    .filter((file) => file.endsWith('.test.ts'));
+  return files.length;
+}
+
+async function runVitestList() {
+  const { stdout } = await execFileAsync(
+    'pnpm',
+    ['--filter', '@web-three-city/game', 'exec', 'vitest', 'list', '--json'],
+    { cwd: repoRoot, maxBuffer: 8 * 1024 * 1024 },
+  );
+  // pnpm may prefix the JSON with engine/registry warnings on stdout; parse
+  // the first JSON array instead of requiring clean output.
+  const jsonStart = stdout.indexOf('[');
+  if (jsonStart === -1) throw new Error(`vitest-list:missing-json\n${stdout.slice(0, 200)}`);
+  const listed = JSON.parse(stdout.slice(jsonStart));
+  if (!Array.isArray(listed)) throw new Error('vitest-list:expected-array');
+  return listed;
 }
 
 async function browserSpecFiles() {
-  const entries = await readdir(path.join(root, 'browser-tests'), { withFileTypes: true });
-  return entries
+  return (await readdir(path.join(repoRoot, 'browser-tests'), { withFileTypes: true }))
     .filter((entry) => entry.isFile() && entry.name.endsWith('.spec.ts'))
     .map((entry) => entry.name)
     .sort();
 }
 
-function run(command, args) {
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { cwd: root, shell: false });
-    let stdout = '';
-    let stderr = '';
-    child.stdout.on('data', (chunk) => (stdout += String(chunk)));
-    child.stderr.on('data', (chunk) => (stderr += String(chunk)));
-    child.on('error', reject);
-    child.on('close', (code) => {
-      if (code === 0) resolve(stdout);
-      else reject(new Error(`${command} ${args.join(' ')} failed (${code})\n${stdout}\n${stderr}`));
-    });
-  });
-}
-
-async function runVitestList() {
-  const output = await run('pnpm', ['--filter', '@web-three-city/game', 'exec', 'vitest', 'list']);
-  return output
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line !== '');
-}
-
 async function runPlaywrightList(extraArgs = []) {
-  const output = await run('pnpm', [
-    'exec',
-    'playwright',
-    'test',
-    '--project=chromium',
-    '--list',
-    ...extraArgs,
-  ]);
-  const match = output.match(/Total:\s+(\d+) tests?/);
-  assert.ok(match, `Could not find Playwright list total in:\n${output}`);
+  const { stdout, stderr } = await execFileAsync(
+    'pnpm',
+    ['exec', 'playwright', 'test', '--list', '--project=chromium', ...extraArgs],
+    { cwd: repoRoot, maxBuffer: 8 * 1024 * 1024 },
+  );
+  const output = `${stdout}\n${stderr}`;
+  const match = output.match(/Total:\s+(\d+)\s+tests?/);
+  if (match === null) throw new Error(`playwright-list:missing-total\n${output}`);
   return { testCount: Number(match[1]), output };
 }
 

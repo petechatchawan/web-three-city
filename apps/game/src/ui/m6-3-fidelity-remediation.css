@@ -1,0 +1,35 @@
+/* M6.3 fidelity hardening after browser acceptance evidence. */
+
+/* Preserve the repository-wide 44px interactive-target contract while keeping the HUD visually compact. */
+.city-ui .city-mobile-hud-group {
+  min-height: 2.75rem !important;
+}
+
+/* Gameplay chrome must never intercept a modal/sheet interaction. */
+.city-ui .city-dialog-backdrop {
+  z-index: 200;
+}
+
+/* Keep the compact context surface bounded on wide screens instead of spanning the whole viewport. */
+.city-ui .city-tool-context-sheet.city-status-feedback {
+  right: auto;
+  left: 50%;
+  width: min(
+    calc(100vw - var(--city-ui-safe-left) - var(--city-ui-safe-right) - 1.5rem),
+    40rem
+  );
+  transform: translateX(-50%);
+}
+
+.city-ui .city-tool-context-status {
+  min-width: 0;
+  max-width: 65%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 600px) {
+  .city-ui .city-tool-context-status {
+    max-width: 58%;
+  }
+}

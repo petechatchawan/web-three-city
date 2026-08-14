@@ -6,26 +6,25 @@ import { mountBrushSelector, type BrushSelector } from './brush-stepper.js';
 export type TrayCategory = 'terrain' | 'roads' | 'zones' | 'buildings';
 export const trayCategories: readonly TrayCategory[] = ['terrain', 'roads', 'zones', 'buildings'];
 
-const trayTools: Readonly<
-  Record<TrayCategory, ReadonlyArray<readonly [UiCopyKey, GameToolMode]>>
-> = {
-  terrain: [
-    ['raise', 'raise'],
-    ['lower', 'lower'],
-    ['flatten', 'flatten'],
-  ],
-  roads: [
-    ['buildRoad', 'road-build'],
-    ['bulldozeRoad', 'road-bulldoze'],
-  ],
-  zones: [
-    ['residential', 'zone-residential'],
-    ['commercial', 'zone-commercial'],
-    ['industrial', 'zone-industrial'],
-    ['removeZone', 'zone-remove'],
-  ],
-  buildings: [['bulldozeBuilding', 'building-bulldoze']],
-};
+const trayTools: Readonly<Record<TrayCategory, ReadonlyArray<readonly [UiCopyKey, GameToolMode]>>> =
+  {
+    terrain: [
+      ['raise', 'raise'],
+      ['lower', 'lower'],
+      ['flatten', 'flatten'],
+    ],
+    roads: [
+      ['buildRoad', 'road-build'],
+      ['bulldozeRoad', 'road-bulldoze'],
+    ],
+    zones: [
+      ['residential', 'zone-residential'],
+      ['commercial', 'zone-commercial'],
+      ['industrial', 'zone-industrial'],
+      ['removeZone', 'zone-remove'],
+    ],
+    buildings: [['bulldozeBuilding', 'building-bulldoze']],
+  };
 
 const categoryIcons: Readonly<Record<TrayCategory, CityIconName>> = {
   terrain: 'terrain',

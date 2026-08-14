@@ -19,26 +19,18 @@ describe('player shell M6.2 mobile state model', () => {
     });
 
     expect(shell.element.querySelector('aside')).toBeNull();
-    expect(
-      shell.element.querySelector('[data-testid="build-cta"]'),
-    ).not.toBeNull();
-    expect(
-      shell.element
-        .querySelector('.city-build-category-dock')
-        ?.hasAttribute('hidden'),
-    ).toBe(true);
+    expect(shell.element.querySelector('[data-testid="build-cta"]')).not.toBeNull();
+    expect(shell.element.querySelector('.city-build-category-dock')?.hasAttribute('hidden')).toBe(
+      true,
+    );
     expect(shell.subToolTray.element.hasAttribute('hidden')).toBe(true);
     expect(shell.element.querySelector('.city-tool-context')).toBeNull();
 
-    const build = shell.element.querySelector<HTMLButtonElement>(
-      '[data-testid="build-cta"]',
-    );
+    const build = shell.element.querySelector<HTMLButtonElement>('[data-testid="build-cta"]');
     build?.click();
-    expect(
-      shell.element
-        .querySelector('.city-build-category-dock')
-        ?.hasAttribute('hidden'),
-    ).toBe(false);
+    expect(shell.element.querySelector('.city-build-category-dock')?.hasAttribute('hidden')).toBe(
+      false,
+    );
     expect(shell.subToolTray.element.hasAttribute('hidden')).toBe(true);
     expect(selectTool).not.toHaveBeenCalled();
 
@@ -48,23 +40,15 @@ describe('player shell M6.2 mobile state model', () => {
     terrain?.click();
     expect(selectTool).toHaveBeenLastCalledWith('raise');
     expect(shell.subToolTray.element.hasAttribute('hidden')).toBe(false);
-    expect(
-      shell.subToolTray.element.querySelectorAll('[data-tool-mode]').length,
-    ).toBe(3);
-    expect(
-      shell.subToolTray.element.querySelectorAll('[data-brush-size]').length,
-    ).toBe(3);
+    expect(shell.subToolTray.element.querySelectorAll('[data-tool-mode]').length).toBe(3);
+    expect(shell.subToolTray.element.querySelectorAll('[data-brush-size]').length).toBe(3);
 
-    const close = shell.element.querySelector<HTMLButtonElement>(
-      '[data-testid="build-close"]',
-    );
+    const close = shell.element.querySelector<HTMLButtonElement>('[data-testid="build-close"]');
     close?.click();
     expect(selectTool).toHaveBeenLastCalledWith('navigate');
-    expect(
-      shell.element
-        .querySelector('.city-build-category-dock')
-        ?.hasAttribute('hidden'),
-    ).toBe(true);
+    expect(shell.element.querySelector('.city-build-category-dock')?.hasAttribute('hidden')).toBe(
+      true,
+    );
     expect(shell.subToolTray.element.hasAttribute('hidden')).toBe(true);
 
     shell.dispose();

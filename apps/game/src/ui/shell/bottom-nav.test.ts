@@ -11,12 +11,8 @@ describe('M6.2 mobile primary actions and Build category dock', () => {
       onToggleBuild: vi.fn(),
     });
 
-    const navigate = actions.element.querySelector(
-      '[data-testid="primary-navigate"]',
-    );
-    const build = actions.element.querySelector<HTMLButtonElement>(
-      '[data-testid="build-cta"]',
-    );
+    const navigate = actions.element.querySelector('[data-testid="primary-navigate"]');
+    const build = actions.element.querySelector<HTMLButtonElement>('[data-testid="build-cta"]');
     expect(navigate).not.toBeNull();
     expect(build).not.toBeNull();
     expect(build?.textContent).toContain('Build');
@@ -38,15 +34,11 @@ describe('M6.2 mobile primary actions and Build category dock', () => {
     expect(onSelectCategory).not.toHaveBeenCalled();
     expect(
       Array.from(
-        dock.element.querySelectorAll<HTMLButtonElement>(
-          '[data-build-category]',
-        ),
+        dock.element.querySelectorAll<HTMLButtonElement>('[data-build-category]'),
         (button) => button.dataset.buildCategory,
       ),
     ).toEqual(['terrain', 'roads', 'zones', 'buildings']);
-    expect(
-      dock.element.querySelector('[data-testid="build-close"]'),
-    ).not.toBeNull();
+    expect(dock.element.querySelector('[data-testid="build-close"]')).not.toBeNull();
   });
 
   it('marks the selected Build category and keeps Close independent', () => {
@@ -59,9 +51,7 @@ describe('M6.2 mobile primary actions and Build category dock', () => {
     dock.open();
     dock.setActiveCategory('zones');
 
-    const zones = dock.element.querySelector<HTMLButtonElement>(
-      '[data-build-category="zones"]',
-    );
+    const zones = dock.element.querySelector<HTMLButtonElement>('[data-build-category="zones"]');
     const terrain = dock.element.querySelector<HTMLButtonElement>(
       '[data-build-category="terrain"]',
     );
@@ -70,9 +60,7 @@ describe('M6.2 mobile primary actions and Build category dock', () => {
 
     zones?.click();
     expect(onSelectCategory).toHaveBeenCalledWith('zones');
-    const close = dock.element.querySelector<HTMLButtonElement>(
-      '[data-testid="build-close"]',
-    );
+    const close = dock.element.querySelector<HTMLButtonElement>('[data-testid="build-close"]');
     close?.click();
     expect(onClose).toHaveBeenCalledTimes(1);
   });

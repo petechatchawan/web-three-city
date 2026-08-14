@@ -3,12 +3,13 @@ import { mountPlayerShell } from './player-shell.js';
 
 afterEach(() => document.body.replaceChildren());
 
-describe('player shell M6.3 Figma mobile state model', () => {
-  it('uses persistent Figma bottom navigation and keeps Tool Context synchronized with active category', () => {
+describe('player shell M6.4 mobile declutter state model', () => {
+  it('keeps Build presentation separate from active gameplay tool state', () => {
     const selectTool = vi.fn();
+    const onCity = vi.fn();
     const shell = mountPlayerShell(document.body, {
       onInformationViews: vi.fn(),
-      onCity: vi.fn(),
+      onCity,
       onGameMenu: vi.fn(),
       setSpeed: vi.fn(),
       step: vi.fn(),
@@ -18,35 +19,41 @@ describe('player shell M6.3 Figma mobile state model', () => {
       onUndo: vi.fn(),
     });
 
-    expect(shell.element.querySelector('.city-bottom-nav')).not.toBeNull();
-    expect(shell.element.querySelector('[data-testid="primary-navigate"]')).toBeNull();
-    expect(shell.element.querySelector('[data-testid="build-cta"]')).toBeNull();
-    expect(shell.element.querySelector('.city-build-category-dock')).toBeNull();
-    expect(shell.subToolTray.element.hasAttribute('hidden')).toBe(true);
+    expect(shell.element.querySelector('[data-testid="nav-build"]')).not.toBeNull();
+    expect(shell.element.querySelector('[data-testid="nav-city"]')).not.toBeNull();
+    expect(shell.element.querySelector('[data-testid="nav-terrain"]')).toBeNull();
+    expect(shell.subToolTray.element.hidden).toBe(true);
     expect(shell.toolContextSheet.element.hidden).toBe(true);
 
-    const terrain = shell.element.querySelector<HTMLButtonElement>('[data-testid="nav-terrain"]');
-    terrain?.click();
-    expect(selectTool).toHaveBeenLastCalledWith('raise');
-    expect(terrain?.getAttribute('aria-pressed')).toBe('true');
-    expect(shell.subToolTray.element.hasAttribute('hidden')).toBe(false);
+    shell.element.querySelector<HTMLButtonElement>('[data-testid="nav-build"]')!.click();
+    expect(selectTool).not.toHaveBeenCalled();
+    expect(shell.subToolTray.element.hidden).toBe(false);
+    expect(shell.subToolTray.element.querySelectorAll('[data-build-category]').length).toBe(4);
+
+    shell.subToolTray.element
+      .querySelector<HTMLButtonElement>('[data-testid="build-category-terrain"]')!
+      .click();
     expect(shell.subToolTray.element.querySelectorAll('[data-tool-mode]').length).toBe(3);
     expect(shell.subToolTray.element.querySelectorAll('[data-brush-size]').length).toBe(3);
-    expect(shell.toolContextSheet.element.hidden).toBe(false);
-    expect(shell.toolContextSheet.element.textContent).toContain('Raise');
 
-    const lower = shell.subToolTray.element.querySelector<HTMLButtonElement>(
-      '[data-tool-mode="lower"]',
-    );
-    lower?.click();
+    shell.subToolTray.element
+      .querySelector<HTMLButtonElement>('[data-tool-mode="lower"]')!
+      .click();
     expect(selectTool).toHaveBeenLastCalledWith('lower');
+    expect(shell.subToolTray.element.hidden).toBe(true);
+    expect(shell.toolContextSheet.element.hidden).toBe(false);
     expect(shell.toolContextSheet.element.textContent).toContain('Lower');
+    expect(
+      shell.element
+        .querySelector<HTMLButtonElement>('[data-testid="nav-build"]')!
+        .getAttribute('aria-pressed'),
+    ).toBe('false');
 
-    terrain?.click();
-    expect(selectTool).toHaveBeenLastCalledWith('navigate');
-    expect(terrain?.getAttribute('aria-pressed')).toBe('false');
-    expect(shell.subToolTray.element.hasAttribute('hidden')).toBe(true);
-    expect(shell.toolContextSheet.element.hidden).toBe(true);
+    shell.element.querySelector<HTMLButtonElement>('[data-testid="nav-build"]')!.click();
+    shell.element.querySelector<HTMLButtonElement>('[data-testid="nav-city"]')!.click();
+    expect(onCity).toHaveBeenCalledTimes(1);
+    expect(shell.subToolTray.element.hidden).toBe(true);
+    expect(selectTool).toHaveBeenLastCalledWith('lower');
 
     shell.dispose();
   });

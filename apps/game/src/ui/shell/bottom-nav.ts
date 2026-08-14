@@ -1,42 +1,56 @@
-import { createCityIcon } from '../components/icon.js';
+import { createCityIcon, type CityIconName } from '../components/icon.js';
 
-export type NavCategory = 'navigate' | 'terrain' | 'roads' | 'zones' | 'buildings';
+export type BuildNavCategory = 'terrain' | 'roads' | 'zones' | 'buildings';
+export type BottomNavCategory = BuildNavCategory | 'city';
+export type BottomNavSelection = BuildNavCategory | 'city' | null;
 
-export const navCategories: readonly NavCategory[] = [
-  'navigate',
+export const navCategories: readonly BottomNavCategory[] = [
   'terrain',
   'roads',
   'zones',
   'buildings',
+  'city',
 ];
 
-const navLabels: Readonly<Record<NavCategory, string>> = {
-  navigate: 'Navigate',
+const navLabels: Readonly<Record<BottomNavCategory, string>> = {
   terrain: 'Terrain',
   roads: 'Roads',
   zones: 'Zones',
-  buildings: 'Buildings',
+  buildings: 'Build',
+  city: 'City',
+};
+
+const navIcons: Readonly<Record<BottomNavCategory, CityIconName>> = {
+  terrain: 'terrain',
+  roads: 'roads',
+  zones: 'zones',
+  buildings: 'buildings',
+  city: 'city',
 };
 
 export interface BottomNav {
   readonly element: HTMLElement;
-  setActiveCategory(category: NavCategory): void;
+  setActiveCategory(category: BuildNavCategory | null): void;
   dispose(): void;
 }
 
 export function mountBottomNav(
   parent: HTMLElement,
-  onSelect: (category: NavCategory) => void,
+  onSelect: (selection: BottomNavSelection) => void,
 ): BottomNav {
   const element = document.createElement('nav');
   element.className = 'city-bottom-nav';
-  element.setAttribute('aria-label', 'City build categories');
-  let activeCategory: NavCategory = 'navigate';
-  const buttons = new Map<NavCategory, HTMLButtonElement>();
+  element.setAttribute('aria-label', 'Primary gameplay navigation');
+
+  const primary = document.createElement('div');
+  primary.className = 'city-bottom-nav-primary';
+
+  let activeCategory: BuildNavCategory | null = null;
+  const buttons = new Map<BottomNavCategory, HTMLButtonElement>();
 
   const renderPressed = (): void => {
     for (const [category, button] of buttons) {
-      const selected = category === activeCategory;
+      const selected = category !== 'city' && category === activeCategory;
       button.setAttribute('aria-pressed', String(selected));
       button.classList.toggle('is-active', selected);
     }
@@ -49,26 +63,41 @@ export function mountBottomNav(
     button.dataset.navCategory = category;
     button.dataset.testid = `nav-${category}`;
     button.setAttribute('aria-label', navLabels[category]);
-    button.append(createCityIcon(category));
+    button.append(createCityIcon(navIcons[category]));
+
     const label = document.createElement('span');
     label.className = 'city-nav-label';
     label.textContent = navLabels[category];
     button.append(label);
+
     button.addEventListener('click', () => {
-      activeCategory = category;
-      onSelect(category);
+      if (category === 'city') {
+        onSelect('city');
+        renderPressed();
+        return;
+      }
+
+      if (activeCategory === category) {
+        activeCategory = null;
+        onSelect(null);
+      } else {
+        activeCategory = category;
+        onSelect(category);
+      }
       renderPressed();
     });
+
     buttons.set(category, button);
-    element.append(button);
+    primary.append(button);
   }
 
+  element.append(primary);
   parent.append(element);
   renderPressed();
 
   return Object.freeze({
     element,
-    setActiveCategory(category: NavCategory): void {
+    setActiveCategory(category: BuildNavCategory | null): void {
       activeCategory = category;
       renderPressed();
     },

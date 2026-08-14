@@ -3,9 +3,7 @@ import { GAME_URL, locateTerrainCell } from './helpers/interaction.js';
 
 test.describe.configure({ timeout: 60_000 });
 
-async function openMobile(
-  page: import('@playwright/test').Page,
-): Promise<void> {
+async function openMobile(page: import('@playwright/test').Page): Promise<void> {
   await page.setViewportSize({ width: 414, height: 896 });
   await page.goto(GAME_URL);
   await expect(page.locator('.city-awareness-hud')).toBeVisible();
@@ -18,12 +16,7 @@ test(
 
     await expect(page.getByTestId('nav-build')).toBeVisible();
     await expect(page.getByTestId('nav-city')).toBeVisible();
-    for (const retired of [
-      'nav-terrain',
-      'nav-roads',
-      'nav-zones',
-      'nav-buildings',
-    ]) {
+    for (const retired of ['nav-terrain', 'nav-roads', 'nav-zones', 'nav-buildings']) {
       await expect(page.getByTestId(retired)).toHaveCount(0);
     }
 
@@ -80,15 +73,18 @@ test(
 
     const bars = page.locator('[data-rci-demand-bar]');
     await expect(bars).toHaveCount(3);
-    await expect(
-      page.locator('[data-rci-demand-bar="residential"]'),
-    ).toHaveAttribute('aria-label', /Residential demand/);
-    await expect(
-      page.locator('[data-rci-demand-bar="commercial"]'),
-    ).toHaveAttribute('aria-label', /Commercial demand/);
-    await expect(
-      page.locator('[data-rci-demand-bar="industrial"]'),
-    ).toHaveAttribute('aria-label', /Industrial demand/);
+    await expect(page.locator('[data-rci-demand-bar="residential"]')).toHaveAttribute(
+      'aria-label',
+      /Residential demand/,
+    );
+    await expect(page.locator('[data-rci-demand-bar="commercial"]')).toHaveAttribute(
+      'aria-label',
+      /Commercial demand/,
+    );
+    await expect(page.locator('[data-rci-demand-bar="industrial"]')).toHaveAttribute(
+      'aria-label',
+      /Industrial demand/,
+    );
 
     await page.getByTestId('nav-city').click();
     await expect(page.getByRole('dialog')).toBeVisible();

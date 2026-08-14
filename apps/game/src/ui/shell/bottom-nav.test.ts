@@ -1,67 +1,48 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { mountBuildCategoryDock } from './build-category-dock.js';
-import { mountPrimaryActions } from './primary-actions.js';
+import { mountBottomNav } from './bottom-nav.js';
 
 afterEach(() => document.body.replaceChildren());
 
-describe('M6.2 mobile primary actions and Build category dock', () => {
-  it('keeps only Navigate and Build in persistent bottom chrome', () => {
-    const actions = mountPrimaryActions(document.body, {
-      onNavigate: vi.fn(),
-      onToggleBuild: vi.fn(),
-    });
+describe('M6.3 Figma mobile bottom navigation', () => {
+  it('renders exactly Terrain, Roads, Zones, Build, and City in persistent chrome', () => {
+    const nav = mountBottomNav(document.body, vi.fn());
 
-    const navigate = actions.element.querySelector('[data-testid="primary-navigate"]');
-    const build = actions.element.querySelector<HTMLButtonElement>('[data-testid="build-cta"]');
-    expect(navigate).not.toBeNull();
-    expect(build).not.toBeNull();
-    expect(build?.textContent).toContain('Build');
-    expect(build?.getAttribute('aria-expanded')).toBe('false');
-    expect(actions.element.querySelector('[data-build-category]')).toBeNull();
-  });
-
-  it('opens the conditional Build category dock without selecting a tool', () => {
-    const onSelectCategory = vi.fn();
-    const onClose = vi.fn();
-    const dock = mountBuildCategoryDock(document.body, {
-      onSelectCategory,
-      onClose,
-    });
-
-    expect(dock.element.hidden).toBe(true);
-    dock.open();
-    expect(dock.element.hidden).toBe(false);
-    expect(onSelectCategory).not.toHaveBeenCalled();
     expect(
       Array.from(
-        dock.element.querySelectorAll<HTMLButtonElement>('[data-build-category]'),
-        (button) => button.dataset.buildCategory,
+        nav.element.querySelectorAll<HTMLElement>('[data-nav-category]'),
+        (item) => item.dataset.navCategory,
       ),
-    ).toEqual(['terrain', 'roads', 'zones', 'buildings']);
-    expect(dock.element.querySelector('[data-testid="build-close"]')).not.toBeNull();
+    ).toEqual(['terrain', 'roads', 'zones', 'buildings', 'city']);
+    expect(nav.element.textContent).toContain('Terrain');
+    expect(nav.element.textContent).toContain('Roads');
+    expect(nav.element.textContent).toContain('Zones');
+    expect(nav.element.textContent).toContain('Build');
+    expect(nav.element.textContent).toContain('City');
+    expect(nav.element.textContent).not.toContain('Navigate');
   });
 
-  it('marks the selected Build category and keeps Close independent', () => {
-    const onSelectCategory = vi.fn();
-    const onClose = vi.fn();
-    const dock = mountBuildCategoryDock(document.body, {
-      onSelectCategory,
-      onClose,
-    });
-    dock.open();
-    dock.setActiveCategory('zones');
+  it('toggles an active build category back to implicit Navigate mode', () => {
+    const onSelect = vi.fn();
+    const nav = mountBottomNav(document.body, onSelect);
+    const terrain = nav.element.querySelector<HTMLButtonElement>('[data-testid="nav-terrain"]')!;
 
-    const zones = dock.element.querySelector<HTMLButtonElement>('[data-build-category="zones"]');
-    const terrain = dock.element.querySelector<HTMLButtonElement>(
-      '[data-build-category="terrain"]',
-    );
-    expect(zones?.getAttribute('aria-pressed')).toBe('true');
-    expect(terrain?.getAttribute('aria-pressed')).toBe('false');
+    terrain.click();
+    expect(onSelect).toHaveBeenLastCalledWith('terrain');
+    expect(terrain.getAttribute('aria-pressed')).toBe('true');
 
-    zones?.click();
-    expect(onSelectCategory).toHaveBeenCalledWith('zones');
-    const close = dock.element.querySelector<HTMLButtonElement>('[data-testid="build-close"]');
-    close?.click();
-    expect(onClose).toHaveBeenCalledTimes(1);
+    terrain.click();
+    expect(onSelect).toHaveBeenLastCalledWith(null);
+    expect(terrain.getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('routes City independently from build-category selection', () => {
+    const onSelect = vi.fn();
+    const nav = mountBottomNav(document.body, onSelect);
+    const city = nav.element.querySelector<HTMLButtonElement>('[data-testid="nav-city"]');
+
+    expect(city).not.toBeNull();
+    city?.click();
+    expect(onSelect).toHaveBeenLastCalledWith('city');
+    expect(nav.element.querySelector('[aria-pressed="true"]')).toBeNull();
   });
 });

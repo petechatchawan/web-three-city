@@ -40,6 +40,10 @@ test('exposes the simple calendar and deterministic time controls', async ({ pag
   await expect(speed).toHaveText('Ⅱ');
   await expect(page.locator('[data-simulation-step]')).toBeEnabled();
 
+  // Cycling through running speeds can legitimately advance wall-clock driven ticks.
+  // Reset the deterministic test clock before asserting Step semantics so the test
+  // verifies the command itself rather than scheduler timing under CI load.
+  await prepareDeterministicGrowthClock(page);
   const after = await stepLogicalTicks(page, 1);
   expect(after.simulation.absoluteTick).toBe(9);
   expect(after.speed).toBe('paused');
@@ -91,8 +95,7 @@ test('automatic Growth preserves the active Zoning tool and in-progress stroke',
       probe.navigateClicks += 1;
     });
     canvas.addEventListener('web-three-city:game-tool-presentation', (event) => {
-      const detail = (event as CustomEvent<{ readonly type?: string; readonly domain?: string }>)
-        .detail;
+      const detail = (event as CustomEvent<{ readonly type?: string; readonly domain?: string }>).detail;
       if (detail?.type === 'transaction-state' && detail.domain === 'building') {
         probe.buildingTransactions += 1;
       }

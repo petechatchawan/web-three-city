@@ -199,7 +199,11 @@ export function mountStatusFeedback(
       if (latestMode !== projection.mode) expanded = false;
       latestMode = projection.mode;
       latestProjection = projection;
-      if (projection.mode === 'navigate') expanded = false;
+      if (projection.mode === 'navigate') {
+        expanded = false;
+        transientStatus = '';
+        cancelDismiss();
+      }
       render();
     },
     setUndoAvailable(available: boolean): void {

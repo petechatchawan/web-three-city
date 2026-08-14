@@ -47,6 +47,7 @@ export interface PlayerShell extends UiAdapter<GameHudProjection> {
   readonly simulationControls: SimulationControls;
   readonly subToolTray: SubToolTray;
   readonly toolContextSheet: ToolContextSheetAdapter;
+  selectTool(mode: GameToolMode): void;
   setLocale(locale: UiLocale): void;
 }
 
@@ -126,6 +127,7 @@ export function mountPlayerShell(
     simulationControls,
     subToolTray,
     toolContextSheet,
+    selectTool,
     setLocale(nextLocale: UiLocale): void {
       locale = nextLocale;
       bottomNav.setLocale(locale);

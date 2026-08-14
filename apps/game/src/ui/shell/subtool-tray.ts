@@ -1,27 +1,37 @@
 import type { GameToolMode } from '../../game-tool-mode.js';
 import { createCityIcon, type CityIconName } from '../components/icon.js';
+import { uiText, type UiCopyKey, type UiLocale } from '../presentation-locale.js';
 import { mountBrushSelector, type BrushSelector } from './brush-stepper.js';
 
 export type TrayCategory = 'terrain' | 'roads' | 'zones' | 'buildings';
 export const trayCategories: readonly TrayCategory[] = ['terrain', 'roads', 'zones', 'buildings'];
 
-const trayTools: Readonly<Record<TrayCategory, ReadonlyArray<readonly [string, GameToolMode]>>> = {
+const trayTools: Readonly<
+  Record<TrayCategory, ReadonlyArray<readonly [UiCopyKey, GameToolMode]>>
+> = {
   terrain: [
-    ['Raise', 'raise'],
-    ['Lower', 'lower'],
-    ['Flatten', 'flatten'],
+    ['raise', 'raise'],
+    ['lower', 'lower'],
+    ['flatten', 'flatten'],
   ],
   roads: [
-    ['Build Road', 'road-build'],
-    ['Bulldoze Road', 'road-bulldoze'],
+    ['buildRoad', 'road-build'],
+    ['bulldozeRoad', 'road-bulldoze'],
   ],
   zones: [
-    ['Residential', 'zone-residential'],
-    ['Commercial', 'zone-commercial'],
-    ['Industrial', 'zone-industrial'],
-    ['Remove Zone', 'zone-remove'],
+    ['residential', 'zone-residential'],
+    ['commercial', 'zone-commercial'],
+    ['industrial', 'zone-industrial'],
+    ['removeZone', 'zone-remove'],
   ],
-  buildings: [['Bulldoze Building', 'building-bulldoze']],
+  buildings: [['bulldozeBuilding', 'building-bulldoze']],
+};
+
+const categoryIcons: Readonly<Record<TrayCategory, CityIconName>> = {
+  terrain: 'terrain',
+  roads: 'roads',
+  zones: 'zones',
+  buildings: 'buildings',
 };
 
 const toolIcons: Readonly<Record<GameToolMode, CityIconName>> = {
@@ -48,52 +58,93 @@ const semanticClass: Partial<Record<GameToolMode, string>> = {
 export interface SubToolTrayCallbacks {
   readonly onSelectTool: (mode: GameToolMode) => void;
   readonly onBrush?: (size: 1 | 3 | 5) => void;
+  readonly onClose?: () => void;
 }
 
 export interface SubToolTray {
   readonly element: HTMLElement;
   readonly categories: Readonly<
-    Record<TrayCategory, ReadonlyArray<readonly [string, GameToolMode]>>
+    Record<TrayCategory, ReadonlyArray<readonly [UiCopyKey, GameToolMode]>>
   >;
-  open(category: TrayCategory): void;
+  open(category?: TrayCategory): void;
   close(): void;
+  setLocale(locale: UiLocale): void;
   dispose(): void;
 }
 
 export function mountSubToolTray(
   parent: HTMLElement,
   callbacks: SubToolTrayCallbacks,
+  initialLocale: UiLocale = 'en',
 ): SubToolTray {
-  const element = document.createElement('div');
-  element.className = 'city-contextual-tool-dock city-subtool-tray';
-  element.dataset.testid = 'subtool-tray';
+  const element = document.createElement('section');
+  element.className = 'city-contextual-tool-dock city-subtool-tray city-build-picker';
+  element.dataset.testid = 'build-picker';
   element.hidden = true;
+  element.setAttribute('aria-label', 'Build tools');
+
   const slot = document.createElement('div');
   slot.className = 'city-contextual-tool-dock-content city-subtool-tray-content';
   element.append(slot);
-  let activeBrush: 1 | 3 | 5 = 1;
-  let activeMode: GameToolMode | null = null;
 
-  const selectVisual = (mode: GameToolMode): void => {
-    activeMode = mode;
-    for (const button of slot.querySelectorAll<HTMLButtonElement>('[data-tool-mode]')) {
-      const selected = button.dataset.toolMode === mode;
-      button.setAttribute('aria-pressed', String(selected));
-      button.classList.toggle('is-active', selected);
+  let activeBrush: 1 | 3 | 5 = 1;
+  let locale = initialLocale;
+  let currentCategory: TrayCategory | null = null;
+
+  const close = (): void => {
+    slot.replaceChildren();
+    element.hidden = true;
+    currentCategory = null;
+    delete element.dataset.category;
+    callbacks.onClose?.();
+  };
+
+  const renderCategories = (): void => {
+    slot.replaceChildren();
+    currentCategory = null;
+    delete element.dataset.category;
+    element.setAttribute('aria-label', locale === 'th' ? 'เครื่องมือสร้าง' : 'Build tools');
+    for (const category of trayCategories) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'city-build-category';
+      button.dataset.testid = `build-category-${category}`;
+      button.dataset.buildCategory = category;
+      const label = uiText(locale, category);
+      button.setAttribute('aria-label', label);
+      button.append(createCityIcon(categoryIcons[category]));
+      const text = document.createElement('span');
+      text.textContent = label;
+      button.append(text);
+      button.addEventListener('click', () => renderCategory(category));
+      slot.append(button);
     }
   };
 
   const renderCategory = (category: TrayCategory): void => {
     slot.replaceChildren();
-    const tools = trayTools[category];
-    if (!tools.some(([, mode]) => mode === activeMode)) activeMode = tools[0]?.[1] ?? null;
-    for (const [label, mode] of tools) {
+    currentCategory = category;
+    element.dataset.category = category;
+
+    const back = document.createElement('button');
+    back.type = 'button';
+    back.className = 'city-build-picker-back';
+    back.setAttribute('aria-label', locale === 'th' ? 'กลับไปหมวดเครื่องมือ' : 'Back to build categories');
+    back.append(createCityIcon('chevron-down'));
+    const backText = document.createElement('span');
+    backText.textContent = uiText(locale, category);
+    back.append(backText);
+    back.addEventListener('click', renderCategories);
+    slot.append(back);
+
+    for (const [labelKey, mode] of trayTools[category]) {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'city-tool-pill';
       const semantic = semanticClass[mode];
       if (semantic !== undefined) button.classList.add(semantic);
       button.dataset.toolMode = mode;
+      const label = uiText(locale, labelKey);
       button.setAttribute('aria-label', label);
       button.append(createCityIcon(toolIcons[mode]));
       const text = document.createElement('span');
@@ -101,11 +152,12 @@ export function mountSubToolTray(
       text.textContent = label;
       button.append(text);
       button.addEventListener('click', () => {
-        selectVisual(mode);
         callbacks.onSelectTool(mode);
+        close();
       });
       slot.append(button);
     }
+
     if (category === 'terrain' && callbacks.onBrush !== undefined) {
       const brush = mountBrushSelector(slot, (size) => {
         activeBrush = size;
@@ -113,22 +165,24 @@ export function mountSubToolTray(
       });
       brush.setBrush(activeBrush);
     }
-    if (activeMode !== null) selectVisual(activeMode);
   };
 
   parent.append(element);
   return Object.freeze({
     element,
     categories: trayTools,
-    open(category: TrayCategory): void {
-      renderCategory(category);
-      element.dataset.category = category;
+    open(category?: TrayCategory): void {
       element.hidden = false;
+      if (category === undefined) renderCategories();
+      else renderCategory(category);
     },
-    close(): void {
-      slot.replaceChildren();
-      element.hidden = true;
-      delete element.dataset.category;
+    close,
+    setLocale(nextLocale: UiLocale): void {
+      locale = nextLocale;
+      if (!element.hidden) {
+        if (currentCategory === null) renderCategories();
+        else renderCategory(currentCategory);
+      }
     },
     dispose(): void {
       element.remove();

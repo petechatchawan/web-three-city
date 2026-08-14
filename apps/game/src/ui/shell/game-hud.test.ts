@@ -23,14 +23,7 @@ describe('M6.2 mobile game HUD', () => {
         hud.element.querySelectorAll<HTMLElement>('[data-metric]'),
         (metric) => metric.dataset.metric,
       ),
-    ).toEqual([
-      'population',
-      'population',
-      'treasury',
-      'treasury',
-      'gameTime',
-      'gameTime',
-    ]);
+    ).toEqual(['population', 'population', 'treasury', 'treasury', 'gameTime', 'gameTime']);
     expect(hud.element.textContent).toContain('337');
     expect(hud.element.textContent).toContain('100K');
     expect(hud.element.textContent).toContain('Y1 M5 D19 06:45');
@@ -44,9 +37,7 @@ describe('M6.2 mobile game HUD', () => {
     const onSelectMetric = vi.fn();
     const hud = mountGameHud(document.body, { onSelectMetric });
     for (const metric of ['population', 'treasury', 'gameTime'] as const) {
-      const chip = hud.element.querySelector<HTMLButtonElement>(
-        `button[data-metric="${metric}"]`,
-      );
+      const chip = hud.element.querySelector<HTMLButtonElement>(`button[data-metric="${metric}"]`);
       expect(chip).not.toBeNull();
       expect(chip?.getAttribute('role')).toBe('button');
       chip?.click();

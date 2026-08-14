@@ -4,9 +4,7 @@ import { mountStatusFeedback } from './status-feedback.js';
 
 afterEach(() => document.body.replaceChildren());
 
-function projection(
-  overrides: Partial<ContextualToolProjection> = {},
-): ContextualToolProjection {
+function projection(overrides: Partial<ContextualToolProjection> = {}): ContextualToolProjection {
   return {
     mode: 'road-build',
     name: 'Build Road',
@@ -20,9 +18,7 @@ function projection(
 }
 
 function feedbackButton(): HTMLButtonElement | null {
-  return document.querySelector<HTMLButtonElement>(
-    '[data-testid="tool-context-undo"]',
-  );
+  return document.querySelector<HTMLButtonElement>('[data-testid="tool-context-undo"]');
 }
 
 describe('M6.2 transient status feedback', () => {
@@ -39,10 +35,9 @@ describe('M6.2 transient status feedback', () => {
     const feedback = mountStatusFeedback(document.body);
     feedback.setStatus('Road built');
     expect(feedback.element.hidden).toBe(false);
-    expect(
-      feedback.element.querySelector('[data-testid="tool-context-status"]')
-        ?.textContent,
-    ).toBe('Road built');
+    expect(feedback.element.querySelector('[data-testid="tool-context-status"]')?.textContent).toBe(
+      'Road built',
+    );
   });
 
   it('shows rejected tool projections but ignores default tool-ready projection', () => {

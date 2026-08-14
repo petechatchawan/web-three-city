@@ -28,18 +28,11 @@ function mountSpyShell(callbacks: Partial<PlayerShellCallbacks> = {}) {
 }
 
 function openBuild(shell: ReturnType<typeof mountSpyShell>): void {
-  shell.element
-    .querySelector<HTMLButtonElement>('[data-testid="build-cta"]')
-    ?.click();
+  shell.element.querySelector<HTMLButtonElement>('[data-testid="build-cta"]')?.click();
 }
 
-function selectCategory(
-  shell: ReturnType<typeof mountSpyShell>,
-  category: TrayCategory,
-): void {
-  shell.element
-    .querySelector<HTMLButtonElement>(`[data-build-category="${category}"]`)
-    ?.click();
+function selectCategory(shell: ReturnType<typeof mountSpyShell>, category: TrayCategory): void {
+  shell.element.querySelector<HTMLButtonElement>(`[data-build-category="${category}"]`)?.click();
 }
 
 describe('player shell M6.2 wiring', () => {
@@ -71,9 +64,7 @@ describe('player shell M6.2 wiring', () => {
     openBuild(shell);
     selectCategory(shell, 'zones');
     expect(onSelect).toHaveBeenLastCalledWith('zone-residential');
-    shell.element
-      .querySelector<HTMLButtonElement>('[data-testid="build-close"]')
-      ?.click();
+    shell.element.querySelector<HTMLButtonElement>('[data-testid="build-close"]')?.click();
     expect(onSelect).toHaveBeenLastCalledWith('navigate');
     expect(shell.buildCategoryDock.element.hidden).toBe(true);
     expect(shell.subToolTray.element.hidden).toBe(true);
@@ -82,9 +73,7 @@ describe('player shell M6.2 wiring', () => {
   it('forwards awareness metric taps on the HUD to onSelectMetric', () => {
     const onSelectMetric = vi.fn();
     const shell = mountSpyShell({ onSelectMetric });
-    shell.element
-      .querySelector<HTMLButtonElement>('[data-metric="population"]')
-      ?.click();
+    shell.element.querySelector<HTMLButtonElement>('[data-metric="population"]')?.click();
     expect(onSelectMetric).toHaveBeenCalledWith('population');
     shell.dispose();
   });

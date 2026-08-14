@@ -1,10 +1,7 @@
 import type { GameToolMode } from '../../game-tool-mode.js';
 import { mountDialogHost, type DialogHost } from '../dialog/dialog-host.js';
 import type { UiAdapter } from '../foundation/lifecycle.js';
-import {
-  mountBuildCategoryDock,
-  type BuildCategoryDock,
-} from './build-category-dock.js';
+import { mountBuildCategoryDock, type BuildCategoryDock } from './build-category-dock.js';
 import { mountGameHud, type GameHudCallbacks, type GameHudProjection } from './game-hud.js';
 import { mountPrimaryActions, type PrimaryActions } from './primary-actions.js';
 import { mountSimulationControls, type SimulationControlCallbacks } from './simulation-controls.js';

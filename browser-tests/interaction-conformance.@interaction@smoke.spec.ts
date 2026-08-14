@@ -13,7 +13,7 @@ import {
   type CellCoord,
   type RoadPlacementEnvironment,
 } from './helpers/domain-fixtures.js';
-import { openBuildCategory, waitForCityUi } from './helpers/city-ui.js';
+import { closeBuild, openBuildCategory, waitForCityUi } from './helpers/city-ui.js';
 import {
   GAME_URL,
   clickTerrainCell,
@@ -123,20 +123,22 @@ async function locatePair(
   return [await clickTerrainCell(page, first), await clickTerrainCell(page, second)];
 }
 
-test('canonical mobile HUD keeps Build hierarchy map-first', async ({ page }) => {
+test('canonical mobile HUD keeps Figma gameplay hierarchy map-first', async ({ page }) => {
   await openGame(page, 414, 896);
-  await expect(page.locator('.city-primary-actions')).toBeVisible();
-  await expect(page.getByTestId('build-cta')).toBeVisible();
-  await expect(page.getByTestId('build-category-dock')).toBeHidden();
+  await expect(page.locator('.city-bottom-nav')).toBeVisible();
+  for (const category of ['terrain', 'roads', 'zones', 'buildings', 'city'] as const) {
+    await expect(page.getByTestId(`nav-${category}`)).toBeVisible();
+  }
+  await expect(page.getByTestId('build-cta')).toHaveCount(0);
+  await expect(page.getByTestId('build-category-dock')).toHaveCount(0);
   await expect(page.getByTestId('subtool-tray')).toBeHidden();
   await expect(page.locator('.city-tool-context')).toHaveCount(0);
+  await expect(page.locator('[data-simulation-speed]')).toHaveCount(4);
 
-  await page.getByTestId('build-cta').click();
-  await expect(page.getByTestId('build-category-dock')).toBeVisible();
-  await expect(page.getByTestId('subtool-tray')).toBeHidden();
   await openBuildCategory(page, 'terrain');
   await expect(page.getByRole('button', { name: 'Raise', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Game Menu' })).toBeVisible();
+  await expect(page.getByTestId('tool-context-toggle')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Game Menu' })).toHaveCount(0);
 
   const layout = await page.evaluate(() => {
     const hud = document.querySelector<HTMLElement>('.city-awareness-hud');
@@ -220,7 +222,7 @@ test('invalid Road preview exposes a non-color marker and reason', async ({ page
   await page.mouse.up();
 });
 
-test('Escape cancels a preview before closing Build mode', async ({ page }) => {
+test('Escape cancels a preview before clearing the active Figma category', async ({ page }) => {
   await openGame(page);
   const line = findAcceptedThenRoadBlockedLine();
   const point = await clickTerrainCell(page, line.start);
@@ -239,20 +241,19 @@ test('Escape cancels a preview before closing Build mode', async ({ page }) => {
     before.terraform.committedTerrainRevision,
   );
   await expect(raise).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('nav-terrain')).toHaveAttribute('aria-pressed', 'true');
 
   await page.keyboard.press('Escape');
-  await expect(page.getByTestId('build-cta')).toHaveAttribute('aria-expanded', 'false');
-  await expect(page.getByTestId('build-category-dock')).toBeHidden();
+  await expect(page.getByTestId('nav-terrain')).toHaveAttribute('aria-pressed', 'false');
   await expect(page.getByTestId('subtool-tray')).toBeHidden();
+  await expect(page.getByTestId('tool-context-toggle')).toBeHidden();
 });
 
-test('canonical 414x896 Build tools remain reachable without horizontal page overflow', async ({
+test('canonical 414x896 Figma tools remain reachable without horizontal page overflow', async ({
   page,
 }) => {
   await openGame(page, 414, 896);
-  await expect(page.locator('.city-primary-actions')).toBeVisible();
-  await expect(page.getByTestId('build-cta')).toBeVisible();
-  await expect(page.getByTestId('build-category-dock')).toBeHidden();
+  await expect(page.locator('.city-bottom-nav')).toBeVisible();
   await expect(page.getByTestId('subtool-tray')).toBeHidden();
   const layout = await page.evaluate(() => ({
     horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
@@ -267,4 +268,8 @@ test('canonical 414x896 Build tools remain reachable without horizontal page ove
   await expect(page.getByRole('button', { name: 'Raise', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Brush 1 × 1' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Brush 5 × 5' })).toBeVisible();
+  await expect(page.getByTestId('tool-context-toggle')).toBeVisible();
+
+  await closeBuild(page);
+  await expect(page.getByTestId('subtool-tray')).toBeHidden();
 });

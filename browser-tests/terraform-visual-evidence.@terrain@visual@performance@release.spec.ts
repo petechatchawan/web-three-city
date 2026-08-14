@@ -1,4 +1,4 @@
-import { closeBuild, openBuildCategory, waitForCityUi } from './helpers/city-ui.js';
+import { clickToolUndo, closeBuild, openBuildCategory, waitForCityUi } from './helpers/city-ui.js';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import {
@@ -174,7 +174,7 @@ test('captures Terraform Foundation visual and timing evidence', async ({ page }
   });
   await page.mouse.up();
   await expect(page.getByTestId('tool-context-status')).toHaveText('Terraform applied');
-  await page.getByTestId('tool-context-undo').click();
+  await clickToolUndo(page);
   await expect(page.getByTestId('tool-context-status')).toHaveText('Terraform undone');
 
   await closeBuild(page);
@@ -192,7 +192,7 @@ test('captures Terraform Foundation visual and timing evidence', async ({ page }
   });
   await page.mouse.up();
   await expect(page.getByTestId('tool-context-status')).toHaveText('Terraform applied');
-  await page.getByTestId('tool-context-undo').click();
+  await clickToolUndo(page);
   await expect(page.getByTestId('tool-context-status')).toHaveText('Terraform undone');
 
   await closeBuild(page);
@@ -228,7 +228,7 @@ test('captures Terraform Foundation visual and timing evidence', async ({ page }
   });
 
   const undoStart = await page.evaluate(() => performance.now());
-  await page.getByTestId('tool-context-undo').click();
+  await clickToolUndo(page);
   await expect(page.getByTestId('tool-context-status')).toHaveText('Terraform undone');
   const undoEnd = await page.evaluate(() => performance.now());
   const undone = await readEvidence(page);

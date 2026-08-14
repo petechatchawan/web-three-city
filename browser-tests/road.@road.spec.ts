@@ -1,4 +1,4 @@
-import { openBuildCategory, waitForCityUi } from './helpers/city-ui.js';
+import { clickToolUndo, openBuildCategory, waitForCityUi } from './helpers/city-ui.js';
 import { expect, test, type Page } from '@playwright/test';
 import {
   GAME_SEED,
@@ -260,7 +260,7 @@ test('Bulldoze updates topology and tagged Undo restores the Road only', async (
   expect(bulldozed.road.bulldozeCount).toBe(built.road.bulldozeCount + 1);
   expect(bulldozed.water.sourceTerrainRevision).toBe(built.water.sourceTerrainRevision);
 
-  await page.getByTestId('tool-context-undo').click();
+  await clickToolUndo(page);
   await expect(page.getByTestId('tool-context-status')).toHaveText('Road undone');
   const undone = await readEvidence(page);
   expect(undone.road.occupiedCellCount).toBe(built.road.occupiedCellCount);

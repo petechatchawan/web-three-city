@@ -72,6 +72,7 @@ const simulationRuntime = createSimulationRuntime('paused');
 let previousFrameTimestamp: number | null = null;
 let frameRequest = 0;
 const phaseByInstance = new Map<string, string>();
+let cityUi: ReturnType<typeof mountCityUi>;
 
 function refreshConstructionPhaseIfNeeded(world = runtime.snapshot()): void {
   let changed = false;
@@ -97,7 +98,7 @@ function synchronizeCommittedWorld(
   reason: Parameters<Parameters<typeof runtime.subscribeCommittedWorld>[0]>[1],
 ): void {
   if (reason === 'load') {
-    simulationRuntime.setSpeed('paused');
+    setSimulationSpeed('paused');
     simulationRuntime.resetAfterVisibilityChange();
   }
   setBuildingPresentationAbsoluteTick(world.simulation.absoluteTick);
@@ -111,10 +112,11 @@ function advanceOneLogicalTick(): void {
 
 function setSimulationSpeed(speed: SimulationSpeed): void {
   simulationRuntime.setSpeed(speed);
+  cityUi.setSimulationSpeed(speed);
 }
 
 function resetSimulationForTest(): void {
-  simulationRuntime.setSpeed('paused');
+  setSimulationSpeed('paused');
   simulationRuntime.resetAfterVisibilityChange();
   phaseByInstance.clear();
   const world = runtime.resetSimulationForTest();
@@ -122,7 +124,7 @@ function resetSimulationForTest(): void {
   refreshConstructionPhaseIfNeeded(world);
 }
 
-const cityUi = mountCityUi(root, {
+cityUi = mountCityUi(root, {
   setSpeed: setSimulationSpeed,
   selectTool: (mode) => runtime.selectTool(mode),
   setTerraformBrush: (size) => {

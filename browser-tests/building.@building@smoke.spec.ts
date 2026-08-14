@@ -4,7 +4,7 @@ import {
   pointFor,
   prepareBuildingFixtureWorld,
 } from './helpers/building-fixture.js';
-import { openBuildCategory, waitForCityUi } from './helpers/city-ui.js';
+import { clickToolUndo, openBuildCategory, waitForCityUi } from './helpers/city-ui.js';
 import { prepareDeterministicGrowthClock, stepLogicalTicks } from './helpers/growth-fixture.js';
 import { GAME_URL, clickGameMenuAction, readEvidence } from './helpers/interaction.js';
 
@@ -188,7 +188,7 @@ test('grows deterministic R/C/I content and preserves authority across guards, U
   expect(evidence.building.definitionIds).not.toContain(bulldozedDefinitionId);
   expect(evidence.zone.counts.commercial).toBe(4);
 
-  await page.getByTestId('tool-context-undo').click();
+  await clickToolUndo(page);
   await expect(page.getByTestId('tool-context-status')).toHaveText('Building undone');
   evidence = await readEvidence(page);
   expect(evidence.building.count).toBe(3);

@@ -1,4 +1,4 @@
-import { openBuildCategory, waitForCityUi } from './helpers/city-ui.js';
+import { clickToolUndo, openBuildCategory, waitForCityUi } from './helpers/city-ui.js';
 import { expect, test, type Page } from '@playwright/test';
 import {
   EMPTY_WORLD_OCCUPANCY,
@@ -217,7 +217,7 @@ test('paints R/C/I at committed-Road depths 1–3 and round-trips WorldSaveV5', 
   await expect(page.getByTestId('tool-context-status')).toHaveText('Zone removed');
   expect((await readEvidence(page)).zone.counts.industrial).toBe(0);
 
-  await page.getByTestId('tool-context-undo').click();
+  await clickToolUndo(page);
   await expect(page.getByTestId('tool-context-status')).toHaveText('Zone undone');
   evidence = await readEvidence(page);
   expect(evidence.zone.counts.industrial).toBe(1);

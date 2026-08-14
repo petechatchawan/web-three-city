@@ -34,6 +34,7 @@ export interface CityUiRuntime {
   readonly element: HTMLElement;
   readonly dialogHost: DialogHost;
   readonly toolContextSheet: ToolContextSheetAdapter;
+  setSimulationSpeed(speed: Parameters<CityUiPorts['setSpeed']>[0]): void;
   update(world: CommittedWorld): void;
   inspectCell(cell: Readonly<{ x: number; z: number }>): void;
   dispose(): void;
@@ -235,6 +236,9 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
     element: shell.element,
     dialogHost: shell.dialogHost,
     toolContextSheet: shell.toolContextSheet,
+    setSimulationSpeed(speed: Parameters<CityUiPorts['setSpeed']>[0]): void {
+      shell.simulationControls.setSpeed(speed);
+    },
     update(world: CommittedWorld): void {
       latestWorld = world;
       const economy = createEconomyViewProjection(world.economy);

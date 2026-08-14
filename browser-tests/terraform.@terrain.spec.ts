@@ -1,4 +1,4 @@
-import { openBuildCategory, waitForCityUi } from './helpers/city-ui.js';
+import { clickToolUndo, openBuildCategory, waitForCityUi } from './helpers/city-ui.js';
 import { expect, test } from '@playwright/test';
 import {
   GAME_SEED,
@@ -187,7 +187,7 @@ test('Undo restores the prior Terrain snapshot and updates Water once', async ({
   await page.mouse.click(point.x, point.y);
   await expect(page.getByTestId('tool-context-status')).toHaveText('Terraform applied');
   const committed = await readEvidence(page);
-  await page.getByTestId('tool-context-undo').click();
+  await clickToolUndo(page);
   await expect(page.getByTestId('tool-context-status')).toHaveText('Terraform undone');
   const undone = await readEvidence(page);
 

@@ -8,6 +8,7 @@ import {
 import { createCoreWaterPresentationSource } from '../../packages/water-three/src/index.js';
 import type { InteractionEvidence } from '../../apps/game/src/interaction-evidence.js';
 import * as THREE from 'three';
+import { openGameMenu } from './city-ui.js';
 import {
   CELL_TRIANGLES,
   GAME_TERRAIN,
@@ -25,19 +26,7 @@ export async function clickGameMenuAction(
   page: Page,
   name: 'Save world' | 'Load world' | 'Rotate left' | 'Rotate right' | 'Reset camera' | 'Grid',
 ): Promise<void> {
-  const activeDialog = page.getByRole('dialog');
-  if (await activeDialog.isVisible()) {
-    await activeDialog.getByRole('button', { name: 'Close', exact: true }).click();
-  }
-  const menuButton = page.getByRole('button', { name: 'Game Menu', exact: true });
-  try {
-    await menuButton.click({ timeout: 8_000 });
-  } catch {
-    // Under heavy parallel load (swiftshader CPU contention) the stability
-    // wait can stall even though the button is a static top-right control;
-    // fall back to a forced click so the menu still opens.
-    await menuButton.click({ force: true, timeout: 8_000 });
-  }
+  await openGameMenu(page);
   await page.getByRole('dialog').getByRole('button', { name, exact: true }).click();
 }
 

@@ -128,7 +128,10 @@ export function mountSubToolTray(
     const back = document.createElement('button');
     back.type = 'button';
     back.className = 'city-build-picker-back';
-    back.setAttribute('aria-label', locale === 'th' ? 'กลับไปหมวดเครื่องมือ' : 'Back to build categories');
+    back.setAttribute(
+      'aria-label',
+      locale === 'th' ? 'กลับไปหมวดเครื่องมือ' : 'Back to build categories',
+    );
     back.append(createCityIcon('chevron-down'));
     const backText = document.createElement('span');
     backText.textContent = uiText(locale, category);

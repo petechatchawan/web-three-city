@@ -61,13 +61,16 @@ function cancelPreviewOrCloseTool(): void {
     evidence?.building.strokeActive === true
   ) {
     dispatchGameToolCancel(host.canvas);
-  } else {
-    const activeNav = root.querySelector<HTMLButtonElement>(
-      '.city-bottom-nav [data-nav-category][aria-pressed="true"]',
-    );
-    if (activeNav !== null) activeNav.click();
-    else runtime.selectTool('navigate');
+    return;
   }
+
+  const buildPicker = root.querySelector<HTMLElement>('[data-testid="build-picker"]');
+  if (buildPicker !== null && !buildPicker.hidden) {
+    root.querySelector<HTMLButtonElement>('[data-testid="nav-build"]')?.click();
+    return;
+  }
+
+  cityUi.selectTool('navigate');
 }
 
 const simulationRuntime = createSimulationRuntime('paused');
@@ -148,7 +151,7 @@ const cityUi = mountCityUi(root, {
   rciRegistries,
 });
 
-// Bootstrap completion/status feeds land on the compact M6.3 context surface.
+// Bootstrap completion/status feeds land on the compact M6.4 context surface.
 host.onStatus((value) => cityUi.toolContextSheet.setStatus(value));
 host.onUndoAvailable((available) => cityUi.toolContextSheet.setUndoAvailable(available));
 
@@ -195,13 +198,9 @@ frameRequest = requestAnimationFrame(simulationFrame);
 window.dispatchEvent(new Event('resize'));
 bindGameToolContext(host.canvas, cityUi.toolContextSheet, bindings.signal);
 
-// Keyboard shortcuts drive the contextual tool tray when it is mounted, falling back to
-// the runtime directly when the requested tool is not currently exposed in presentation.
-const selectTool = (mode: GameToolMode): void => {
-  const shellTool = root.querySelector<HTMLButtonElement>(`[data-toolMode="${mode}"]`);
-  if (shellTool !== null) shellTool.click();
-  else runtime.selectTool(mode);
-};
+// Keyboard shortcuts route through the City UI presentation seam so gameplay authority and
+// contextual tool state stay synchronized even when the Build picker is closed.
+const selectTool = (mode: GameToolMode): void => cityUi.selectTool(mode);
 const selectBrush = (size: TerraformBrushSize): void => {
   currentBrushSize = size;
   const shellBrush = root.querySelector<HTMLButtonElement>(`[data-brush-size="${size}"]`);

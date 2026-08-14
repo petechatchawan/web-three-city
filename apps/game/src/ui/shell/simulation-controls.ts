@@ -6,6 +6,12 @@ export interface SimulationControlCallbacks {
   readonly step: () => void;
 }
 
+export interface SimulationControls {
+  readonly element: HTMLElement;
+  setSpeed(speed: SimulationSpeed): void;
+  dispose(): void;
+}
+
 type SpeedDefinition = Readonly<{
   speed: SimulationSpeed;
   label: string;
@@ -23,7 +29,7 @@ export function mountSimulationControls(
   parent: HTMLElement,
   callbacks: SimulationControlCallbacks,
   options: { compact?: boolean } = {},
-): HTMLElement {
+): SimulationControls {
   const element = document.createElement('div');
   element.className = options.compact
     ? 'city-simulation-controls city-simulation-controls--bottom city-simulation-controls--compact'
@@ -79,5 +85,15 @@ export function mountSimulationControls(
 
   parent.append(element);
   render();
-  return element;
+
+  return Object.freeze({
+    element,
+    setSpeed(speed: SimulationSpeed): void {
+      activeSpeed = speed;
+      render();
+    },
+    dispose(): void {
+      element.remove();
+    },
+  });
 }

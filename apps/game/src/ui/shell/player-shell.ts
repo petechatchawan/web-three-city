@@ -3,7 +3,6 @@ import { mountDialogHost, type DialogHost } from '../dialog/dialog-host.js';
 import type { UiAdapter } from '../foundation/lifecycle.js';
 import {
   mountBuildCategoryDock,
-  type BuildCategory,
   type BuildCategoryDock,
 } from './build-category-dock.js';
 import { mountGameHud, type GameHudCallbacks, type GameHudProjection } from './game-hud.js';
@@ -58,11 +57,9 @@ export function mountPlayerShell(
   });
 
   let buildOpen = false;
-  let activeCategory: BuildCategory | null = null;
 
   const closeBuild = (): void => {
     buildOpen = false;
-    activeCategory = null;
     primaryActions.setBuildOpen(false);
     buildCategoryDock.close();
     subToolTray.close();
@@ -72,7 +69,6 @@ export function mountPlayerShell(
   const buildCategoryDock = mountBuildCategoryDock(element, {
     onSelectCategory: (category) => {
       buildOpen = true;
-      activeCategory = category;
       primaryActions.setBuildOpen(true);
       buildCategoryDock.open();
       buildCategoryDock.setActiveCategory(category);
@@ -90,7 +86,6 @@ export function mountPlayerShell(
         return;
       }
       buildOpen = true;
-      activeCategory = null;
       primaryActions.setBuildOpen(true);
       buildCategoryDock.open();
       buildCategoryDock.setActiveCategory(null);

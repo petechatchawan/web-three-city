@@ -156,7 +156,9 @@ test('restores exactly one Water, Road, Zone, and Building root after context re
   expect(evidence.sceneRootCounts.buildingCommitted).toBe(1);
 });
 
-test('exposes one Build entry and closes the picker after concrete tool selection', async ({ page }) => {
+test('exposes one Build entry and closes the picker after concrete tool selection', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 414, height: 896 });
   await waitForReady(page);
 

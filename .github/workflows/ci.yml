@@ -30,6 +30,21 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Capture exact M6.4 prettier output
+        run: |
+          files=(
+            apps/game/src/ui/inspect/inspect-surface.ts
+            apps/game/src/ui/shell/game-hud.test.ts
+            apps/game/src/ui/shell/game-hud.ts
+            apps/game/src/ui/shell/player-shell.test.ts
+            apps/game/src/ui/shell/subtool-tray.ts
+          )
+          pnpm prettier "${files[@]}" --write
+          for file in "${files[@]}"; do
+            echo "===== ${file} ====="
+            cat "${file}"
+          done
+          exit 1
       - run: pnpm check
       - name: Archive lean build outputs
         run: tar -czf lean-builds.tar.gz apps/game/dist apps/terrain-lab/dist

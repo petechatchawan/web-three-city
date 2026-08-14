@@ -8,7 +8,7 @@ import type { DialogHost } from './dialog/dialog-host.js';
 import { openInspectDialog } from './inspect/inspect-dialog.js';
 import { pickInspectTarget } from './inspect/inspect-target.js';
 import { createInformationViewRegistry } from './information-views/information-view-registry.js';
-import { mountPlayerShell, type PlayerShell } from './shell/player-shell.js';
+import { mountPlayerShell } from './shell/player-shell.js';
 import type { ToolContextSheetAdapter } from './shell/tool-context-sheet.js';
 import { createCitySystemDialogs } from './systems/city-system-dialogs.js';
 

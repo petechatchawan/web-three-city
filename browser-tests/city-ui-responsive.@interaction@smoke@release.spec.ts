@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { closeBuild, openBuildCategory, openGameMenu } from './helpers/city-ui.js';
 import { GAME_URL } from './helpers/interaction.js';
 
 const viewports = [
@@ -17,11 +18,16 @@ for (const viewport of viewports) {
     await page.setViewportSize(viewport);
     await page.goto(GAME_URL);
     await expect(page.locator('.city-awareness-hud')).toBeVisible();
-    await expect(page.locator('.city-primary-actions')).toBeVisible();
-    await expect(page.getByTestId('build-cta')).toBeVisible();
-    await expect(page.getByTestId('build-category-dock')).toBeHidden();
+    await expect(page.locator('.city-bottom-nav')).toBeVisible();
+    for (const category of ['terrain', 'roads', 'zones', 'buildings', 'city'] as const) {
+      await expect(page.getByTestId(`nav-${category}`)).toBeVisible();
+    }
+    await expect(page.getByTestId('build-cta')).toHaveCount(0);
+    await expect(page.getByTestId('primary-navigate')).toHaveCount(0);
+    await expect(page.getByTestId('build-category-dock')).toHaveCount(0);
     await expect(page.getByTestId('subtool-tray')).toBeHidden();
     await expect(page.locator('.city-status-feedback')).toBeHidden();
+    await expect(page.locator('[data-simulation-speed]')).toHaveCount(4);
 
     const layout = await page.evaluate(() => {
       const targets = [...document.querySelectorAll<HTMLElement>('.city-ui button')]
@@ -41,20 +47,16 @@ for (const viewport of viewports) {
     expect(layout.minimumTarget).toBeGreaterThanOrEqual(44);
 
     if (viewport.canonical) {
-      await page.getByTestId('build-cta').click();
-      await expect(page.getByTestId('build-category-dock')).toBeVisible();
-      await expect(page.getByTestId('subtool-tray')).toBeHidden();
-      await page.getByTestId('build-category-terrain').click();
-      await expect(page.getByTestId('subtool-tray')).toBeVisible();
+      await openBuildCategory(page, 'terrain');
       await expect(page.getByRole('button', { name: 'Raise', exact: true })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Brush 1 × 1' })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Brush 5 × 5' })).toBeVisible();
-      await page.getByTestId('build-close').click();
-      await expect(page.getByTestId('build-category-dock')).toBeHidden();
+      await expect(page.getByTestId('tool-context-toggle')).toBeVisible();
+      await closeBuild(page);
       await expect(page.getByTestId('subtool-tray')).toBeHidden();
     }
 
-    await page.getByRole('button', { name: 'Game Menu', exact: true }).click();
+    await openGameMenu(page);
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
     await expect(dialog.getByRole('button', { name: 'Save world' })).toBeVisible();

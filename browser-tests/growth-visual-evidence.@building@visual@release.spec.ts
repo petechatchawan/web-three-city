@@ -39,7 +39,11 @@ test('captures Construction phases, variety, and canonical mobile time controls'
     fullPage: true,
   });
 
-  await expect(page.locator('[data-simulation-speed]')).toHaveText('Ⅱ');
+  await expect(page.locator('[data-simulation-speed]')).toHaveCount(4);
+  await expect(page.locator('[data-simulation-speed="paused"]')).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   await expect(page.locator('[data-simulation-step]')).toBeVisible();
   await page.screenshot({
     path: testInfo.outputPath('growth-time-controls-mobile.png'),

@@ -19,6 +19,20 @@ const defaultToolForCategory: Readonly<Record<TrayCategory, GameToolMode>> = {
   buildings: 'building-bulldoze',
 };
 
+const toolName: Readonly<Record<GameToolMode, string>> = {
+  navigate: 'Navigate',
+  raise: 'Raise',
+  lower: 'Lower',
+  flatten: 'Flatten',
+  'road-build': 'Build Road',
+  'road-bulldoze': 'Bulldoze Road',
+  'zone-residential': 'Residential Zone',
+  'zone-commercial': 'Commercial Zone',
+  'zone-industrial': 'Industrial Zone',
+  'zone-remove': 'Remove Zone',
+  'building-bulldoze': 'Bulldoze Building',
+};
+
 export type PlayerShellCallbacks = TopActionCallbacks &
   SimulationControlCallbacks & {
     readonly selectTool: (mode: GameToolMode) => void;
@@ -49,8 +63,18 @@ export function mountPlayerShell(
     onUndo: callbacks.onUndo,
   });
 
+  const selectTool = (mode: GameToolMode): void => {
+    toolContextSheet.update({
+      mode,
+      name: toolName[mode],
+      state: mode === 'navigate' ? '' : 'Tool ready',
+      message: mode === 'navigate' ? '' : 'Point at the world to preview this tool',
+    });
+    callbacks.selectTool(mode);
+  };
+
   const subToolTray = mountSubToolTray(element, {
-    onSelectTool: callbacks.selectTool,
+    onSelectTool: selectTool,
     onBrush: callbacks.setTerraformBrush,
   });
 
@@ -62,12 +86,12 @@ export function mountPlayerShell(
 
     if (selection === null) {
       subToolTray.close();
-      callbacks.selectTool('navigate');
+      selectTool('navigate');
       return;
     }
 
     subToolTray.open(selection);
-    callbacks.selectTool(defaultToolForCategory[selection]);
+    selectTool(defaultToolForCategory[selection]);
   });
   const simulationControls = mountSimulationControls(bottomNav.element, callbacks, {
     compact: true,

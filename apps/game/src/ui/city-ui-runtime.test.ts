@@ -38,9 +38,7 @@ describe('City UI runtime', () => {
     expect(selectTool).not.toHaveBeenCalled();
     expect(toolSentinel).toEqual({ active: 'road-build', undo: true });
 
-    ui.element
-      .querySelector<HTMLButtonElement>('[data-management="game-menu"]')
-      ?.click();
+    ui.element.querySelector<HTMLButtonElement>('[data-management="game-menu"]')?.click();
     expect(ui.dialogHost.activeRoute?.key).toBe('game-menu');
     const sections = [...ui.element.querySelectorAll<HTMLElement>('[data-menu-section]')].map(
       (section) => section.dataset.menuSection,

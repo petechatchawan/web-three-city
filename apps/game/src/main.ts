@@ -2,6 +2,7 @@ import './style.css';
 import './ui/foundation/tokens.css';
 import './ui/city-ui.css';
 import './ui/m6-3-figma.css';
+import './ui/m6-3-fidelity-remediation.css';
 import { constructionProgressAtTick } from '@web-three-city/building-core';
 import {
   constructionVisualPhase,

@@ -1,4 +1,4 @@
-import { waitForCityUi } from './helpers/city-ui.js';
+import { openGameMenu, waitForCityUi } from './helpers/city-ui.js';
 import { expect, test } from '@playwright/test';
 import {
   GAME_URL,
@@ -101,7 +101,7 @@ test('pointer cancellation cannot select', async ({ page }) => {
 test('a pointer starting on UI never moves the world', async ({ page }) => {
   await openGame(page);
   const before = (await readEvidence(page)).camera;
-  await page.getByRole('button', { name: 'Game Menu', exact: true }).click();
+  await openGameMenu(page);
   const saveButton = page.getByRole('dialog').getByRole('button', { name: 'Save world' });
   const box = await saveButton.boundingBox();
   if (box === null) throw new Error('missing Save terrain bounds');

@@ -1,42 +1,27 @@
 import { createCityIcon, type CityIconName } from '../components/icon.js';
+import { uiText, type UiLocale } from '../presentation-locale.js';
 
-export type BuildNavCategory = 'terrain' | 'roads' | 'zones' | 'buildings';
-export type BottomNavCategory = BuildNavCategory | 'city';
-export type BottomNavSelection = BuildNavCategory | 'city' | null;
+export type BottomNavCategory = 'build' | 'city';
+export type BottomNavSelection = BottomNavCategory | null;
 
-export const navCategories: readonly BottomNavCategory[] = [
-  'terrain',
-  'roads',
-  'zones',
-  'buildings',
-  'city',
-];
-
-const navLabels: Readonly<Record<BottomNavCategory, string>> = {
-  terrain: 'Terrain',
-  roads: 'Roads',
-  zones: 'Zones',
-  buildings: 'Build',
-  city: 'City',
-};
+export const navCategories: readonly BottomNavCategory[] = ['build', 'city'];
 
 const navIcons: Readonly<Record<BottomNavCategory, CityIconName>> = {
-  terrain: 'terrain',
-  roads: 'roads',
-  zones: 'zones',
-  buildings: 'buildings',
+  build: 'buildings',
   city: 'city',
 };
 
 export interface BottomNav {
   readonly element: HTMLElement;
-  setActiveCategory(category: BuildNavCategory | null): void;
+  setBuildOpen(open: boolean): void;
+  setLocale(locale: UiLocale): void;
   dispose(): void;
 }
 
 export function mountBottomNav(
   parent: HTMLElement,
   onSelect: (selection: BottomNavSelection) => void,
+  initialLocale: UiLocale = 'en',
 ): BottomNav {
   const element = document.createElement('nav');
   element.className = 'city-bottom-nav';
@@ -45,14 +30,25 @@ export function mountBottomNav(
   const primary = document.createElement('div');
   primary.className = 'city-bottom-nav-primary';
 
-  let activeCategory: BuildNavCategory | null = null;
+  let buildOpen = false;
+  let locale = initialLocale;
   const buttons = new Map<BottomNavCategory, HTMLButtonElement>();
+  const labels = new Map<BottomNavCategory, HTMLElement>();
 
-  const renderPressed = (): void => {
-    for (const [category, button] of buttons) {
-      const selected = category !== 'city' && category === activeCategory;
+  const render = (): void => {
+    element.setAttribute(
+      'aria-label',
+      locale === 'th' ? 'การนำทางหลักของเกม' : 'Primary gameplay navigation',
+    );
+    for (const category of navCategories) {
+      const button = buttons.get(category)!;
+      const label = labels.get(category)!;
+      const selected = category === 'build' && buildOpen;
+      const text = uiText(locale, category);
+      button.setAttribute('aria-label', text);
       button.setAttribute('aria-pressed', String(selected));
       button.classList.toggle('is-active', selected);
+      label.textContent = text;
     }
   };
 
@@ -62,44 +58,41 @@ export function mountBottomNav(
     button.className = 'city-nav-item';
     button.dataset.navCategory = category;
     button.dataset.testid = `nav-${category}`;
-    button.setAttribute('aria-label', navLabels[category]);
     button.append(createCityIcon(navIcons[category]));
 
     const label = document.createElement('span');
     label.className = 'city-nav-label';
-    label.textContent = navLabels[category];
     button.append(label);
 
     button.addEventListener('click', () => {
-      if (category === 'city') {
-        onSelect('city');
-        renderPressed();
-        return;
-      }
-
-      if (activeCategory === category) {
-        activeCategory = null;
-        onSelect(null);
+      if (category === 'build') {
+        buildOpen = !buildOpen;
+        onSelect(buildOpen ? 'build' : null);
       } else {
-        activeCategory = category;
-        onSelect(category);
+        buildOpen = false;
+        onSelect('city');
       }
-      renderPressed();
+      render();
     });
 
     buttons.set(category, button);
+    labels.set(category, label);
     primary.append(button);
   }
 
   element.append(primary);
   parent.append(element);
-  renderPressed();
+  render();
 
   return Object.freeze({
     element,
-    setActiveCategory(category: BuildNavCategory | null): void {
-      activeCategory = category;
-      renderPressed();
+    setBuildOpen(open: boolean): void {
+      buildOpen = open;
+      render();
+    },
+    setLocale(nextLocale: UiLocale): void {
+      locale = nextLocale;
+      render();
     },
     dispose(): void {
       element.remove();

@@ -155,56 +155,55 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
   };
 
   const openGameMenu = (): void => {
-    shell.dialogHost.open({ kind: 'system', key: 'game-menu', title: 'Game Menu' }, (body) => {
-      const world = menuSection(body, 'world', locale === 'th' ? 'โลก' : 'World');
-      menuAction(world, locale === 'th' ? 'บันทึกเมือง' : 'Save world', 'save', () => {
-        ports.saveWorld();
-        shell.dialogHost.close();
-      });
-      menuAction(world, locale === 'th' ? 'โหลดเมือง' : 'Load world', 'load', () => {
-        ports.loadWorld();
-        shell.dialogHost.close();
-      });
-
-      const camera = menuSection(body, 'camera', locale === 'th' ? 'กล้อง' : 'Camera');
-      const cameraActions = [
-        [locale === 'th' ? 'หมุนซ้าย' : 'Rotate left', 'rotate-left', ports.rotateLeft],
-        [locale === 'th' ? 'หมุนขวา' : 'Rotate right', 'rotate-right', ports.rotateRight],
-        [locale === 'th' ? 'รีเซ็ตกล้อง' : 'Reset camera', 'reset-camera', ports.resetCamera],
-        [locale === 'th' ? 'กริด' : 'Grid', 'grid', ports.toggleGrid],
-      ] as const;
-      for (const [label, icon, action] of cameraActions) {
-        menuAction(camera, label, icon, () => {
-          action();
+    shell.dialogHost.open(
+      { kind: 'system', key: 'game-menu', title: uiText(locale, 'gameMenu') },
+      (body) => {
+        const world = menuSection(body, 'world', uiText(locale, 'world'));
+        menuAction(world, uiText(locale, 'saveWorld'), 'save', () => {
+          ports.saveWorld();
           shell.dialogHost.close();
         });
-      }
+        menuAction(world, uiText(locale, 'loadWorld'), 'load', () => {
+          ports.loadWorld();
+          shell.dialogHost.close();
+        });
 
-      const presentation = menuSection(
-        body,
-        'presentation',
-        locale === 'th' ? 'การแสดงผล' : 'Presentation',
-      );
-      const qualityCard = document.createElement('label');
-      qualityCard.className = 'city-quality-card';
-      qualityCard.append(createCityIcon('quality'));
-      const text = document.createElement('span');
-      text.textContent = locale === 'th' ? 'คุณภาพ' : 'Quality';
-      const quality = document.createElement('select');
-      quality.setAttribute('aria-label', text.textContent);
-      for (const value of ['low', 'medium', 'high'] as const) {
-        const option = document.createElement('option');
-        option.value = value;
-        option.textContent = value[0]!.toUpperCase() + value.slice(1);
-        quality.append(option);
-      }
-      quality.value = 'medium';
-      quality.addEventListener('change', () =>
-        ports.setQuality(quality.value as 'low' | 'medium' | 'high'),
-      );
-      qualityCard.append(text, quality);
-      presentation.append(qualityCard);
-    });
+        const camera = menuSection(body, 'camera', uiText(locale, 'camera'));
+        const cameraActions = [
+          [uiText(locale, 'rotateLeft'), 'rotate-left', ports.rotateLeft],
+          [uiText(locale, 'rotateRight'), 'rotate-right', ports.rotateRight],
+          [uiText(locale, 'resetCamera'), 'reset-camera', ports.resetCamera],
+          [uiText(locale, 'grid'), 'grid', ports.toggleGrid],
+        ] as const;
+        for (const [label, icon, action] of cameraActions) {
+          menuAction(camera, label, icon, () => {
+            action();
+            shell.dialogHost.close();
+          });
+        }
+
+        const presentation = menuSection(body, 'presentation', uiText(locale, 'presentation'));
+        const qualityCard = document.createElement('label');
+        qualityCard.className = 'city-quality-card';
+        qualityCard.append(createCityIcon('quality'));
+        const text = document.createElement('span');
+        text.textContent = uiText(locale, 'quality');
+        const quality = document.createElement('select');
+        quality.setAttribute('aria-label', text.textContent);
+        for (const value of ['low', 'medium', 'high'] as const) {
+          const option = document.createElement('option');
+          option.value = value;
+          option.textContent = value[0]!.toUpperCase() + value.slice(1);
+          quality.append(option);
+        }
+        quality.value = 'medium';
+        quality.addEventListener('change', () =>
+          ports.setQuality(quality.value as 'low' | 'medium' | 'high'),
+        );
+        qualityCard.append(text, quality);
+        presentation.append(qualityCard);
+      },
+    );
   };
 
   const appendLocaleSelector = (): void => {

@@ -1,5 +1,9 @@
 import type { InspectProjection } from './inspect-projections.js';
-import { uiText, type UiLocale } from '../presentation-locale.js';
+import {
+  localizeInspectFieldLabel,
+  uiText,
+  type UiLocale,
+} from '../presentation-locale.js';
 
 export interface InspectSurface {
   readonly element: HTMLElement;
@@ -50,7 +54,9 @@ export function mountInspectSurface(
     const summary = document.createElement('span');
     summary.className = 'city-inspect-summary';
     summary.textContent =
-      firstField === undefined ? '' : `${firstField.label}: ${firstField.value}`;
+      firstField === undefined
+        ? ''
+        : `${localizeInspectFieldLabel(locale, firstField.label)}: ${firstField.value}`;
     identity.append(eyebrow, title, summary);
 
     const actions = document.createElement('div');
@@ -93,7 +99,7 @@ export function mountInspectSurface(
       const row = document.createElement('p');
       row.className = 'city-inspect-row';
       const label = document.createElement('span');
-      label.textContent = field.label;
+      label.textContent = localizeInspectFieldLabel(locale, field.label);
       const value = document.createElement('strong');
       value.textContent = field.value;
       row.append(label, value);

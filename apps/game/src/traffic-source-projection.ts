@@ -14,10 +14,12 @@ import {
 import { terrainCellSurfaceProfile, type TerrainSnapshot } from '@web-three-city/terrain-core';
 import type {
   BuildingTrafficAccessProjection,
+  RoadTrafficSourceCell,
   RoadTrafficSourceProjection,
   TrafficCardinalDirection,
+  TrafficGraphDirtyRegion,
 } from '@web-three-city/traffic-core';
-import { WORLD_CONFIG } from '@web-three-city/world-core';
+import { WORLD_CONFIG, type CellCoord } from '@web-three-city/world-core';
 
 const CELL_SIZE_Q = 8_000;
 const LEVEL_TO_Q = 1_000;
@@ -43,7 +45,7 @@ function connectionMaskAt(roads: RoadSnapshot, x: number, z: number): number {
 }
 
 function createRoadProjection(roads: RoadSnapshot, surfaceAt: SurfaceReader): RoadTrafficSourceProjection {
-  const cells = [];
+  const cells: RoadTrafficSourceCell[] = [];
   for (let z = 0; z < roads.height; z += 1) {
     for (let x = 0; x < roads.width; x += 1) {
       const definitionCode = roadCodeAt(roads, x, z);
@@ -81,6 +83,22 @@ export function createRoadTrafficSourceProjectionFromEnvironment(
   environment: Pick<BuildingDevelopmentEnvironment, 'surfaceAt'>,
 ): RoadTrafficSourceProjection {
   return createRoadProjection(roads, (cell) => environment.surfaceAt(cell));
+}
+
+export function createTrafficGraphDirtyRegion(
+  changedRoadCells: readonly CellCoord[],
+  changedBuildingIds: readonly string[] = [],
+): TrafficGraphDirtyRegion {
+  const roadByKey = new Map<string, CellCoord>();
+  for (const cell of changedRoadCells) {
+    roadByKey.set(`${cell.x},${cell.z}`, Object.freeze({ x: cell.x, z: cell.z }));
+  }
+  return Object.freeze({
+    changedRoadCells: Object.freeze(
+      [...roadByKey.values()].sort((a, b) => a.z - b.z || a.x - b.x),
+    ),
+    changedBuildingIds: Object.freeze([...new Set(changedBuildingIds)].sort()),
+  });
 }
 
 function trafficDirection(direction: 'north' | 'east' | 'south' | 'west'): TrafficCardinalDirection {

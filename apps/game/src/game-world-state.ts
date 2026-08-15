@@ -1,11 +1,17 @@
 import type { CommittedWorld } from './application/committed-world.js';
 import type { BuildingSnapshot } from '@web-three-city/building-core';
-import type { MobilitySnapshotV1 } from '@web-three-city/citizen-mobility-core';
+import {
+  createEmptyMobilitySnapshot,
+  type MobilitySnapshotV1,
+} from '@web-three-city/citizen-mobility-core';
 import type { EconomySnapshotV1 } from '@web-three-city/economy-core';
 import type { RciSnapshot } from '@web-three-city/rci-core';
 import type { RoadSnapshot } from '@web-three-city/road-core';
 import type { SimulationSnapshot } from '@web-three-city/simulation-core';
-import type { TrafficSnapshotV1 } from '@web-three-city/traffic-core';
+import {
+  createEmptyTrafficSnapshot,
+  type TrafficSnapshotV1,
+} from '@web-three-city/traffic-core';
 
 export interface GameWorldState {
   readonly revision: number;
@@ -18,11 +24,30 @@ export interface GameWorldState {
   readonly traffic: TrafficSnapshotV1;
 }
 
+export type GameWorldStateInput = Omit<GameWorldState, 'mobility' | 'traffic'> &
+  Readonly<{
+    mobility?: MobilitySnapshotV1;
+    traffic?: TrafficSnapshotV1;
+  }>;
+
+function completeGameWorldState(input: GameWorldStateInput): GameWorldState {
+  return Object.freeze({
+    ...input,
+    mobility: input.mobility ?? createEmptyMobilitySnapshot(),
+    traffic:
+      input.traffic ??
+      createEmptyTrafficSnapshot({
+        roadRevision: input.roads.revision,
+        buildingRevision: input.buildings.revision,
+      }),
+  });
+}
+
 export class GameWorldStateStore {
   #state: GameWorldState;
 
-  constructor(initialState: GameWorldState) {
-    this.#state = Object.freeze(initialState);
+  constructor(initialState: GameWorldStateInput) {
+    this.#state = completeGameWorldState(initialState);
   }
 
   snapshot(): GameWorldState {
@@ -32,7 +57,7 @@ export class GameWorldStateStore {
   replace(expectedRevision: number, nextState: GameWorldState): GameWorldState {
     if (this.#state.revision !== expectedRevision) throw new Error('game-world-state:stale-revision');
     if (nextState.revision !== expectedRevision + 1) throw new Error('game-world-state:invalid-next-revision');
-    this.#state = Object.freeze(nextState);
+    this.#state = completeGameWorldState(nextState);
     return this.#state;
   }
 
@@ -56,7 +81,7 @@ export class GameWorldStateStore {
       (input.mobility === undefined || this.#state.mobility === input.mobility) &&
       (input.traffic === undefined || this.#state.traffic === input.traffic);
     if (unchanged) return this.#state;
-    this.#state = Object.freeze({
+    this.#state = completeGameWorldState({
       revision: this.#state.revision + 1,
       simulation: input.simulation,
       buildings: input.buildings,

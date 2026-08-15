@@ -37,19 +37,32 @@
 **Target additions:**
 
 ```ts
+import type { CellCoord } from '@web-three-city/world-core';
+
 export type InspectTarget =
-  | ExistingInspectTargets
-  | Readonly<{ kind: 'citizen'; citizenId: string; tripId: string | null }>
-  | Readonly<{ kind: 'vehicle'; citizenId: string; tripId: string }>;
+  | Readonly<{
+      kind: 'building' | 'road' | 'zone' | 'terrain';
+      cell: CellCoord;
+    }>
+  | Readonly<{
+      kind: 'citizen';
+      citizenId: string;
+      tripId: string | null;
+    }>
+  | Readonly<{
+      kind: 'vehicle';
+      citizenId: string;
+      tripId: string;
+    }>;
 ```
 
-`traffic-inspect-target.ts` owns translation from Three.js hit metadata to those target values so generic UI target code does not import `traffic-three` implementation classes.
+Keep the existing `pickInspectTarget(world, cell)` function for cell targets. `traffic-inspect-target.ts` owns translation from Three.js agent hit metadata into Citizen/Vehicle targets so generic target code does not import `traffic-three` implementation classes.
 
 - [ ] **RED:** hit on materialized pedestrian returns `kind:'citizen'` with exact real IDs.
 - [ ] **RED:** hit on materialized vehicle returns `kind:'vehicle'` with exact real IDs.
 - [ ] **RED:** malformed/anonymous object metadata does not create a canonical Citizen/Vehicle target.
 - [ ] **RED:** existing Building > Road > Zone > Terrain target priority remains unchanged when no Traffic agent is hit.
-- [ ] Implement narrow hit adapter + target union.
+- [ ] Implement narrow hit adapter + target union without changing existing cell target behavior.
 - [ ] Run focused GREEN.
 - [ ] Commit `feat(city-ui): add citizen and vehicle inspect targets`.
 
@@ -155,7 +168,7 @@ export interface TrafficInformationEdge {
 
 **Files:**
 - Modify: `apps/game/src/ui/presentation-locale.ts`
-- Test: owning locale test file under `apps/game/src/ui/` (extend existing localization test; do not create a duplicate catalog test harness).
+- Test: extend the existing locale test that owns `presentation-locale.ts`; if no dedicated file exists at PR10 start, add `apps/game/src/ui/presentation-locale.test.ts` rather than a second catalog implementation.
 
 **Required keys:**
 

@@ -25,7 +25,7 @@ export interface MobilityTrip {
   readonly purpose: MobilityTripPurpose;
   readonly originBuildingId: string;
   readonly destinationBuildingId: string;
-  readonly mode: MobilityTripMode;
+  readonly mode: MobilityTripMode | null;
   readonly departureGameMinute: number;
   readonly status: MobilityTripStatus;
   readonly failureReason: MobilityTripFailureReason | null;
@@ -72,9 +72,7 @@ export function assertNonNegativeSafeInteger(value: unknown): asserts value is n
 export function validateCitizenMobilityState(state: CitizenMobilityState): void {
   assertMobilityId(state.citizenId);
   assertNonNegativeSafeInteger(state.scheduleCursorDay);
-  if (state.nextBoundaryGameMinute !== null) {
-    assertNonNegativeSafeInteger(state.nextBoundaryGameMinute);
-  }
+  if (state.nextBoundaryGameMinute !== null) assertNonNegativeSafeInteger(state.nextBoundaryGameMinute);
   if (state.stationaryBuildingId !== null) assertMobilityId(state.stationaryBuildingId);
   if (state.activeTripId !== null) assertMobilityId(state.activeTripId);
 
@@ -108,6 +106,9 @@ export function validateMobilityTrip(trip: MobilityTrip): void {
     throw new MobilityContractError('mobility:invalid-trip');
   }
 
+  if (trip.status === 'Active' || trip.status === 'Arrived') {
+    if (trip.mode === null) throw new MobilityContractError('mobility:invalid-trip');
+  }
   if (trip.status === 'Failed') {
     if (trip.failureReason === null) throw new MobilityContractError('mobility:invalid-trip');
   } else if (trip.failureReason !== null) {

@@ -130,7 +130,8 @@ export function mountStatusFeedback(
     identity.className = 'city-tool-context-identity';
     const name = document.createElement('strong');
     name.className = 'city-tool-context-name';
-    name.textContent = projection === null ? 'World' : uiText(locale, toolLabelKey[projection.mode]);
+    name.textContent =
+      projection === null ? 'World' : uiText(locale, toolLabelKey[projection.mode]);
     identity.append(name);
 
     const status = document.createElement('span');

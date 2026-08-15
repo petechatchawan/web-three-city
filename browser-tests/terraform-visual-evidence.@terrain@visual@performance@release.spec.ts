@@ -1,4 +1,4 @@
-import { clickToolUndo, closeBuild, openBuildCategory, waitForCityUi } from './helpers/city-ui.js';
+import { clickToolUndo, openBuildCategory, waitForCityUi } from './helpers/city-ui.js';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import {
@@ -83,6 +83,11 @@ function flatCell(): Readonly<{ x: number; z: number }> {
 async function openGame(page: import('@playwright/test').Page): Promise<void> {
   await page.goto(GAME_URL);
   await waitForCityUi(page);
+}
+
+async function exitActiveTool(page: import('@playwright/test').Page): Promise<void> {
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('tool-context-toggle')).toBeHidden();
 }
 
 interface VisibleTerrainSample {
@@ -177,7 +182,7 @@ test('captures Terraform Foundation visual and timing evidence', async ({ page }
   await clickToolUndo(page);
   await expect(page.getByTestId('tool-context-status')).toHaveText('Terraform undone');
 
-  await closeBuild(page);
+  await exitActiveTool(page);
   const fiveCellPoint = await clickTerrainCell(page, validRaiseCell(BASE_TERRAIN, 5));
   await openBuildCategory(page, 'terrain');
   await page.getByRole('button', { name: 'Brush 5 × 5' }).click();
@@ -195,7 +200,7 @@ test('captures Terraform Foundation visual and timing evidence', async ({ page }
   await clickToolUndo(page);
   await expect(page.getByTestId('tool-context-status')).toHaveText('Terraform undone');
 
-  await closeBuild(page);
+  await exitActiveTool(page);
   const invalidPoint = await clickTerrainCell(page, flatCell());
   await openBuildCategory(page, 'terrain');
   await page.getByRole('button', { name: 'Brush 1 × 1' }).click();
@@ -210,7 +215,7 @@ test('captures Terraform Foundation visual and timing evidence', async ({ page }
   });
   await page.mouse.up();
 
-  await closeBuild(page);
+  await exitActiveTool(page);
   const commitPoint = await clickTerrainCell(page, validRaiseCell(BASE_TERRAIN, 1));
   await openBuildCategory(page, 'terrain');
   await page.getByRole('button', { name: 'Raise' }).click();

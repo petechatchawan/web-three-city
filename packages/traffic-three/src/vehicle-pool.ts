@@ -24,6 +24,10 @@ export class TrafficVehiclePool {
     return this.#reuseCount;
   }
 
+  has(tripId: string): boolean {
+    return this.#active.has(tripId);
+  }
+
   acquire(input: TrafficVehicleVisualInput): TrafficVehicleAgent {
     const existing = this.#active.get(input.tripId);
     if (existing !== undefined) {

@@ -1,9 +1,11 @@
 import type { CommittedWorld } from './application/committed-world.js';
 import type { BuildingSnapshot } from '@web-three-city/building-core';
-import type { RciSnapshot } from '@web-three-city/rci-core';
-import type { SimulationSnapshot } from '@web-three-city/simulation-core';
-import type { RoadSnapshot } from '@web-three-city/road-core';
+import type { MobilitySnapshotV1 } from '@web-three-city/citizen-mobility-core';
 import type { EconomySnapshotV1 } from '@web-three-city/economy-core';
+import type { RciSnapshot } from '@web-three-city/rci-core';
+import type { RoadSnapshot } from '@web-three-city/road-core';
+import type { SimulationSnapshot } from '@web-three-city/simulation-core';
+import type { TrafficSnapshotV1 } from '@web-three-city/traffic-core';
 
 export interface GameWorldState {
   readonly revision: number;
@@ -12,6 +14,8 @@ export interface GameWorldState {
   readonly rci: RciSnapshot;
   readonly roads: RoadSnapshot;
   readonly economy: EconomySnapshotV1;
+  readonly mobility: MobilitySnapshotV1;
+  readonly traffic: TrafficSnapshotV1;
 }
 
 export class GameWorldStateStore {
@@ -26,12 +30,8 @@ export class GameWorldStateStore {
   }
 
   replace(expectedRevision: number, nextState: GameWorldState): GameWorldState {
-    if (this.#state.revision !== expectedRevision) {
-      throw new Error('game-world-state:stale-revision');
-    }
-    if (nextState.revision !== expectedRevision + 1) {
-      throw new Error('game-world-state:invalid-next-revision');
-    }
+    if (this.#state.revision !== expectedRevision) throw new Error('game-world-state:stale-revision');
+    if (nextState.revision !== expectedRevision + 1) throw new Error('game-world-state:invalid-next-revision');
     this.#state = Object.freeze(nextState);
     return this.#state;
   }
@@ -43,6 +43,8 @@ export class GameWorldStateStore {
       rci?: RciSnapshot;
       roads?: RoadSnapshot;
       economy?: EconomySnapshotV1;
+      mobility?: MobilitySnapshotV1;
+      traffic?: TrafficSnapshotV1;
     }>,
   ): GameWorldState {
     const unchanged =
@@ -50,7 +52,9 @@ export class GameWorldStateStore {
       this.#state.buildings === input.buildings &&
       (input.rci === undefined || this.#state.rci === input.rci) &&
       (input.roads === undefined || this.#state.roads === input.roads) &&
-      (input.economy === undefined || this.#state.economy === input.economy);
+      (input.economy === undefined || this.#state.economy === input.economy) &&
+      (input.mobility === undefined || this.#state.mobility === input.mobility) &&
+      (input.traffic === undefined || this.#state.traffic === input.traffic);
     if (unchanged) return this.#state;
     this.#state = Object.freeze({
       revision: this.#state.revision + 1,
@@ -59,6 +63,8 @@ export class GameWorldStateStore {
       rci: input.rci ?? this.#state.rci,
       roads: input.roads ?? this.#state.roads,
       economy: input.economy ?? this.#state.economy,
+      mobility: input.mobility ?? this.#state.mobility,
+      traffic: input.traffic ?? this.#state.traffic,
     });
     return this.#state;
   }
@@ -73,5 +79,7 @@ export function gameWorldStateFromCommittedWorld(world: CommittedWorld): GameWor
     rci: world.rci,
     roads: world.roads,
     economy: world.economy,
+    mobility: world.mobility,
+    traffic: world.traffic,
   });
 }

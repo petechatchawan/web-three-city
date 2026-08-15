@@ -1,9 +1,5 @@
 import type { InspectProjection } from './inspect-projections.js';
-import {
-  localizeInspectFieldLabel,
-  uiText,
-  type UiLocale,
-} from '../presentation-locale.js';
+import { localizeInspectFieldLabel, uiText, type UiLocale } from '../presentation-locale.js';
 
 export interface InspectSurface {
   readonly element: HTMLElement;

@@ -4,19 +4,24 @@ import {
   type BuildingSnapshot,
 } from '@web-three-city/building-core';
 import {
-  createRoadSnapshot,
-  type RoadPlacementEnvironment,
-  type RoadSnapshot,
-} from '@web-three-city/road-core';
-import type { RciSnapshot } from '@web-three-city/rci-core';
+  createMobilitySnapshot,
+  type MobilitySnapshotV1,
+} from '@web-three-city/citizen-mobility-core';
 import {
   cloneEconomySnapshot,
   FOUNDATION_ECONOMY_RULES,
   validateEconomySnapshot,
   type EconomySnapshotV1,
 } from '@web-three-city/economy-core';
+import type { RciSnapshot } from '@web-three-city/rci-core';
+import {
+  createRoadSnapshot,
+  type RoadPlacementEnvironment,
+  type RoadSnapshot,
+} from '@web-three-city/road-core';
 import { createSimulationSnapshot, type SimulationSnapshot } from '@web-three-city/simulation-core';
 import { createTerrainMap, type TerrainSnapshot } from '@web-three-city/terrain-core';
+import { createTrafficSnapshot, type TrafficSnapshotV1 } from '@web-three-city/traffic-core';
 import { deriveWaterSnapshot, type WaterSnapshot } from '@web-three-city/water-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import {
@@ -39,6 +44,8 @@ export interface CommittedWorld {
   readonly simulation: SimulationSnapshot;
   readonly rci: RciSnapshot;
   readonly economy: EconomySnapshotV1;
+  readonly mobility: MobilitySnapshotV1;
+  readonly traffic: TrafficSnapshotV1;
   readonly environments: Readonly<{
     readonly road: RoadPlacementEnvironment;
     readonly zone: ZonePlacementEnvironment;
@@ -56,16 +63,19 @@ export type CommittedWorldInput = Readonly<{
   simulation: SimulationSnapshot;
   rci: RciSnapshot;
   economy: EconomySnapshotV1;
+  mobility: MobilitySnapshotV1;
+  traffic: TrafficSnapshotV1;
   environments: CommittedWorld['environments'];
 }>;
 
 function assertApplicationRevision(revision: number): void {
-  if (!Number.isSafeInteger(revision) || revision < 0)
+  if (!Number.isSafeInteger(revision) || revision < 0) {
     throw new RangeError('committed-world:invalid-revision');
+  }
 }
 
 function assertEnvironmentProvenance(input: CommittedWorldInput): void {
-  const { terrain, water, roads, zones, buildings, environments } = input;
+  const { terrain, water, roads, zones, buildings, environments, traffic } = input;
   const coherent =
     water.sourceTerrainRevision === terrain.revision &&
     water.sourceTerrainSeed === terrain.seed &&
@@ -78,7 +88,9 @@ function assertEnvironmentProvenance(input: CommittedWorldInput): void {
     environments.building.terrainRevision === terrain.revision &&
     environments.building.waterSourceTerrainRevision === water.sourceTerrainRevision &&
     environments.building.roadRevision === roads.revision &&
-    environments.building.zoneRevision === zones.revision;
+    environments.building.zoneRevision === zones.revision &&
+    traffic.graphSourceRoadRevision === roads.revision &&
+    traffic.graphSourceBuildingRevision === buildings.revision;
   if (!coherent) throw new RangeError('committed-world:invalid-environment-provenance');
 }
 
@@ -143,6 +155,8 @@ export function createCommittedWorld(input: CommittedWorldInput): CommittedWorld
     WORLD_CONFIG,
   );
   const simulation = createSimulationSnapshot(input.simulation);
+  const mobility = createMobilitySnapshot(input.mobility);
+  const traffic = createTrafficSnapshot(input.traffic);
   const environments = Object.freeze({
     road: createRoadPlacementEnvironment(terrain, water, WORLD_CONFIG),
     zone: createZonePlacementEnvironment(
@@ -164,23 +178,26 @@ export function createCommittedWorld(input: CommittedWorldInput): CommittedWorld
     simulation,
     rci: input.rci,
     economy: cloneEconomySnapshot(input.economy),
+    mobility,
+    traffic,
     environments,
   });
 }
 
 export class CommittedWorldStore {
   #world: CommittedWorld;
+
   constructor(initialWorld: CommittedWorldInput) {
     this.#world = createCommittedWorld(initialWorld);
   }
+
   snapshot(): CommittedWorld {
     return cloneForRead(this.#world);
   }
+
   replace(expectedRevision: number, next: CommittedWorldInput): CommittedWorld {
-    if (expectedRevision !== this.#world.revision)
-      throw new Error('committed-world:stale-revision');
-    if (next.revision !== this.#world.revision + 1)
-      throw new Error('committed-world:invalid-next-revision');
+    if (expectedRevision !== this.#world.revision) throw new Error('committed-world:stale-revision');
+    if (next.revision !== this.#world.revision + 1) throw new Error('committed-world:invalid-next-revision');
     this.#world = createCommittedWorld(next);
     return this.snapshot();
   }
@@ -195,12 +212,13 @@ export type CommittedDomainState = Readonly<{
   simulation: SimulationSnapshot;
   rci: RciSnapshot;
   economy: EconomySnapshotV1;
+  mobility: MobilitySnapshotV1;
+  traffic: TrafficSnapshotV1;
 }>;
 
 export function createCommittedWorldFromDomainState(input: CommittedDomainState): CommittedWorld {
   const waterResult = deriveWaterSnapshot(input.terrain, WORLD_CONFIG);
-  if (!waterResult.ok)
-    throw new Error(`committed-world:water-derivation:${waterResult.error.code}`);
+  if (!waterResult.ok) throw new Error(`committed-world:water-derivation:${waterResult.error.code}`);
   const environments = Object.freeze({
     road: createRoadPlacementEnvironment(input.terrain, waterResult.value, WORLD_CONFIG),
     zone: createZonePlacementEnvironment(
@@ -218,9 +236,5 @@ export function createCommittedWorldFromDomainState(input: CommittedDomainState)
       WORLD_CONFIG,
     ),
   });
-  return createCommittedWorld({
-    ...input,
-    water: waterResult.value,
-    environments,
-  });
+  return createCommittedWorld({ ...input, water: waterResult.value, environments });
 }

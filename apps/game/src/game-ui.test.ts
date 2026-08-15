@@ -1,92 +1,50 @@
-// @vitest-environment happy-dom
+import { describe, expect, it, vi } from 'vitest';
+import { renderGameCanvas } from './game-ui.js';
 
-import type { TerraformPlan } from '@web-three-city/terrain-core';
-import { describe, expect, it } from 'vitest';
-import type { GameToolPresentationState } from './game-tool-presentation.js';
-import { renderGameUi } from './game-ui.js';
-
-const EMPTY_PLAN = Object.freeze({
-  affectedCells: Object.freeze([]),
-  supportCells: Object.freeze([]),
-}) as unknown as TerraformPlan;
-
-function terraformContextFixture(): GameToolPresentationState {
-  return Object.freeze({
-    mode: 'raise',
-    storedTerraformBrush: 3,
-    interaction: Object.freeze({
-      kind: 'terraform',
-      state: Object.freeze({
-        operation: 'raise',
-        brushSize: 3,
-        strokeActive: true,
-        flattenTargetLevel: null,
-        acceptedAnchors: Object.freeze([{ x: 1, z: 1 }]),
-        acceptedPlan: EMPTY_PLAN,
-        currentStamp: Object.freeze({
-          kind: 'rejected',
-          anchor: Object.freeze({ x: 2, z: 1 }),
-          reason: 'terraform:road-occupied',
-          preview: Object.freeze({
-            corePlan: EMPTY_PLAN,
-            previewPlan: EMPTY_PLAN,
-            valid: false,
-            invalidReason: 'terraform:road-occupied',
-            blockedRoadCells: Object.freeze([{ x: 2, z: 1 }]),
-            blockedZoneCells: Object.freeze([]),
-            blockedBuildingCells: Object.freeze([]),
-          }),
-        }),
-      }),
-    }),
-    undoAvailable: true,
-    primaryMessage: null,
-  });
-}
-
-describe('renderGameUi', () => {
-  it('keeps the legacy adapter contextual and excludes its retired primary-tool authority', () => {
+describe('renderGameCanvas', () => {
+  it('mounts only the full-bleed canvas, with no legacy dock or panel surface', () => {
     const root = document.createElement('div');
-    const ui = renderGameUi(root);
+    const host = renderGameCanvas(root);
 
-    expect(root.querySelector('[data-testid="primary-world-tools"]')).toBeNull();
-    expect(root.querySelector('[data-testid="tool-context"]')).not.toBeNull();
-    expect(root.querySelector('[data-testid="undo-world-change"]')).toBe(ui.undoButton);
-    expect(root.querySelector('[data-testid="secondary-controls"]')).not.toBeNull();
-    expect(root.querySelector('[data-testid="tool-close"]')).toBe(ui.closeToolButton);
-    expect(root.querySelector('[data-action="tool-building-develop"]')).toBeNull();
-    expect(root.textContent).not.toContain('Develop Zones');
-    expect(root.querySelector('[data-action="tool-building-bulldoze"]')).toBe(
-      ui.buildingBulldozeButton,
-    );
-    ui.setBuildingCount(3);
-    expect(root.querySelector('[data-testid="building-count"]')?.textContent).toBe('3');
+    expect(host.canvas.id).toBe('game-canvas');
+    expect(host.canvas.getAttribute('aria-label')).toBe('City terrain viewport');
+    expect(root.querySelector('[data-testid="tool-context"]')).toBeNull();
+    expect(root.querySelector('[data-testid="secondary-controls"]')).toBeNull();
+    expect(root.querySelector('[data-action]')).toBeNull();
+    expect(root.querySelector('.panel')).toBeNull();
   });
 
-  it('renders actionable Terraform context without revisions or hashes', () => {
+  it('measures the canvas viewport in expanded mode on wide screens', () => {
     const root = document.createElement('div');
-    const ui = renderGameUi(root);
-
-    ui.renderToolPresentation(terraformContextFixture());
-
-    expect(root.querySelector('[data-testid="tool-context-message"]')?.textContent).toBe(
-      'Remove the road before changing this terrain',
-    );
-    expect(root.querySelector('[data-testid="terraform-accepted-count"]')?.textContent).toBe('1');
-    expect(root.querySelector('[data-testid="terraform-support-count"]')?.textContent).toBe('0');
-    expect(root.textContent).not.toMatch(/revision|hash|chunk/i);
+    root.style.width = '800px';
+    root.style.height = '600px';
+    const host = renderGameCanvas(root);
+    const layout = host.measureViewport();
+    expect(layout.width).toBeGreaterThanOrEqual(1);
+    expect(layout.height).toBeGreaterThanOrEqual(1);
+    expect(layout.mode).toBe('expanded');
+    expect(layout.insets).toEqual({ top: 0, right: 0, bottom: 0, left: 0 });
   });
 
-  it('keeps stable accessible names for persistence and Undo actions', () => {
+  it('forwards status and undo feeds to subscribed shell listeners', () => {
     const root = document.createElement('div');
-    renderGameUi(root);
+    const host = renderGameCanvas(root);
+    const onStatus = vi.fn();
+    const onUndoAvailable = vi.fn();
+    host.onStatus(onStatus);
+    host.onUndoAvailable(onUndoAvailable);
 
-    expect(root.querySelector('[aria-label="Undo latest world change"]')).not.toBeNull();
-    expect(
-      [...root.querySelectorAll('button')].some((button) => button.textContent === 'Save world'),
-    ).toBe(true);
-    expect(
-      [...root.querySelectorAll('button')].some((button) => button.textContent === 'Load world'),
-    ).toBe(true);
+    host.setStatus('Terraform applied');
+    expect(onStatus).toHaveBeenCalledWith('Terraform applied');
+
+    host.setUndoAvailable(true);
+    expect(onUndoAvailable).toHaveBeenCalledWith(true);
+
+    // The feed is a single subscriber slot: re-subscribing replaces the listener.
+    const late = vi.fn();
+    host.onStatus(late);
+    host.setStatus('Loaded');
+    expect(late).toHaveBeenCalledWith('Loaded');
+    expect(onStatus).not.toHaveBeenCalledWith('Loaded');
   });
 });

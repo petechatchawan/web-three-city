@@ -1,0 +1,3 @@
+html .city-ui:has(.city-subtool-tray:not([hidden])) .city-tool-context {
+  bottom: calc(var(--city-ui-safe-bottom) + 7.95rem);
+}

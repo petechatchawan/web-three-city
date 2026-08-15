@@ -1,12 +1,8 @@
 import { createFoundationRciRegistries, createInitialRciSnapshot } from '@web-three-city/rci-core';
-import { afterEach, describe, expect, it } from 'vitest';
-import { createRciHudModel, mountRciHud } from './rci-hud.js';
+import { describe, expect, it } from 'vitest';
+import { createRciHudModel } from './rci-hud.js';
 
-afterEach(() => {
-  document.body.replaceChildren();
-});
-
-describe('RCI HUD', () => {
+describe('RCI HUD model', () => {
   it('projects compact Population, Housing, Employment, and Demand values', () => {
     const registries = createFoundationRciRegistries();
     const initial = createInitialRciSnapshot({ absoluteTick: 32 });
@@ -63,24 +59,9 @@ describe('RCI HUD', () => {
       residentialDemand: 20,
       commercialDemand: -5,
       industrialDemand: 10,
+      residentialGateOpen: true,
+      commercialGateOpen: false,
+      industrialGateOpen: true,
     });
-
-    const panel = document.createElement('aside');
-    const activeTool = document.createElement('button');
-    activeTool.dataset.testid = 'active-tool';
-    activeTool.dataset.selected = 'true';
-    panel.append(activeTool);
-    document.body.append(panel);
-    const hud = mountRciHud(panel);
-    hud.update(snapshot, registries, 32);
-
-    expect(panel.querySelector('[data-testid="rci-population"]')?.textContent).toBe('1');
-    expect(panel.querySelector('[data-testid="rci-households"]')?.textContent).toBe('1');
-    expect(panel.querySelector('[data-testid="rci-demand-residential"]')?.textContent).toBe(
-      '+20 open',
-    );
-    expect(activeTool.dataset.selected).toBe('true');
-    hud.dispose();
-    expect(activeTool.isConnected).toBe(true);
   });
 });

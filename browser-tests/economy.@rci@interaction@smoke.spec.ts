@@ -1,11 +1,13 @@
 import { expect, test } from '@playwright/test';
+import { waitForCityUi } from './helpers/city-ui.js';
 import { GAME_URL, clickGameMenuAction } from './helpers/interaction.js';
 
 const SAVE_KEY = 'web-three-city:world-save:v6';
 
 async function waitForReady(page: import('@playwright/test').Page): Promise<void> {
+  await page.setViewportSize({ width: 414, height: 896 });
   await page.goto(GAME_URL);
-  await expect(page.getByTestId('game-status')).toHaveText('Ready');
+  await waitForCityUi(page);
 }
 
 async function openTaxation(page: import('@playwright/test').Page): Promise<void> {
@@ -27,7 +29,8 @@ test('shows the compact municipal budget without changing world tools', async ({
   await expect(dialog).toContainText('Income0.00');
   await expect(dialog).toContainText('Expenses0.00');
   await expect(dialog).toContainText('Net0.00');
-  await expect(page.getByTestId('active-tool')).toHaveText('Navigate');
+  await expect(page.getByTestId('build-category-dock')).toHaveCount(0);
+  await expect(page.getByTestId('build-picker')).toBeHidden();
 });
 
 test('applies typed tax policy and round-trips the committed Economy save', async ({ page }) => {
@@ -55,7 +58,7 @@ test('applies typed tax policy and round-trips the committed Economy save', asyn
   await dialog.getByTestId('apply-tax-policy').click();
   await closeDialog(page);
   await clickGameMenuAction(page, 'Load world');
-  await expect(page.getByTestId('game-status')).toHaveText('Loaded');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Loaded');
   await openTaxation(page);
   await expect(page.getByRole('dialog').getByTestId('tax-residential')).toHaveValue('8');
 });

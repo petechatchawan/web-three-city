@@ -1,3 +1,4 @@
+import { createCityIcon } from '../components/icon.js';
 import { createDialogNavigation, type PrimaryDialogRoute } from './dialog-navigation.js';
 
 export type DialogRenderer = (body: HTMLElement) => void;
@@ -10,6 +11,7 @@ export interface DialogHost {
   back(): void;
   close(): void;
   update(): void;
+  refresh(): void;
   dispose(): void;
 }
 
@@ -19,22 +21,43 @@ export function mountDialogHost(parent: HTMLElement): DialogHost {
   element.className = 'city-dialog-backdrop';
   element.dataset.worldInputBlock = '';
   element.hidden = true;
+
   const dialog = document.createElement('section');
-  dialog.className = 'city-dialog';
+  dialog.className = 'city-sheet';
+  dialog.dataset.sheet = '90vh';
   dialog.setAttribute('role', 'dialog');
   dialog.setAttribute('aria-modal', 'true');
+
+  const handle = document.createElement('div');
+  handle.className = 'city-sheet-handle';
+  handle.setAttribute('aria-hidden', 'true');
+
   const header = document.createElement('header');
+  header.className = 'city-sheet-header';
   const backButton = document.createElement('button');
   backButton.type = 'button';
-  backButton.textContent = 'Back';
+  backButton.className = 'city-ghost-button city-sheet-back';
+  backButton.dataset.sheetAction = 'back';
+  backButton.append(createCityIcon('chevron-left'));
+  const backLabel = document.createElement('span');
+  backLabel.textContent = 'Back';
+  backButton.append(backLabel);
+
   const title = document.createElement('h2');
+
   const closeButton = document.createElement('button');
   closeButton.type = 'button';
-  closeButton.textContent = 'Close';
+  closeButton.className = 'city-icon-button city-sheet-close';
+  closeButton.dataset.sheetAction = 'close';
+  closeButton.setAttribute('aria-label', 'Close');
+  closeButton.title = 'Close';
+  closeButton.append(createCityIcon('close'));
+
   const body = document.createElement('div');
-  body.className = 'city-dialog-body';
+  body.className = 'city-sheet-body';
+
   header.append(backButton, title, closeButton);
-  dialog.append(header, body);
+  dialog.append(handle, header, body);
   element.append(dialog);
   parent.append(element);
 
@@ -50,7 +73,12 @@ export function mountDialogHost(parent: HTMLElement): DialogHost {
     title.textContent = route.title;
     body.replaceChildren();
     renderers.at(-1)?.(body);
+    backButton.classList.toggle('is-root', renderers.length <= 1);
     if (moveFocus) closeButton.focus();
+  };
+
+  const refreshLive = (): void => {
+    if (navigation.active()?.live === true) renderActive(false);
   };
 
   const close = (): void => {
@@ -87,7 +115,8 @@ export function mountDialogHost(parent: HTMLElement): DialogHost {
       else renderActive(true);
     },
     close,
-    update: renderActive,
+    update: refreshLive,
+    refresh: () => renderActive(false),
     dispose(): void {
       abortController.abort();
       close();
@@ -98,6 +127,13 @@ export function mountDialogHost(parent: HTMLElement): DialogHost {
   backButton.addEventListener('click', () => host.back(), listenerOptions);
   closeButton.addEventListener('click', close, listenerOptions);
   element.addEventListener('pointerdown', (event) => event.stopPropagation(), listenerOptions);
+  element.addEventListener(
+    'click',
+    (event) => {
+      if (event.target === element && navigation.active() !== null) close();
+    },
+    listenerOptions,
+  );
   document.addEventListener(
     'keydown',
     (event) => {

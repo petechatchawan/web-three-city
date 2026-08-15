@@ -1,0 +1,71 @@
+/* M6.1 compact contextual toolbar */
+.city-ui .city-subtool-tray {
+  bottom: calc(var(--city-ui-safe-bottom) + 4.45rem);
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.45rem 0.5rem 0.5rem;
+  border-radius: var(--city-ui-radius-card);
+  box-shadow: var(--city-ui-shadow-tray);
+}
+
+.city-ui .city-subtool-tray > .city-tool-context {
+  position: static;
+  left: auto;
+  bottom: auto;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  transform: none;
+}
+
+.city-ui .city-subtool-tray-content {
+  display: flex;
+  gap: 0.35rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.city-ui .city-subtool-tray-content::-webkit-scrollbar {
+  display: none;
+}
+
+.city-ui .city-tool-pill {
+  flex: 0 0 auto;
+  min-height: 2.65rem !important;
+  padding: 0 0.75rem;
+}
+
+.city-ui .city-tool-context-header {
+  gap: 0.35rem;
+}
+
+.city-ui .city-tool-context-icon {
+  width: 1.8rem;
+  height: 1.8rem;
+}
+
+.city-ui .city-tool-context-content {
+  gap: 0.25rem;
+}
+
+.city-ui .city-tool-context-message {
+  flex: 1 1 70%;
+  margin: 0;
+  font-size: var(--city-ui-type-micro);
+}
+
+.city-ui .city-tool-context-pill {
+  display: none;
+}
+
+.city-ui .city-tool-context-toggle,
+.city-ui .city-tool-context-undo {
+  width: 1.9rem;
+  min-width: 1.9rem !important;
+  height: 1.9rem;
+  min-height: 1.9rem !important;
+}

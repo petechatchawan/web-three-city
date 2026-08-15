@@ -1,3 +1,4 @@
+import { clickToolUndo, openBuildCategory, waitForCityUi } from './helpers/city-ui.js';
 import { expect, test } from '@playwright/test';
 import {
   GAME_SEED,
@@ -26,7 +27,7 @@ const BASE_TERRAIN = (() => {
 async function openGame(page: import('@playwright/test').Page): Promise<void> {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(GAME_URL);
-  await expect(page.getByTestId('game-status')).toHaveText('Ready');
+  await waitForCityUi(page);
 }
 
 function centeredInteriorCells(margin: number): readonly Readonly<{ x: number; z: number }>[] {
@@ -145,6 +146,7 @@ test('accumulates Raise Preview and commits once on release', async ({ page }) =
   await openGame(page);
   const line = findValidRaiseLine();
   const [start, end] = await locatePair(page, line.start, line.end);
+  await openBuildCategory(page, 'terrain');
   await page.getByRole('button', { name: 'Raise' }).click();
   const before = await readEvidence(page);
 
@@ -163,7 +165,7 @@ test('accumulates Raise Preview and commits once on release', async ({ page }) =
   expect(preview.terraform.waterRebuildCount).toBe(before.terraform.waterRebuildCount);
 
   await page.mouse.up();
-  await expect(page.getByTestId('game-status')).toHaveText('Terraform applied');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Terraform applied');
   const after = await readEvidence(page);
   expect(after.terraform.previewRootCount).toBe(0);
   expect(after.terraform.committedTerrainRevision).toBe(
@@ -178,14 +180,15 @@ test('accumulates Raise Preview and commits once on release', async ({ page }) =
 test('Undo restores the prior Terrain snapshot and updates Water once', async ({ page }) => {
   await openGame(page);
   const point = await clickTerrainCell(page, findValidCenter(BASE_TERRAIN, 'raise', 1));
+  await openBuildCategory(page, 'terrain');
   await page.getByRole('button', { name: 'Raise' }).click();
   const before = await readEvidence(page);
 
   await page.mouse.click(point.x, point.y);
-  await expect(page.getByTestId('game-status')).toHaveText('Terraform applied');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Terraform applied');
   const committed = await readEvidence(page);
-  await page.getByRole('button', { name: 'Undo latest world change' }).click();
-  await expect(page.getByTestId('game-status')).toHaveText('Terraform undone');
+  await clickToolUndo(page);
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Terraform undone');
   const undone = await readEvidence(page);
 
   expect(committed.terraform.committedTerrainRevision).toBe(
@@ -206,8 +209,9 @@ for (const [size, count] of [
   test(`previews brush ${size}x${size} with ${count} cells`, async ({ page }) => {
     await openGame(page);
     const point = await clickTerrainCell(page, findValidCenter(BASE_TERRAIN, 'raise', size));
-    await page.getByRole('button', { name: 'Raise' }).click();
+    await openBuildCategory(page, 'terrain');
     await page.getByRole('button', { name: `Brush ${size} × ${size}` }).click();
+    await page.getByRole('button', { name: 'Raise' }).click();
 
     await page.mouse.move(point.x, point.y);
     await page.mouse.down();
@@ -222,6 +226,7 @@ for (const [size, count] of [
 test('pointer cancellation clears Preview without mutation', async ({ page }) => {
   await openGame(page);
   const point = await clickTerrainCell(page, findValidCenter(BASE_TERRAIN, 'raise', 1));
+  await openBuildCategory(page, 'terrain');
   await page.getByRole('button', { name: 'Raise' }).click();
   const before = await readEvidence(page);
 
@@ -239,6 +244,7 @@ test('pointer cancellation clears Preview without mutation', async ({ page }) =>
 test('second touch cancels Terraform and transfers to camera gestures', async ({ page }) => {
   await openGame(page);
   const point = await clickTerrainCell(page, findValidCenter(BASE_TERRAIN, 'raise', 1));
+  await openBuildCategory(page, 'terrain');
   await page.getByRole('button', { name: 'Raise' }).click();
   const before = await readEvidence(page);
 
@@ -262,6 +268,7 @@ test('second touch cancels Terraform and transfers to camera gestures', async ({
 test('no-op Flatten previews invalid and does not commit', async ({ page }) => {
   await openGame(page);
   const point = await clickTerrainCell(page, findFlatCell());
+  await openBuildCategory(page, 'terrain');
   await page.getByRole('button', { name: 'Flatten' }).click();
   const before = await readEvidence(page);
 
@@ -282,6 +289,7 @@ test('Flatten locks first valid target for the whole stroke', async ({ page }) =
   await openGame(page);
   const cell = findRobustFlattenCell();
   const point = await clickTerrainCell(page, cell);
+  await openBuildCategory(page, 'terrain');
   await page.getByRole('button', { name: 'Flatten' }).click();
   const before = await readEvidence(page);
 

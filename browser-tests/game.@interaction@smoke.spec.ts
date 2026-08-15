@@ -1,27 +1,20 @@
 import { expect, test } from '@playwright/test';
+import { openBuildCategory, openGameMenu, waitForCityUi } from './helpers/city-ui.js';
 import { GAME_URL, clickGameMenuAction, readEvidence } from './helpers/interaction.js';
 
 const SAVE_KEY = 'web-three-city:world-save:v6';
 
 async function waitForReady(page: import('@playwright/test').Page): Promise<void> {
   await page.goto(GAME_URL);
-  await expect(page.getByTestId('game-status')).toHaveText('Ready');
+  await waitForCityUi(page);
 }
 
-test('desktop and mobile initial views fit the whole world', async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
+test('canonical mobile initial view fits the whole world', async ({ page }) => {
+  await page.setViewportSize({ width: 414, height: 896 });
   await waitForReady(page);
-  let evidence = await readEvidence(page);
+  const evidence = await readEvidence(page);
   expect(evidence.allWorldCornersInsideUsableViewport).toBe(true);
   expect(evidence.framingMarginRatio).toBe(0.08);
-  await expect(page.getByTestId('controls-mode')).toHaveText('expanded');
-
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.reload();
-  await expect(page.getByTestId('game-status')).toHaveText('Ready');
-  await expect(page.getByTestId('controls-mode')).toHaveText('compact');
-  evidence = await readEvidence(page);
-  expect(evidence.allWorldCornersInsideUsableViewport).toBe(true);
 });
 
 test('drag pans without selecting', async ({ page }) => {
@@ -38,14 +31,17 @@ test('drag pans without selecting', async ({ page }) => {
   expect(evidence.selectedCell).toBeNull();
 });
 
-test('tap selects, grid toggles, and reset restores defaults', async ({ page }) => {
+test('tap selects, contextual Inspect opens, grid toggles, and reset restores defaults', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await waitForReady(page);
 
   await page.mouse.click(900, 500);
   let evidence = await readEvidence(page);
   expect(evidence.selectedCell).not.toBeNull();
-  await expect(page.getByTestId('selected-cell')).not.toHaveText('None');
+  await expect(page.getByTestId('inspect-surface')).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
 
   await clickGameMenuAction(page, 'Grid');
   evidence = await readEvidence(page);
@@ -81,13 +77,12 @@ test('changes quality and round-trips world save data', async ({ page }) => {
     rci: { kind: 'rci-save', schemaVersion: 1 },
   });
 
-  await page.getByRole('button', { name: 'Game Menu', exact: true }).click();
+  await openGameMenu(page);
   await page.getByRole('dialog').getByLabel('Quality').selectOption('low');
-  await expect(page.getByTestId('quality-value')).toHaveText('Low');
   await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
 
   await clickGameMenuAction(page, 'Load world');
-  await expect(page.getByTestId('game-status')).toHaveText('Loaded');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Loaded');
 });
 
 test('recovers presentation state after WebGL context loss', async ({ page }) => {
@@ -97,14 +92,14 @@ test('recovers presentation state after WebGL context loss', async ({ page }) =>
   await canvas.evaluate((element) => {
     element.dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
   });
-  await expect(page.getByTestId('game-status')).toHaveText('Context lost');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Context lost');
 
   await canvas.evaluate((element) => {
     element.dispatchEvent(new Event('webglcontextrestored'));
   });
-  await expect(page.getByTestId('game-status')).toHaveText('Ready');
+  await expect(page.locator('.city-status-feedback')).toBeHidden();
+  await expect.poll(async () => (await readEvidence(page)).sceneRootCounts.roadCommitted).toBe(1);
   const evidence = await readEvidence(page);
-  expect(evidence.sceneRootCounts.roadCommitted).toBe(1);
   expect(evidence.sceneRootCounts.roadPreview).toBe(0);
   expect(evidence.sceneRootCounts.zoneCommitted).toBe(1);
   expect(evidence.sceneRootCounts.zonePreview).toBe(0);
@@ -128,7 +123,7 @@ test('save and load reproduce identical Water evidence', async ({ page }) => {
   const before = (await readEvidence(page)).water;
   await clickGameMenuAction(page, 'Save world');
   await clickGameMenuAction(page, 'Load world');
-  await expect(page.getByTestId('game-status')).toHaveText('Loaded');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Loaded');
   const after = (await readEvidence(page)).water;
   expect(after.sourceTerrainRevision).toBe(before.sourceTerrainRevision);
   expect(after.seaTriangleCount).toBe(before.seaTriangleCount);
@@ -150,9 +145,9 @@ test('restores exactly one Water, Road, Zone, and Building root after context re
     element.dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
     element.dispatchEvent(new Event('webglcontextrestored'));
   });
-  await expect(page.getByTestId('game-status')).toHaveText('Ready');
+  await expect(page.locator('.city-status-feedback')).toBeHidden();
+  await expect.poll(async () => (await readEvidence(page)).water.waterRootCount).toBe(1);
   const evidence = await readEvidence(page);
-  expect(evidence.water.waterRootCount).toBe(1);
   expect(evidence.sceneRootCounts.water).toBe(1);
   expect(evidence.sceneRootCounts.roadCommitted).toBe(1);
   expect(evidence.sceneRootCounts.roadPreview).toBe(0);
@@ -161,53 +156,41 @@ test('restores exactly one Water, Road, Zone, and Building root after context re
   expect(evidence.sceneRootCounts.buildingCommitted).toBe(1);
 });
 
-test('exposes Terraform, Road, Zone, and Building tools with mode-aware brush controls', async ({
+test('exposes one Build entry and closes the picker after concrete tool selection', async ({
   page,
 }) => {
+  await page.setViewportSize({ width: 414, height: 896 });
   await waitForReady(page);
 
-  await expect(page.getByRole('button', { name: 'Navigate' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
-  for (const name of [
-    'Raise',
-    'Lower',
-    'Flatten',
-    'Build Road',
-    'Bulldoze Road',
-    'Residential',
-    'Commercial',
-    'Industrial',
-    'Remove Zone',
-    'Bulldoze Building',
-  ]) {
-    await expect(page.getByRole('button', { name })).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByTestId('nav-build')).toBeVisible();
+  await expect(page.getByTestId('nav-city')).toBeVisible();
+  for (const retired of ['nav-terrain', 'nav-roads', 'nav-zones', 'nav-buildings']) {
+    await expect(page.getByTestId(retired)).toHaveCount(0);
   }
+  await expect(page.getByTestId('build-cta')).toHaveCount(0);
+  await expect(page.getByTestId('build-category-dock')).toHaveCount(0);
+  await expect(page.getByTestId('build-picker')).toBeHidden();
   await expect(page.getByRole('button', { name: 'Develop Zones' })).toHaveCount(0);
-  await expect(page.getByTestId('terraform-brush-controls')).toBeHidden();
-  await expect(page.getByRole('button', { name: 'Undo latest world change' })).toBeDisabled();
-  await expect(page.getByTestId('active-tool')).toHaveText('Navigate');
+  await expect(page.getByTestId('tool-context-undo')).toHaveCount(0);
+  await expect(page.locator('.city-tool-context')).toHaveCount(0);
 
-  await page.getByRole('button', { name: 'Build Road' }).click();
-  await expect(page.getByRole('button', { name: 'Build Road' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
-  await expect(page.getByTestId('active-tool')).toHaveText('Build Road');
-  await expect(page.getByTestId('terraform-brush-controls')).toBeHidden();
+  await openBuildCategory(page, 'roads');
+  await page.getByRole('button', { name: 'Build Road', exact: true }).click();
+  await expect(page.getByTestId('build-picker')).toBeHidden();
+  await expect(page.getByTestId('tool-context-toggle')).toBeVisible();
+  await expect(page.locator('.city-tool-context-name')).toHaveText('Build Road');
 
-  await page.getByRole('button', { name: 'Residential' }).click();
-  await expect(page.getByTestId('active-tool')).toHaveText('Residential Zone');
-  await expect(page.getByTestId('terraform-brush-controls')).toBeHidden();
+  await openBuildCategory(page, 'zones');
+  await page.getByRole('button', { name: 'Residential', exact: true }).click();
+  await expect(page.getByTestId('build-picker')).toBeHidden();
+  await expect(page.locator('.city-tool-context-name')).toHaveText('Residential');
 
-  await page.getByRole('button', { name: 'Bulldoze Building' }).click();
-  await expect(page.getByTestId('active-tool')).toHaveText('Bulldoze Building');
-  await expect(page.getByTestId('terraform-brush-controls')).toBeHidden();
+  await openBuildCategory(page, 'buildings');
+  await page.getByRole('button', { name: 'Bulldoze Building', exact: true }).click();
+  await expect(page.getByTestId('build-picker')).toBeHidden();
+  await expect(page.locator('.city-tool-context-name')).toHaveText('Bulldoze Building');
 
-  await page.getByRole('button', { name: 'Raise' }).click();
-  await expect(page.getByRole('button', { name: 'Brush 1 × 1' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Brush 5 × 5' })).toBeVisible();
+  await openBuildCategory(page, 'terrain');
   await expect(page.getByRole('button', { name: 'Brush 1 × 1' })).toHaveAttribute(
     'aria-pressed',
     'true',
@@ -220,4 +203,7 @@ test('exposes Terraform, Road, Zone, and Building tools with mode-aware brush co
     'aria-pressed',
     'false',
   );
+  await page.getByRole('button', { name: 'Raise', exact: true }).click();
+  await expect(page.getByTestId('build-picker')).toBeHidden();
+  await expect(page.locator('.city-tool-context-name')).toHaveText('Raise');
 });

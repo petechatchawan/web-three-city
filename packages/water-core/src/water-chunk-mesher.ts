@@ -21,9 +21,9 @@ import { triangleIndexFor, type WaterSnapshot } from './water-snapshot.js';
 const WATER_SURFACE_OFFSET = 0.01;
 const SHORELINE_OFFSET = 0.013;
 const SHORELINE_WIDTH_CELLS = 0.35;
-const SHALLOW_COLOR = [0.36, 0.76, 0.86] as const;
-const DEEP_COLOR = [0.06, 0.28, 0.55] as const;
-const SHORELINE_COLOR = [0.68, 0.9, 0.92] as const;
+const SHALLOW_COLOR = [0.5, 0.84, 0.96] as const;
+const DEEP_COLOR = [0.13, 0.45, 0.75] as const;
+const SHORELINE_COLOR = [0.9, 0.97, 0.99] as const;
 const MAX_UINT16_VERTICES = 65_535;
 
 interface LatticePoint {

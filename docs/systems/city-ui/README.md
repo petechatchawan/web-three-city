@@ -1,6 +1,6 @@
 # City UI
 
-**Status:** Implementation complete — automated verification candidate preparation; Manual Acceptance pending
+**Status:** Live single shell — the `.city-ui` shell is the only mounted UI surface; the legacy `game-ui.ts` dock/panel mount is retired, and every browser spec drives the shell
 
 ## Purpose
 
@@ -20,7 +20,7 @@ City UI does **not** own simulation, Economy, RCI, World, Building, Road, Zoning
 
 - Mobile-first and landscape-first gameplay; portrait is supported as a secondary layout.
 - The world remains the primary screen. No permanent gameplay sidebar.
-- Persistent surfaces are limited to compact HUD, bottom build dock, simulation controls, and small top-level actions.
+- Persistent surfaces are limited to compact HUD, bottom navigation (5 tabs) + subtool tray, simulation controls, and small top-level actions.
 - A single primary `DialogHost` presents system or inspect dialogs with one active primary dialog and an internal navigation stack.
 - System/inspect dialogs block world pointer input behind them but **do not pause simulation** or change the active simulation speed.
 - Opening/closing a dialog must not mutate domain state, clear Undo history, or change the selected build tool.
@@ -54,22 +54,89 @@ City UI owns no authoritative persisted game state. Ephemeral dialog/navigation 
 
 ## Current milestone
 
+- [Legacy `game-ui.ts` mount retirement design](https://github.com/web-three-city/web-three-city/blob/main/docs/superpowers/specs/2026-08-10-legacy-game-ui-mount-retirement-design.md)
 - [City UI Foundation v0.1 specification](specs/2026-08-09-city-ui-foundation-v0-1.md)
 - [ADR: mobile-first dialog-based presentation](adrs/2026-08-09-mobile-first-dialog-based-presentation.md)
-- [TDD implementation plan](tdd/2026-08-09-city-ui-foundation-v0-1.md)
+- [ADR: light theme + mobile-first uniform shell](adrs/2026-08-09-light-theme-mobile-first-uniform-shell.md)
+- [ADR: legacy `game-ui.ts` mount retirement](adrs/2026-08-10-legacy-game-ui-mount-retirement.md)
+- [TDD implementation plan — foundation](tdd/2026-08-09-city-ui-foundation-v0-1.md)
+- [TDD implementation plan — legacy retirement](tdd/2026-08-10-legacy-game-ui-mount-retirement.md)
+
+## Architecture after legacy retirement
+
+The game mounts exactly two presentation layers into `#app`:
+
+1. `renderGameCanvas(root)` (`apps/game/src/game-ui.ts`) — the bootstrap adapter.
+   It creates the full-bleed `<canvas id="game-canvas">` inside `.app-shell` and
+   exposes the slim `GameBootstrapHost` contract: `canvas`, `measureViewport`,
+   the `setStatus` / `setUndoAvailable` feeds, and the `onStatus` /
+   `onUndoAvailable` subscriptions. It renders no panels, docks, buttons, or
+   tool surfaces.
+2. `mountCityUi(root, ports)` (`apps/game/src/ui/city-ui-runtime.ts`) — the
+   `.city-ui` shell. It owns the HUD, top actions, simulation controls, bottom
+   navigation + subtool tray, tool context sheet, and all dialogs.
+
+`bootstrapGame(host)` (`apps/game/src/game-bootstrap.ts`) consumes only the host
+contract. `main.ts` is the composition root: it wires the host to the shell
+(status/undo feeds land on the tool context sheet), routes keyboard shortcuts
+to the shell tray with a runtime fallback, and subscribes committed-world
+publications into `cityUi.update`.
+
+### Retired legacy mounts
+
+The following legacy surfaces are removed from the runtime and from `main.ts`:
+
+- The legacy dock/panel (`game-ui.ts` `renderGameUi`, tool buttons, brush
+  selector, camera/quality/grid reflectors, undo button, tool context).
+- `game-time-ui.ts` (`mountGameTimeUi`) — calendar and building lifecycle counts
+  now live in `game-hud.ts` (`data-metric="gameTime"` / `construction` /
+  `active` / `total`); simulation speed lives in `simulation-controls.ts`.
+- `game-tool-hud-binding.ts` and `game-secondary-controls.ts` — their tool
+  state/metrics projection folded into `game-tool-context-bridge.ts`, which
+  feeds the shell `tool-context-sheet`.
+- The RCI and Economy panel HUD mounts (`mountRciHud`,
+  `mountEconomyBudgetHud`) — superseded by the City Overview / Population-RCI /
+  Economy dialogs; only their model/projection functions
+  (`createRciHudModel`, `createEconomyViewProjection`) remain, consumed by the
+  dialogs.
+- `growth-time.css` and the legacy `.panel`-scoped rules in `style.css`;
+  `style.css` now holds only the structural base (fonts, app-shell sky, canvas).
+
+### Shell tool context
+
+`tool-context-sheet.ts` exposes `tool-context-name`, `tool-context-state`,
+`tool-context-message`, `tool-context-status`, `tool-context-undo`,
+`tool-context-requested`, and `tool-context-effective`. The Undo button is
+enabled through the bootstrap undo-available signal and invokes the runtime
+undo port. The transient status line consumes the bootstrap status feed and
+resets an in-flight "Applying change"/"Undoing" state when a completion status
+arrives.
+
+## Theme and sky
+
+- Single light theme only; no dark theme and no toggle. Token source of truth is
+  `apps/game/src/ui/foundation/tokens.css` (`--city-ui-*`): surface translucent
+  white, raised `#ffffff`, text `#1a2236`, muted `#4a5878`, accent `#2563eb`,
+  danger `#dc2626`, zone tokens `#16a34a`/`#2563eb`/`#d97706`.
+- The WebGL renderer clears transparent (`alpha: true`, `setClearColor(0, 0)`,
+  `scene.background = null`); `body`/`.app-shell` paint the CSS sky (blue →
+  near-white → subtle green + radial sun glow + horizon haze).
+- World assets use bright daytime constants (terrain, water, building,
+  zone overlays); geometry and opacity are unchanged.
 
 ## Implemented behavior
 
 - Internal lifecycle and viewport classification contracts cover the landscape-mobile, portrait, and desktop acceptance sizes.
-- A compact awareness HUD projects Population, Treasury, current Net, R/C/I direction, and GameTime without continuous live-region announcements.
+- A compact awareness HUD projects Population, Treasury, current Net, R/C/I direction, GameTime, and building lifecycle counts. Metric chips are touch-safe buttons: tap opens the matching system dialog (`city-overview` / `population-rci` / `simulation-time`); re-tap closes it.
 - Top actions and existing Paused/1×/2×/4×/Step intents use semantic touch-safe buttons.
-- `DialogHost` enforces one primary dialog, internal LIFO Back, root Close, Escape close, focus restoration, and world-input blocking without gameplay or simulation commands.
+- `DialogHost` enforces one primary dialog, internal LIFO Back, root Close, Escape close, focus restoration, and world-input blocking without gameplay or simulation commands. Primary dialogs present as 90vh bottom sheets (max-width 40rem, grab-handle bar, blurred backdrop, close ×, backdrop tap-to-close) at every breakpoint; no center-modal presentation.
 
 ### Build tool migration
 
 - Bottom categories expose Terrain, Roads, Zones, and Buildings through typed `GameRuntime` tool ports.
 - Terraform brush sizes use the existing controller contract.
-- The contextual tool surface is non-modal and does not carry the world-input-block attribute, so unobscured world placement remains available.
+- The committed tool projection folds through `game-tool-context-bridge.ts` (pure `translateToolEvent` + `bindGameToolContext`) into the `tool-context-sheet` presenter.
+- The context sheet is non-modal and does not carry the world-input-block attribute, so unobscured world placement remains available. Its header shows the powered-on tool name and status while its body shows command message, metric/affordability chips, and Undo state; a toggle collapses and expands the body without changing tool state.
 - Category expansion and dialog lifecycle do not synthesize Navigate or cancel the active tool.
 
 ### City systems
@@ -87,10 +154,12 @@ City UI owns no authoritative persisted game state. Ephemeral dialog/navigation 
 - The information-view registry enforces one active view and deterministic activate, replace, and deactivate lifecycle.
 - v0.1 exposes only the existing canonical grid and zoning visualization. Player projections exclude raw IDs, revisions, fingerprints, and debug state.
 
-### Final shell and compatibility
+### Browser acceptance
 
-- The legacy `.game-hud` no longer produces a layout box or permanent sidebar; the City UI shell owns HUD, top actions, simulation controls, and the bottom build dock.
-- Game Menu is a real primary dialog for Save, Load, camera rotation/reset, Grid, and Quality commands through typed runtime ports.
-- The retained legacy adapter is limited to the existing authoritative contextual tool projection, Undo, and bounded test/status projections while those presenters remain application-owned.
-- Game framing uses no sidebar inset and permits a larger portrait orthographic fit without changing the camera package defaults.
-- Browser acceptance covers 844×390, 932×430, 390×844, 430×932, 1280×720, and 1440×900 with no document overflow and 44 CSS px minimum visible City UI targets.
+- Every browser spec drives the `.city-ui` shell: `nav-*` tabs + `data-toolMode`
+  tray tools, `tool-context-*` testids, `data-metric` HUD chips, and the dialog
+  surfaces. No spec references legacy testids, `data-*` attributes, a11y names,
+  or legacy CSS classes (`#game-canvas` is retained for pointer/screenshot use).
+- Browser acceptance covers 844×390, 932×430, 390×844, 430×932, 1280×720, and
+  1440×900 with no document overflow and 44 CSS px minimum visible City UI
+  targets.

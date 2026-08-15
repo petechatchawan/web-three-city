@@ -4,6 +4,7 @@ import {
   pointFor,
   prepareBuildingFixtureWorld,
 } from './helpers/building-fixture.js';
+import { expandToolContext, openBuildCategory, waitForCityUi } from './helpers/city-ui.js';
 import {
   prepareDeterministicGrowthClock,
   readTimeSnapshot,
@@ -18,29 +19,38 @@ const SAVE_KEY = 'web-three-city:world-save:v6';
 async function openGrowthGame(page: import('@playwright/test').Page): Promise<void> {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(GAME_URL);
-  await expect(page.getByTestId('game-status')).toHaveText('Ready');
+  await waitForCityUi(page);
   await prepareDeterministicGrowthClock(page);
 }
 
 test('exposes the simple calendar and deterministic time controls', async ({ page }) => {
   await openGrowthGame(page);
-  await expect(page.getByTestId('game-calendar')).toHaveText('Y1 M1 D1 08:00');
-  await expect(page.getByRole('button', { name: 'Pause simulation' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
-  await expect(page.getByRole('button', { name: 'Normal simulation speed' })).toHaveAttribute(
-    'aria-pressed',
-    'false',
-  );
-  await expect(page.getByRole('button', { name: 'Fast simulation speed' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Faster simulation speed' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Advance exactly one hour' })).toBeEnabled();
+  await expect(page.locator('[data-metric="gameTime"] strong')).toHaveText('Y1 M1 D1 08:00');
+  const paused = page.locator('[data-simulation-speed="paused"]');
+  const normal = page.locator('[data-simulation-speed="normal"]');
+  const fast = page.locator('[data-simulation-speed="fast"]');
+  const faster = page.locator('[data-simulation-speed="faster"]');
+  await expect(paused).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('[data-simulation-step]')).toBeEnabled();
 
+  await normal.click();
+  await expect(normal).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('[data-simulation-step]')).toHaveCount(0);
+  await fast.click();
+  await expect(fast).toHaveAttribute('aria-pressed', 'true');
+  await faster.click();
+  await expect(faster).toHaveAttribute('aria-pressed', 'true');
+  await paused.click();
+  await expect(paused).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('[data-simulation-step]')).toBeEnabled();
+
+  // Running speeds can legitimately advance wall-clock driven ticks. Reset the
+  // deterministic clock before asserting Step semantics.
+  await prepareDeterministicGrowthClock(page);
   const after = await stepLogicalTicks(page, 1);
   expect(after.simulation.absoluteTick).toBe(9);
   expect(after.speed).toBe('paused');
-  await expect(page.getByTestId('game-calendar')).toHaveText('Y1 M1 D1 09:00');
+  await expect(page.locator('[data-metric="gameTime"] strong')).toHaveText('Y1 M1 D1 09:00');
 });
 
 test('starts at most one automatic Construction per evaluation tick', async ({ page }) => {
@@ -51,14 +61,11 @@ test('starts at most one automatic Construction per evaluation tick', async ({ p
   expect(snapshot.simulation.absoluteTick).toBe(12);
   expect(snapshot.simulation.growthSequence).toBe(1);
   expect(snapshot.buildingCount).toBe(1);
-  await expect(page.getByTestId('building-construction-count')).toHaveText('1');
-  await expect(page.getByTestId('building-active-count')).toHaveText('0');
 
   snapshot = await stepLogicalTicks(page, 6);
   expect(snapshot.simulation.absoluteTick).toBe(18);
   expect(snapshot.simulation.growthSequence).toBe(2);
   expect(snapshot.buildingCount).toBe(2);
-  await expect(page.getByTestId('building-construction-count')).toHaveText('2');
 });
 
 test('automatic Growth preserves the active Zoning tool and in-progress stroke', async ({
@@ -66,27 +73,29 @@ test('automatic Growth preserves the active Zoning tool and in-progress stroke',
 }) => {
   await openGrowthGame(page);
   const points = await prepareBuildingFixtureWorld(page);
-  const industrialButton = page.getByRole('button', { name: 'Industrial', exact: true });
-  await industrialButton.click();
-  await expect(page.getByTestId('active-tool')).toHaveText('Industrial Zone');
-  await expect(industrialButton).toHaveAttribute('aria-pressed', 'true');
+  await openBuildCategory(page, 'zones');
+  await page.getByRole('button', { name: 'Industrial', exact: true }).click();
+  await expect(page.getByTestId('build-picker')).toBeHidden();
+  await expect(page.getByTestId('nav-build')).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator('.city-tool-context-name')).toHaveText('Industrial');
   await expect(page.getByRole('button', { name: 'Develop Zones' })).toHaveCount(0);
+  await expandToolContext(page);
 
   await page.evaluate(() => {
     const canvas = document.querySelector<HTMLCanvasElement>('#game-canvas');
-    const navigate = document.querySelector<HTMLButtonElement>('[data-action="tool-navigate"]');
-    const status = document.querySelector<HTMLElement>('[data-testid="game-status"]');
-    if (canvas === null || navigate === null || status === null) {
+    const activeTool = document.querySelector<HTMLElement>('.city-tool-context-name');
+    const status = document.querySelector<HTMLElement>('.city-status-feedback');
+    if (canvas === null || activeTool === null || status === null) {
       throw new Error('growth:missing-isolation-probe-target');
     }
     const probe = {
-      navigateClicks: 0,
+      toolContextMutations: 0,
       buildingTransactions: 0,
       statusValues: [] as string[],
     };
-    navigate.addEventListener('click', () => {
-      probe.navigateClicks += 1;
-    });
+    new MutationObserver(() => {
+      probe.toolContextMutations += 1;
+    }).observe(activeTool, { childList: true, characterData: true, subtree: true });
     canvas.addEventListener('web-three-city:game-tool-presentation', (event) => {
       const detail = (event as CustomEvent<{ readonly type?: string; readonly domain?: string }>)
         .detail;
@@ -106,10 +115,8 @@ test('automatic Growth preserves the active Zoning tool and in-progress stroke',
 
   const startPoint = pointFor(points, BUILDING_FIXTURES.industrial.zoneCells[0]);
   const endPoint = pointFor(points, BUILDING_FIXTURES.industrial.zoneCells[1]);
-  const status = page.getByTestId('game-status');
-  const undo = page.getByTestId('undo-world-change');
-  const statusBeforeGrowth = (await status.textContent()) ?? '';
-  const undoDisabledBeforeGrowth = await undo.isDisabled();
+  const undo = page.getByTestId('tool-context-undo');
+  const undoCountBeforeGrowth = await undo.count();
 
   await page.mouse.move(startPoint.x, startPoint.y);
   await page.mouse.down();
@@ -127,6 +134,10 @@ test('automatic Growth preserves the active Zoning tool and in-progress stroke',
     };
     timeWindow.__WEB_THREE_CITY_TIME__?.setSpeed('faster');
   });
+  await expect(page.locator('[data-simulation-speed="faster"]')).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   await expect
     .poll(async () => (await readTimeSnapshot(page)).simulation.absoluteTick, {
       timeout: 5_000,
@@ -140,27 +151,29 @@ test('automatic Growth preserves the active Zoning tool and in-progress stroke',
     };
     timeWindow.__WEB_THREE_CITY_TIME__?.setSpeed('paused');
   });
+  await expect(page.locator('[data-simulation-speed="paused"]')).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
 
   const snapshot = await readTimeSnapshot(page);
   expect(snapshot.simulation.absoluteTick).toBeGreaterThanOrEqual(12);
   expect(snapshot.simulation.growthSequence).toBeGreaterThanOrEqual(1);
   expect(snapshot.buildingCount).toBeGreaterThanOrEqual(1);
-  await expect(page.getByTestId('active-tool')).toHaveText('Industrial Zone');
-  await expect(industrialButton).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.city-tool-context-name')).toHaveText('Industrial');
+  await expect(page.getByTestId('nav-build')).toHaveAttribute('aria-pressed', 'false');
   await expect
     .poll(() =>
       page.evaluate(() => window.__WEB_THREE_CITY_INTERACTION__?.zone.strokeActive ?? false),
     )
     .toBe(true);
-  await expect(status).toHaveText(statusBeforeGrowth);
-  await expect(status).not.toHaveText('Zones developed');
-  expect(await undo.isDisabled()).toBe(undoDisabledBeforeGrowth);
+  expect(await undo.count()).toBe(undoCountBeforeGrowth);
 
   const probe = await page.evaluate(() => {
     const value = (
       window as Window & {
         __WEB_THREE_CITY_GROWTH_ISOLATION_PROBE__?: {
-          readonly navigateClicks: number;
+          readonly toolContextMutations: number;
           readonly buildingTransactions: number;
           readonly statusValues: readonly string[];
         };
@@ -169,14 +182,13 @@ test('automatic Growth preserves the active Zoning tool and in-progress stroke',
     if (value === undefined) throw new Error('growth:missing-isolation-probe');
     return value;
   });
-  expect(probe.navigateClicks).toBe(0);
+  expect(probe.toolContextMutations).toBe(0);
   expect(probe.buildingTransactions).toBe(0);
   expect(probe.statusValues).not.toContain('Zones developed');
 
   await page.mouse.move(endPoint.x, endPoint.y);
   await page.mouse.up();
-  await expect(page.getByTestId('active-tool')).toHaveText('Industrial Zone');
-  await expect(industrialButton).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('.city-tool-context-name')).toHaveText('Industrial');
 });
 
 test('persists WorldSaveV6 and loads paused at the exact logical tick', async ({ page }) => {
@@ -199,11 +211,15 @@ test('persists WorldSaveV6 and loads paused at the exact logical tick', async ({
 
   await stepLogicalTicks(page, 3);
   await clickGameMenuAction(page, 'Load world');
-  await expect(page.getByTestId('game-status')).toHaveText('Loaded');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Loaded');
   const loaded = await readTimeSnapshot(page);
   expect(loaded.simulation.absoluteTick).toBe(12);
   expect(loaded.simulation.growthSequence).toBe(1);
   expect(loaded.speed).toBe('paused');
+  await expect(page.locator('[data-simulation-speed="paused"]')).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
 });
 
 test('does not expose the explicit Develop Zones control in production Growth mode', async ({
@@ -211,5 +227,6 @@ test('does not expose the explicit Develop Zones control in production Growth mo
 }) => {
   await openGrowthGame(page);
   await expect(page.getByRole('button', { name: 'Develop Zones' })).toHaveCount(0);
+  await openBuildCategory(page, 'buildings');
   await expect(page.getByRole('button', { name: 'Bulldoze Building' })).toBeVisible();
 });

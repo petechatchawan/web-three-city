@@ -1,3 +1,4 @@
+import { clickToolUndo, openBuildCategory, waitForCityUi } from './helpers/city-ui.js';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import {
@@ -81,7 +82,12 @@ function flatCell(): Readonly<{ x: number; z: number }> {
 
 async function openGame(page: import('@playwright/test').Page): Promise<void> {
   await page.goto(GAME_URL);
-  await expect(page.getByTestId('game-status')).toHaveText('Ready');
+  await waitForCityUi(page);
+}
+
+async function exitActiveTool(page: import('@playwright/test').Page): Promise<void> {
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('tool-context-toggle')).toBeHidden();
 }
 
 interface VisibleTerrainSample {
@@ -160,6 +166,7 @@ test('captures Terraform Foundation visual and timing evidence', async ({ page }
   });
 
   const oneCellPoint = await clickTerrainCell(page, validRaiseCell(BASE_TERRAIN, 1));
+  await openBuildCategory(page, 'terrain');
   await page.getByRole('button', { name: 'Raise' }).click();
   await page.mouse.move(oneCellPoint.x, oneCellPoint.y);
   await page.mouse.down();
@@ -171,14 +178,15 @@ test('captures Terraform Foundation visual and timing evidence', async ({ page }
     fullPage: true,
   });
   await page.mouse.up();
-  await expect(page.getByTestId('game-status')).toHaveText('Terraform applied');
-  await page.getByRole('button', { name: 'Undo latest world change' }).click();
-  await expect(page.getByTestId('game-status')).toHaveText('Terraform undone');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Terraform applied');
+  await clickToolUndo(page);
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Terraform undone');
 
-  await page.getByRole('button', { name: 'Navigate' }).click();
+  await exitActiveTool(page);
   const fiveCellPoint = await clickTerrainCell(page, validRaiseCell(BASE_TERRAIN, 5));
-  await page.getByRole('button', { name: 'Raise' }).click();
+  await openBuildCategory(page, 'terrain');
   await page.getByRole('button', { name: 'Brush 5 × 5' }).click();
+  await page.getByRole('button', { name: 'Raise' }).click();
   await page.mouse.move(fiveCellPoint.x, fiveCellPoint.y);
   await page.mouse.down();
   evidence = await readEvidence(page);
@@ -188,14 +196,15 @@ test('captures Terraform Foundation visual and timing evidence', async ({ page }
     fullPage: true,
   });
   await page.mouse.up();
-  await expect(page.getByTestId('game-status')).toHaveText('Terraform applied');
-  await page.getByRole('button', { name: 'Undo latest world change' }).click();
-  await expect(page.getByTestId('game-status')).toHaveText('Terraform undone');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Terraform applied');
+  await clickToolUndo(page);
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Terraform undone');
 
-  await page.getByRole('button', { name: 'Navigate' }).click();
+  await exitActiveTool(page);
   const invalidPoint = await clickTerrainCell(page, flatCell());
-  await page.getByRole('button', { name: 'Flatten' }).click();
+  await openBuildCategory(page, 'terrain');
   await page.getByRole('button', { name: 'Brush 1 × 1' }).click();
+  await page.getByRole('button', { name: 'Flatten' }).click();
   await page.mouse.move(invalidPoint.x, invalidPoint.y);
   await page.mouse.down();
   evidence = await readEvidence(page);
@@ -206,12 +215,13 @@ test('captures Terraform Foundation visual and timing evidence', async ({ page }
   });
   await page.mouse.up();
 
-  await page.getByRole('button', { name: 'Navigate' }).click();
+  await exitActiveTool(page);
   const commitPoint = await clickTerrainCell(page, validRaiseCell(BASE_TERRAIN, 1));
+  await openBuildCategory(page, 'terrain');
   await page.getByRole('button', { name: 'Raise' }).click();
   const commitStart = await page.evaluate(() => performance.now());
   await page.mouse.click(commitPoint.x, commitPoint.y);
-  await expect(page.getByTestId('game-status')).toHaveText('Terraform applied');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Terraform applied');
   const commitEnd = await page.evaluate(() => performance.now());
   const committed = await readEvidence(page);
   expect(committed.terraform.waterSourceTerrainRevision).toBe(
@@ -223,8 +233,8 @@ test('captures Terraform Foundation visual and timing evidence', async ({ page }
   });
 
   const undoStart = await page.evaluate(() => performance.now());
-  await page.getByRole('button', { name: 'Undo latest world change' }).click();
-  await expect(page.getByTestId('game-status')).toHaveText('Terraform undone');
+  await clickToolUndo(page);
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Terraform undone');
   const undoEnd = await page.evaluate(() => performance.now());
   const undone = await readEvidence(page);
   await page.screenshot({
@@ -234,13 +244,14 @@ test('captures Terraform Foundation visual and timing evidence', async ({ page }
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
-  await expect(page.getByTestId('game-status')).toHaveText('Ready');
+  await waitForCityUi(page);
   await page.screenshot({
     path: `${OUTPUT_DIRECTORY}/${SCREENSHOTS[6]}`,
     fullPage: true,
   });
 
   const line = await findVisibleRaiseLine(page);
+  await openBuildCategory(page, 'terrain');
   await page.getByRole('button', { name: 'Raise' }).click();
   await page.mouse.move(line.start.x, line.start.y);
   await page.mouse.down();

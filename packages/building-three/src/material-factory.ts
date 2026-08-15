@@ -11,11 +11,11 @@ export interface BuildingMaterials {
 
 export function createBuildingMaterials(): BuildingMaterials {
   const materials = {
-    residential: new THREE.MeshLambertMaterial({ color: 0xe9c98f }),
-    commercial: new THREE.MeshLambertMaterial({ color: 0x8db6d9 }),
-    industrial: new THREE.MeshLambertMaterial({ color: 0xb2a58c }),
-    roof: new THREE.MeshLambertMaterial({ color: 0x9e5f4b }),
-    accent: new THREE.MeshLambertMaterial({ color: 0x40566b }),
+    residential: new THREE.MeshLambertMaterial({ color: 0xf0c060 }),
+    commercial: new THREE.MeshLambertMaterial({ color: 0x5b9bd4 }),
+    industrial: new THREE.MeshLambertMaterial({ color: 0x8b93a3 }),
+    roof: new THREE.MeshLambertMaterial({ color: 0xb5563e }),
+    accent: new THREE.MeshLambertMaterial({ color: 0x3d5874 }),
   };
   return Object.freeze({
     ...materials,

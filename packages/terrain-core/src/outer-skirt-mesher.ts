@@ -77,7 +77,7 @@ export function buildOuterSkirtMesh(map: TerrainMap, config: WorldConfig): Outer
       for (let vertex = 0; vertex < 4; vertex += 1) {
         const offset = vertexOffset + vertex * 3;
         normals.set(side.normal, offset);
-        colors.set([0.31, 0.22, 0.13], offset);
+        colors.set([0.75, 0.63, 0.42], offset);
       }
       const baseVertex = segment * 4;
       indices.set(

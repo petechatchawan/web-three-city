@@ -1,3 +1,4 @@
+import { openGameMenu, waitForCityUi } from './helpers/city-ui.js';
 import { expect, test } from '@playwright/test';
 import {
   GAME_URL,
@@ -10,7 +11,7 @@ import {
 async function openGame(page: import('@playwright/test').Page): Promise<void> {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(GAME_URL);
-  await expect(page.getByTestId('game-status')).toHaveText('Ready');
+  await waitForCityUi(page);
 }
 
 test('pinch zooms without selection', async ({ page }) => {
@@ -100,7 +101,7 @@ test('pointer cancellation cannot select', async ({ page }) => {
 test('a pointer starting on UI never moves the world', async ({ page }) => {
   await openGame(page);
   const before = (await readEvidence(page)).camera;
-  await page.getByRole('button', { name: 'Game Menu', exact: true }).click();
+  await openGameMenu(page);
   const saveButton = page.getByRole('dialog').getByRole('button', { name: 'Save world' });
   const box = await saveButton.boundingBox();
   if (box === null) throw new Error('missing Save terrain bounds');
@@ -122,7 +123,7 @@ test('context loss clears an active session before release', async ({ page }) =>
   await page.locator('#game-canvas').evaluate((canvas) => {
     canvas.dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
   });
-  await expect(page.getByTestId('game-status')).toHaveText('Context lost');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Context lost');
   await dispatchCanvasTouch(page, 'pointerup', 1, 800, 400);
 
   const evidence = await readEvidence(page);
@@ -137,20 +138,19 @@ test('reset after resize uses the new usable viewport', async ({ page }) => {
 
   const evidence = await readEvidence(page);
   expect(evidence.allWorldCornersInsideUsableViewport).toBe(true);
-  await expect(page.getByTestId('controls-mode')).toHaveText('compact');
 });
 
 test('context restore preserves grid and selection with one root each', async ({ page }) => {
   await openGame(page);
   await page.mouse.click(900, 500);
-  await expect(page.getByTestId('selected-cell')).not.toHaveText('None');
+  await expect(page.getByTestId('inspect-surface')).toBeVisible();
   await clickGameMenuAction(page, 'Grid');
 
   await page.locator('#game-canvas').evaluate((canvas) => {
     canvas.dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
     canvas.dispatchEvent(new Event('webglcontextrestored'));
   });
-  await expect(page.getByTestId('game-status')).toHaveText('Ready');
+  await waitForCityUi(page);
 
   const evidence = await readEvidence(page);
   expect(evidence.gridVisible).toBe(true);

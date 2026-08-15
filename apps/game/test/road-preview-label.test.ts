@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { roadPreviewStateLabel } from '../src/game-tool-hud-binding.js';
+import { roadPreviewStateLabel } from '../src/game-tool-context-bridge.js';
 
 describe('roadPreviewStateLabel', () => {
   it.each([

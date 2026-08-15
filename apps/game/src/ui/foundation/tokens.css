@@ -1,12 +1,45 @@
 :root {
-  --city-ui-surface: rgb(16 28 37 / 92%);
-  --city-ui-surface-raised: rgb(28 44 55 / 96%);
-  --city-ui-text: #f5f8fa;
-  --city-ui-muted: #b8c6ce;
-  --city-ui-accent: #63d5b4;
-  --city-ui-danger: #ffb3a7;
-  --city-ui-gap: 0.5rem;
-  --city-ui-radius: 0.75rem;
+  --city-ui-surface: rgba(255 255 255 / 0.88);
+  --city-ui-surface-raised: #ffffff;
+  --city-ui-surface-muted: #f2f5fa;
+  --city-ui-surface-selected: #e9f0ff;
+  --city-ui-surface-pressed: #dbe7ff;
+  --city-ui-blur: 16px;
+  --city-ui-text: #1a2236;
+  --city-ui-muted: #4a5878;
+  --city-ui-accent: #2563eb;
+  --city-ui-accent-strong: #1d4ed8;
+  --city-ui-danger: #dc2626;
+  --city-ui-zone-residential: #16a34a;
+  --city-ui-zone-commercial: #2563eb;
+  --city-ui-zone-industrial: #d97706;
+  --city-ui-space-1: 0.25rem;
+  --city-ui-space-2: 0.5rem;
+  --city-ui-space-3: 0.75rem;
+  --city-ui-space-4: 1rem;
+  --city-ui-space-5: 1.25rem;
+  --city-ui-space-6: 1.5rem;
+  --city-ui-gap: var(--city-ui-space-2);
+  --city-ui-radius-control: 0.75rem;
+  --city-ui-radius-card: 1rem;
+  --city-ui-radius-sheet: 1.5rem;
+  --city-ui-radius-pill: 999px;
+  --city-ui-radius: var(--city-ui-radius-control);
+  --city-ui-icon-sm: 1rem;
+  --city-ui-icon-md: 1.25rem;
+  --city-ui-icon-lg: 1.5rem;
+  --city-ui-type-micro: 0.625rem;
+  --city-ui-type-caption: 0.6875rem;
+  --city-ui-type-body: 0.8125rem;
+  --city-ui-type-label: 0.75rem;
+  --city-ui-type-section: 0.875rem;
+  --city-ui-type-title: 1.125rem;
+  --city-ui-type-metric: 0.875rem;
+  --city-ui-border-subtle: rgb(26 34 54 / 8%);
+  --city-ui-border-strong: rgb(26 34 54 / 16%);
+  --city-ui-shadow-float: 0 0.5rem 1.5rem rgb(20 31 55 / 12%);
+  --city-ui-shadow-tray: 0 0.75rem 2rem rgb(20 31 55 / 16%);
+  --city-ui-shadow-sheet: 0 -1.5rem 4rem rgb(20 31 55 / 22%);
   --city-ui-target: 44px;
   --city-ui-safe-top: env(safe-area-inset-top, 0px);
   --city-ui-safe-right: env(safe-area-inset-right, 0px);
@@ -26,5 +59,6 @@
   :where(.city-ui, .city-ui *) {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
   }
 }

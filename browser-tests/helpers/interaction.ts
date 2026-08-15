@@ -8,6 +8,7 @@ import {
 import { createCoreWaterPresentationSource } from '../../packages/water-three/src/index.js';
 import type { InteractionEvidence } from '../../apps/game/src/interaction-evidence.js';
 import * as THREE from 'three';
+import { openGameMenu } from './city-ui.js';
 import {
   CELL_TRIANGLES,
   GAME_TERRAIN,
@@ -25,12 +26,32 @@ export async function clickGameMenuAction(
   page: Page,
   name: 'Save world' | 'Load world' | 'Rotate left' | 'Rotate right' | 'Reset camera' | 'Grid',
 ): Promise<void> {
-  const activeDialog = page.getByRole('dialog');
-  if (await activeDialog.isVisible()) {
-    await activeDialog.getByRole('button', { name: 'Close', exact: true }).click();
-  }
-  await page.getByRole('button', { name: 'Game Menu', exact: true }).click();
+  await openGameMenu(page);
   await page.getByRole('dialog').getByRole('button', { name, exact: true }).click();
+}
+
+export async function readZoningCounts(page: Page): Promise<{
+  readonly residential: string;
+  readonly commercial: string;
+  readonly industrial: string;
+}> {
+  await page.getByRole('button', { name: 'City', exact: true }).click();
+  await page.getByRole('button', { name: 'Zoning', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  // Rows render as <p><span>label</span><strong>value</strong></p>; read the strong value.
+  const valueOf = async (label: string): Promise<string> => {
+    const row = dialog.locator('p').filter({ hasText: label });
+    const value = await row.locator('strong').textContent();
+    if (value === null) throw new Error(`zoning:missing-value:${label}`);
+    return value;
+  };
+  const counts = {
+    residential: await valueOf('Residential zones'),
+    commercial: await valueOf('Commercial zones'),
+    industrial: await valueOf('Industrial zones'),
+  };
+  await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+  return counts;
 }
 
 const CORNER_OFFSETS: Readonly<Record<TerrainCorner, Readonly<{ x: number; z: number }>>> =

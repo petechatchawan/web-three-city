@@ -1,28 +1,37 @@
 import { expect, test } from '@playwright/test';
+import { openBuildCategory, openGameMenu } from './helpers/city-ui.js';
 import { GAME_URL } from './helpers/interaction.js';
 
 const viewports = [
-  { width: 844, height: 390 },
-  { width: 932, height: 430 },
-  { width: 390, height: 844 },
-  { width: 430, height: 932 },
-  { width: 1280, height: 720 },
-  { width: 1440, height: 900 },
+  { width: 414, height: 896, canonical: true },
+  { width: 390, height: 844, canonical: false },
+  { width: 844, height: 390, canonical: false },
+  { width: 932, height: 430, canonical: false },
+  { width: 1280, height: 720, canonical: false },
+  { width: 1440, height: 900, canonical: false },
 ] as const;
 
 for (const viewport of viewports) {
-  test(`renders the City UI shell without a sidebar or overflow at ${viewport.width}×${viewport.height}`, async ({
+  test(`renders the City UI shell without overflow at ${viewport.width}×${viewport.height}`, async ({
     page,
   }) => {
     await page.setViewportSize(viewport);
     await page.goto(GAME_URL);
-    await expect(page.getByTestId('game-status')).toHaveText('Ready');
     await expect(page.locator('.city-awareness-hud')).toBeVisible();
-    await expect(page.locator('.city-build-dock')).toBeVisible();
-    await expect(page.locator('.city-simulation-controls')).toBeVisible();
+    await expect(page.locator('.city-bottom-nav')).toBeVisible();
+    await expect(page.getByTestId('nav-build')).toBeVisible();
+    await expect(page.getByTestId('nav-city')).toBeVisible();
+    for (const retired of ['nav-terrain', 'nav-roads', 'nav-zones', 'nav-buildings']) {
+      await expect(page.getByTestId(retired)).toHaveCount(0);
+    }
+    await expect(page.getByTestId('build-cta')).toHaveCount(0);
+    await expect(page.getByTestId('primary-navigate')).toHaveCount(0);
+    await expect(page.getByTestId('build-category-dock')).toHaveCount(0);
+    await expect(page.getByTestId('build-picker')).toBeHidden();
+    await expect(page.locator('.city-status-feedback')).toBeHidden();
+    await expect(page.locator('[data-simulation-speed]')).toHaveCount(4);
 
     const layout = await page.evaluate(() => {
-      const legacy = document.querySelector<HTMLElement>('.game-hud');
       const targets = [...document.querySelectorAll<HTMLElement>('.city-ui button')]
         .filter((element) => element.getClientRects().length > 0)
         .map((element) => {
@@ -33,15 +42,23 @@ for (const viewport of viewports) {
         overflow:
           document.documentElement.scrollWidth > document.documentElement.clientWidth ||
           document.documentElement.scrollHeight > document.documentElement.clientHeight,
-        legacyDisplay: legacy === null ? 'absent' : getComputedStyle(legacy).display,
         minimumTarget: Math.min(...targets),
       };
     });
     expect(layout.overflow).toBe(false);
-    expect(layout.legacyDisplay).toBe('contents');
     expect(layout.minimumTarget).toBeGreaterThanOrEqual(44);
 
-    await page.getByRole('button', { name: 'Game Menu', exact: true }).click();
+    if (viewport.canonical) {
+      await openBuildCategory(page, 'terrain');
+      await expect(page.getByRole('button', { name: 'Raise', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Brush 1 × 1' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Brush 5 × 5' })).toBeVisible();
+      await page.getByRole('button', { name: 'Raise', exact: true }).click();
+      await expect(page.getByTestId('build-picker')).toBeHidden();
+      await expect(page.getByTestId('tool-context-toggle')).toBeVisible();
+    }
+
+    await openGameMenu(page);
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
     await expect(dialog.getByRole('button', { name: 'Save world' })).toBeVisible();

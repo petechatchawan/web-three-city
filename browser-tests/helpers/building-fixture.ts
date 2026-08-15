@@ -14,6 +14,7 @@ import {
   type CellCoord,
   type ZoneDefinitionId,
 } from './domain-fixtures.js';
+import { openBuildCategory } from './city-ui.js';
 import { clickTerrainCell, locateTerrainCell, type TerrainCellScreenPoint } from './interaction.js';
 
 export interface BuildingLotFixture {
@@ -166,14 +167,15 @@ async function buildRoad(
   points: BuildingFixturePoints,
   fixture: BuildingLotFixture,
 ): Promise<void> {
-  await page.getByRole('button', { name: 'Build Road' }).click();
+  await openBuildCategory(page, 'roads');
+  await page.getByRole('button', { name: 'Build Road', exact: true }).click();
   const start = pointFor(points, fixture.roadCells[0]);
   const end = pointFor(points, fixture.roadCells[1]);
   await page.mouse.move(start.x, start.y);
   await page.mouse.down();
   await page.mouse.move(end.x, end.y);
   await page.mouse.up();
-  await expect(page.getByTestId('game-status')).toHaveText('Road built');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Road built');
 }
 
 async function paintZone(
@@ -181,11 +183,12 @@ async function paintZone(
   points: BuildingFixturePoints,
   fixture: BuildingLotFixture,
 ): Promise<void> {
+  await openBuildCategory(page, 'zones');
   await page.getByRole('button', { name: fixture.zoneButtonName, exact: true }).click();
   for (const cell of fixture.zoneCells) {
     const point = pointFor(points, cell);
     await page.mouse.click(point.x, point.y);
-    await expect(page.getByTestId('game-status')).toHaveText('Zone painted');
+    await expect(page.getByTestId('tool-context-status')).toHaveText('Zone painted');
   }
 }
 

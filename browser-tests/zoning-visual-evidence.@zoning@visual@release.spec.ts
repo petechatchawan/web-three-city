@@ -13,11 +13,13 @@ import {
   planZoneMutation,
   type CellCoord,
 } from './helpers/domain-fixtures.js';
+import { openBuildCategory, waitForCityUi } from './helpers/city-ui.js';
 import {
   GAME_URL,
   clickTerrainCell,
   dispatchCanvasTouch,
   readEvidence,
+  readZoningCounts,
   type TerrainCellScreenPoint,
 } from './helpers/interaction.js';
 
@@ -162,21 +164,22 @@ async function paint(
   type: 'Residential' | 'Commercial' | 'Industrial',
   cell: CellCoord,
 ): Promise<void> {
+  await openBuildCategory(page, 'zones');
   await page.getByRole('button', { name: type, exact: true }).click();
   await clickCell(page, points, cell);
-  await expect(page.getByTestId('game-status')).toHaveText('Zone painted');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Zone painted');
 }
 
 async function capture(page: Page, testInfo: TestInfo, fileName: string): Promise<void> {
   await page.screenshot({ path: testInfo.outputPath(fileName), fullPage: true });
 }
 
-test('captures committed R/C/I overlays, invalid depth feedback, and responsive Zone HUD', async ({
+test('captures committed R/C/I overlays, invalid depth feedback, and canonical mobile Zone dock', async ({
   page,
 }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(GAME_URL);
-  await expect(page.getByTestId('game-status')).toHaveText('Ready');
+  await waitForCityUi(page);
 
   const cells = [
     FIXTURE.road,
@@ -187,9 +190,10 @@ test('captures committed R/C/I overlays, invalid depth feedback, and responsive 
   ];
   const points = await locate(page, cells);
 
+  await openBuildCategory(page, 'roads');
   await page.getByRole('button', { name: 'Build Road' }).click();
   await clickCell(page, points, FIXTURE.road);
-  await expect(page.getByTestId('game-status')).toHaveText('Road built');
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Road built');
 
   for (const cell of FIXTURE.residential) await paint(page, points, 'Residential', cell);
   await paint(page, points, 'Commercial', FIXTURE.commercial);
@@ -199,8 +203,9 @@ test('captures committed R/C/I overlays, invalid depth feedback, and responsive 
   expect(evidence.zone.counts).toEqual({ residential: 3, commercial: 1, industrial: 1, total: 5 });
   expect(evidence.zone.committedRootCount).toBe(1);
   expect(evidence.zone.previewRootCount).toBe(0);
-  await capture(page, testInfo, 'zoning-committed-desktop.png');
+  await capture(page, testInfo, 'zoning-committed-mobile.png');
 
+  await openBuildCategory(page, 'zones');
   await page.getByRole('button', { name: 'Residential', exact: true }).click();
   const invalid = pointAt(points, FIXTURE.invalidDepthFour);
   await dispatchCanvasTouch(page, 'pointerdown', 71, invalid.x, invalid.y);
@@ -208,14 +213,25 @@ test('captures committed R/C/I overlays, invalid depth feedback, and responsive 
   expect(evidence.zone.previewValid).toBe(false);
   expect(evidence.zone.previewInvalidReason).toBe('zone:road-access-required');
   expect(evidence.zone.previewRootCount).toBe(1);
-  await capture(page, testInfo, 'zoning-invalid-depth-four.png');
+  await expect(page.getByTestId('tool-context-status')).toHaveText(
+    'Zones must be within three cells of a road',
+  );
+  await capture(page, testInfo, 'zoning-invalid-depth-four-mobile.png');
   await dispatchCanvasTouch(page, 'pointercancel', 71, invalid.x, invalid.y);
   expect((await readEvidence(page)).zone.previewRootCount).toBe(0);
 
-  await page.setViewportSize({ width: 390, height: 844 });
+  await page.setViewportSize({ width: 414, height: 896 });
+  await page.evaluate(() => window.dispatchEvent(new Event('resize')));
+  await openBuildCategory(page, 'zones');
+  await capture(page, testInfo, 'zoning-dock-mobile.png');
+
   await expect(page.getByRole('button', { name: 'Residential', exact: true })).toBeVisible();
-  await expect(page.getByTestId('zone-residential-count')).toHaveText('3');
-  await expect(page.getByTestId('zone-commercial-count')).toHaveText('1');
-  await expect(page.getByTestId('zone-industrial-count')).toHaveText('1');
-  await capture(page, testInfo, 'zoning-committed-mobile.png');
+  await expect(page.getByRole('button', { name: 'Commercial', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Industrial', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Remove Zone', exact: true })).toBeVisible();
+  await expect(await readZoningCounts(page)).toEqual({
+    residential: '3',
+    commercial: '1',
+    industrial: '1',
+  });
 });

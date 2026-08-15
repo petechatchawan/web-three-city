@@ -1,5 +1,10 @@
 import type { InspectProjection } from './inspect-projections.js';
-import { localizeInspectFieldLabel, uiText, type UiLocale } from '../presentation-locale.js';
+import {
+  localizeInspectFieldLabel,
+  localizeInspectTitle,
+  uiText,
+  type UiLocale,
+} from '../presentation-locale.js';
 
 export interface InspectSurface {
   readonly element: HTMLElement;
@@ -45,7 +50,7 @@ export function mountInspectSurface(
     eyebrow.textContent = uiText(locale, 'inspect');
     const title = document.createElement('strong');
     title.className = 'city-inspect-title';
-    title.textContent = latest.title;
+    title.textContent = localizeInspectTitle(locale, latest.title);
     const firstField = latest.fields?.[0];
     const summary = document.createElement('span');
     summary.className = 'city-inspect-summary';

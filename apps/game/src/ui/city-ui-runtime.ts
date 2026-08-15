@@ -8,7 +8,7 @@ import { createCityIcon, type CityIconName } from './components/icon.js';
 import type { DialogHost } from './dialog/dialog-host.js';
 import { createInspectProjection } from './inspect/inspect-projections.js';
 import { mountInspectSurface, type InspectSurface } from './inspect/inspect-surface.js';
-import { pickInspectTarget } from './inspect/inspect-target.js';
+import { pickInspectTarget, type InspectTarget } from './inspect/inspect-target.js';
 import { createInformationViewRegistry } from './information-views/information-view-registry.js';
 import {
   persistUiLocale,
@@ -26,7 +26,7 @@ export interface CityUiPorts {
   readonly selectTool: Parameters<typeof mountPlayerShell>[1]['selectTool'];
   readonly setTerraformBrush: Parameters<typeof mountPlayerShell>[1]['setTerraformBrush'];
   readonly submitTaxPolicy: Parameters<typeof createCitySystemDialogs>[1]['submitTaxPolicy'];
-  readonly setInformationView: (key: 'grid' | 'zoning' | null) => void;
+  readonly setInformationView: (key: 'grid' | 'zoning' | 'traffic' | null) => void;
   readonly saveWorld: () => void;
   readonly loadWorld: () => void;
   readonly rotateLeft: () => void;
@@ -46,6 +46,7 @@ export interface CityUiRuntime {
   setSimulationSpeed(speed: Parameters<CityUiPorts['setSpeed']>[0]): void;
   update(world: CommittedWorld): void;
   inspectCell(cell: Readonly<{ x: number; z: number }>): void;
+  inspectTarget(target: InspectTarget): void;
   dispose(): void;
 }
 
@@ -89,6 +90,7 @@ function menuAction(
 
 export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRuntime {
   let latestWorld: CommittedWorld | null = null;
+  let latestInspectTarget: InspectTarget | null = null;
   let locale: UiLocale = readStoredUiLocale();
   let inspectSurface: InspectSurface | null = null;
   let activeToolMode: GameToolMode = 'navigate';
@@ -109,7 +111,17 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
       activate: () => ports.setInformationView('zoning'),
       deactivate: () => ports.setInformationView(null),
     },
+    {
+      key: 'traffic',
+      title: 'Traffic',
+      legend: 'Free flow · Moderate · Heavy · Congested',
+      activate: () => ports.setInformationView('traffic'),
+      deactivate: () => ports.setInformationView(null),
+    },
   ]);
+
+  const localizedInformationTitle = (key: string, fallback: string): string =>
+    key === 'traffic' ? uiText(locale, 'informationViewTraffic') : fallback;
 
   const renderInformationViews = (body: HTMLElement): void => {
     const grid = document.createElement('div');
@@ -118,7 +130,7 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'city-sheet-action';
-      button.textContent = entry.title;
+      button.textContent = localizedInformationTitle(entry.key, entry.title);
       button.dataset.informationView = entry.key;
       button.addEventListener('click', () => {
         informationViews.replace(entry.key);
@@ -133,11 +145,15 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
       card.className = 'city-card city-information-card';
       const legend = document.createElement('p');
       legend.dataset.testid = 'information-view-legend';
-      legend.textContent = `${active.title}: ${active.legend}`;
+      const title = localizedInformationTitle(active.key, active.title);
+      legend.textContent =
+        active.key === 'traffic'
+          ? `${title}: ${uiText(locale, 'trafficFree')} · ${uiText(locale, 'trafficModerate')} · ${uiText(locale, 'trafficHeavy')} · ${uiText(locale, 'trafficCongested')}`
+          : `${title}: ${active.legend}`;
       const deactivate = document.createElement('button');
       deactivate.type = 'button';
       deactivate.className = 'city-ghost-button';
-      deactivate.textContent = 'Deactivate view';
+      deactivate.textContent = uiText(locale, 'deactivateView');
       deactivate.addEventListener('click', () => {
         informationViews.deactivate();
         shell.dialogHost.refresh();
@@ -305,6 +321,16 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
     openGameMenu,
   });
 
+  const openInspectTarget = (target: InspectTarget): void => {
+    if (latestWorld === null || inspectSurface === null) return;
+    if (activeToolMode !== 'navigate') {
+      inspectSurface.close();
+      return;
+    }
+    latestInspectTarget = target;
+    inspectSurface.open(createInspectProjection(latestWorld, target, ports.rciRegistries));
+  };
+
   return Object.freeze({
     element: shell.element,
     dialogHost: shell.dialogHost,
@@ -333,17 +359,24 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
         active: String(time.activeCount),
         total: String(time.totalCount),
       });
+      if (
+        latestInspectTarget !== null &&
+        inspectSurface !== null &&
+        !inspectSurface.element.hidden
+      ) {
+        inspectSurface.update(
+          createInspectProjection(world, latestInspectTarget, ports.rciRegistries),
+        );
+      }
       shell.dialogHost.update();
       appendLocaleSelector();
     },
     inspectCell(cell: Readonly<{ x: number; z: number }>): void {
-      if (latestWorld === null || inspectSurface === null) return;
-      if (activeToolMode !== 'navigate') {
-        inspectSurface.close();
-        return;
-      }
-      const target = pickInspectTarget(latestWorld, cell);
-      inspectSurface.open(createInspectProjection(latestWorld, target, ports.rciRegistries));
+      if (latestWorld === null) return;
+      openInspectTarget(pickInspectTarget(latestWorld, cell));
+    },
+    inspectTarget(target: InspectTarget): void {
+      openInspectTarget(target);
     },
     dispose(): void {
       informationViews.deactivate();

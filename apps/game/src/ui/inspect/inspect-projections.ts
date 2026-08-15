@@ -13,6 +13,7 @@ import {
   zoneOccupiedAt,
 } from '@web-three-city/zone-core';
 import type { CommittedWorld } from '../../application/committed-world.js';
+import { createTrafficInspectProjection } from './traffic-inspect-projections.js';
 import type { InspectTarget } from './inspect-target.js';
 
 export type InspectProjection = Readonly<{
@@ -30,6 +31,10 @@ export function createInspectProjection(
   target: InspectTarget,
   registries: RciDefinitionRegistries,
 ): InspectProjection {
+  if (target.kind === 'citizen' || target.kind === 'vehicle') {
+    return createTrafficInspectProjection(world, target);
+  }
+
   const { cell } = target;
   if (target.kind === 'building') {
     const instance = buildingAtCell(world.buildings, cell);
@@ -55,8 +60,9 @@ export function createInspectProjection(
     });
   }
   if (target.kind === 'road') {
-    if (!roadOccupiedAt(world.roads, cell))
+    if (!roadOccupiedAt(world.roads, cell)) {
       return Object.freeze({ kind: 'unavailable', title: 'Unavailable' });
+    }
     const definition = roadDefinitionForCode(roadDefinitionCodeAt(world.roads, cell));
     return Object.freeze({
       kind: 'road',
@@ -68,8 +74,9 @@ export function createInspectProjection(
     });
   }
   if (target.kind === 'zone') {
-    if (!zoneOccupiedAt(world.zones, cell))
+    if (!zoneOccupiedAt(world.zones, cell)) {
       return Object.freeze({ kind: 'unavailable', title: 'Unavailable' });
+    }
     const definition = zoneDefinitionForCode(zoneDefinitionCodeAt(world.zones, cell));
     return Object.freeze({
       kind: 'zone',

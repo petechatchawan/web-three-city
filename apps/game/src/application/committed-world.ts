@@ -4,6 +4,7 @@ import {
   type BuildingSnapshot,
 } from '@web-three-city/building-core';
 import {
+  createEmptyMobilitySnapshot,
   createMobilitySnapshot,
   type MobilitySnapshotV1,
 } from '@web-three-city/citizen-mobility-core';
@@ -21,7 +22,11 @@ import {
 } from '@web-three-city/road-core';
 import { createSimulationSnapshot, type SimulationSnapshot } from '@web-three-city/simulation-core';
 import { createTerrainMap, type TerrainSnapshot } from '@web-three-city/terrain-core';
-import { createTrafficSnapshot, type TrafficSnapshotV1 } from '@web-three-city/traffic-core';
+import {
+  createEmptyTrafficSnapshot,
+  createTrafficSnapshot,
+  type TrafficSnapshotV1,
+} from '@web-three-city/traffic-core';
 import { deriveWaterSnapshot, type WaterSnapshot } from '@web-three-city/water-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import {
@@ -69,9 +74,7 @@ export type CommittedWorldInput = Readonly<{
 }>;
 
 function assertApplicationRevision(revision: number): void {
-  if (!Number.isSafeInteger(revision) || revision < 0) {
-    throw new RangeError('committed-world:invalid-revision');
-  }
+  if (!Number.isSafeInteger(revision) || revision < 0) throw new RangeError('committed-world:invalid-revision');
 }
 
 function assertEnvironmentProvenance(input: CommittedWorldInput): void {
@@ -212,8 +215,8 @@ export type CommittedDomainState = Readonly<{
   simulation: SimulationSnapshot;
   rci: RciSnapshot;
   economy: EconomySnapshotV1;
-  mobility: MobilitySnapshotV1;
-  traffic: TrafficSnapshotV1;
+  mobility?: MobilitySnapshotV1;
+  traffic?: TrafficSnapshotV1;
 }>;
 
 export function createCommittedWorldFromDomainState(input: CommittedDomainState): CommittedWorld {
@@ -236,5 +239,18 @@ export function createCommittedWorldFromDomainState(input: CommittedDomainState)
       WORLD_CONFIG,
     ),
   });
-  return createCommittedWorld({ ...input, water: waterResult.value, environments });
+  const mobility = input.mobility ?? createEmptyMobilitySnapshot();
+  const traffic =
+    input.traffic ??
+    createEmptyTrafficSnapshot({
+      roadRevision: input.roads.revision,
+      buildingRevision: input.buildings.revision,
+    });
+  return createCommittedWorld({
+    ...input,
+    mobility,
+    traffic,
+    water: waterResult.value,
+    environments,
+  });
 }

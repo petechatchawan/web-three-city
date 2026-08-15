@@ -1,6 +1,6 @@
 # Traffic System
 
-**Status:** Partial — core graph authority implemented; routing/flow/presentation pending  
+**Status:** Partial — traffic-core implemented; world/Three.js/UI integration pending  
 **Milestone:** Citizen Mobility & Traffic Foundation v0.1  
 **Planning baseline:** `master@6fb09e426147369dfaa274d55339994edf0e8e69`  
 **Primary ownership:** `packages/traffic-core`, planned `packages/traffic-three`; atomic composition by `apps/game`  
@@ -8,7 +8,7 @@
 
 ## Purpose
 
-Own deterministic pedestrian/vehicle transport planning and progression over derived network graphs while keeping Road, Building, Citizen, Simulation and Three.js presentation authority separate.
+Own deterministic pedestrian/vehicle graph derivation, multimodal routing, logical trip progression, intersection queues, congestion/travel-time projections, route recovery, and Traffic persistence while keeping Road, Building, Citizen, Simulation and Three.js presentation authority separate.
 
 The production goal is visual truth: a visible pedestrian is a real Citizen Walk trip and a visible car is a real Citizen Drive trip. Off-screen trips remain logical; renderer state never becomes canonical Traffic state.
 
@@ -38,31 +38,30 @@ Roads + Buildings + Simulation + Citizen Mobility
        real pedestrians / real cars
 ```
 
-## Implemented Graph Foundation
+## Implemented Traffic Core
 
-`packages/traffic-core` now provides a dependency-free graph foundation:
+`packages/traffic-core` now provides:
 
 - strict Road/Building source projection contracts;
-- immutable `TrafficSnapshotV1` and deterministic snapshot/graph fingerprints;
-- versioned `basic-road` Traffic profile with speed/capacity/intersection/presentation offsets;
-- deterministic directed vehicle graph from current Road connectivity;
-- deterministic sidewalk graph using offset road-side nodes and intersection/cell connectors;
-- deterministic Building access nodes derived only from supplied accepted frontage, with no nearest-Road fallback;
-- canonical stable node/edge IDs independent of input array order;
+- immutable `TrafficSnapshotV1` + deterministic snapshot/graph fingerprints;
+- versioned `basic-road` speed/capacity/intersection/offset profile;
+- deterministic directed vehicle graph and offset pedestrian sidewalk graph;
+- frontage-only Building access mapping;
+- deterministic shortest-path routing with explicit total-cost/traversal/node/edge tie rules;
+- previous-committed `TrafficCostField` input for Drive candidate costs;
+- disposable revision-keyed route cache;
+- fixed-point `progressQ` trip progression with logical `lastStableNodeId`;
+- deterministic unsignalized intersection queue service;
+- load/capacity/congestion/effective-travel-time projections and next lagged cost field;
+- topology/destination route recovery from a stable logical node;
+- fail-closed `TrafficSaveV1` codec that persists route/progress/queue authority, never graph/cache/render state;
 - no imports from RCI, Mobility, Road, Building, DOM, or Three.js.
 
-Source entry points:
-
-- `packages/traffic-core/src/contracts.ts`
-- `packages/traffic-core/src/road-profile.ts`
-- `packages/traffic-core/src/vehicle-graph.ts`
-- `packages/traffic-core/src/pedestrian-graph.ts`
-- `packages/traffic-core/src/building-access.ts`
-- `packages/traffic-core/src/traffic-snapshot.ts`
+Flow policy v1 keeps zero-load time equal to free-flow and adds monotonic delay only when load exceeds edge capacity or queue wait exists. Ordinary congestion never reroutes an active trip; only topology/destination invalidation invokes recovery.
 
 ## Remaining Foundation Work
 
-PR4 adds deterministic Walk/Drive routing and lagged costs. PR5 adds active progression, intersection queues, congestion, route recovery and `TrafficSaveV1`. PR6 integrates Road/Building/Mobility projections with the world transaction. PR7–PR9 provide real Three.js agents and production hardening; PR10–PR11 close UI/release acceptance.
+PR6 integrates RCI/Road/Building/Mobility/Traffic into one committed world and `WorldSaveV7`. PR7–PR9 add real Three.js pedestrian/car materialization and production hardening. PR10–PR11 close Inspect/Traffic View/browser/performance/manual acceptance.
 
 ## Performance Contract
 

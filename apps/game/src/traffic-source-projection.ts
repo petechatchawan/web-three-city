@@ -22,6 +22,11 @@ import { WORLD_CONFIG } from '@web-three-city/world-core';
 const CELL_SIZE_Q = 8_000;
 const LEVEL_TO_Q = 1_000;
 
+type SurfaceReader = (cell: Readonly<{ x: number; z: number }>) => Readonly<{
+  minimumLevel: number;
+  maximumLevel: number;
+}>;
+
 function roadCodeAt(roads: RoadSnapshot, x: number, z: number): number {
   if (x < 0 || z < 0 || x >= roads.width || z >= roads.height) return 0;
   return roads.definitionCodes[z * roads.width + x] ?? 0;
@@ -37,16 +42,13 @@ function connectionMaskAt(roads: RoadSnapshot, x: number, z: number): number {
   return mask;
 }
 
-export function createRoadTrafficSourceProjection(
-  roads: RoadSnapshot,
-  terrain: TerrainSnapshot,
-): RoadTrafficSourceProjection {
+function createRoadProjection(roads: RoadSnapshot, surfaceAt: SurfaceReader): RoadTrafficSourceProjection {
   const cells = [];
   for (let z = 0; z < roads.height; z += 1) {
     for (let x = 0; x < roads.width; x += 1) {
       const definitionCode = roadCodeAt(roads, x, z);
       if (definitionCode === 0) continue;
-      const surface = terrainCellSurfaceProfile(terrain, { x, z }, WORLD_CONFIG);
+      const surface = surfaceAt({ x, z });
       cells.push(
         Object.freeze({
           x,
@@ -65,6 +67,20 @@ export function createRoadTrafficSourceProjection(
     height: roads.height,
     cells: Object.freeze(cells),
   });
+}
+
+export function createRoadTrafficSourceProjection(
+  roads: RoadSnapshot,
+  terrain: TerrainSnapshot,
+): RoadTrafficSourceProjection {
+  return createRoadProjection(roads, (cell) => terrainCellSurfaceProfile(terrain, cell, WORLD_CONFIG));
+}
+
+export function createRoadTrafficSourceProjectionFromEnvironment(
+  roads: RoadSnapshot,
+  environment: Pick<BuildingDevelopmentEnvironment, 'surfaceAt'>,
+): RoadTrafficSourceProjection {
+  return createRoadProjection(roads, (cell) => environment.surfaceAt(cell));
 }
 
 function trafficDirection(direction: 'north' | 'east' | 'south' | 'west'): TrafficCardinalDirection {

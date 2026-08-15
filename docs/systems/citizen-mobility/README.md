@@ -67,7 +67,9 @@ Later Citizen AI may add activity definitions and destination policies such as S
 ## Planning Documents
 
 - [Citizen Mobility Foundation v0.1 specification](specs/2026-08-15-citizen-mobility-foundation-v0-1.md)
+- [Citizen Mobility TDD implementation plan](tdd/2026-08-15-citizen-mobility-foundation-v0-1.md)
+- [Cross-system execution index](../architecture-infrastructure/tdd/2026-08-15-citizen-mobility-traffic-foundation-v0-1-execution-index.md)
 - [ADR-0001 — Existing RCI Citizen remains identity authority](adrs/0001-existing-rci-citizen-remains-identity-authority.md)
 - Related: [RCI](../rci/README.md), [Buildings](../buildings/README.md), [Simulation Time](../simulation-time/README.md), [Traffic](../traffic/README.md)
 
-TDD and verification records will be added only after the approved specification passes review and implementation planning begins.
+Verification records are added per implementation PR and at foundation closure; production behavior remains unimplemented until those PRs pass their gates.

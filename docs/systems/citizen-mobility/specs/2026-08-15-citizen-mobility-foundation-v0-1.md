@@ -48,7 +48,7 @@ Creating a second Citizen model for traffic would split identity, Save authority
 
 `packages/citizen-mobility-core`
 
-The package is framework-independent and must not import Three.js, DOM/UI code, `rci-core`, `building-core`, or `road-core`. `apps/game` supplies narrow immutable projections from those authorities and composes Mobility into the committed world transaction.
+The package is framework-independent and must not import Three.js, DOM/UI code, `rci-core`, `building-core`, `road-core`, or `traffic-core`. `apps/game` supplies narrow immutable projections from upstream authorities, asks Traffic for route-cost candidates, passes only those narrow costs into Citizen Mobility mode selection, and composes both systems into the committed world transaction.
 
 ### Inputs supplied by orchestration
 
@@ -85,17 +85,19 @@ Building access geometry and transport routes remain Traffic concerns. Citizen M
 RCI ──────────────┐
 Buildings ────────┤
 Simulation ───────┤
+Roads ────────────┤
                   ▼
              apps/game
-                  ↓
-       citizen-mobility-core
-                  ↓
-       trip intents / mode choice
-                  ↓
-             traffic-core
+              /      \
+             ▼        ▼
+citizen-mobility-core traffic-core
+             \        /
+              \______/
+     trip request / cost / selected mode
+        coordinated by apps/game only
 ```
 
-`rci-core`, `building-core`, and `simulation-core` must not import Citizen Mobility.
+There is no direct package dependency between `citizen-mobility-core` and `traffic-core`. `rci-core`, `building-core`, `road-core`, and `simulation-core` must not import Citizen Mobility or Traffic.
 
 ## Authoritative and Derived State
 
@@ -210,7 +212,9 @@ Failed plans must not consume generated IDs if the world transaction does not co
 
 v0.1 uses deterministic generalized-cost choice rather than a fixed distance threshold.
 
-Candidate cost units must be integer/fixed-point and comparable across modes. The semantic costs are:
+Candidate cost units are integer/fixed-point game-time units supplied by Traffic and must be directly comparable across modes. The foundation Traffic specification standardizes route/traversal costs to integer game-time units fine enough for road movement; Citizen Mobility treats those values opaquely except for ordering.
+
+The semantic costs are:
 
 ```text
 WalkCost
@@ -246,15 +250,15 @@ Cancel any active Mobility/Traffic trip and remove active Mobility state in the 
 
 ### Home assignment changes
 
-Future Home activity uses the newest Housing assignment. If an active destination is still a valid Building, the current trip may complete. If the destination disappears or becomes invalid, Traffic recovery is requested; if recovery cannot target a valid current activity place, the trip fails deterministically.
+Future Home activity uses the newest Housing assignment. If an active trip is targeting Home, its destination is compared with the latest authoritative Home assignment. If they still match and the Building/access remains valid, the trip may continue. If they differ or the destination is no longer valid, request deterministic Traffic recovery/replanning toward the newest Home. If no valid current Home destination exists, fail/cancel the trip deterministically and move the Citizen to the appropriate `Idle`/`Unplaced` Mobility state without changing RCI Housing authority.
 
 ### Employment changes
 
-Future Work activity uses the newest Employment/Workplace assignment. Job loss cancels future Work commute scheduling. An active trip to a removed Workplace follows the same recovery/failure rule.
+Future Work activity uses the newest Employment/Workplace assignment. If an active trip is targeting Work, its destination must still equal the latest authoritative Workplace. A changed job requests deterministic recovery/replanning to the new Workplace; job loss cancels future Work scheduling and resolves the active Work-bound trip through the typed cancellation/failure path. An old Workplace being physically present is not sufficient reason to keep it as the Citizen's destination.
 
 ### Building retirement/bulldoze
 
-Mobility never preserves a stale Building destination as valid authority. Destination validity is checked against the staged Building projection before publication.
+Mobility never preserves a stale Building destination as valid authority. Destination identity and Building/access validity are checked against the staged RCI + Building projections before publication.
 
 ## Persistence and Migration
 
@@ -320,8 +324,8 @@ Extensions add definitions/policies and mode candidates; they do not replace Cit
 - Walk and Drive are both real trip modes from v0.1.
 - Mode selection is deterministic and uses caller-supplied Traffic costs.
 - Citizens with missing Home/Job/access fail closed without corrupting RCI state.
-- Death/emigration/assignment/building changes reconcile without orphaned active trips.
-- Save/load preserves the same Citizen activity/trip identity and continues equivalently.
+- Death/emigration/assignment/building changes reconcile against the latest authoritative destination without orphaned active trips.
+- Save/load preserves the same Citizen activity/trip identity and continues equivalently at committed simulation checkpoints.
 - V1–V6 migration creates no fake historical trips.
 - Pause/Step semantics remain consistent with Simulation Time.
 - No Three.js or frame-time state can mutate Mobility authority.

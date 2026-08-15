@@ -15,7 +15,7 @@ function stableValue(value: unknown): unknown {
 }
 
 export function fingerprintCommittedWorld(world: CommittedWorld): string {
-  return `committed-world-v1:${JSON.stringify(
+  return `committed-world-v2:${JSON.stringify(
     stableValue({
       revision: world.revision,
       terrain: world.terrain,
@@ -26,6 +26,8 @@ export function fingerprintCommittedWorld(world: CommittedWorld): string {
       simulation: world.simulation,
       rci: world.rci,
       economy: world.economy,
+      mobility: world.mobility,
+      traffic: world.traffic,
       environments: {
         road: {
           terrainRevision: world.environments.road.terrainRevision,

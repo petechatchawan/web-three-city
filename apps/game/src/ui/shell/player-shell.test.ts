@@ -28,13 +28,13 @@ describe('player shell M6.4 mobile declutter state model', () => {
     shell.element.querySelector<HTMLButtonElement>('[data-testid="nav-build"]')!.click();
     expect(selectTool).not.toHaveBeenCalled();
     expect(shell.subToolTray.element.hidden).toBe(false);
-    expect(shell.subToolTray.element.querySelectorAll('[data-build-category]')).toHaveLength(4);
+    expect(shell.subToolTray.element.querySelectorAll('[data-build-category]').length).toBe(4);
 
     shell.subToolTray.element
       .querySelector<HTMLButtonElement>('[data-testid="build-category-terrain"]')!
       .click();
-    expect(shell.subToolTray.element.querySelectorAll('[data-tool-mode]')).toHaveLength(3);
-    expect(shell.subToolTray.element.querySelectorAll('[data-brush-size]')).toHaveLength(3);
+    expect(shell.subToolTray.element.querySelectorAll('[data-tool-mode]').length).toBe(3);
+    expect(shell.subToolTray.element.querySelectorAll('[data-brush-size]').length).toBe(3);
 
     shell.subToolTray.element.querySelector<HTMLButtonElement>('[data-tool-mode="lower"]')!.click();
     expect(selectTool).toHaveBeenLastCalledWith('lower');
@@ -50,7 +50,7 @@ describe('player shell M6.4 mobile declutter state model', () => {
     shell.element.querySelector<HTMLButtonElement>('[data-testid="nav-build"]')!.click();
     expect(shell.subToolTray.element.dataset.category).toBe('terrain');
     expect(shell.subToolTray.element.querySelector('[data-tool-mode="raise"]')).not.toBeNull();
-    expect(shell.subToolTray.element.querySelectorAll('[data-build-category]')).toHaveLength(0);
+    expect(shell.subToolTray.element.querySelectorAll('[data-build-category]').length).toBe(0);
 
     shell.element.querySelector<HTMLButtonElement>('[data-testid="nav-city"]')!.click();
     expect(onCity).toHaveBeenCalledTimes(1);

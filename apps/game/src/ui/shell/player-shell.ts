@@ -9,12 +9,12 @@ import {
   type SimulationControlCallbacks,
   type SimulationControls,
 } from './simulation-controls.js';
-import { mountSubToolTray, type SubToolTray } from './subtool-tray.js';
+import { mountSubToolTray, type SubToolTray, type TrayCategory } from './subtool-tray.js';
 import { mountToolContextSheet, type ToolContextSheetAdapter } from './tool-context-sheet.js';
 import type { TopActionCallbacks } from './top-actions.js';
 
-const toolLabelKey: Readonly<Record<GameToolMode, UiCopyKey | null>> = {
-  navigate: null,
+const toolLabelKey: Readonly<Record<GameToolMode, UiCopyKey>> = {
+  navigate: 'navigate',
   raise: 'raise',
   lower: 'lower',
   flatten: 'flatten',
@@ -27,9 +27,21 @@ const toolLabelKey: Readonly<Record<GameToolMode, UiCopyKey | null>> = {
   'building-bulldoze': 'bulldozeBuilding',
 };
 
+const toolCategory: Readonly<Partial<Record<GameToolMode, TrayCategory>>> = Object.freeze({
+  raise: 'terrain',
+  lower: 'terrain',
+  flatten: 'terrain',
+  'road-build': 'roads',
+  'road-bulldoze': 'roads',
+  'zone-residential': 'zones',
+  'zone-commercial': 'zones',
+  'zone-industrial': 'zones',
+  'zone-remove': 'zones',
+  'building-bulldoze': 'buildings',
+});
+
 function toolName(locale: UiLocale, mode: GameToolMode): string {
-  const key = toolLabelKey[mode];
-  return key === null ? (locale === 'th' ? 'สำรวจ' : 'Navigate') : uiText(locale, key);
+  return uiText(locale, toolLabelKey[mode]);
 }
 
 export type PlayerShellCallbacks = TopActionCallbacks &
@@ -105,7 +117,7 @@ export function mountPlayerShell(
 
       if (subToolTray.element.hidden) {
         callbacks.onBuildOpen?.();
-        subToolTray.open();
+        subToolTray.open(toolCategory[activeMode]);
       } else {
         subToolTray.close();
       }
@@ -115,6 +127,7 @@ export function mountPlayerShell(
 
   const simulationControls = mountSimulationControls(bottomNav.element, callbacks, {
     compact: true,
+    locale,
   });
 
   const dialogHost = mountDialogHost(element);
@@ -133,6 +146,7 @@ export function mountPlayerShell(
       bottomNav.setLocale(locale);
       subToolTray.setLocale(locale);
       hud.setLocale(locale);
+      simulationControls.setLocale(locale);
       renderToolContext();
     },
     update(projection: GameHudProjection): void {

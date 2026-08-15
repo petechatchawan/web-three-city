@@ -2,7 +2,6 @@ import { createCityIcon, type CityIconName } from '../components/icon.js';
 import { uiText, type UiLocale } from '../presentation-locale.js';
 
 export type BottomNavCategory = 'build' | 'city';
-export type BottomNavSelection = BottomNavCategory;
 
 export const navCategories: readonly BottomNavCategory[] = ['build', 'city'];
 
@@ -20,7 +19,7 @@ export interface BottomNav {
 
 export function mountBottomNav(
   parent: HTMLElement,
-  onSelect: (selection: BottomNavSelection) => void,
+  onSelect: (selection: BottomNavCategory) => void,
   initialLocale: UiLocale = 'en',
 ): BottomNav {
   const element = document.createElement('nav');

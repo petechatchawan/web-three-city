@@ -1,14 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { GameToolMode } from '../../game-tool-mode.js';
 import { mountPlayerShell, type PlayerShellCallbacks } from './player-shell.js';
-import type { TrayCategory } from './subtool-tray.js';
-
-const defaultToolForCategory: Readonly<Record<TrayCategory, GameToolMode>> = {
-  terrain: 'raise',
-  roads: 'road-build',
-  zones: 'zone-residential',
-  buildings: 'building-bulldoze',
-};
 
 afterEach(() => document.body.replaceChildren());
 
@@ -27,43 +18,43 @@ function mountSpyShell(callbacks: Partial<PlayerShellCallbacks> = {}) {
   });
 }
 
-function selectCategory(shell: ReturnType<typeof mountSpyShell>, category: TrayCategory): void {
-  shell.element.querySelector<HTMLButtonElement>(`[data-testid="nav-${category}"]`)?.click();
-}
-
-describe('player shell M6.3 Figma wiring', () => {
-  it('boots in implicit Navigate with only the persistent Figma bottom bar', () => {
+describe('player shell M6.4 wiring', () => {
+  it('boots in implicit Navigate with only Build, City, and simulation chrome', () => {
     const shell = mountSpyShell();
     expect(shell.subToolTray.element.hidden).toBe(true);
     expect(shell.toolContextSheet.element.hidden).toBe(true);
-    expect(shell.element.querySelector('.city-bottom-nav')).not.toBeNull();
+    expect(shell.element.querySelector('[data-testid="nav-build"]')).not.toBeNull();
+    expect(shell.element.querySelector('[data-testid="nav-city"]')).not.toBeNull();
+    expect(shell.element.querySelector('[data-testid="nav-terrain"]')).toBeNull();
     expect(shell.element.querySelector('.city-top-actions')).toBeNull();
-    expect(shell.element.querySelector('[data-testid="build-cta"]')).toBeNull();
     expect(shell.element.textContent).not.toContain('Navigate');
   });
 
-  it('selects each default tool directly from its persistent build category', () => {
-    for (const category of Object.keys(defaultToolForCategory) as TrayCategory[]) {
-      const onSelect = vi.fn();
-      const shell = mountSpyShell({ selectTool: onSelect });
-      selectCategory(shell, category);
-      expect(onSelect).toHaveBeenLastCalledWith(defaultToolForCategory[category]);
-      expect(shell.subToolTray.element.hidden).toBe(false);
-      shell.dispose();
-    }
-  });
-
-  it('tapping the active category again returns to Navigate and closes contextual tools', () => {
+  it('opens Build categories without synthesizing a gameplay selection', () => {
     const onSelect = vi.fn();
     const shell = mountSpyShell({ selectTool: onSelect });
-    selectCategory(shell, 'zones');
-    expect(onSelect).toHaveBeenLastCalledWith('zone-residential');
-    selectCategory(shell, 'zones');
-    expect(onSelect).toHaveBeenLastCalledWith('navigate');
-    expect(shell.subToolTray.element.hidden).toBe(true);
+    shell.element.querySelector<HTMLButtonElement>('[data-testid="nav-build"]')!.click();
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(shell.subToolTray.element.hidden).toBe(false);
+    expect(shell.subToolTray.element.querySelectorAll('[data-build-category]')).toHaveLength(4);
   });
 
-  it('forwards Figma HUD groups through existing metric authority', () => {
+  it('selects one exact tool from the requested category then returns map space', () => {
+    const onSelect = vi.fn();
+    const shell = mountSpyShell({ selectTool: onSelect });
+    shell.element.querySelector<HTMLButtonElement>('[data-testid="nav-build"]')!.click();
+    shell.subToolTray.element
+      .querySelector<HTMLButtonElement>('[data-testid="build-category-zones"]')!
+      .click();
+    shell.subToolTray.element
+      .querySelector<HTMLButtonElement>('[data-tool-mode="zone-commercial"]')!
+      .click();
+    expect(onSelect).toHaveBeenLastCalledWith('zone-commercial');
+    expect(shell.subToolTray.element.hidden).toBe(true);
+    expect(shell.toolContextSheet.element.textContent).toContain('Commercial');
+  });
+
+  it('forwards compact HUD groups through existing metric authority', () => {
     const onSelectMetric = vi.fn();
     const shell = mountSpyShell({ onSelectMetric });
     shell.element.querySelector<HTMLButtonElement>('[data-metric="demand"]')?.click();
@@ -73,16 +64,8 @@ describe('player shell M6.3 Figma wiring', () => {
     shell.dispose();
   });
 
-  it('selects an exact contextual subtool and exposes a collapsed authoritative context sheet', () => {
-    const onSelect = vi.fn();
-    const shell = mountSpyShell({ selectTool: onSelect });
-    selectCategory(shell, 'zones');
-    const commercial = shell.subToolTray.element.querySelector<HTMLButtonElement>(
-      '[data-tool-mode="zone-commercial"]',
-    );
-    commercial?.click();
-    expect(onSelect).toHaveBeenLastCalledWith('zone-commercial');
-
+  it('keeps the authoritative tool context collapsed until details are requested', () => {
+    const shell = mountSpyShell();
     shell.toolContextSheet.update({
       mode: 'zone-commercial',
       name: 'Commercial Zone',
@@ -90,7 +73,8 @@ describe('player shell M6.3 Figma wiring', () => {
       message: 'Point at the world to preview this tool',
     });
     expect(shell.toolContextSheet.element.hidden).toBe(false);
-    expect(shell.toolContextSheet.element.textContent).toContain('Commercial Zone');
+    expect(shell.toolContextSheet.element.dataset.expanded).toBe('false');
+    expect(shell.toolContextSheet.element.textContent).toContain('Commercial');
     expect(shell.toolContextSheet.element.textContent).toContain('Ready');
     expect(shell.toolContextSheet.element.textContent).not.toContain(
       'Point at the world to preview this tool',

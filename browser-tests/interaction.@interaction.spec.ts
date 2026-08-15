@@ -143,7 +143,7 @@ test('reset after resize uses the new usable viewport', async ({ page }) => {
 test('context restore preserves grid and selection with one root each', async ({ page }) => {
   await openGame(page);
   await page.mouse.click(900, 500);
-  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.getByTestId('inspect-surface')).toBeVisible();
   await clickGameMenuAction(page, 'Grid');
 
   await page.locator('#game-canvas').evaluate((canvas) => {

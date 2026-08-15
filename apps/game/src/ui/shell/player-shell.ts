@@ -1,6 +1,7 @@
 import type { GameToolMode } from '../../game-tool-mode.js';
 import { mountDialogHost, type DialogHost } from '../dialog/dialog-host.js';
 import type { UiAdapter } from '../foundation/lifecycle.js';
+import { uiText, type UiCopyKey, type UiLocale } from '../presentation-locale.js';
 import { mountBottomNav, type BottomNav } from './bottom-nav.js';
 import { mountGameHud, type GameHudCallbacks, type GameHudProjection } from './game-hud.js';
 import {
@@ -12,26 +13,36 @@ import { mountSubToolTray, type SubToolTray, type TrayCategory } from './subtool
 import { mountToolContextSheet, type ToolContextSheetAdapter } from './tool-context-sheet.js';
 import type { TopActionCallbacks } from './top-actions.js';
 
-const defaultToolForCategory: Readonly<Record<TrayCategory, GameToolMode>> = {
-  terrain: 'raise',
-  roads: 'road-build',
-  zones: 'zone-residential',
-  buildings: 'building-bulldoze',
+const toolLabelKey: Readonly<Record<GameToolMode, UiCopyKey>> = {
+  navigate: 'navigate',
+  raise: 'raise',
+  lower: 'lower',
+  flatten: 'flatten',
+  'road-build': 'buildRoad',
+  'road-bulldoze': 'bulldozeRoad',
+  'zone-residential': 'residential',
+  'zone-commercial': 'commercial',
+  'zone-industrial': 'industrial',
+  'zone-remove': 'removeZone',
+  'building-bulldoze': 'bulldozeBuilding',
 };
 
-const toolName: Readonly<Record<GameToolMode, string>> = {
-  navigate: 'Navigate',
-  raise: 'Raise',
-  lower: 'Lower',
-  flatten: 'Flatten',
-  'road-build': 'Build Road',
-  'road-bulldoze': 'Bulldoze Road',
-  'zone-residential': 'Residential Zone',
-  'zone-commercial': 'Commercial Zone',
-  'zone-industrial': 'Industrial Zone',
-  'zone-remove': 'Remove Zone',
-  'building-bulldoze': 'Bulldoze Building',
-};
+const toolCategory: Readonly<Partial<Record<GameToolMode, TrayCategory>>> = Object.freeze({
+  raise: 'terrain',
+  lower: 'terrain',
+  flatten: 'terrain',
+  'road-build': 'roads',
+  'road-bulldoze': 'roads',
+  'zone-residential': 'zones',
+  'zone-commercial': 'zones',
+  'zone-industrial': 'zones',
+  'zone-remove': 'zones',
+  'building-bulldoze': 'buildings',
+});
+
+function toolName(locale: UiLocale, mode: GameToolMode): string {
+  return uiText(locale, toolLabelKey[mode]);
+}
 
 export type PlayerShellCallbacks = TopActionCallbacks &
   SimulationControlCallbacks & {
@@ -39,6 +50,7 @@ export type PlayerShellCallbacks = TopActionCallbacks &
     readonly setTerraformBrush: (size: 1 | 3 | 5) => void;
     readonly onSelectMetric: GameHudCallbacks['onSelectMetric'];
     readonly onUndo: () => void;
+    readonly onBuildOpen?: () => void;
   };
 
 export interface PlayerShell extends UiAdapter<GameHudProjection> {
@@ -47,57 +59,83 @@ export interface PlayerShell extends UiAdapter<GameHudProjection> {
   readonly simulationControls: SimulationControls;
   readonly subToolTray: SubToolTray;
   readonly toolContextSheet: ToolContextSheetAdapter;
+  selectTool(mode: GameToolMode): void;
+  setLocale(locale: UiLocale): void;
 }
 
 export function mountPlayerShell(
   parent: HTMLElement,
   callbacks: PlayerShellCallbacks,
+  initialLocale: UiLocale = 'en',
 ): PlayerShell {
   const element = document.createElement('div');
   element.className = 'city-ui';
   parent.append(element);
 
-  const hud = mountGameHud(element, { onSelectMetric: callbacks.onSelectMetric });
+  let locale = initialLocale;
+  let activeMode: GameToolMode = 'navigate';
 
-  const toolContextSheet = mountToolContextSheet(element, {
-    onUndo: callbacks.onUndo,
-  });
+  const hud = mountGameHud(element, { onSelectMetric: callbacks.onSelectMetric }, locale);
+
+  const toolContextSheet = mountToolContextSheet(
+    element,
+    {
+      onUndo: callbacks.onUndo,
+    },
+    locale,
+  );
+
+  const renderToolContext = (): void => {
+    toolContextSheet.update({
+      mode: activeMode,
+      name: toolName(locale, activeMode),
+      state: activeMode === 'navigate' ? '' : uiText(locale, 'toolReady'),
+      message: '',
+    });
+  };
 
   const selectTool = (mode: GameToolMode): void => {
-    toolContextSheet.update({
-      mode,
-      name: toolName[mode],
-      state: mode === 'navigate' ? '' : 'Tool ready',
-      message: mode === 'navigate' ? '' : 'Point at the world to preview this tool',
-    });
+    activeMode = mode;
+    renderToolContext();
     callbacks.selectTool(mode);
   };
 
-  const subToolTray = mountSubToolTray(element, {
-    onSelectTool: selectTool,
-    onBrush: callbacks.setTerraformBrush,
-  });
+  const subToolTray = mountSubToolTray(
+    element,
+    {
+      onSelectTool: selectTool,
+      onBrush: callbacks.setTerraformBrush,
+      onClose: () => bottomNav.setBuildOpen(false),
+    },
+    locale,
+  );
 
-  const bottomNav = mountBottomNav(element, (selection) => {
-    if (selection === 'city') {
-      callbacks.onCity();
-      return;
-    }
+  const bottomNav = mountBottomNav(
+    element,
+    (selection) => {
+      if (selection === 'city') {
+        subToolTray.close();
+        callbacks.onCity();
+        return;
+      }
 
-    if (selection === null) {
-      subToolTray.close();
-      selectTool('navigate');
-      return;
-    }
+      if (subToolTray.element.hidden) {
+        callbacks.onBuildOpen?.();
+        subToolTray.open(toolCategory[activeMode]);
+      } else {
+        subToolTray.close();
+      }
+    },
+    locale,
+  );
 
-    subToolTray.open(selection);
-    selectTool(defaultToolForCategory[selection]);
-  });
   const simulationControls = mountSimulationControls(bottomNav.element, callbacks, {
     compact: true,
+    locale,
   });
 
   const dialogHost = mountDialogHost(element);
+  renderToolContext();
 
   return Object.freeze({
     element,
@@ -106,6 +144,16 @@ export function mountPlayerShell(
     simulationControls,
     subToolTray,
     toolContextSheet,
+    selectTool,
+    setLocale(nextLocale: UiLocale): void {
+      locale = nextLocale;
+      bottomNav.setLocale(locale);
+      subToolTray.setLocale(locale);
+      hud.setLocale(locale);
+      simulationControls.setLocale(locale);
+      toolContextSheet.setLocale(locale);
+      renderToolContext();
+    },
     update(projection: GameHudProjection): void {
       hud.update(projection);
     },
@@ -115,6 +163,7 @@ export function mountPlayerShell(
       bottomNav.dispose();
       subToolTray.dispose();
       toolContextSheet.dispose();
+      hud.dispose();
       element.remove();
     },
   });

@@ -8,14 +8,17 @@ const projection: GameHudProjection = {
   treasury: '100K',
   net: '+7K',
   demand: 'R↑ C↑ I→',
+  residentialDemand: 42,
+  commercialDemand: 18,
+  industrialDemand: 0,
   gameTime: 'Y1 M5 D19 06:45',
   construction: '2',
   active: '5',
   total: '7',
 };
 
-describe('M6.3 Figma mobile game HUD', () => {
-  it('renders Population, Treasury, Net, RCI, and Time in three compact groups', () => {
+describe('M6.4 mobile game HUD', () => {
+  it('renders Population, Treasury, Net, explicit RCI bars, and Time in compact groups', () => {
     const hud = mountGameHud(document.body, { onSelectMetric: vi.fn() });
     hud.update(projection);
 
@@ -23,11 +26,15 @@ describe('M6.3 Figma mobile game HUD', () => {
     for (const metric of ['population', 'treasury', 'net', 'demand', 'gameTime']) {
       expect(hud.element.querySelector(`[data-metric="${metric}"]`)).not.toBeNull();
     }
+    expect(hud.element.querySelectorAll('[data-rci-demand-bar]')).toHaveLength(3);
+    expect(
+      hud.element.querySelector('[data-rci-demand-bar="residential"]')?.getAttribute('aria-label'),
+    ).toContain('Residential demand 42');
     expect(hud.element.textContent).toContain('337');
     expect(hud.element.textContent).toContain('100K');
     expect(hud.element.textContent).toContain('+7K');
-    expect(hud.element.textContent).toContain('R↑ C↑ I→');
     expect(hud.element.textContent).toContain('Y1 M5 D19 06:45');
+    expect(hud.element.textContent).not.toContain('R↑ C↑ I→');
     expect(hud.element.textContent).not.toContain('Construction');
   });
 
@@ -53,5 +60,15 @@ describe('M6.3 Figma mobile game HUD', () => {
     expect(projection.construction).toBe('2');
     expect(projection.active).toBe('5');
     expect(projection.total).toBe('7');
+  });
+
+  it('switches accessibility copy to Thai without changing demand values', () => {
+    const hud = mountGameHud(document.body, { onSelectMetric: vi.fn() });
+    hud.update(projection);
+    hud.setLocale('th');
+    expect(
+      hud.element.querySelector('[data-rci-demand-bar="residential"]')?.getAttribute('aria-label'),
+    ).toContain('ความต้องการที่อยู่อาศัย 42');
+    expect(projection.residentialDemand).toBe(42);
   });
 });

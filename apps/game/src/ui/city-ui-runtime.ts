@@ -1,13 +1,21 @@
 import type { RciDefinitionRegistries } from '@web-three-city/rci-core';
 import type { CommittedWorld } from '../application/committed-world.js';
 import { createEconomyViewProjection } from '../economy-budget-hud.js';
+import type { GameToolMode } from '../game-tool-mode.js';
 import { createGameTimePresentation } from '../game-time-presentation.js';
 import { createRciHudModel } from '../rci-hud.js';
 import { createCityIcon, type CityIconName } from './components/icon.js';
 import type { DialogHost } from './dialog/dialog-host.js';
-import { openInspectDialog } from './inspect/inspect-dialog.js';
+import { createInspectProjection } from './inspect/inspect-projections.js';
+import { mountInspectSurface, type InspectSurface } from './inspect/inspect-surface.js';
 import { pickInspectTarget } from './inspect/inspect-target.js';
 import { createInformationViewRegistry } from './information-views/information-view-registry.js';
+import {
+  persistUiLocale,
+  readStoredUiLocale,
+  uiText,
+  type UiLocale,
+} from './presentation-locale.js';
 import { mountPlayerShell } from './shell/player-shell.js';
 import type { ToolContextSheetAdapter } from './shell/tool-context-sheet.js';
 import { createCitySystemDialogs } from './systems/city-system-dialogs.js';
@@ -34,6 +42,7 @@ export interface CityUiRuntime {
   readonly element: HTMLElement;
   readonly dialogHost: DialogHost;
   readonly toolContextSheet: ToolContextSheetAdapter;
+  selectTool(mode: GameToolMode): void;
   setSimulationSpeed(speed: Parameters<CityUiPorts['setSpeed']>[0]): void;
   update(world: CommittedWorld): void;
   inspectCell(cell: Readonly<{ x: number; z: number }>): void;
@@ -80,6 +89,10 @@ function menuAction(
 
 export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRuntime {
   let latestWorld: CommittedWorld | null = null;
+  let locale: UiLocale = readStoredUiLocale();
+  let inspectSurface: InspectSurface | null = null;
+  let activeToolMode: GameToolMode = 'navigate';
+  let applyLocale: ((nextLocale: UiLocale) => void) | null = null;
 
   const informationViews = createInformationViewRegistry([
     {
@@ -142,84 +155,144 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
   };
 
   const openGameMenu = (): void => {
-    shell.dialogHost.open({ kind: 'system', key: 'game-menu', title: 'Game Menu' }, (body) => {
-      const world = menuSection(body, 'world', 'World');
-      menuAction(world, 'Save world', 'save', () => {
-        ports.saveWorld();
-        shell.dialogHost.close();
-      });
-      menuAction(world, 'Load world', 'load', () => {
-        ports.loadWorld();
-        shell.dialogHost.close();
-      });
-
-      const camera = menuSection(body, 'camera', 'Camera');
-      const cameraActions = [
-        ['Rotate left', 'rotate-left', ports.rotateLeft],
-        ['Rotate right', 'rotate-right', ports.rotateRight],
-        ['Reset camera', 'reset-camera', ports.resetCamera],
-        ['Grid', 'grid', ports.toggleGrid],
-      ] as const;
-      for (const [label, icon, action] of cameraActions) {
-        menuAction(camera, label, icon, () => {
-          action();
+    shell.dialogHost.open(
+      { kind: 'system', key: 'game-menu', title: uiText(locale, 'gameMenu') },
+      (body) => {
+        const world = menuSection(body, 'world', uiText(locale, 'world'));
+        menuAction(world, uiText(locale, 'saveWorld'), 'save', () => {
+          ports.saveWorld();
           shell.dialogHost.close();
         });
-      }
+        menuAction(world, uiText(locale, 'loadWorld'), 'load', () => {
+          ports.loadWorld();
+          shell.dialogHost.close();
+        });
 
-      const presentation = menuSection(body, 'presentation', 'Presentation');
-      const qualityCard = document.createElement('label');
-      qualityCard.className = 'city-quality-card';
-      qualityCard.append(createCityIcon('quality'));
-      const text = document.createElement('span');
-      text.textContent = 'Quality';
-      const quality = document.createElement('select');
-      quality.setAttribute('aria-label', 'Quality');
-      for (const value of ['low', 'medium', 'high'] as const) {
-        const option = document.createElement('option');
-        option.value = value;
-        option.textContent = value[0]!.toUpperCase() + value.slice(1);
-        quality.append(option);
-      }
-      quality.value = 'medium';
-      quality.addEventListener('change', () =>
-        ports.setQuality(quality.value as 'low' | 'medium' | 'high'),
-      );
-      qualityCard.append(text, quality);
-      presentation.append(qualityCard);
-    });
+        const camera = menuSection(body, 'camera', uiText(locale, 'camera'));
+        const cameraActions = [
+          [uiText(locale, 'rotateLeft'), 'rotate-left', ports.rotateLeft],
+          [uiText(locale, 'rotateRight'), 'rotate-right', ports.rotateRight],
+          [uiText(locale, 'resetCamera'), 'reset-camera', ports.resetCamera],
+          [uiText(locale, 'grid'), 'grid', ports.toggleGrid],
+        ] as const;
+        for (const [label, icon, action] of cameraActions) {
+          menuAction(camera, label, icon, () => {
+            action();
+            shell.dialogHost.close();
+          });
+        }
+
+        const presentation = menuSection(body, 'presentation', uiText(locale, 'presentation'));
+        const qualityCard = document.createElement('label');
+        qualityCard.className = 'city-quality-card';
+        qualityCard.append(createCityIcon('quality'));
+        const text = document.createElement('span');
+        text.textContent = uiText(locale, 'quality');
+        const quality = document.createElement('select');
+        quality.setAttribute('aria-label', text.textContent);
+        for (const value of ['low', 'medium', 'high'] as const) {
+          const option = document.createElement('option');
+          option.value = value;
+          option.textContent = value[0]!.toUpperCase() + value.slice(1);
+          quality.append(option);
+        }
+        quality.value = 'medium';
+        quality.addEventListener('change', () =>
+          ports.setQuality(quality.value as 'low' | 'medium' | 'high'),
+        );
+        qualityCard.append(text, quality);
+        presentation.append(qualityCard);
+      },
+    );
   };
 
-  const shell = mountPlayerShell(parent, {
-    setSpeed: ports.setSpeed,
-    step: ports.step,
-    selectTool: ports.selectTool,
-    setTerraformBrush: ports.setTerraformBrush,
-    onUndo: ports.undo,
-    onInformationViews: openInformationViews,
-    onCity: () => systemDialogs.openCity(),
-    onSelectMetric: (metric) => {
-      const route = shell.dialogHost.activeRoute;
-      if (
-        metric === 'population' ||
-        metric === 'treasury' ||
-        metric === 'net' ||
-        metric === 'construction' ||
-        metric === 'active' ||
-        metric === 'total'
-      ) {
-        if (route?.key === 'city-overview') shell.dialogHost.close();
-        else systemDialogs.openCity();
-      } else if (metric === 'demand') {
-        if (route?.key === 'population-rci') shell.dialogHost.close();
-        else systemDialogs.openPopulationRci();
-      } else {
-        if (route?.key === 'simulation-time') shell.dialogHost.close();
-        else systemDialogs.openSimulationTime();
-      }
+  const appendLocaleSelector = (): void => {
+    if (shell.dialogHost.activeRoute?.key !== 'city-overview') return;
+    const body = shell.dialogHost.element.querySelector<HTMLElement>('.city-sheet-body');
+    if (body === null || body.querySelector('.city-locale-selector') !== null) return;
+
+    const section = document.createElement('section');
+    section.className = 'city-card city-locale-card';
+    const heading = document.createElement('h3');
+    heading.className = 'city-section-title';
+    heading.textContent = uiText(locale, 'language');
+    const selector = document.createElement('div');
+    selector.className = 'city-locale-selector';
+
+    for (const nextLocale of ['en', 'th'] as const) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.dataset.testid = `locale-${nextLocale}`;
+      button.setAttribute('aria-pressed', String(locale === nextLocale));
+      button.textContent = uiText(locale, nextLocale === 'en' ? 'english' : 'thai');
+      button.addEventListener('click', () => applyLocale?.(nextLocale));
+      selector.append(button);
+    }
+    section.append(heading, selector);
+    body.append(section);
+  };
+
+  const shell = mountPlayerShell(
+    parent,
+    {
+      setSpeed: ports.setSpeed,
+      step: ports.step,
+      selectTool: (mode) => {
+        activeToolMode = mode;
+        if (mode !== 'navigate') inspectSurface?.close();
+        ports.selectTool(mode);
+      },
+      setTerraformBrush: ports.setTerraformBrush,
+      onUndo: ports.undo,
+      onInformationViews: openInformationViews,
+      onBuildOpen: () => inspectSurface?.collapse(),
+      onCity: () => {
+        systemDialogs.openCity();
+        appendLocaleSelector();
+      },
+      onSelectMetric: (metric) => {
+        const route = shell.dialogHost.activeRoute;
+        if (
+          metric === 'population' ||
+          metric === 'treasury' ||
+          metric === 'net' ||
+          metric === 'construction' ||
+          metric === 'active' ||
+          metric === 'total'
+        ) {
+          if (route?.key === 'city-overview') shell.dialogHost.close();
+          else {
+            systemDialogs.openCity();
+            appendLocaleSelector();
+          }
+        } else if (
+          metric === 'demand' ||
+          metric === 'residentialDemand' ||
+          metric === 'commercialDemand' ||
+          metric === 'industrialDemand'
+        ) {
+          if (route?.key === 'population-rci') shell.dialogHost.close();
+          else systemDialogs.openPopulationRci();
+        } else {
+          if (route?.key === 'simulation-time') shell.dialogHost.close();
+          else systemDialogs.openSimulationTime();
+        }
+      },
+      onGameMenu: openGameMenu,
     },
-    onGameMenu: openGameMenu,
-  });
+    locale,
+  );
+
+  inspectSurface = mountInspectSurface(shell.element, locale);
+
+  applyLocale = (nextLocale: UiLocale): void => {
+    locale = nextLocale;
+    persistUiLocale(locale);
+    shell.setLocale(locale);
+    inspectSurface?.setLocale(locale);
+    shell.dialogHost.refresh();
+    appendLocaleSelector();
+  };
 
   const systemDialogs = createCitySystemDialogs(shell.dialogHost, {
     getWorld: () => {
@@ -236,6 +309,9 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
     element: shell.element,
     dialogHost: shell.dialogHost,
     toolContextSheet: shell.toolContextSheet,
+    selectTool(mode: GameToolMode): void {
+      shell.selectTool(mode);
+    },
     setSimulationSpeed(speed: Parameters<CityUiPorts['setSpeed']>[0]): void {
       shell.simulationControls.setSpeed(speed);
     },
@@ -249,24 +325,29 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
         treasury: economy.treasury,
         net: economy.net,
         demand: `R${demandSymbol(rci.residentialDemand)} C${demandSymbol(rci.commercialDemand)} I${demandSymbol(rci.industrialDemand)}`,
+        residentialDemand: rci.residentialDemand,
+        commercialDemand: rci.commercialDemand,
+        industrialDemand: rci.industrialDemand,
         gameTime: time.calendarLabel,
         construction: String(time.constructionCount),
         active: String(time.activeCount),
         total: String(time.totalCount),
       });
       shell.dialogHost.update();
+      appendLocaleSelector();
     },
     inspectCell(cell: Readonly<{ x: number; z: number }>): void {
-      if (latestWorld === null) return;
-      openInspectDialog(
-        shell.dialogHost,
-        () => latestWorld!,
-        ports.rciRegistries,
-        pickInspectTarget(latestWorld, cell),
-      );
+      if (latestWorld === null || inspectSurface === null) return;
+      if (activeToolMode !== 'navigate') {
+        inspectSurface.close();
+        return;
+      }
+      const target = pickInspectTarget(latestWorld, cell);
+      inspectSurface.open(createInspectProjection(latestWorld, target, ports.rciRegistries));
     },
     dispose(): void {
       informationViews.deactivate();
+      inspectSurface?.dispose();
       shell.dispose();
     },
   });

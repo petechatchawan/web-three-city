@@ -21,9 +21,20 @@ async function openGame(page: Page): Promise<void> {
   await waitForCityUi(page);
 }
 
+async function expandInspect(page: Page): Promise<ReturnType<Page['getByTestId']>> {
+  const inspect = page.getByTestId('inspect-surface');
+  await expect(inspect).toBeVisible();
+  if ((await inspect.getAttribute('data-expanded')) !== 'true') {
+    await inspect.getByRole('button', { name: 'Expand Inspect', exact: true }).click();
+  }
+  await expect(inspect).toHaveAttribute('data-expanded', 'true');
+  return inspect;
+}
+
 async function closeInspect(page: Page): Promise<void> {
-  await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
-  await expect(page.getByRole('dialog')).toBeHidden();
+  const inspect = page.getByTestId('inspect-surface');
+  await inspect.getByRole('button', { name: 'Close Inspect', exact: true }).click();
+  await expect(inspect).toBeHidden();
 }
 
 test('inspects terrain and replaces then deactivates the primary information view', async ({
@@ -33,10 +44,11 @@ test('inspects terrain and replaces then deactivates the primary information vie
   const terrainCell = { x: 64, z: 64 };
   const terrainPoint = await locateTerrainCell(page, terrainCell);
   await page.mouse.click(terrainPoint.x, terrainPoint.y);
-  const dialog = page.getByRole('dialog');
-  await expect(dialog.getByRole('heading', { name: 'Terrain' })).toBeVisible();
-  await expect(dialog).toContainText(`Cell${terrainCell.x}, ${terrainCell.z}`);
-  await expect(dialog).toContainText('Water');
+  let inspect = page.getByTestId('inspect-surface');
+  await expect(inspect.locator('.city-inspect-title')).toHaveText('Terrain');
+  await expect(inspect).toContainText(`Cell: ${terrainCell.x}, ${terrainCell.z}`);
+  inspect = await expandInspect(page);
+  await expect(inspect).toContainText('Water');
   await closeInspect(page);
 
   await openInformationViews(page);
@@ -59,20 +71,25 @@ test('uses Building over Zone and inspects Road and remaining Zone cells', async
   const points = await prepareSingleBuildingFixtureWorld(page, CENTER_BUILDING_FIXTURE);
 
   await closeBuild(page);
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('tool-context-toggle')).toHaveCount(0);
+
   const roadCell = CENTER_BUILDING_FIXTURE.roadCells[0];
   const roadPoint = pointFor(points, roadCell);
   await page.mouse.click(roadPoint.x, roadPoint.y);
-  let dialog = page.getByRole('dialog');
-  await expect(dialog.getByRole('heading', { name: 'Basic Road' })).toBeVisible();
-  await expect(dialog).toContainText(`Cell${roadCell.x}, ${roadCell.z}`);
+  let inspect = page.getByTestId('inspect-surface');
+  await expect(inspect.locator('.city-inspect-title')).toHaveText('Basic Road');
+  await expect(inspect).toContainText(`Cell: ${roadCell.x}, ${roadCell.z}`);
   await closeInspect(page);
 
   const zoneCell = CENTER_BUILDING_FIXTURE.zoneCells[0];
   const zonePoint = pointFor(points, zoneCell);
   await page.mouse.click(zonePoint.x, zonePoint.y);
-  dialog = page.getByRole('dialog');
-  await expect(dialog.getByRole('heading', { name: 'Residential Zone' })).toBeVisible();
-  await expect(dialog).toContainText('DevelopmentOpen');
+  inspect = page.getByTestId('inspect-surface');
+  await expect(inspect.locator('.city-inspect-title')).toHaveText('Residential Zone');
+  inspect = await expandInspect(page);
+  await expect(inspect).toContainText('Development');
+  await expect(inspect).toContainText('Open');
   await closeInspect(page);
 
   const snapshot = await stepLogicalTicks(page, 16);
@@ -90,7 +107,8 @@ test('uses Building over Zone and inspects Road and remaining Zone cells', async
   if (buildingCell === undefined) throw new Error('inspect:missing-building-fixture');
 
   await page.mouse.click(pointFor(points, buildingCell).x, pointFor(points, buildingCell).y);
-  dialog = page.getByRole('dialog');
-  await expect(dialog).toContainText('Capacity');
-  await expect(dialog).toContainText('Road accessYes');
+  inspect = await expandInspect(page);
+  await expect(inspect).toContainText('Capacity');
+  await expect(inspect).toContainText('Road access');
+  await expect(inspect).toContainText('Yes');
 });

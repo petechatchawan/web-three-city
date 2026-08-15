@@ -29,7 +29,7 @@ function undo(): HTMLButtonElement | null {
   return document.querySelector<HTMLButtonElement>('[data-testid="tool-context-undo"]');
 }
 
-describe('M6.3 Figma contextual tool sheet', () => {
+describe('M6.4 compact contextual tool sheet', () => {
   it('stays hidden in Navigate mode', () => {
     const sheet = mountStatusFeedback(document.body);
     sheet.update(projection({ mode: 'navigate', name: 'Navigate' }));
@@ -46,6 +46,21 @@ describe('M6.3 Figma contextual tool sheet', () => {
     expect(sheet.element.textContent).not.toContain('Point at the world to preview this tool');
     expect(toggle()).not.toBeNull();
     expect(toggle()?.getAttribute('aria-label')).toBe('Tool Context');
+  });
+
+  it('localizes runtime tool names by typed mode instead of trusting English event copy', () => {
+    const sheet = mountStatusFeedback(document.body);
+    sheet.update(
+      projection({
+        mode: 'zone-industrial',
+        name: 'Industrial Zone',
+        state: 'Tool ready',
+      }),
+    );
+    expect(sheet.element.querySelector('.city-tool-context-name')?.textContent).toBe('Industrial');
+    expect('setLocale' in sheet).toBe(true);
+    (sheet as unknown as { setLocale(locale: 'en' | 'th'): void }).setLocale('th');
+    expect(sheet.element.querySelector('.city-tool-context-name')?.textContent).toBe('อุตสาหกรรม');
   });
 
   it('expands authoritative requested, effective, and affordability metadata on demand', () => {

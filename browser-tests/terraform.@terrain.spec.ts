@@ -210,8 +210,8 @@ for (const [size, count] of [
     await openGame(page);
     const point = await clickTerrainCell(page, findValidCenter(BASE_TERRAIN, 'raise', size));
     await openBuildCategory(page, 'terrain');
-    await page.getByRole('button', { name: 'Raise' }).click();
     await page.getByRole('button', { name: `Brush ${size} × ${size}` }).click();
+    await page.getByRole('button', { name: 'Raise' }).click();
 
     await page.mouse.move(point.x, point.y);
     await page.mouse.down();

@@ -164,6 +164,7 @@ async function paint(
   type: 'Residential' | 'Commercial' | 'Industrial',
   cell: CellCoord,
 ): Promise<void> {
+  await openBuildCategory(page, 'zones');
   await page.getByRole('button', { name: type, exact: true }).click();
   await clickCell(page, points, cell);
   await expect(page.getByTestId('tool-context-status')).toHaveText('Zone painted');
@@ -193,7 +194,6 @@ test('captures committed R/C/I overlays, invalid depth feedback, and canonical m
   await page.getByRole('button', { name: 'Build Road' }).click();
   await clickCell(page, points, FIXTURE.road);
   await expect(page.getByTestId('tool-context-status')).toHaveText('Road built');
-  await openBuildCategory(page, 'zones');
 
   for (const cell of FIXTURE.residential) await paint(page, points, 'Residential', cell);
   await paint(page, points, 'Commercial', FIXTURE.commercial);

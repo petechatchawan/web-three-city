@@ -65,14 +65,13 @@ test('Road operations expose distinct Preview and release outside Terrain commit
   for (const cell of cells) points.push(await clickTerrainCell(page, cell));
 
   await openBuildCategory(page, 'roads');
-  const buildRoad = page.getByRole('button', { name: 'Build Road' });
-  await buildRoad.click();
+  await page.getByRole('button', { name: 'Build Road' }).click();
+  await expect(page.locator('.city-tool-context-name')).toHaveText('Build Road');
   await dispatchCanvasTouch(page, 'pointerdown', 1, points[0]!.x, points[0]!.y);
   await dispatchCanvasTouch(page, 'pointermove', 1, points.at(-1)!.x, points.at(-1)!.y);
   let evidence = await readEvidence(page);
   expect(evidence.road.previewValid).toBe(true);
   expect(evidence.road.previewCellCount).toBe(cells.length);
-  await expect(buildRoad).toHaveAttribute('aria-pressed', 'true');
   await attachViewport(page, testInfo, 'valid-build-preview');
   await dispatchCanvasTouch(page, 'pointerup', 1, 20, 450);
   await expect(page.getByTestId('tool-context-status')).toHaveText('Road built');
@@ -88,14 +87,13 @@ test('Road operations expose distinct Preview and release outside Terrain commit
   expect((await readEvidence(page)).road.occupiedCellCount).toBe(cells.length);
 
   await openBuildCategory(page, 'roads');
-  const bulldozeRoad = page.getByRole('button', { name: 'Bulldoze Road' });
-  await bulldozeRoad.click();
+  await page.getByRole('button', { name: 'Bulldoze Road' }).click();
+  await expect(page.locator('.city-tool-context-name')).toHaveText('Bulldoze Road');
   await dispatchCanvasTouch(page, 'pointerdown', 3, points[0]!.x, points[0]!.y);
   await dispatchCanvasTouch(page, 'pointermove', 3, points.at(-1)!.x, points.at(-1)!.y);
   evidence = await readEvidence(page);
   expect(evidence.road.previewValid).toBe(true);
   expect(evidence.road.bulldozeMarkerCount).toBe(1);
-  await expect(bulldozeRoad).toHaveAttribute('aria-pressed', 'true');
   await attachViewport(page, testInfo, 'valid-bulldoze-preview');
   await dispatchCanvasTouch(page, 'pointerup', 3, points.at(-1)!.x, points.at(-1)!.y);
   await expect(page.getByTestId('tool-context-status')).toHaveText('Road bulldozed');

@@ -37,15 +37,14 @@ test('captures cross-chunk Road continuity', async ({ page }, testInfo) => {
   await captureFixture(page, testInfo, 'road-chunk-boundary', 'road-chunk-boundary.png');
 });
 
-test('captures the canonical mobile Game Road Build dock', async ({ page }, testInfo) => {
+test('captures the canonical mobile Game Road Build context', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 414, height: 896 });
   await page.goto(GAME_URL);
   await waitForCityUi(page);
   await openBuildCategory(page, 'roads');
   await page.getByRole('button', { name: 'Build Road' }).click();
-  await expect(page.getByRole('button', { name: 'Build Road' })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
+  await expect(page.getByTestId('build-picker')).toBeHidden();
+  await expect(page.locator('.city-tool-context-name')).toHaveText('Build Road');
+  await expect(page.getByTestId('nav-build')).toHaveAttribute('aria-pressed', 'false');
   await page.screenshot({ path: testInfo.outputPath('road-game-mobile.png'), fullPage: true });
 });

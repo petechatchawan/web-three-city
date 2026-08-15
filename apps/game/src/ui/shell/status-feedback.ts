@@ -1,6 +1,7 @@
 import type { GameToolMode } from '../../game-tool-mode.js';
 import { createCityIcon } from '../components/icon.js';
 import type { UiAdapter } from '../foundation/lifecycle.js';
+import { uiText, type UiCopyKey, type UiLocale } from '../presentation-locale.js';
 
 export interface ContextualToolProjection {
   readonly mode: GameToolMode;
@@ -20,10 +21,25 @@ export interface StatusFeedbackAdapter extends UiAdapter<ContextualToolProjectio
   setUndoAvailable(available: boolean): void;
   setStatus(value: string): void;
   clearStatus(): void;
+  setLocale(locale: UiLocale): void;
 }
 
 const DISMISS_MS = 3600;
 const ROUTINE_HELPER = 'Point at the world to preview this tool';
+
+const toolLabelKey: Readonly<Record<GameToolMode, UiCopyKey>> = Object.freeze({
+  navigate: 'navigate',
+  raise: 'raise',
+  lower: 'lower',
+  flatten: 'flatten',
+  'road-build': 'buildRoad',
+  'road-bulldoze': 'bulldozeRoad',
+  'zone-residential': 'residential',
+  'zone-commercial': 'commercial',
+  'zone-industrial': 'industrial',
+  'zone-remove': 'removeZone',
+  'building-bulldoze': 'bulldozeBuilding',
+});
 
 function isMeaningfulValidation(projection: ContextualToolProjection): boolean {
   return (
@@ -63,6 +79,7 @@ function statusForProjection(projection: ContextualToolProjection | null): strin
 export function mountStatusFeedback(
   parent: HTMLElement,
   callbacks: StatusFeedbackCallbacks = {},
+  initialLocale: UiLocale = 'en',
 ): StatusFeedbackAdapter {
   const element = document.createElement('section');
   element.className = 'city-tool-context-sheet city-status-feedback';
@@ -73,6 +90,7 @@ export function mountStatusFeedback(
 
   let latestProjection: ContextualToolProjection | null = null;
   let latestMode: GameToolMode | null = null;
+  let locale = initialLocale;
   let expanded = false;
   let undoAvailable = false;
   let transientStatus = '';
@@ -112,7 +130,8 @@ export function mountStatusFeedback(
     identity.className = 'city-tool-context-identity';
     const name = document.createElement('strong');
     name.className = 'city-tool-context-name';
-    name.textContent = projection?.name ?? 'World';
+    name.textContent =
+      projection === null ? 'World' : uiText(locale, toolLabelKey[projection.mode]);
     identity.append(name);
 
     const status = document.createElement('span');
@@ -227,6 +246,10 @@ export function mountStatusFeedback(
       scheduleDismiss();
     },
     clearStatus,
+    setLocale(nextLocale: UiLocale): void {
+      locale = nextLocale;
+      render();
+    },
     dispose(): void {
       cancelDismiss();
       element.remove();

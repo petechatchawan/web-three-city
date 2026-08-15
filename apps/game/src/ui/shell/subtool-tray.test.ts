@@ -3,62 +3,72 @@ import { mountSubToolTray, type TrayCategory } from './subtool-tray.js';
 
 afterEach(() => document.body.replaceChildren());
 
-describe('M6.2 contextual tool dock', () => {
-  it('mounts Terrain tools with a Terrain-only brush row', () => {
-    const dock = mountSubToolTray(document.body, {
+describe('M6.4 on-demand Build picker', () => {
+  it('opens at four build categories and reveals Terrain tools on demand', () => {
+    const picker = mountSubToolTray(document.body, {
       onSelectTool: vi.fn(),
       onBrush: vi.fn(),
     });
-    dock.open('terrain');
-    expect(dock.element.classList.contains('city-contextual-tool-dock')).toBe(true);
-    expect(dock.element.querySelector('.city-contextual-tool-dock-content')).not.toBeNull();
-    const buttons = dock.element.querySelectorAll<HTMLButtonElement>('[data-tool-mode]');
-    expect(Array.from(buttons, (button) => button.dataset.toolMode)).toEqual([
-      'raise',
-      'lower',
-      'flatten',
-    ]);
-    expect(dock.element.querySelectorAll<HTMLButtonElement>('[data-brush-size]').length).toBe(3);
-    expect(dock.element.querySelector('.city-tool-context')).toBeNull();
+    picker.open();
+    expect(picker.element.dataset.testid).toBe('build-picker');
+    expect(
+      Array.from(
+        picker.element.querySelectorAll<HTMLElement>('[data-build-category]'),
+        (button) => button.dataset.buildCategory,
+      ),
+    ).toEqual(['terrain', 'roads', 'zones', 'buildings']);
+
+    picker.element
+      .querySelector<HTMLButtonElement>('[data-testid="build-category-terrain"]')!
+      .click();
+    expect(
+      Array.from(
+        picker.element.querySelectorAll<HTMLButtonElement>('[data-tool-mode]'),
+        (button) => button.dataset.toolMode,
+      ),
+    ).toEqual(['raise', 'lower', 'flatten']);
+    expect(picker.element.querySelectorAll<HTMLButtonElement>('[data-brush-size]').length).toBe(3);
   });
 
-  it('emits exact tool and brush callbacks without changing domain values', () => {
+  it('emits one concrete tool then closes the picker without mutating domain values itself', () => {
     const onSelectTool = vi.fn();
     const onBrush = vi.fn();
-    const dock = mountSubToolTray(document.body, { onSelectTool, onBrush });
-    dock.open('terrain');
-    const raise = dock.element.querySelector<HTMLButtonElement>('[data-tool-mode="raise"]');
-    raise?.click();
-    expect(onSelectTool).toHaveBeenCalledWith('raise');
-    expect(raise?.getAttribute('aria-pressed')).toBe('true');
-    dock.element.querySelector<HTMLButtonElement>('[data-brush-size="3"]')?.click();
+    const onClose = vi.fn();
+    const picker = mountSubToolTray(document.body, { onSelectTool, onBrush, onClose });
+    picker.open('terrain');
+    picker.element.querySelector<HTMLButtonElement>('[data-brush-size="3"]')!.click();
     expect(onBrush).toHaveBeenCalledWith(3);
+
+    picker.element.querySelector<HTMLButtonElement>('[data-tool-mode="raise"]')!.click();
+    expect(onSelectTool).toHaveBeenCalledWith('raise');
+    expect(picker.element.hidden).toBe(true);
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it('renders Zones as one tool collection with every action reachable once', () => {
-    const dock = mountSubToolTray(document.body, {
+    const picker = mountSubToolTray(document.body, {
       onSelectTool: vi.fn(),
       onBrush: vi.fn(),
     });
-    dock.open('zones');
+    picker.open('zones');
     expect(
       Array.from(
-        dock.element.querySelectorAll<HTMLButtonElement>('[data-tool-mode]'),
+        picker.element.querySelectorAll<HTMLButtonElement>('[data-tool-mode]'),
         (button) => button.dataset.toolMode,
       ),
     ).toEqual(['zone-residential', 'zone-commercial', 'zone-industrial', 'zone-remove']);
-    expect(dock.element.querySelector('[data-brush-size]')).toBeNull();
+    expect(picker.element.querySelector('[data-brush-size]')).toBeNull();
   });
 
-  it('reaches every non-Navigate tool exactly once and hides after close', () => {
-    const dock = mountSubToolTray(document.body, {
+  it('retains every non-Navigate tool exactly once across build categories', () => {
+    const picker = mountSubToolTray(document.body, {
       onSelectTool: vi.fn(),
       onBrush: vi.fn(),
     });
     const seen: string[] = [];
-    for (const category of Object.keys(dock.categories) as TrayCategory[]) {
-      dock.open(category);
-      for (const button of dock.element.querySelectorAll<HTMLButtonElement>('[data-tool-mode]')) {
+    for (const category of Object.keys(picker.categories) as TrayCategory[]) {
+      picker.open(category);
+      for (const button of picker.element.querySelectorAll<HTMLButtonElement>('[data-tool-mode]')) {
         seen.push(button.dataset.toolMode!);
       }
     }
@@ -75,7 +85,7 @@ describe('M6.2 contextual tool dock', () => {
       'building-bulldoze',
     ]);
     expect(new Set(seen).size).toBe(seen.length);
-    dock.close();
-    expect(dock.element.hidden).toBe(true);
+    picker.close();
+    expect(picker.element.hidden).toBe(true);
   });
 });

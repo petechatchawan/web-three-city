@@ -166,6 +166,7 @@ async function paint(
   type: 'Residential' | 'Commercial' | 'Industrial',
   cell: CellCoord,
 ): Promise<void> {
+  await openBuildCategory(page, 'zones');
   await page.getByRole('button', { name: type, exact: true }).click();
   const point = at(points, cell);
   await page.mouse.click(point.x, point.y);
@@ -182,7 +183,6 @@ test('paints R/C/I at committed-Road depths 1–3 and round-trips WorldSaveV5', 
     FIXTURE.industrial,
   ]);
   await buildFixtureRoad(page, points);
-  await openBuildCategory(page, 'zones');
 
   for (const cell of FIXTURE.depth.slice(0, 3)) {
     await paint(page, points, 'Residential', cell);
@@ -237,7 +237,6 @@ test('rejects depth four and preserves Zone invariants across Road and Terraform
   await openGame(page);
   const points = await locate(page, [FIXTURE.road, FIXTURE.depth[2], FIXTURE.depth[3]]);
   await buildFixtureRoad(page, points);
-  await openBuildCategory(page, 'zones');
   await paint(page, points, 'Residential', FIXTURE.depth[2]);
   const committed = await readEvidence(page);
 

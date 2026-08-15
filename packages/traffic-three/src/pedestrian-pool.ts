@@ -24,6 +24,10 @@ export class TrafficPedestrianPool {
     return this.#reuseCount;
   }
 
+  has(tripId: string): boolean {
+    return this.#active.has(tripId);
+  }
+
   acquire(input: TrafficPedestrianVisualInput): TrafficPedestrianAgent {
     const existing = this.#active.get(input.tripId);
     if (existing !== undefined) {

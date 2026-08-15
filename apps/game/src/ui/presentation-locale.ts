@@ -7,6 +7,7 @@ export type UiCopyKey =
   | 'roads'
   | 'zones'
   | 'buildings'
+  | 'navigate'
   | 'raise'
   | 'lower'
   | 'flatten'
@@ -24,7 +25,31 @@ export type UiCopyKey =
   | 'inspect'
   | 'expandInspect'
   | 'collapseInspect'
-  | 'closeInspect';
+  | 'closeInspect'
+  | 'simulationSpeed'
+  | 'pause'
+  | 'play'
+  | 'stepOneTick'
+  | 'world'
+  | 'saveWorld'
+  | 'loadWorld'
+  | 'camera'
+  | 'rotateLeft'
+  | 'rotateRight'
+  | 'resetCamera'
+  | 'grid'
+  | 'presentation'
+  | 'quality'
+  | 'inspectFieldCell'
+  | 'inspectFieldHeight'
+  | 'inspectFieldWater'
+  | 'inspectFieldOccupancy'
+  | 'inspectFieldZone'
+  | 'inspectFieldCapacity'
+  | 'inspectFieldDevelopment'
+  | 'inspectFieldRoadAccess'
+  | 'inspectFieldConnected'
+  | 'inspectFieldRoadAdjacency';
 
 const copy: Readonly<Record<UiLocale, Readonly<Record<UiCopyKey, string>>>> = Object.freeze({
   en: Object.freeze({
@@ -34,6 +59,7 @@ const copy: Readonly<Record<UiLocale, Readonly<Record<UiCopyKey, string>>>> = Ob
     roads: 'Roads',
     zones: 'Zones',
     buildings: 'Buildings',
+    navigate: 'Navigate',
     raise: 'Raise',
     lower: 'Lower',
     flatten: 'Flatten',
@@ -52,6 +78,30 @@ const copy: Readonly<Record<UiLocale, Readonly<Record<UiCopyKey, string>>>> = Ob
     expandInspect: 'Expand Inspect',
     collapseInspect: 'Collapse Inspect',
     closeInspect: 'Close Inspect',
+    simulationSpeed: 'Simulation speed',
+    pause: 'Pause',
+    play: 'Play',
+    stepOneTick: 'Advance exactly one tick',
+    world: 'World',
+    saveWorld: 'Save world',
+    loadWorld: 'Load world',
+    camera: 'Camera',
+    rotateLeft: 'Rotate left',
+    rotateRight: 'Rotate right',
+    resetCamera: 'Reset camera',
+    grid: 'Grid',
+    presentation: 'Presentation',
+    quality: 'Quality',
+    inspectFieldCell: 'Cell',
+    inspectFieldHeight: 'Height',
+    inspectFieldWater: 'Water',
+    inspectFieldOccupancy: 'Occupancy',
+    inspectFieldZone: 'Zone',
+    inspectFieldCapacity: 'Capacity',
+    inspectFieldDevelopment: 'Development',
+    inspectFieldRoadAccess: 'Road access',
+    inspectFieldConnected: 'Connected',
+    inspectFieldRoadAdjacency: 'Road adjacency',
   }),
   th: Object.freeze({
     build: 'สร้าง',
@@ -60,6 +110,7 @@ const copy: Readonly<Record<UiLocale, Readonly<Record<UiCopyKey, string>>>> = Ob
     roads: 'ถนน',
     zones: 'โซน',
     buildings: 'อาคาร',
+    navigate: 'สำรวจ',
     raise: 'ยกพื้น',
     lower: 'ลดพื้น',
     flatten: 'ปรับระดับ',
@@ -78,13 +129,55 @@ const copy: Readonly<Record<UiLocale, Readonly<Record<UiCopyKey, string>>>> = Ob
     expandInspect: 'ขยายข้อมูล',
     collapseInspect: 'ย่อข้อมูล',
     closeInspect: 'ปิดข้อมูล',
+    simulationSpeed: 'ความเร็วการจำลอง',
+    pause: 'หยุดชั่วคราว',
+    play: 'เล่น',
+    stepOneTick: 'เดินหน้า 1 ติ๊ก',
+    world: 'โลก',
+    saveWorld: 'บันทึกเมือง',
+    loadWorld: 'โหลดเมือง',
+    camera: 'กล้อง',
+    rotateLeft: 'หมุนซ้าย',
+    rotateRight: 'หมุนขวา',
+    resetCamera: 'รีเซ็ตกล้อง',
+    grid: 'กริด',
+    presentation: 'การแสดงผล',
+    quality: 'คุณภาพ',
+    inspectFieldCell: 'ช่อง',
+    inspectFieldHeight: 'ความสูง',
+    inspectFieldWater: 'น้ำ',
+    inspectFieldOccupancy: 'การใช้งานพื้นที่',
+    inspectFieldZone: 'โซน',
+    inspectFieldCapacity: 'ความจุ',
+    inspectFieldDevelopment: 'การพัฒนา',
+    inspectFieldRoadAccess: 'การเข้าถึงถนน',
+    inspectFieldConnected: 'การเชื่อมต่อ',
+    inspectFieldRoadAdjacency: 'ติดถนน',
   }),
+});
+
+const inspectFieldKeys: Readonly<Record<string, UiCopyKey>> = Object.freeze({
+  Cell: 'inspectFieldCell',
+  Height: 'inspectFieldHeight',
+  Water: 'inspectFieldWater',
+  Occupancy: 'inspectFieldOccupancy',
+  Zone: 'inspectFieldZone',
+  Capacity: 'inspectFieldCapacity',
+  Development: 'inspectFieldDevelopment',
+  'Road access': 'inspectFieldRoadAccess',
+  Connected: 'inspectFieldConnected',
+  'Road adjacency': 'inspectFieldRoadAdjacency',
 });
 
 const STORAGE_KEY = 'web-three-city.ui-locale';
 
 export function uiText(locale: UiLocale, key: UiCopyKey): string {
   return copy[locale][key];
+}
+
+export function localizeInspectFieldLabel(locale: UiLocale, label: string): string {
+  const key = inspectFieldKeys[label];
+  return key === undefined ? label : uiText(locale, key);
 }
 
 export function readStoredUiLocale(): UiLocale {

@@ -1,6 +1,7 @@
 export * from './building-access.js';
 export * from './contracts.js';
 export * from './errors.js';
+export * from './graph-reconciler.js';
 export * from './intersection-policy.js';
 export * from './intersection-queue.js';
 export * from './pedestrian-graph.js';

@@ -10,6 +10,7 @@ export interface MaterializedTrafficAgent<T extends TrafficSpatialAgent = Traffi
   readonly agent: T;
   readonly tier: TrafficLodTier;
   readonly distanceSquared: number;
+  readonly updateDue: boolean;
 }
 
 export interface TrafficMaterializationSelection<T extends TrafficSpatialAgent = TrafficSpatialAgent> {
@@ -18,6 +19,8 @@ export interface TrafficMaterializationSelection<T extends TrafficSpatialAgent =
   readonly vehicleCount: number;
   readonly nearCount: number;
   readonly midCount: number;
+  readonly nearUpdateCount: number;
+  readonly midUpdateCount: number;
 }
 
 function modePriority(mode: TrafficSpatialAgent['mode']): number {
@@ -55,6 +58,8 @@ export function selectTrafficAgentsForMaterialization<T extends TrafficSpatialAg
   let vehicles = 0;
   let near = 0;
   let mid = 0;
+  let nearUpdateCount = 0;
+  let midUpdateCount = 0;
 
   for (const candidate of sorted) {
     if (candidate.agent.mode === 'Walk' && pedestrians >= policy.maxPedestrians) continue;
@@ -65,13 +70,25 @@ export function selectTrafficAgentsForMaterialization<T extends TrafficSpatialAg
     const tier: TrafficLodTier = eligibleForNear ? 'Near' : 'Mid';
     const updateEvery =
       tier === 'Near' ? policy.nearUpdateEveryFrames : policy.midUpdateEveryFrames;
-    if (input.frameIndex % updateEvery !== 0) continue;
+    const updateDue = input.frameIndex % updateEvery === 0;
 
-    selected.push(Object.freeze({ agent: candidate.agent, tier, distanceSquared: candidate.distanceSquared }));
+    selected.push(
+      Object.freeze({
+        agent: candidate.agent,
+        tier,
+        distanceSquared: candidate.distanceSquared,
+        updateDue,
+      }),
+    );
     if (candidate.agent.mode === 'Walk') pedestrians += 1;
     else vehicles += 1;
-    if (tier === 'Near') near += 1;
-    else mid += 1;
+    if (tier === 'Near') {
+      near += 1;
+      if (updateDue) nearUpdateCount += 1;
+    } else {
+      mid += 1;
+      if (updateDue) midUpdateCount += 1;
+    }
   }
 
   return Object.freeze({
@@ -80,5 +97,7 @@ export function selectTrafficAgentsForMaterialization<T extends TrafficSpatialAg
     vehicleCount: vehicles,
     nearCount: near,
     midCount: mid,
+    nearUpdateCount,
+    midUpdateCount,
   });
 }

@@ -9,15 +9,15 @@
 
 Traffic v0.1 turns real Citizen Mobility trips into deterministic walking/driving transport over graphs derived from the existing Road and Building authorities. Every visible pedestrian must correspond to a real active Walk trip and every visible car must correspond to a real active Drive trip. The logical trip continues when its Three.js representation is not materialized; camera visibility, LOD, pooling, and render interpolation never become Traffic authority.
 
-Traffic owns route planning and active transport progression, plus the deterministic queue state required to move trips through Road nodes/intersections. Road occupancy and connectivity remain Road authority. Building placement/frontage remains Building authority. Traffic derives pedestrian and vehicle graphs from narrow immutable projections supplied by `apps/game`.
+Traffic owns route planning and active transport progression, plus deterministic waiting/queue state required to move trips through Road nodes/intersections. Road occupancy/connectivity remain Road authority. Building placement/frontage remains Building authority. Traffic derives pedestrian and vehicle graphs from narrow immutable projections supplied by `apps/game`.
 
-The first production version supports Walk and Drive commute transport, deterministic route selection, versioned basic-road traffic profiles, real intersection queues, load/congestion/travel-time projections, topology-change recovery, Save/Load exact resume, pooled/LOD Three.js agents, Citizen/Vehicle Inspect, and a Traffic information view. Public transit, parking, signals, freight, accidents, and congestion-triggered mid-trip rerouting are deferred.
+The first production version supports Walk and Drive commute transport, deterministic routing, versioned `basic-road` traffic profiles, intersection queues, load/congestion/travel-time projections, topology-change recovery, Save/Load of committed logical progress, pooled/LOD Three.js agents, Citizen/Vehicle Inspect, and a Traffic information view. Public transit, parking, signals, freight, accidents, and normal congestion-triggered mid-trip rerouting are deferred.
 
 ## Context
 
-The existing Road system owns `basic-road` cell codes, cardinal connectivity, ramp validity, Road access, and Save. It explicitly does not own traffic/pathfinding/capacity. Buildings already derive Road frontage. Citizen Mobility v0.1 provides real Citizen trip intent, origin/destination Building IDs, and selected mode.
+The current Road system owns `basic-road` cell codes, cardinal connectivity, ramp validity, Road access, and Save. It explicitly does not own Traffic/pathfinding/capacity. Buildings already derive deterministic Road frontage. Citizen Mobility v0.1 provides real Citizen trip intent, origin/destination Building IDs, and selected mode.
 
-The product requirement is not merely a traffic number or decorative ambient animation. The city must visibly contain real Citizens walking and real cars commuting. At the same time, mobile scale makes it unacceptable to create/update a Three.js object for every Citizen on every frame. Traffic therefore separates logical transport truth from materialized visual agents.
+The product requirement is not merely a Traffic number or decorative ambient animation. The city must visibly contain real Citizens walking and real cars commuting. At the same time, mobile scale makes it unacceptable to create/update a Three.js object for every Citizen on every frame. Traffic therefore separates logical transport truth from materialized visual agents.
 
 ## Goals
 
@@ -26,9 +26,9 @@ The product requirement is not merely a traffic number or decorative ambient ani
 - Represent every active transport trip logically even when off-screen.
 - Make every visible pedestrian/car traceable to one real Citizen + Mobility trip.
 - Add Road load, queues, congestion, and travel-time behavior driven by real trips.
-- Avoid same-tick route↔congestion cycles by using the previous committed cost projection for new route planning.
-- Support deterministic route recovery after Road topology mutation.
-- Resume mid-trip exactly across Save/Load without persisting Three.js state.
+- Avoid same-tick route↔congestion cycles by using a prior committed Traffic-cost projection for new route planning.
+- Support deterministic route recovery after Road topology mutation or authoritative destination change.
+- Resume the same committed logical mid-trip checkpoint across Save/Load without persisting Three.js state.
 - Materialize only relevant agents using spatial queries, deterministic prioritization, pooling, and LOD.
 - Preserve mobile viability at large logical Citizen/trip counts.
 - Expose narrow Traffic projections for Inspect, information views, and later Land Value/Economy/Services factors.
@@ -39,8 +39,8 @@ The product requirement is not merely a traffic number or decorative ambient ani
 - Owning Road cells, Road connectivity, Building placement, or Building frontage.
 - Public transit, bikes, parking, car ownership, carpooling, freight, deliveries, emergency vehicles, tourism, or school trips.
 - Traffic lights, player signal controls, stop-sign gameplay, lane customization, one-way Road gameplay, bridges/tunnels, or incidents.
-- Congestion-triggered mid-trip rerouting in v0.1.
-- Physical vehicle damage/collisions.
+- Congestion-triggered normal mid-trip rerouting in v0.1.
+- Physical vehicle damage/collision physics.
 - Treating render-frame movement as authoritative simulation.
 - Persisting meshes, transforms, animation frames, camera bubbles, graph caches, or route caches.
 
@@ -67,7 +67,7 @@ The product requirement is not merely a traffic number or decorative ambient ani
 - deterministic appearance variants,
 - presentation-only animation state.
 
-`traffic-core` must not import `rci-core`, `citizen-mobility-core`, `road-core`, `building-core`, DOM, or Three.js. `apps/game` translates authoritative world state into narrow transport source projections and composes Traffic atomically. `traffic-three` may depend on stable Traffic projection contracts but must not mutate Traffic state.
+`traffic-core` must not import `rci-core`, `citizen-mobility-core`, `road-core`, `building-core`, DOM, or Three.js. `apps/game` translates authoritative world state into narrow transport source projections and coordinates Traffic with Citizen Mobility. `traffic-three` may depend on stable Traffic projection contracts but must not mutate Traffic state.
 
 ### Narrow source projections
 
@@ -97,7 +97,7 @@ TransportRequest
 - departureGameMinute
 ```
 
-Traffic does not infer Housing/Employment relationships; Mobility supplies trip endpoints.
+Traffic does not infer Housing/Employment relationships; Citizen Mobility supplies trip endpoints through orchestration.
 
 ## Authoritative and Derived State
 
@@ -124,14 +124,18 @@ TransportTripState
 - destinationBuildingId
 - routeEdgeIds[]
 - routeGraphRevision
+- lastStableNodeId
 - segmentIndex
+- segmentEntryGameSecond
 - progressQ / segment timing state
-- queueState?            // stable node/movement waiting state when applicable
+- queueState?
 - status: Active | Arrived | Failed | Cancelled
 - failureReason?
 ```
 
 The Mobility `tripId` is the cross-system trip identity. Traffic does not create a second Citizen or Mobility trip sequence.
+
+`lastStableNodeId` is required for deterministic recovery if a currently traversed or remaining Road edge is removed. Traffic never needs to invent a recovery anchor inside deleted topology.
 
 ### Derived Traffic state
 
@@ -147,7 +151,7 @@ The following are deterministic projections/caches from committed Traffic + grap
 - spatial bins for active routes/agents,
 - Three.js positions, rotations, animation, materialization, LOD, and appearance.
 
-A committed Traffic-cost projection is rebuilt from the previous committed snapshot and used as an immutable planning input for newly departing trips.
+A Traffic-cost projection is rebuilt from the prior committed Traffic snapshot and remains immutable while newly due trips are planned.
 
 ## Transport Graph Authority
 
@@ -157,15 +161,15 @@ Road remains authoritative for Road occupancy and cardinal connectivity. Traffic
 
 Each traversable `basic-road` connection becomes deterministic directed vehicle edges according to a versioned `TrafficRoadProfile` keyed by Road `definitionCode`.
 
-The foundation profile defines, at minimum:
+The foundation profile defines at minimum:
 
 - free-flow speed,
 - flow/occupancy capacity semantics,
 - node/intersection service capacity,
 - traversal support for valid flat/ramp Road topology,
-- visual lane/centerline offsets used by presentation projections.
+- vehicle visual centerline/lateral offsets used by presentation projections.
 
-The profile is Traffic content, not Road authority. Adding future Road definitions may expose stable codes consumed by the Traffic profile registry without moving Traffic state into `road-core`.
+The profile is Traffic content, not Road authority. Future Road definitions may expose additional stable definition codes consumed by Traffic profiles without moving Traffic state into `road-core`.
 
 ### Pedestrian graph
 
@@ -180,9 +184,9 @@ Building entrance anchor
 → Building entrance anchor
 ```
 
-The v0.1 Road may not expose gameplay sidewalk objects; Traffic owns the derived logical pedestrian corridor projection only. A Building entrance anchor is derived from the deterministic center of the accepted frontage edge/access side. No arbitrary nearest-Road search may override valid existing frontage authority.
+The v0.1 Road does not need gameplay sidewalk objects. Traffic owns only the derived logical pedestrian corridor projection. A Building entrance anchor is derived from the deterministic center of the accepted frontage edge/access side. No arbitrary nearest-Road search may override valid existing frontage authority.
 
-Pedestrian path geometry must remain visually separated from the vehicle centerline by deterministic profile offsets so people do not intentionally walk through the middle of Road lanes.
+Pedestrian path geometry remains visually separated from the vehicle centerline by deterministic profile offsets so Citizens do not intentionally walk through the middle of Road lanes.
 
 ## Routing
 
@@ -190,21 +194,29 @@ Traffic provides deterministic candidate plans for Walk and Drive.
 
 ### Cost semantics
 
+All authoritative transport costs are integer game-time values. The foundation unit is integer `GameSecond` for route traversal/cost, while Citizen activity/schedule boundaries remain integer `GameMinute`.
+
+```text
+absoluteGameSecond = absoluteGameTick * 3600 + secondOffsetWithinHour
+```
+
+A Mobility departure at `GameMinute M` converts to the corresponding integer game-second boundary. Integer game-second precision is fine enough for short 8m Road traversals without making floating-point geometry or frame delta authoritative.
+
 Walk:
 
 ```text
-route cost = integer walking travel time
+route cost = integer walking travel seconds
 ```
 
 Drive:
 
 ```text
-route cost = integer access time
-           + integer Road traversal time
-           + previous committed congestion/travel-time cost
+route cost = integer access seconds
+           + integer Road traversal seconds
+           + prior committed congestion/wait seconds
 ```
 
-All authoritative comparisons use integer/fixed-point units. Floating-point geometry may be used only after route authority is fixed for presentation.
+Floating-point geometry may be used only after route/travel authority is fixed for presentation.
 
 ### Algorithm and tie-breaking
 
@@ -213,11 +225,11 @@ Use deterministic A* or an equivalent deterministic shortest-path algorithm.
 Tie order is explicit and stable:
 
 1. total candidate cost,
-2. path length / traversal count where the algorithm needs a secondary key,
+2. path length / traversal count where a secondary key is needed,
 3. canonical node ID,
 4. canonical edge ID.
 
-Iteration order of JavaScript `Map`/`Set` must never be the implicit tie-break contract.
+JavaScript `Map`/`Set` iteration order is never the implicit route tie-break contract.
 
 ### Route cache
 
@@ -238,44 +250,50 @@ Cache entries are disposable and never persisted as authority.
 
 ### Departure
 
-1. Read one coherent Road/Building source projection and previous committed Traffic cost projection.
-2. Build or read the derived graph for the current source revisions.
-3. Plan candidate Walk/Drive routes requested by Mobility.
-4. Return availability + integer cost for mode selection.
-5. After Mobility selects a mode, commit the selected route and TransportTripState in the same staged world transaction as the Mobility trip.
+1. Read one coherent current Road/Building source projection.
+2. Rebuild/read the graph for those current source revisions.
+3. Project the prior committed Traffic costs onto graph edges that still exist; newly introduced edges use versioned free-flow/default cost because they have no prior congestion history.
+4. Plan candidate Walk/Drive routes requested by Citizen Mobility.
+5. Return availability + integer game-second cost for mode selection.
+6. After Mobility selects a mode, commit the selected route and `TransportTripState` in the same staged publication as the Mobility trip.
 
 ### Normal progression
 
-Active trips progress through route edges using deterministic game-time/fixed-point state. Render frame delta cannot advance authority.
+Active trips progress through route edges using deterministic integer game-second/fixed-point transport state evaluated inside Simulation advancement. Render frame delta cannot advance Traffic authority.
 
 ### No normal mid-trip rerouting
 
 Congestion changes do not reroute an already departed trip in v0.1. This prevents route thrashing and keeps replay stable.
 
+### Authoritative destination change
+
+If Citizen Mobility reports that the authoritative Home/Work destination changed while a trip is active, Traffic treats the previous destination as stale even if the old Building still exists. It deterministically replans from the current recovery anchor to the newest valid destination or follows the typed failure/cancellation result supplied by orchestration.
+
 ### Topology invalidation recovery
 
 Road mutation may invalidate an active route. After a committed Road revision changes:
 
-1. validate remaining route edges against the new graph,
-2. valid route → continue unchanged,
-3. invalid route → identify the current stable logical node/access point,
-4. deterministically replan from that node to the latest valid authoritative destination,
-5. replacement route available → continue and record recovery,
-6. no route/destination available → fail `UnreachableDestination` without deleting the Citizen/Employment/Household.
+1. validate the currently traversed and remaining route against the new graph,
+2. route still valid → continue unchanged,
+3. invalid route → use the most recent committed `lastStableNodeId` that still exists in the new graph as the recovery anchor,
+4. if the current edge was deleted, never create a synthetic midpoint on the deleted edge,
+5. deterministically replan from the recovery anchor to the newest valid authoritative destination,
+6. replacement route available → continue and record recovery,
+7. no valid anchor/route/destination → fail `UnreachableDestination` without deleting Citizen/Employment/Household authority.
 
-Recovery from a Road mutation is not the same as live congestion rerouting and is allowed in v0.1.
+Recovery from an authoritative Road/destination mutation is not live congestion rerouting and is allowed in v0.1.
 
 ## Traffic Flow, Capacity, and Congestion
 
-The foundation uses logical per-trip progression plus versioned Road/node service policies. It does not require a rigid-body or per-frame microscopic physics simulation.
+The foundation uses logical per-trip progression plus versioned Road/node service policies. It does not require rigid-body or per-frame microscopic physics simulation.
 
-Each directed Road edge/node exposes deterministic service/capacity semantics from the Traffic Road profile. Active Drive trips contribute to occupancy/load. Entry or intersection demand beyond available service capacity creates deterministic logical waiting/queue state.
+Each directed Road edge/node exposes deterministic service/capacity semantics from `TrafficRoadProfile` / `TrafficFlowPolicyV1`. Active Drive trips contribute to logical occupancy/load. Entry or intersection demand beyond available service capacity creates deterministic logical waiting/queue state. Capacity overflow must create real delay; it cannot be a visual-density-only effect.
 
 ### Queue order
 
-At a shared node/intersection, ordering must be stable. Foundation ordering is:
+At a shared node/intersection, ordering is stable:
 
-1. logical arrival `GameMinute` / fixed-point arrival time,
+1. integer/fixed-point logical arrival time,
 2. movement priority from versioned unsignalized-intersection policy,
 3. `tripId` as final stable tie-break.
 
@@ -283,9 +301,9 @@ No runtime randomness is allowed.
 
 ### Intersection semantics
 
-v0.1 treats an intersection movement as an incoming directed edge → outgoing directed edge transition. The foundation uses a deterministic unsignalized node-service policy and does not expose traffic-light gameplay. Queue/service rules must prevent authoritative trips from passing an over-capacity node as though no queue existed.
+v0.1 treats an intersection movement as an incoming directed edge → outgoing directed edge transition. The foundation uses a deterministic unsignalized node-service policy and does not expose traffic-light gameplay. Queue/service rules prevent authoritative trips from passing an over-capacity node as though no queue existed.
 
-Presentation may derive smooth turn curves, but those curves do not own service order.
+Presentation may derive smooth turn curves, but those curves do not own movement/service order.
 
 ### Congestion projection
 
@@ -296,44 +314,65 @@ Traffic derives at least:
 - queue length/wait,
 - free-flow travel time,
 - effective travel time,
-- normalized congestion level suitable for Information View display.
+- normalized congestion level suitable for an Information View.
 
-The exact integer flow formula/constants are versioned in `TrafficFlowPolicyV1` and must be frozen with RED/GREEN tests before production implementation closes. The semantic contract is fixed here: effective time must be monotonic with added load/queue under otherwise equal conditions, and capacity overflow must produce measurable delay rather than visual-only density.
+`TrafficFlowPolicyV1` owns the exact integer constants and service profile used by implementation. Those values are production data and must be versioned/fingerprintable. The semantic invariants are fixed here:
+
+- effective travel time never becomes lower merely because additional equal-class load/queue was added,
+- capacity overflow produces measurable logical waiting/delay,
+- identical Traffic/Profile input produces identical load/queue/travel-time output,
+- changing presentation density/LOD never changes congestion.
 
 ## Lagged Congestion / Routing Contract
 
-New trip planning at committed world state `T` uses the cost projection derived from the previously committed Traffic state available at `T`.
+New trip planning at world transition `T → T+1` uses the immutable Traffic-cost projection derived from committed Traffic state at `T`, mapped onto the current derived graph as described above.
 
 ```text
-committed Traffic state
-→ derive immutable cost field
+committed Traffic T
+→ derive immutable cost field T
+→ read current Road/Building graph source
+→ map surviving edge costs; new edges get free-flow/default cost
 → plan newly due trips
-→ commit new routes + progressed Traffic state
-→ derive next committed cost field
+→ progress/commit Traffic T+1
+→ derive cost field T+1 for the next planning transition
 ```
 
-There is no route → congestion → reroute feedback loop inside the same authoritative reconciliation. This keeps dependency direction deterministic and mirrors the project's existing lagged feedback pattern.
+There is no route → congestion → reroute loop inside the same authoritative reconciliation. This keeps dependency direction deterministic and matches the project's existing lagged-feedback approach.
+
+## Render Interpolation versus Traffic Authority
+
+The project keeps the existing one-game-hour Simulation tick authority. Within each committed tick transition Traffic processes departure, traversal, queue, and arrival events in deterministic game-second order.
+
+Three.js may interpolate a materialized agent smoothly between committed logical route checkpoints using the known route geometry, segment timing, current Simulation speed, and presentation clock. That interpolation is presentation only:
+
+- it does not consume IDs,
+- it does not change queue order,
+- it does not advance Traffic fingerprints,
+- it freezes when the Simulation is paused,
+- it may be recreated after reload/context loss from the last committed logical checkpoint.
+
+`Step` advances one normal Simulation hour and therefore executes the same Traffic event interval deterministically, even if presentation renders the result immediately rather than animating a real-time hour.
 
 ## Real Visual Pedestrian Contract
 
-A visible pedestrian must satisfy all of the following:
+A visible pedestrian must:
 
-- maps to one present RCI `citizenId`,
-- maps to one active Mobility `tripId`,
-- that trip mode is `Walk`,
-- its route/progress comes from committed Traffic state,
-- its Three.js transform is derived from route geometry + committed/interpolated progress,
-- deleting/repooling the visual object cannot cancel or advance the logical trip.
+- map to one present RCI `citizenId`,
+- map to one active Mobility `tripId`,
+- have trip mode `Walk`,
+- use route/progress from committed Traffic state,
+- derive its Three.js transform from route geometry + presentation interpolation of committed logical progress,
+- remain simulation-equivalent if its visual object is pooled/recreated.
 
-Pedestrian presentation states initially include `Idle` at queue/access points and `Walk` while progressing.
+Pedestrian presentation states initially include `Idle` at access/queue points and `Walk` while moving.
 
-No decorative anonymous pedestrians are permitted as canonical v0.1 production traffic.
+No decorative anonymous pedestrians are permitted to satisfy canonical v0.1 production Traffic acceptance.
 
 ## Real Visual Vehicle Contract
 
-A visible car maps to exactly one active `Drive` trip and therefore to one real `citizenId` + `tripId`.
+A visible car maps to exactly one active `Drive` trip and therefore one real `citizenId` + `tripId`.
 
-v0.1 does not model persistent household car assets. Semantics are:
+v0.1 does not model persistent household car assets:
 
 ```text
 one active Drive trip
@@ -341,7 +380,7 @@ one active Drive trip
 → zero or one materialized visual car
 ```
 
-The visual car derives route position, heading, stop/queue state, and turn interpolation from committed Traffic state. It does not own private-car identity, parking, fuel, or lifecycle outside the trip.
+The visual car derives route position, heading, stop/queue state, and turn interpolation from Traffic projections. It does not own private-car identity, parking, fuel, or lifecycle outside the trip.
 
 Initial presentation states include `Drive`, `Stop`, and `Turn`.
 
@@ -366,7 +405,7 @@ Thresholds are versioned presentation policy, not Save authority.
 
 ### Deterministic materialization under caps
 
-When more eligible logical trips are near the camera than the presentation budget allows, select materialized agents deterministically by stable spatial bucket/distance class and `tripId` tie-break. Camera movement may change which agents are materialized but must not change Traffic state, routes, queues, arrival times, or trip count.
+When more eligible logical trips are near the camera than the presentation budget allows, select materialized agents deterministically by stable spatial bucket/distance class and `tripId` tie-break. Camera movement may change which agents are materialized but must not change Traffic routes, queues, logical arrival times, or trip count.
 
 ### Pools
 
@@ -380,13 +419,13 @@ Materialization queries use Traffic route/agent spatial bins or equivalent chunk
 
 Authoritative queue/order is logical. Three.js derives readable spacing from edge ordering, queue state, minimum visual headway, and route geometry.
 
-Visual headway may prevent mesh overlap but must not alter Traffic arrival/queue authority. If visual spacing cannot exactly represent extreme logical density, presentation degrades by LOD/materialization rather than mutating authoritative traffic counts.
+Visual headway may prevent mesh overlap but must not alter Traffic arrival/queue authority. If visual spacing cannot exactly represent extreme logical density, presentation degrades by LOD/materialization rather than mutating authoritative Traffic counts.
 
 ## Deterministic Appearance
 
-Pedestrian appearance variants may derive from stable `citizenId` + versioned appearance seed/policy. Vehicle visual variant/color may derive from stable trip/Citizen seed until a future Vehicle Ownership authority exists.
+Pedestrian appearance variants may derive from stable `citizenId` + versioned appearance seed/policy. Vehicle visual variant/color may derive from a stable trip/Citizen seed until a future Vehicle Ownership authority exists.
 
-Raw meshes, colors, clothing choices, animation frames, and materialized objects are derived and not persisted.
+Raw meshes, colors, clothing choices, animation frames, and materialized objects are derived and are not persisted.
 
 ## Inspect and Information View
 
@@ -394,7 +433,7 @@ Use the frozen City UI contextual Inspect architecture rather than redesigning t
 
 ### Citizen/Pedestrian Inspect projection
 
-Expose existing Citizen identity/projection fields only when actually available, plus Mobility/Traffic presentation facts such as:
+Expose existing Citizen identity/projection fields only when actually available, plus Mobility/Traffic facts such as:
 
 - stable Citizen ID,
 - Household/Home/Employment references from existing projections,
@@ -402,7 +441,7 @@ Expose existing Citizen identity/projection fields only when actually available,
 - trip purpose,
 - mode,
 - destination,
-- estimated/elapsed travel state.
+- estimated/elapsed logical travel state.
 
 Do not invent a Citizen name if RCI does not own one.
 
@@ -418,20 +457,21 @@ Expose:
 
 ### Traffic Information View
 
-Provide a derived Road overlay based on committed congestion/load state. Visual thresholds are accessible and must not rely on color alone; the underlying Traffic metrics remain authoritative outside UI.
+Provide a derived Road overlay based on committed congestion/load state. Thresholds must be accessible and must not rely on color alone; the underlying metrics remain Traffic projections outside UI authority.
 
 ## Persistence and Migration
 
 Introduce `TrafficSaveV1` inside planned `WorldSaveV7`.
 
-Persist only transport authority required for exact resume:
+Persist only transport authority required for exact committed-state resume:
 
 - Traffic revision and policy versions,
 - graph source revision references needed for validation,
 - active route edge IDs,
 - route graph revision,
-- segment index/progress/timing state,
-- stable queue/wait state when it cannot be reconstructed without losing exact order,
+- `lastStableNodeId`,
+- segment index / committed progress / timing state,
+- stable queue/wait state when needed to preserve exact order,
 - trip status/failure state required for cross-system resume.
 
 Do not persist:
@@ -441,26 +481,27 @@ Do not persist:
 - route cache,
 - spatial index,
 - Three.js objects/transforms/animation/LOD/materialization,
+- the current sub-frame presentation interpolation fraction,
 - visual appearance parameters that are deterministically derivable.
 
 ### Old-save migration
 
-`WorldSaveV1–V6` contain no Traffic authority. Their deterministic `WorldSaveV7` migration starts with no active Transport trips. Citizen Mobility migration establishes stationary current activities; real transport appears from future schedule boundaries rather than synthetic historical catch-up trips.
+`WorldSaveV1–V6` contain no Traffic authority. Their deterministic `WorldSaveV7` migration starts with no active Transport trips. Citizen Mobility migration establishes stationary current activities; real Traffic begins from future schedule boundaries rather than synthetic historical catch-up trips.
 
 Decode validates Traffic against decoded Mobility, Road, Building, and policy registries before world publication. Any invalid cross-reference fails the load atomically.
 
 ## Save / Load Equivalence
 
-Saving during an active Walk/Drive trip and loading again must preserve:
+Saving and loading a committed world while a Walk/Drive trip is logically active must preserve:
 
-- same Citizen,
-- same Mobility trip ID,
-- same mode,
-- same selected route unless the loaded authoritative Road snapshot differs by an explicit migration rule,
-- same logical segment/progress/queue order,
-- equivalent next arrival/progression under the same future ticks.
+- the same Citizen,
+- the same Mobility `tripId`,
+- the same mode,
+- the same selected route against the same decoded Road/Building authority,
+- the same committed segment/progress/queue checkpoint,
+- equivalent future progression and arrival under the same future authoritative ticks.
 
-The visual object may be a newly acquired pooled agent at a newly derived interpolated position; object identity itself is not preserved.
+Three.js object identity and the instantaneous sub-frame interpolation phase are explicitly not Save authority. After reload/context loss, presentation rematerializes from the saved committed logical checkpoint and resumes visual interpolation from that state. This avoids pretending renderer frame state is simulation truth.
 
 ## Atomic World Integration
 
@@ -473,16 +514,17 @@ read one committed world
 → stage RCI lifecycle/Housing/Employment/Demand
 → reconcile Citizen Mobility source changes
 → evaluate due Mobility boundaries
-→ derive current Traffic graphs/cost projection
-→ plan candidate routes and select modes
+→ derive current Road/Building transport graph
+→ map prior committed Traffic costs onto that graph
+→ plan candidate routes and select modes through apps/game
 → commit new Mobility + Traffic trips
-→ progress active Traffic / queues / arrivals
+→ progress active Traffic/queues/arrivals in game-time order
 → validate cross-system references and invariants
 → publish one new committed world revision
-→ update Traffic Three.js and City UI from committed projections
+→ update traffic-three and City UI from committed projections
 ```
 
-Detailed ordering relative to existing RCI/Economy settlement is fixed in the TDD implementation plan after source-level dependency audit. The invariant is fixed now: no consumer sees a partially published Mobility/Traffic state.
+Detailed ordering relative to existing RCI/Economy daily settlement is fixed in the TDD implementation plan after source-level dependency audit. The invariant is fixed now: no consumer sees a partially published Mobility/Traffic state and Traffic cannot create a same-tick dependency cycle back into upstream RCI/Economy authority.
 
 ## Determinism
 
@@ -517,16 +559,17 @@ Required mechanisms:
 - dirty-region graph rebuilding after localized Road changes,
 - event/active-trip based authoritative reconciliation.
 
-PR9/performance work must record measured CPU/frame/memory evidence on the project's defined reference environments before Foundation closure. Exact millisecond budgets are frozen from that reproducible benchmark rather than guessed in this design document.
+The performance-hardening PR must record CPU/frame/memory evidence on defined reference environments before Foundation closure. Exact millisecond budgets are frozen from reproducible measurements rather than guessed in this design document; the architectural count/bounded-work contracts above are already release requirements.
 
 ## Failure Behavior
 
-Typed failure classes must distinguish at least:
+Typed failure classes distinguish at least:
 
 - invalid/missing Building access,
 - no pedestrian route,
 - no vehicle route,
-- topology invalidated route,
+- stale authoritative destination,
+- topology-invalidated route,
 - unreachable destination after recovery,
 - stale source revision,
 - invalid Save/cross-reference.
@@ -541,7 +584,7 @@ Known future seams include:
 - public transit and bicycle candidate modes,
 - persistent Vehicle Ownership and parking,
 - traffic signals / controlled intersections,
-- one-way/multi-road Traffic profiles,
+- one-way/multiple Road Traffic profiles,
 - freight/delivery/emergency vehicle trip classes,
 - accessibility and congestion factors for RCI/Land Value/Economy,
 - live incidents and dynamic rerouting,
@@ -555,14 +598,15 @@ These extend mode/profile/policy/projection registries without moving Road/Citiz
 
 - Every active Traffic trip references one committed Mobility trip and one real Citizen.
 - Every visible pedestrian is an active real Walk trip; every visible car is an active real Drive trip.
-- No production acceptance relies on anonymous decorative fake traffic.
+- No production acceptance relies on anonymous decorative fake Traffic.
 - Off-screen materialization changes do not alter routes/progress/queues/trip count.
 - Road/Building source authority remains upstream and transport graphs are rebuildable.
 - Route planning is deterministic under equal inputs and tie conditions.
-- New routes use lagged committed congestion costs; no same-tick feedback loop exists.
-- Road topology invalidation recovers/replans or fails deterministically.
-- Added load/queues monotonically increase effective delay under the same profile inputs.
-- Save/load mid-trip produces equivalent continuation.
+- New routes use lagged committed congestion costs mapped to the current graph; no same-tick feedback loop exists.
+- Road topology/destination invalidation recovers/replans or fails deterministically from a valid stable anchor.
+- Added equal-class load/queues cannot improve effective travel time under the same profile inputs.
+- Save/load preserves the same committed logical route/progress checkpoint and equivalent future outcome.
+- Sub-frame presentation interpolation is not Traffic authority.
 
 ### Visual product acceptance
 
@@ -573,7 +617,7 @@ morning schedule window
 → Citizens leave Residential Buildings
 → Walk-mode Citizens appear on derived pedestrian corridors
 → Drive-mode Citizens appear as real cars on Roads
-→ shared commute corridors gain visible/logical traffic
+→ shared commute corridors gain visible/logical Traffic
 → node queues/congestion increase when demand exceeds service
 → Citizens arrive at real Workplace Buildings
 
@@ -581,12 +625,12 @@ return-home window
 → reverse commute becomes visible from the same real Citizen trips
 ```
 
-Inspecting a visible person/car must expose the linked Citizen/trip identity. Camera movement/LOD must not create or destroy logical commuters.
+Inspecting a visible person/car exposes the linked Citizen/trip identity. Camera movement/LOD cannot create or destroy logical commuters.
 
 ### Scale / integration acceptance
 
 - At least 20,000 logical Citizens and 5,000 concurrent trips pass deterministic scale verification.
-- Browser acceptance covers real Walk + Drive agents, congestion, Road mutation recovery, Save/Load, Inspect, Traffic overlay, camera materialization, and WebGL/context restoration.
+- Browser acceptance covers real Walk + Drive agents, congestion, Road mutation recovery, authoritative destination changes, Save/Load, Inspect, Traffic overlay, camera materialization, and WebGL/context restoration.
 - Existing Road/Zoning/Building/RCI/Economy/City UI authority and browser contracts remain green unless an explicitly approved new contract changes them.
 
 ## PR Decomposition
@@ -595,9 +639,9 @@ Traffic-side delivery slices for the umbrella milestone:
 
 1. Traffic core contracts, stable graph IDs/profiles, validation, `TrafficSaveV1` skeleton.
 2. Pedestrian + vehicle graph projections from Road/Building access.
-3. Deterministic multimodal routing and cache seam.
+3. Deterministic multimodal routing and route-cache seam.
 4. Active Traffic progression, node queues, load/congestion/travel-time projection.
-5. Road topology invalidation and deterministic route recovery.
+5. Road topology / destination invalidation and deterministic route recovery.
 6. `apps/game` committed-world + `WorldSaveV7` integration with Citizen Mobility.
 7. Real pedestrian Three.js agents.
 8. Real vehicle Three.js agents.

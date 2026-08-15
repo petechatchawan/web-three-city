@@ -77,9 +77,13 @@ export function mountPlayerShell(
 
   const hud = mountGameHud(element, { onSelectMetric: callbacks.onSelectMetric }, locale);
 
-  const toolContextSheet = mountToolContextSheet(element, {
-    onUndo: callbacks.onUndo,
-  });
+  const toolContextSheet = mountToolContextSheet(
+    element,
+    {
+      onUndo: callbacks.onUndo,
+    },
+    locale,
+  );
 
   const renderToolContext = (): void => {
     toolContextSheet.update({
@@ -147,6 +151,7 @@ export function mountPlayerShell(
       subToolTray.setLocale(locale);
       hud.setLocale(locale);
       simulationControls.setLocale(locale);
+      toolContextSheet.setLocale(locale);
       renderToolContext();
     },
     update(projection: GameHudProjection): void {

@@ -1,9 +1,9 @@
 # Citizen Mobility System
 
-**Status:** Approved design — not implemented  
+**Status:** Partial — core authority/persistence implemented; commute/world integration pending  
 **Milestone:** Citizen Mobility & Traffic Foundation v0.1  
-**Planning baseline:** `master@394e5ec484277b3b2e709b40d4c38191809c5f3e`  
-**Planned ownership:** `packages/citizen-mobility-core`; atomic composition by `apps/game`  
+**Planning baseline:** `master@6fb09e426147369dfaa274d55339994edf0e8e69`  
+**Primary ownership:** `packages/citizen-mobility-core`; atomic composition by `apps/game` is planned in PR6  
 **Planned persistence:** `MobilitySaveV1` inside `WorldSaveV7`
 
 ## Purpose
@@ -20,7 +20,7 @@ The first production scope is real Home ↔ Work commuting. Every active mobilit
 - Pedestrian/car Three.js objects, animation, LOD, or camera visibility.
 - Public transit, parking, private-car ownership, shopping/leisure destination policy, or Citizen movement AI beyond the approved v0.1 commute scope.
 
-## Approved Authority Boundary
+## Authority Boundary
 
 ```text
 RCI Citizen / Household / Home / Employment
@@ -35,34 +35,33 @@ RCI Citizen / Household / Home / Employment
      Walking / Driving transport state
 ```
 
-The system must not create `TrafficCitizen`, `PedestrianCitizen`, `VisualCitizen`, or any equivalent duplicate Citizen authority. A visual pedestrian or car must be traceable to the original RCI `citizenId` through an active trip.
+The system does not create `TrafficCitizen`, `PedestrianCitizen`, `VisualCitizen`, or equivalent duplicate Citizen authority. A visual pedestrian or car must be traceable to the original RCI `citizenId` through an active trip.
 
-## Planned Authoritative State
+## Implemented Core Authority
 
-- Mobility revision and policy version.
-- One active mobility state for each present Citizen.
-- Current non-travel activity and stationary place when applicable.
-- Schedule cursor / next deterministic activity boundary.
-- Active mobility trip identity when travelling.
-- Mobility trip records: Citizen, purpose, origin, destination, selected mode, departure time, and lifecycle status.
-- Stable trip ID sequence and deterministic schedule seed inputs.
+`packages/citizen-mobility-core` now defines:
 
-Transport routes, edge progress, traffic queues, graph nodes, congestion, meshes, animation state, and camera materialization are outside Citizen Mobility authority.
+- `CitizenMobilityState` with `Home | Work | Idle | Travel` activity semantics;
+- immutable `MobilityTrip` records for commute purpose/mode/lifecycle;
+- `MobilitySnapshotV1` with canonical sorting, referential validation, stable trip sequence, and deterministic fingerprinting;
+- typed `MobilityContractError` validation failures;
+- fail-closed `MobilitySaveV1` encode/decode;
+- no runtime dependency on RCI, Buildings, Roads, Traffic, DOM, or Three.js.
 
-## Foundation Behavior
+Source entry points:
 
-- Foundation activity kinds: `Home`, `Work`, `Idle`, and `Travel`.
-- Foundation trip purposes: commute to Work and commute Home.
-- Walk and Drive are first-class modes.
-- Work schedules are deterministically staggered instead of releasing all Citizens at one clock instant.
-- Activity timing uses deterministic integer game-minute coordinates inside the existing one-hour Simulation tick model.
-- Mode choice consumes caller-supplied deterministic Walk/Drive route-cost candidates; Citizen Mobility does not import Traffic internals.
-- Missing/invalid Home, Job, or transport access fails closed without deleting or mutating the Citizen, Household, Employment, or Building authority.
-- RCI lifecycle/assignment changes reconcile Mobility atomically through `apps/game` orchestration.
+- `packages/citizen-mobility-core/src/contracts.ts`
+- `packages/citizen-mobility-core/src/mobility-snapshot.ts`
+- `packages/citizen-mobility-core/src/mobility-fingerprint.ts`
+- `packages/citizen-mobility-core/src/persistence.ts`
+
+## Remaining Foundation Behavior
+
+PR2 adds deterministic staggered Home↔Work schedule/trip planning and mode choice. PR6 adds RCI/Building/Simulation adapters, atomic world publication, Save migration and exact resume. Until those slices close, the package is not yet active in gameplay runtime.
 
 ## Future Extension Seam
 
-Later Citizen AI may add activity definitions and destination policies such as Shopping, Leisure, Education, Healthcare, Service, and Visit. Those extensions must reuse the same Citizen identity, activity-plan, trip, mode, and Traffic seams rather than introducing a second agent authority.
+Later Citizen AI may add Shopping, Leisure, Education, Healthcare, Service, and Visit activity definitions/destination policies. Extensions must reuse the same Citizen identity, activity-plan, trip, mode, and Traffic seams rather than introducing a second agent authority.
 
 ## Planning Documents
 
@@ -72,4 +71,4 @@ Later Citizen AI may add activity definitions and destination policies such as S
 - [ADR-0001 — Existing RCI Citizen remains identity authority](adrs/0001-existing-rci-citizen-remains-identity-authority.md)
 - Related: [RCI](../rci/README.md), [Buildings](../buildings/README.md), [Simulation Time](../simulation-time/README.md), [Traffic](../traffic/README.md)
 
-Verification records are added per implementation PR and at foundation closure; production behavior remains unimplemented until those PRs pass their gates.
+Verification is intentionally deferred until the final test phase requested for this execution run.

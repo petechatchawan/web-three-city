@@ -3,7 +3,7 @@ import { mountSimulationControls } from './simulation-controls.js';
 
 afterEach(() => document.body.replaceChildren());
 
-describe('M6.3 Figma simulation controls', () => {
+describe('M6.4 simulation controls', () => {
   it('exposes direct speeds, paused-only Step, and external speed synchronization', () => {
     const setSpeed = vi.fn();
     const step = vi.fn();
@@ -50,5 +50,30 @@ describe('M6.3 Figma simulation controls', () => {
     const stepButton = controls.element.querySelector<HTMLButtonElement>('[data-simulation-step]')!;
     stepButton.click();
     expect(step).toHaveBeenCalledOnce();
+  });
+
+  it('localizes speed and paused-only Step labels without changing simulation authority', () => {
+    const setSpeed = vi.fn();
+    const step = vi.fn();
+    const controls = mountSimulationControls(document.body, { setSpeed, step });
+    const paused = controls.element.querySelector<HTMLButtonElement>(
+      '[data-simulation-speed="paused"]',
+    )!;
+    const normal = controls.element.querySelector<HTMLButtonElement>(
+      '[data-simulation-speed="normal"]',
+    )!;
+
+    expect(paused.getAttribute('aria-label')).toBe('Pause');
+    expect('setLocale' in controls).toBe(true);
+    (controls as unknown as { setLocale(locale: 'en' | 'th'): void }).setLocale('th');
+
+    expect(controls.element.getAttribute('aria-label')).toBe('ความเร็วการจำลอง');
+    expect(paused.getAttribute('aria-label')).toBe('หยุดชั่วคราว');
+    expect(normal.getAttribute('aria-label')).toBe('เล่น');
+    expect(
+      controls.element.querySelector('[data-simulation-step]')?.getAttribute('aria-label'),
+    ).toBe('เดินหน้า 1 ติ๊ก');
+    expect(setSpeed).not.toHaveBeenCalled();
+    expect(step).not.toHaveBeenCalled();
   });
 });

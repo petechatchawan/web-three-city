@@ -3,8 +3,8 @@ import {
   occupiedCellsForBuilding,
   resolveBuildingFrontage,
 } from '@web-three-city/building-core';
-import { roadCellPolicyInvalidReason, roadOccupiedAt } from '@web-three-city/road-core';
 import { createFoundationRciRegistries, validateRciSnapshot } from '@web-three-city/rci-core';
+import { roadCellPolicyInvalidReason, roadOccupiedAt } from '@web-three-city/road-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { zoneCellPolicyInvalidReason, zoneOccupiedAt } from '@web-three-city/zone-core';
 import { createZonePlacementEnvironment } from '../zone-placement-environment.js';
@@ -57,14 +57,33 @@ export interface WorldPresentationPort {
   rebuildFromCommitted(world: CommittedWorld): void;
 }
 
+function validMobilityTraffic(world: CommittedWorld): boolean {
+  const mobilityByTrip = new Map(world.mobility.trips.map((trip) => [trip.tripId, trip] as const));
+  const trafficByTrip = new Map(world.traffic.activeTrips.map((trip) => [trip.tripId, trip] as const));
+  for (const trip of world.traffic.activeTrips) {
+    const mobilityTrip = mobilityByTrip.get(trip.tripId);
+    if (
+      mobilityTrip === undefined ||
+      mobilityTrip.status !== 'Active' ||
+      mobilityTrip.citizenId !== trip.citizenId ||
+      mobilityTrip.mode !== trip.mode
+    ) {
+      return false;
+    }
+  }
+  for (const state of world.mobility.citizenStates) {
+    if (state.activeTripId !== null && !trafficByTrip.has(state.activeTripId)) return false;
+  }
+  return true;
+}
+
 function validCandidate(world: CommittedWorld): boolean {
   for (let z = 0; z < WORLD_CONFIG.mapHeight; z += 1) {
     for (let x = 0; x < WORLD_CONFIG.mapWidth; x += 1) {
       const cell = { x, z };
       if (
         roadOccupiedAt(world.roads, cell) &&
-        roadCellPolicyInvalidReason(world.roads, cell, world.environments.road, WORLD_CONFIG) !==
-          null
+        roadCellPolicyInvalidReason(world.roads, cell, world.environments.road, WORLD_CONFIG) !== null
       ) {
         return false;
       }
@@ -101,8 +120,7 @@ function validCandidate(world: CommittedWorld): boolean {
     const definition = buildingDefinitionForId(instance.buildingDefinitionId);
     const cells = occupiedCellsForBuilding(instance);
     const firstCell = cells[0];
-    const zoneId =
-      firstCell === undefined ? null : world.environments.building.zoneDefinitionIdAt(firstCell);
+    const zoneId = firstCell === undefined ? null : world.environments.building.zoneDefinitionIdAt(firstCell);
     if (
       zoneId === null ||
       !definition.compatibleZoneDefinitionIds.includes(zoneId) ||
@@ -119,18 +137,17 @@ function validCandidate(world: CommittedWorld): boolean {
     }
   }
 
-  return validateRciSnapshot(
-    world.rci,
-    world.buildings,
-    world.simulation,
-    createFoundationRciRegistries(),
-  ).valid;
+  return (
+    validateRciSnapshot(
+      world.rci,
+      world.buildings,
+      world.simulation,
+      createFoundationRciRegistries(),
+    ).valid && validMobilityTraffic(world)
+  );
 }
 
-function rejected(
-  world: CommittedWorld,
-  reason: WorldPublicationRejection,
-): WorldPublicationResult {
+function rejected(world: CommittedWorld, reason: WorldPublicationRejection): WorldPublicationResult {
   return Object.freeze({ status: 'rejected' as const, world, reason });
 }
 
@@ -151,14 +168,10 @@ export class DefaultWorldTransactionCoordinator implements WorldTransactionCoord
     const current = this.#worldStore.snapshot();
     const currentFingerprint = fingerprintCommittedWorld(current);
     if (plan.baseRevision !== current.revision) return rejected(current, 'world:stale-revision');
-    if (plan.baseFingerprint !== currentFingerprint)
-      return rejected(current, 'world:stale-content');
+    if (plan.baseFingerprint !== currentFingerprint) return rejected(current, 'world:stale-content');
     const candidateFingerprint = fingerprintCommittedWorld(plan.nextWorld);
-    if (plan.nextFingerprint !== candidateFingerprint)
-      return rejected(current, 'world:stale-content');
-    if (plan.nextWorld.revision !== current.revision + 1) {
-      return rejected(current, 'world:stale-content');
-    }
+    if (plan.nextFingerprint !== candidateFingerprint) return rejected(current, 'world:stale-content');
+    if (plan.nextWorld.revision !== current.revision + 1) return rejected(current, 'world:stale-content');
 
     let candidate: CommittedWorld;
     try {
@@ -214,6 +227,8 @@ export class DefaultWorldTransactionCoordinator implements WorldTransactionCoord
         simulation: world.simulation,
         rci: world.rci,
         economy: world.economy,
+        mobility: world.mobility,
+        traffic: world.traffic,
       });
     } catch {
       return rejected(current, 'world:invalid-candidate');

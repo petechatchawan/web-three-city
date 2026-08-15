@@ -55,7 +55,7 @@ function parseTrip(value: unknown): MobilityTrip | null {
   if (typeof value.tripId !== 'string' || typeof value.citizenId !== 'string') return null;
   if (typeof value.purpose !== 'string' || !purposes.has(value.purpose)) return null;
   if (typeof value.originBuildingId !== 'string' || typeof value.destinationBuildingId !== 'string') return null;
-  if (typeof value.mode !== 'string' || !modes.has(value.mode)) return null;
+  if (value.mode !== null && (typeof value.mode !== 'string' || !modes.has(value.mode))) return null;
   if (!Number.isSafeInteger(value.departureGameMinute)) return null;
   if (typeof value.status !== 'string' || !statuses.has(value.status)) return null;
   if (value.failureReason !== null && (typeof value.failureReason !== 'string' || !failureReasons.has(value.failureReason))) return null;

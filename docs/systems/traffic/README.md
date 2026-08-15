@@ -64,8 +64,12 @@ Road and Building snapshots remain upstream authority. Traffic graphs are derive
 ## Planning Documents
 
 - [Traffic Foundation v0.1 specification](specs/2026-08-15-traffic-foundation-v0-1.md)
+- [Traffic TDD implementation plan](tdd/2026-08-15-traffic-foundation-v0-1.md)
+- [Cross-system execution index](../architecture-infrastructure/tdd/2026-08-15-citizen-mobility-traffic-foundation-v0-1-execution-index.md)
+- [World/Application integration plan](../world/tdd/2026-08-15-mobility-traffic-world-integration-v0-1.md)
+- [City UI integration plan](../city-ui/tdd/2026-08-15-citizen-traffic-inspect-information-view-v0-1.md)
 - [ADR-0001 — Logical real trips with materialized visual agents](adrs/0001-logical-real-trips-materialized-visual-agents.md)
 - [ADR-0002 — Derived transport graphs and lagged congestion costs](adrs/0002-derived-transport-graphs-and-lagged-costs.md)
 - Related: [Citizen Mobility](../citizen-mobility/README.md), [Roads](../roads/README.md), [Buildings](../buildings/README.md), [Simulation Time](../simulation-time/README.md), [City UI](../city-ui/README.md)
 
-TDD and verification records will be added only after written-spec review and implementation planning.
+Verification records are added per implementation PR and at foundation closure; production behavior remains unimplemented until those PRs pass their gates.

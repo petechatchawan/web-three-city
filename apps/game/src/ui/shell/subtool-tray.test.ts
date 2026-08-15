@@ -27,7 +27,7 @@ describe('M6.4 on-demand Build picker', () => {
         (button) => button.dataset.toolMode,
       ),
     ).toEqual(['raise', 'lower', 'flatten']);
-    expect(picker.element.querySelectorAll<HTMLButtonElement>('[data-brush-size]').length).toBe(3);
+    expect(picker.element.querySelectorAll<HTMLButtonElement>('[data-brush-size]')).toHaveLength(3);
   });
 
   it('emits one concrete tool then closes the picker without mutating domain values itself', () => {

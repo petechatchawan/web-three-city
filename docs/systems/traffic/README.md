@@ -65,7 +65,9 @@ Road and Building snapshots remain upstream authority. Traffic graphs are derive
 
 - [Traffic Foundation v0.1 specification](specs/2026-08-15-traffic-foundation-v0-1.md)
 - [Traffic TDD implementation plan](tdd/2026-08-15-traffic-foundation-v0-1.md)
+- [Traffic PR9 production hardening plan](tdd/2026-08-15-traffic-production-hardening-pr9.md)
 - [Cross-system execution index](../architecture-infrastructure/tdd/2026-08-15-citizen-mobility-traffic-foundation-v0-1-execution-index.md)
+- [PR11 release / browser / visual / performance plan](../architecture-infrastructure/tdd/2026-08-15-citizen-mobility-traffic-release-pr11.md)
 - [World/Application integration plan](../world/tdd/2026-08-15-mobility-traffic-world-integration-v0-1.md)
 - [City UI integration plan](../city-ui/tdd/2026-08-15-citizen-traffic-inspect-information-view-v0-1.md)
 - [ADR-0001 — Logical real trips with materialized visual agents](adrs/0001-logical-real-trips-materialized-visual-agents.md)

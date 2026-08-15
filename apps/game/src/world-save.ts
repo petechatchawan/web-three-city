@@ -1,11 +1,11 @@
 import {
-  createFoundationRciRegistries,
-  createRciMigrationInventory,
-  decodeRciSaveV1,
-  encodeRciSaveV1,
-  type RciSaveV1,
-  type RciSnapshot,
-} from '@web-three-city/rci-core';
+  createEmptyMobilitySnapshot,
+  decodeMobilitySaveV1,
+  encodeMobilitySaveV1,
+  reconcileMobilityCitizens,
+  type MobilitySaveV1,
+  type MobilitySnapshotV1,
+} from '@web-three-city/citizen-mobility-core';
 import {
   createInitialEconomySnapshot,
   decodeEconomySaveV1,
@@ -15,13 +15,38 @@ import {
   type EconomySnapshotV1,
 } from '@web-three-city/economy-core';
 import {
+  createFoundationRciRegistries,
+  createRciMigrationInventory,
+  decodeRciSaveV1,
+  encodeRciSaveV1,
+  type RciSaveV1,
+  type RciSnapshot,
+} from '@web-three-city/rci-core';
+import {
   decodeSimulationSaveV2,
   deriveGameCalendar,
   encodeSimulationSaveV1,
   encodeSimulationSaveV2,
   type SimulationSaveV2,
 } from '@web-three-city/simulation-core';
+import {
+  createEmptyTrafficSnapshot,
+  decodeTrafficSaveV1,
+  derivePedestrianTrafficGraph,
+  deriveVehicleTrafficGraph,
+  encodeTrafficSaveV1,
+  type TrafficGraph,
+  type TrafficSaveV1,
+  type TrafficSnapshotV1,
+} from '@web-three-city/traffic-core';
+import { deriveWaterSnapshot } from '@web-three-city/water-core';
 import { err, ok, type Result, type WorldConfig } from '@web-three-city/world-core';
+import { createBuildingDevelopmentEnvironment } from './building-development-environment.js';
+import { createPresentCitizenMobilityProjection } from './mobility-source-projection.js';
+import {
+  createBuildingTrafficAccessProjection,
+  createRoadTrafficSourceProjection,
+} from './traffic-source-projection.js';
 import * as legacy from './world-save-legacy.js';
 
 export {
@@ -49,13 +74,26 @@ export interface WorldSaveV6 extends Omit<WorldSaveV5, 'schemaVersion' | 'simula
   readonly economy: EconomySaveV1;
 }
 
+export interface WorldSaveV7 extends Omit<WorldSaveV6, 'schemaVersion'> {
+  readonly schemaVersion: 7;
+  readonly mobility: MobilitySaveV1;
+  readonly traffic: TrafficSaveV1;
+}
+
 export interface DecodedWorldState extends legacy.DecodedWorldState {
   readonly rci: RciSnapshot;
   readonly economy: EconomySnapshotV1;
+  readonly mobility: MobilitySnapshotV1;
+  readonly traffic: TrafficSnapshotV1;
 }
 
 export type WorldSaveErrorCode =
-  legacy.WorldSaveErrorCode | 'world-save:invalid-rci' | 'world-save:invalid-economy';
+  | legacy.WorldSaveErrorCode
+  | 'world-save:invalid-rci'
+  | 'world-save:invalid-economy'
+  | 'world-save:invalid-mobility'
+  | 'world-save:invalid-traffic';
+
 export interface WorldSaveError {
   readonly code: WorldSaveErrorCode;
   readonly details?: Readonly<Record<string, unknown>>;
@@ -94,6 +132,25 @@ export function encodeWorldSaveV6(
   });
 }
 
+export function encodeWorldSaveV7(
+  terrain: Parameters<typeof encodeWorldSaveV6>[0],
+  roads: Parameters<typeof encodeWorldSaveV6>[1],
+  zones: Parameters<typeof encodeWorldSaveV6>[2],
+  buildings: Parameters<typeof encodeWorldSaveV6>[3],
+  simulation: Parameters<typeof encodeWorldSaveV6>[4],
+  rci: RciSnapshot,
+  economy: EconomySnapshotV1,
+  mobility: MobilitySnapshotV1,
+  traffic: TrafficSnapshotV1,
+): WorldSaveV7 {
+  return Object.freeze({
+    ...encodeWorldSaveV6(terrain, roads, zones, buildings, simulation, rci, economy),
+    schemaVersion: 7,
+    mobility: encodeMobilitySaveV1(mobility),
+    traffic: encodeTrafficSaveV1(traffic),
+  });
+}
+
 function migratedEconomy(simulation: legacy.DecodedWorldState['simulation']): EconomySnapshotV1 {
   const calendar = deriveGameCalendar(simulation.absoluteTick);
   const dayStart = simulation.absoluteTick - calendar.hour;
@@ -104,10 +161,118 @@ function migratedEconomy(simulation: legacy.DecodedWorldState['simulation']): Ec
   );
 }
 
+function migratedMobility(
+  rci: RciSnapshot,
+  buildings: DecodedWorldState['buildings'],
+  absoluteTick: number,
+): MobilitySnapshotV1 {
+  return reconcileMobilityCitizens({
+    snapshot: createEmptyMobilitySnapshot(),
+    citizens: createPresentCitizenMobilityProjection(rci, buildings, absoluteTick),
+  }).snapshot;
+}
+
+function migratedTraffic(
+  roads: DecodedWorldState['roads'],
+  buildings: DecodedWorldState['buildings'],
+): TrafficSnapshotV1 {
+  return createEmptyTrafficSnapshot({
+    roadRevision: roads.revision,
+    buildingRevision: buildings.revision,
+  });
+}
+
+function trafficValidationGraph(world: DecodedWorldState, config: WorldConfig): TrafficGraph | null {
+  const water = deriveWaterSnapshot(world.terrain, config);
+  if (!water.ok) return null;
+  const environment = createBuildingDevelopmentEnvironment(
+    world.terrain,
+    water.value,
+    world.roads,
+    world.zones,
+    config,
+  );
+  const roadSource = createRoadTrafficSourceProjection(world.roads, world.terrain);
+  const buildingAccess = createBuildingTrafficAccessProjection(
+    world.buildings,
+    world.roads,
+    environment,
+  );
+  const walkBase = derivePedestrianTrafficGraph(roadSource);
+  const driveBase = deriveVehicleTrafficGraph(roadSource);
+  const walk = Object.freeze({ ...walkBase, sourceBuildingRevision: buildingAccess.buildingRevision });
+  const drive = Object.freeze({ ...driveBase, sourceBuildingRevision: buildingAccess.buildingRevision });
+  const nodeMap = new Map([...walk.nodes, ...drive.nodes].map((node) => [node.nodeId, node] as const));
+  return Object.freeze({
+    sourceRoadRevision: roadSource.roadRevision,
+    sourceBuildingRevision: buildingAccess.buildingRevision,
+    nodes: Object.freeze([...nodeMap.values()]),
+    edges: Object.freeze([...walk.edges, ...drive.edges]),
+  });
+}
+
+function validMobilityTrafficReferences(
+  mobility: MobilitySnapshotV1,
+  traffic: TrafficSnapshotV1,
+): boolean {
+  const mobilityByTrip = new Map(mobility.trips.map((trip) => [trip.tripId, trip] as const));
+  const trafficByTrip = new Map(traffic.activeTrips.map((trip) => [trip.tripId, trip] as const));
+  for (const trip of traffic.activeTrips) {
+    const mobilityTrip = mobilityByTrip.get(trip.tripId);
+    if (
+      mobilityTrip === undefined ||
+      mobilityTrip.status !== 'Active' ||
+      mobilityTrip.citizenId !== trip.citizenId ||
+      mobilityTrip.mode !== trip.mode
+    ) {
+      return false;
+    }
+  }
+  for (const state of mobility.citizenStates) {
+    if (state.activeTripId !== null && !trafficByTrip.has(state.activeTripId)) return false;
+  }
+  return true;
+}
+
+function withMigratedMobilityTraffic(
+  base: Omit<DecodedWorldState, 'mobility' | 'traffic'>,
+): DecodedWorldState {
+  const mobility = migratedMobility(base.rci, base.buildings, base.simulation.absoluteTick);
+  return Object.freeze({
+    ...base,
+    mobility,
+    traffic: migratedTraffic(base.roads, base.buildings),
+  });
+}
+
 export function decodeWorldSave(
   input: unknown,
   config: WorldConfig,
 ): Result<DecodedWorldState, WorldSaveError> {
+  const isV7 = isRecord(input) && input.kind === 'world-save' && input.schemaVersion === 7;
+  if (isV7) {
+    const upstreamInput = Object.freeze({ ...input, schemaVersion: 6 });
+    const upstream = decodeWorldSave(upstreamInput, config);
+    if (!upstream.ok) return upstream;
+    if (!('mobility' in input) || !('traffic' in input)) return err({ code: 'world-save:invalid-schema' });
+    const decodedMobility = decodeMobilitySaveV1(input.mobility);
+    if (!decodedMobility.ok) return err({ code: 'world-save:invalid-mobility' });
+    const graph = trafficValidationGraph(upstream.value, config);
+    if (graph === null) return err({ code: 'world-save:invalid-traffic' });
+    const decodedTraffic = decodeTrafficSaveV1(input.traffic, graph);
+    if (!decodedTraffic.ok) return err({ code: 'world-save:invalid-traffic' });
+    if (!validMobilityTrafficReferences(decodedMobility.value, decodedTraffic.value)) {
+      return err({ code: 'world-save:invalid-traffic' });
+    }
+    return ok(
+      Object.freeze({
+        ...upstream.value,
+        mobility: decodedMobility.value,
+        traffic: decodedTraffic.value,
+      }),
+    );
+  }
+
   const isV6 = isRecord(input) && input.kind === 'world-save' && input.schemaVersion === 6;
   const isV5 = isRecord(input) && input.kind === 'world-save' && input.schemaVersion === 5;
   const decodedV6Simulation =
@@ -130,16 +295,15 @@ export function decodeWorldSave(
 
   const registries = createFoundationRciRegistries();
   if (!isV6 && !isV5) {
+    const rci = createRciMigrationInventory({
+      buildings: base.value.buildings,
+      absoluteTick: base.value.simulation.absoluteTick,
+      registries,
+    });
     return ok(
-      Object.freeze({
-        ...base.value,
-        rci: createRciMigrationInventory({
-          buildings: base.value.buildings,
-          absoluteTick: base.value.simulation.absoluteTick,
-          registries,
-        }),
-        economy: migratedEconomy(base.value.simulation),
-      }),
+      withMigratedMobilityTraffic(
+        Object.freeze({ ...base.value, rci, economy: migratedEconomy(base.value.simulation) }),
+      ),
     );
   }
 
@@ -158,22 +322,22 @@ export function decodeWorldSave(
 
   if (!isV6) {
     return ok(
-      Object.freeze({
-        ...base.value,
-        rci: decodedRci.value,
-        economy: migratedEconomy(base.value.simulation),
-      }),
+      withMigratedMobilityTraffic(
+        Object.freeze({ ...base.value, rci: decodedRci.value, economy: migratedEconomy(base.value.simulation) }),
+      ),
     );
   }
   if (!('economy' in input)) return err({ code: 'world-save:invalid-schema' });
   const decodedEconomy = decodeEconomySaveV1(input.economy, FOUNDATION_ECONOMY_RULES);
   if (!decodedEconomy.ok) return err({ code: 'world-save:invalid-economy' });
   return ok(
-    Object.freeze({
-      ...base.value,
-      simulation: decodedV6Simulation?.ok ? decodedV6Simulation.value : base.value.simulation,
-      rci: decodedRci.value,
-      economy: decodedEconomy.value,
-    }),
+    withMigratedMobilityTraffic(
+      Object.freeze({
+        ...base.value,
+        simulation: decodedV6Simulation?.ok ? decodedV6Simulation.value : base.value.simulation,
+        rci: decodedRci.value,
+        economy: decodedEconomy.value,
+      }),
+    ),
   );
 }

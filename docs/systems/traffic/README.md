@@ -1,28 +1,27 @@
 # Traffic System
 
-**Status:** Approved design — not implemented  
+**Status:** Partial — traffic-core implemented; world/Three.js/UI integration pending  
 **Milestone:** Citizen Mobility & Traffic Foundation v0.1  
-**Planning baseline:** `master@394e5ec484277b3b2e709b40d4c38191809c5f3e`  
-**Planned ownership:** `packages/traffic-core`, `packages/traffic-three`; atomic composition by `apps/game`  
+**Planning baseline:** `master@6fb09e426147369dfaa274d55339994edf0e8e69`  
+**Primary ownership:** `packages/traffic-core`, planned `packages/traffic-three`; atomic composition by `apps/game`  
 **Planned persistence:** `TrafficSaveV1` inside `WorldSaveV7`
 
 ## Purpose
 
-Own deterministic pedestrian/vehicle transport planning and progression over derived network graphs, including route selection, active transport-trip state, intersection queues, congestion/travel-time projections, and the materialization seam for real visual pedestrians and cars.
+Own deterministic pedestrian/vehicle graph derivation, multimodal routing, logical trip progression, intersection queues, congestion/travel-time projections, route recovery, and Traffic persistence while keeping Road, Building, Citizen, Simulation and Three.js presentation authority separate.
 
-The production goal is visual truth: a person visible on a sidewalk is a real Citizen on a real Walk trip; a visible car is a real Citizen's active Drive trip. Traffic must not use decorative random agents as canonical traffic. Off-screen trips remain logical and continue without Three.js objects.
+The production goal is visual truth: a visible pedestrian is a real Citizen Walk trip and a visible car is a real Citizen Drive trip. Off-screen trips remain logical; renderer state never becomes canonical Traffic state.
 
 ## Does Not Own
 
 - Citizen identity, Household, Housing, Employment, migration, or RCI Demand.
 - Citizen activity/schedule/trip-purpose authority.
-- Road occupancy or Building authority.
-- Terrain/Water authority.
-- Simulation clock authority.
+- Road occupancy/connectivity or Building placement/frontage authority.
+- Terrain/Water or Simulation clock authority.
 - UI authority.
-- Parking, car ownership, public transit, bicycles, traffic lights, accidents, freight, emergency vehicles, or dynamic congestion rerouting in v0.1.
+- Parking, car ownership, transit, bicycles, signals, accidents, freight, emergency vehicles, or ordinary congestion rerouting in v0.1.
 
-## Approved Authority Boundary
+## Authority Boundary
 
 ```text
 Roads + Buildings + Simulation + Citizen Mobility
@@ -39,27 +38,37 @@ Roads + Buildings + Simulation + Citizen Mobility
        real pedestrians / real cars
 ```
 
-Road and Building snapshots remain upstream authority. Traffic graphs are derived. Camera/Three.js state is presentation only.
+## Implemented Traffic Core
 
-## Foundation Behavior
+`packages/traffic-core` now provides:
 
-- Walk and Drive routes from Building access to Building access.
-- Pedestrian graph derives sidewalk/access corridors from Road topology and Building frontage.
-- Vehicle graph derives directed traversal edges from Road connectivity and versioned Traffic Road profiles.
-- Deterministic shortest-path routing with explicit stable tie-breaking.
-- Route is locked after departure except deterministic recovery when Road topology invalidates it.
-- New route planning reads the previous committed congestion/travel-cost projection; no same-tick route↔congestion cycle.
-- Active logical trips continue off-screen.
-- Near-camera real trips materialize as pooled Three.js pedestrian/car agents; far trips do not require objects.
-- Agent caps limit presentation work, not logical Traffic counts.
-- Citizen/Vehicle Inspect and Traffic information view consume committed Traffic projections.
+- strict Road/Building source projection contracts;
+- immutable `TrafficSnapshotV1` + deterministic snapshot/graph fingerprints;
+- versioned `basic-road` speed/capacity/intersection/offset profile;
+- deterministic directed vehicle graph and offset pedestrian sidewalk graph;
+- frontage-only Building access mapping;
+- deterministic shortest-path routing with explicit total-cost/traversal/node/edge tie rules;
+- previous-committed `TrafficCostField` input for Drive candidate costs;
+- disposable revision-keyed route cache;
+- fixed-point `progressQ` trip progression with logical `lastStableNodeId`;
+- deterministic unsignalized intersection queue service;
+- load/capacity/congestion/effective-travel-time projections and next lagged cost field;
+- topology/destination route recovery from a stable logical node;
+- fail-closed `TrafficSaveV1` codec that persists route/progress/queue authority, never graph/cache/render state;
+- no imports from RCI, Mobility, Road, Building, DOM, or Three.js.
 
-## Planned Performance Contract
+Flow policy v1 keeps zero-load time equal to free-flow and adds monotonic delay only when load exceeds edge capacity or queue wait exists. Ordinary congestion never reroutes an active trip; only topology/destination invalidation invokes recovery.
+
+## Remaining Foundation Work
+
+PR6 integrates RCI/Road/Building/Mobility/Traffic into one committed world and `WorldSaveV7`. PR7–PR9 add real Three.js pedestrian/car materialization and production hardening. PR10–PR11 close Inspect/Traffic View/browser/performance/manual acceptance.
+
+## Performance Contract
 
 - Logical scale gate: at least 20,000 Citizens and 5,000 concurrent trips.
-- Materialized target budgets: up to 300 pedestrians, up to 300 vehicles, with a normal full-detail combined target of 400–500 agents.
-- No per-frame scan of all Citizens or all world trips.
-- Spatial indexes, pooling, LOD, route caching, and dirty-region graph rebuilds are required production mechanisms rather than optional optimizations.
+- Materialized target budgets: up to 300 pedestrians, up to 300 vehicles, normal full-detail combined target 400–500 agents.
+- No per-frame scan of all Citizens or world trips.
+- Spatial indexes, pooling, LOD, route caching, and dirty-region graph rebuilds are required production mechanisms.
 
 ## Planning Documents
 
@@ -67,11 +76,10 @@ Road and Building snapshots remain upstream authority. Traffic graphs are derive
 - [Traffic TDD implementation plan](tdd/2026-08-15-traffic-foundation-v0-1.md)
 - [Traffic PR9 production hardening plan](tdd/2026-08-15-traffic-production-hardening-pr9.md)
 - [Cross-system execution index](../architecture-infrastructure/tdd/2026-08-15-citizen-mobility-traffic-foundation-v0-1-execution-index.md)
-- [PR11 release / browser / visual / performance plan](../architecture-infrastructure/tdd/2026-08-15-citizen-mobility-traffic-release-pr11.md)
+- [PR11 release plan](../architecture-infrastructure/tdd/2026-08-15-citizen-mobility-traffic-release-pr11.md)
 - [World/Application integration plan](../world/tdd/2026-08-15-mobility-traffic-world-integration-v0-1.md)
 - [City UI integration plan](../city-ui/tdd/2026-08-15-citizen-traffic-inspect-information-view-v0-1.md)
 - [ADR-0001 — Logical real trips with materialized visual agents](adrs/0001-logical-real-trips-materialized-visual-agents.md)
 - [ADR-0002 — Derived transport graphs and lagged congestion costs](adrs/0002-derived-transport-graphs-and-lagged-costs.md)
-- Related: [Citizen Mobility](../citizen-mobility/README.md), [Roads](../roads/README.md), [Buildings](../buildings/README.md), [Simulation Time](../simulation-time/README.md), [City UI](../city-ui/README.md)
 
-Verification records are added per implementation PR and at foundation closure; production behavior remains unimplemented until those PRs pass their gates.
+Verification is intentionally deferred until the final test phase requested for this execution run.

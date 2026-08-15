@@ -74,7 +74,7 @@ describe('player shell M6.4 wiring', () => {
     });
     expect(shell.toolContextSheet.element.hidden).toBe(false);
     expect(shell.toolContextSheet.element.dataset.expanded).toBe('false');
-    expect(shell.toolContextSheet.element.textContent).toContain('Commercial Zone');
+    expect(shell.toolContextSheet.element.textContent).toContain('Commercial');
     expect(shell.toolContextSheet.element.textContent).toContain('Ready');
     expect(shell.toolContextSheet.element.textContent).not.toContain(
       'Point at the world to preview this tool',

@@ -30,6 +30,7 @@ export type UiCopyKey =
   | 'pause'
   | 'play'
   | 'stepOneTick'
+  | 'gameMenu'
   | 'world'
   | 'saveWorld'
   | 'loadWorld'
@@ -82,6 +83,7 @@ const copy: Readonly<Record<UiLocale, Readonly<Record<UiCopyKey, string>>>> = Ob
     pause: 'Pause',
     play: 'Play',
     stepOneTick: 'Advance exactly one tick',
+    gameMenu: 'Game Menu',
     world: 'World',
     saveWorld: 'Save world',
     loadWorld: 'Load world',
@@ -133,6 +135,7 @@ const copy: Readonly<Record<UiLocale, Readonly<Record<UiCopyKey, string>>>> = Ob
     pause: 'หยุดชั่วคราว',
     play: 'เล่น',
     stepOneTick: 'เดินหน้า 1 ติ๊ก',
+    gameMenu: 'เมนูเกม',
     world: 'โลก',
     saveWorld: 'บันทึกเมือง',
     loadWorld: 'โหลดเมือง',

@@ -36,9 +36,7 @@ describe('inspect projections', () => {
     const original = JSON.stringify(projection);
     const surface = mountInspectSurface(document.body, 'en');
     surface.open(projection);
-    surface.element
-      .querySelector<HTMLButtonElement>('[aria-label="Expand Inspect"]')!
-      .click();
+    surface.element.querySelector<HTMLButtonElement>('[aria-label="Expand Inspect"]')!.click();
 
     expect(surface.element.textContent).toContain('Cell');
     expect(surface.element.textContent).toContain('Water');

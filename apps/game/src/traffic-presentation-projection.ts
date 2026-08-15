@@ -1,4 +1,5 @@
 import {
+  TRAFFIC_PROGRESS_MAX_Q,
   createTrafficProjection,
   derivePedestrianTrafficGraph,
   deriveVehicleTrafficGraph,
@@ -9,6 +10,19 @@ import {
   type TrafficSnapshotV1,
 } from '@web-three-city/traffic-core';
 
+export interface TrafficPresentationPointQ {
+  readonly xQ: number;
+  readonly yQ: number;
+  readonly zQ: number;
+}
+
+export interface TrafficPresentationTurn {
+  readonly previous: TrafficPresentationPointQ;
+  readonly corner: TrafficPresentationPointQ;
+  readonly next: TrafficPresentationPointQ;
+  readonly turnProgressQ: number;
+}
+
 export interface TrafficPresentationAgent {
   readonly tripId: string;
   readonly citizenId: string;
@@ -16,8 +30,9 @@ export interface TrafficPresentationAgent {
   readonly routeEdgeId: string;
   readonly progressQ: number;
   readonly queued: boolean;
-  readonly from: Readonly<{ xQ: number; yQ: number; zQ: number }>;
-  readonly to: Readonly<{ xQ: number; yQ: number; zQ: number }>;
+  readonly from: TrafficPresentationPointQ;
+  readonly to: TrafficPresentationPointQ;
+  readonly turn: TrafficPresentationTurn | null;
 }
 
 export interface TrafficPresentationSnapshot {
@@ -28,6 +43,10 @@ export interface TrafficPresentationSnapshot {
 
 function withBuildingRevision(graph: TrafficGraph, revision: number): TrafficGraph {
   return Object.freeze({ ...graph, sourceBuildingRevision: revision });
+}
+
+function point(node: Readonly<{ xQ: number; yQ: number; zQ: number }>): TrafficPresentationPointQ {
+  return Object.freeze({ xQ: node.xQ, yQ: node.yQ, zQ: node.zQ });
 }
 
 export function createTrafficPresentationSnapshot(input: Readonly<{
@@ -51,6 +70,7 @@ export function createTrafficPresentationSnapshot(input: Readonly<{
   });
   const nodeById = new Map(combined.nodes.map((node) => [node.nodeId, node] as const));
   const edgeById = new Map(combined.edges.map((edge) => [edge.edgeId, edge] as const));
+  const logicalTripById = new Map(input.traffic.activeTrips.map((trip) => [trip.tripId, trip] as const));
   const projection = createTrafficProjection({ snapshot: input.traffic, graph: combined });
   const agents = projection.agents.flatMap((agent) => {
     const edge = edgeById.get(agent.routeEdgeId);
@@ -58,11 +78,35 @@ export function createTrafficPresentationSnapshot(input: Readonly<{
     const from = nodeById.get(edge.fromNodeId);
     const to = nodeById.get(edge.toNodeId);
     if (from === undefined || to === undefined) return [];
+    const logicalTrip = logicalTripById.get(agent.tripId);
+    let turn: TrafficPresentationTurn | null = null;
+    if (
+      agent.mode === 'Drive' &&
+      !agent.queued &&
+      agent.progressQ >= 850_000 &&
+      logicalTrip !== undefined
+    ) {
+      const nextEdgeId = logicalTrip.routeEdgeIds[logicalTrip.segmentIndex + 1];
+      const nextEdge = nextEdgeId === undefined ? undefined : edgeById.get(nextEdgeId);
+      const nextNode = nextEdge === undefined ? undefined : nodeById.get(nextEdge.toNodeId);
+      if (nextEdge !== undefined && nextNode !== undefined && nextEdge.fromNodeId === edge.toNodeId) {
+        turn = Object.freeze({
+          previous: point(from),
+          corner: point(to),
+          next: point(nextNode),
+          turnProgressQ: Math.min(
+            TRAFFIC_PROGRESS_MAX_Q,
+            Math.floor(((agent.progressQ - 850_000) * TRAFFIC_PROGRESS_MAX_Q) / 150_000),
+          ),
+        });
+      }
+    }
     return [
       Object.freeze({
         ...agent,
-        from: Object.freeze({ xQ: from.xQ, yQ: from.yQ, zQ: from.zQ }),
-        to: Object.freeze({ xQ: to.xQ, yQ: to.yQ, zQ: to.zQ }),
+        from: point(from),
+        to: point(to),
+        turn,
       }),
     ];
   });

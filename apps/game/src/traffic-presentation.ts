@@ -181,7 +181,9 @@ export class TrafficPresentation {
       if (distanceSquared > maximumDistanceSquared) continue;
       if (
         distanceSquared < nearestDistanceSquared ||
-        (distanceSquared === nearestDistanceSquared && nearest !== null && agent.tripId < nearest.tripId)
+        (distanceSquared === nearestDistanceSquared &&
+          nearest !== null &&
+          agent.tripId < nearest.tripId)
       ) {
         nearest = agent;
         nearestDistanceSquared = distanceSquared;
@@ -189,8 +191,16 @@ export class TrafficPresentation {
     }
     if (nearest === null) return null;
     return nearest.mode === 'Drive'
-      ? Object.freeze({ kind: 'vehicle' as const, citizenId: nearest.citizenId, tripId: nearest.tripId })
-      : Object.freeze({ kind: 'citizen' as const, citizenId: nearest.citizenId, tripId: nearest.tripId });
+      ? Object.freeze({
+          kind: 'vehicle' as const,
+          citizenId: nearest.citizenId,
+          tripId: nearest.tripId,
+        })
+      : Object.freeze({
+          kind: 'citizen' as const,
+          citizenId: nearest.citizenId,
+          tripId: nearest.tripId,
+        });
   }
 
   reconcile(
@@ -532,7 +542,10 @@ export class TrafficPresentation {
     this.#preparedRouteCount += 1;
     const position = new Vector3();
     const sample: MutableTrafficRouteSample = { headingRadians: 0, segmentIndex: 0 };
-    const distance = Math.max(0, Math.min(preparedRoute.totalLengthMillimeters, targetDistanceMillimeters));
+    const distance = Math.max(
+      0,
+      Math.min(preparedRoute.totalLengthMillimeters, targetDistanceMillimeters),
+    );
     samplePreparedRouteInto(preparedRoute, distance, position, sample);
     applyLateralOffset(position, sample.headingRadians, targetLateralOffsetMillimeters);
     return {

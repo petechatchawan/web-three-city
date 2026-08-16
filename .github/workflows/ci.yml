@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -32,40 +32,6 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
-      - name: Publish exact Prettier blobs
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          pnpm exec prettier --write \
-            apps/game/src/traffic-presentation.ts \
-            apps/game/src/traffic-runtime-presentation.ts \
-            packages/traffic-three/src/pedestrian-agent.ts \
-            packages/traffic-three/src/vehicle-agent.ts
-          node --input-type=module <<'NODE'
-          import fs from 'node:fs';
-          const files = [
-            'apps/game/src/traffic-presentation.ts',
-            'apps/game/src/traffic-runtime-presentation.ts',
-            'packages/traffic-three/src/pedestrian-agent.ts',
-            'packages/traffic-three/src/vehicle-agent.ts',
-          ];
-          for (const file of files) {
-            const response = await fetch(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/git/blobs`, {
-              method: 'POST',
-              headers: {
-                Accept: 'application/vnd.github+json',
-                Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
-                'X-GitHub-Api-Version': '2022-11-28',
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ content: fs.readFileSync(file, 'utf8'), encoding: 'utf-8' }),
-            });
-            if (!response.ok) throw new Error(`${file}:${response.status}:${await response.text()}`);
-            const result = await response.json();
-            console.log(`PRETTIER_BLOB ${file} ${result.sha}`);
-          }
-          NODE
-          exit 1
       - run: pnpm check
       - name: Archive lean build outputs
         run: tar -czf lean-builds.tar.gz apps/game/dist apps/terrain-lab/dist

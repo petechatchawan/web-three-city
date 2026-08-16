@@ -122,7 +122,10 @@ function replayDuration(mode: 'Walk' | 'Drive', segmentCount: number): number {
   );
 }
 
-function routeKey(mode: 'Walk' | 'Drive', segments: readonly TrafficPresentationRouteSegment[]): string {
+function routeKey(
+  mode: 'Walk' | 'Drive',
+  segments: readonly TrafficPresentationRouteSegment[],
+): string {
   return `${mode}|${segments.map((segment) => segment.edgeId).join('|')}`;
 }
 
@@ -188,7 +191,9 @@ export class TrafficRuntimePresentation {
       world.environments.building,
     );
     const activeTripIds = new Set(
-      world.traffic.activeTrips.filter((trip) => trip.status === 'Active').map((trip) => trip.tripId),
+      world.traffic.activeTrips
+        .filter((trip) => trip.status === 'Active')
+        .map((trip) => trip.tripId),
     );
     const existingIds = new Set(this.#replays.map((replay) => replay.tripId));
     const routeCounts = new Map<string, number>();
@@ -296,8 +301,16 @@ export class TrafficRuntimePresentation {
     const selected = matches[0]?.agent;
     if (selected === undefined) return null;
     return selected.mode === 'Drive'
-      ? Object.freeze({ kind: 'vehicle' as const, citizenId: selected.citizenId, tripId: selected.tripId })
-      : Object.freeze({ kind: 'citizen' as const, citizenId: selected.citizenId, tripId: selected.tripId });
+      ? Object.freeze({
+          kind: 'vehicle' as const,
+          citizenId: selected.citizenId,
+          tripId: selected.tripId,
+        })
+      : Object.freeze({
+          kind: 'citizen' as const,
+          citizenId: selected.citizenId,
+          tripId: selected.tripId,
+        });
   }
 
   debugSnapshot(): TrafficPresentationDebugSnapshot {

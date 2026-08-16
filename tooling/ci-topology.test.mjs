@@ -179,15 +179,13 @@ test('Browser job retains failure artifacts', async () => {
   assert.match(jobs.browser.text, /test-results/);
 });
 
-test('maintainers can request a whitelisted targeted browser ownership tag', async () => {
-  const workflow = await readRepoText('.github/workflows/targeted-browser.yml');
-  assert.match(workflow, /issue_comment:/);
-  assert.match(workflow, /author_association/);
-  assert.match(workflow, /OWNER/);
-  assert.match(workflow, /MEMBER/);
-  assert.match(workflow, /COLLABORATOR/);
-  assert.match(workflow, /refs\/pull\/\$\{\{ github\.event\.issue\.number \}\}\/head/);
-  assert.match(workflow, /\/verify-browser/);
+test('PR metadata can request whitelisted targeted browser ownership sets', async () => {
+  const workflow = await readRepoText('.github/workflows/ci.yml');
+  const targeted = jobBlock(workflow, 'targeted-browser');
+  assert.match(targeted, /needs:\s*lean/);
+  assert.match(targeted, /Targeted browser tags:/);
+  assert.match(targeted, /actions\/download-artifact@v4/);
+  assert.match(targeted, /name:\s*lean-builds/);
   for (const tag of [
     'smoke',
     'terrain',
@@ -199,10 +197,11 @@ test('maintainers can request a whitelisted targeted browser ownership tag', asy
     'traffic',
     'interaction',
   ]) {
-    assert.match(workflow, new RegExp(`\\b${tag}\\b`));
+    assert.match(targeted, new RegExp(`['"]${tag}['"]`));
   }
-  assert.match(workflow, /playwright test --grep "@\$TARGET" --project=chromium/);
-  assert.doesNotMatch(workflow, /pnpm test:browser:only/);
+  assert.match(targeted, /playwright test --grep "\$GREP" --project=chromium/);
+  assert.match(targeted, /targeted-browser-evidence/);
+  assert.doesNotMatch(targeted, /pnpm test:browser:only/);
 });
 
 test('Full browser release command remains available', async () => {

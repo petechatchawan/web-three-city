@@ -40,9 +40,10 @@ describe('Traffic vehicle agents', () => {
       turn: null,
     });
     const size = new Box3().setFromObject(agent.object).getSize(new Vector3());
+    const horizontal = [size.x, size.z].sort((a, b) => a - b);
 
-    expect(size.x).toBeLessThanOrEqual(0.288);
-    expect(size.z).toBeLessThanOrEqual(0.612);
+    expect(horizontal[0]).toBeLessThanOrEqual(0.288);
+    expect(horizontal[1]).toBeLessThanOrEqual(0.612);
     pool.dispose();
   });
 

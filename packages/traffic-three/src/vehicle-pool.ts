@@ -1,14 +1,20 @@
 import { Group } from 'three';
 import { TrafficVehicleAgent, type TrafficVehicleVisualInput } from './vehicle-agent.js';
+import {
+  FOUNDATION_TRAFFIC_VISUAL_SCALE_POLICY,
+  type TrafficVisualScalePolicy,
+} from './visual-scale-policy.js';
 
 export class TrafficVehiclePool {
   readonly root = new Group();
   readonly #available: TrafficVehicleAgent[] = [];
   readonly #active = new Map<string, TrafficVehicleAgent>();
+  readonly #scalePolicy: TrafficVisualScalePolicy;
   #createdCount = 0;
   #reuseCount = 0;
 
-  constructor() {
+  constructor(scalePolicy: TrafficVisualScalePolicy = FOUNDATION_TRAFFIC_VISUAL_SCALE_POLICY) {
+    this.#scalePolicy = scalePolicy;
     this.root.name = 'traffic-vehicle-root';
   }
 
@@ -35,19 +41,13 @@ export class TrafficVehiclePool {
   acquire(input: TrafficVehicleVisualInput): TrafficVehicleAgent {
     const existing = this.#active.get(input.tripId);
     if (existing !== undefined) {
-      existing.assign(input);
+      existing.updateSourceState(input);
       return existing;
     }
     const reused = this.#available.pop();
-    const agent =
-      reused ??
-      (() => {
-        const created = new TrafficVehicleAgent();
-        this.root.add(created.object);
-        this.#createdCount += 1;
-        return created;
-      })();
+    const agent = reused ?? this.#createAgent();
     if (reused !== undefined) this.#reuseCount += 1;
+    if (agent.tripId !== null) throw new Error('traffic-three:vehicle-pool-active-reuse');
     agent.assign(input);
     this.#active.set(input.tripId, agent);
     return agent;
@@ -73,5 +73,12 @@ export class TrafficVehiclePool {
     this.#active.clear();
     this.#available.length = 0;
     this.root.clear();
+  }
+
+  #createAgent(): TrafficVehicleAgent {
+    const created = new TrafficVehicleAgent(this.#scalePolicy);
+    this.root.add(created.object);
+    this.#createdCount += 1;
+    return created;
   }
 }

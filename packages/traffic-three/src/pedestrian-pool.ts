@@ -1,14 +1,20 @@
 import { Group } from 'three';
 import { TrafficPedestrianAgent, type TrafficPedestrianVisualInput } from './pedestrian-agent.js';
+import {
+  FOUNDATION_TRAFFIC_VISUAL_SCALE_POLICY,
+  type TrafficVisualScalePolicy,
+} from './visual-scale-policy.js';
 
 export class TrafficPedestrianPool {
   readonly root = new Group();
   readonly #available: TrafficPedestrianAgent[] = [];
   readonly #active = new Map<string, TrafficPedestrianAgent>();
+  readonly #scalePolicy: TrafficVisualScalePolicy;
   #createdCount = 0;
   #reuseCount = 0;
 
-  constructor() {
+  constructor(scalePolicy: TrafficVisualScalePolicy = FOUNDATION_TRAFFIC_VISUAL_SCALE_POLICY) {
+    this.#scalePolicy = scalePolicy;
     this.root.name = 'traffic-pedestrian-root';
   }
 
@@ -28,21 +34,18 @@ export class TrafficPedestrianPool {
     return this.#active.has(tripId);
   }
 
+  get(tripId: string): TrafficPedestrianAgent | undefined {
+    return this.#active.get(tripId);
+  }
+
   acquire(input: TrafficPedestrianVisualInput): TrafficPedestrianAgent {
     const existing = this.#active.get(input.tripId);
     if (existing !== undefined) {
-      existing.assign(input);
+      existing.updateSourceState(input);
       return existing;
     }
     const reused = this.#available.pop();
-    const agent =
-      reused ??
-      (() => {
-        const created = new TrafficPedestrianAgent();
-        this.root.add(created.object);
-        this.#createdCount += 1;
-        return created;
-      })();
+    const agent = reused ?? this.#createAgent();
     if (reused !== undefined) this.#reuseCount += 1;
     if (agent.tripId !== null) throw new Error('traffic-three:pedestrian-pool-active-reuse');
     agent.assign(input);
@@ -70,5 +73,12 @@ export class TrafficPedestrianPool {
     this.#active.clear();
     this.#available.length = 0;
     this.root.clear();
+  }
+
+  #createAgent(): TrafficPedestrianAgent {
+    const created = new TrafficPedestrianAgent(this.#scalePolicy);
+    this.root.add(created.object);
+    this.#createdCount += 1;
+    return created;
   }
 }

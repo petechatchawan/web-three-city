@@ -11,7 +11,6 @@ export interface TrafficRouteSegment {
   readonly edgeId: string;
   readonly from: TrafficWorldPointQ;
   readonly to: TrafficWorldPointQ;
-  /** Optional cached length in millimetres; omitted values are derived once per sample. */
   readonly lengthMillimeters?: number;
 }
 
@@ -19,6 +18,17 @@ export interface TrafficRouteSample {
   readonly position: Vector3;
   readonly headingRadians: number;
   readonly segmentIndex: number;
+}
+
+export interface PreparedTrafficRoute {
+  readonly segments: readonly TrafficRouteSegment[];
+  readonly cumulativeEndMillimeters: Float64Array;
+  readonly totalLengthMillimeters: number;
+}
+
+export interface MutableTrafficRouteSample {
+  headingRadians: number;
+  segmentIndex: number;
 }
 
 const WORLD_Q_PER_METER = 1_000;
@@ -47,6 +57,81 @@ function blendHeadings(first: number, second: number, secondWeight: number): num
   return Math.atan2(firstX + secondX, firstZ + secondZ);
 }
 
+function positionBetweenInto(
+  from: TrafficWorldPointQ,
+  to: TrafficWorldPointQ,
+  progress: number,
+  out: Vector3,
+): void {
+  out.set(
+    (from.xQ + (to.xQ - from.xQ) * progress) / WORLD_Q_PER_METER,
+    (from.yQ + (to.yQ - from.yQ) * progress) / WORLD_Q_PER_METER,
+    (from.zQ + (to.zQ - from.zQ) * progress) / WORLD_Q_PER_METER,
+  );
+}
+
+export function prepareTrafficRoute(route: readonly TrafficRouteSegment[]): PreparedTrafficRoute {
+  if (route.length === 0) throw new RangeError('traffic-three:empty-route');
+  const cumulativeEndMillimeters = new Float64Array(route.length);
+  let totalLengthMillimeters = 0;
+  for (let index = 0; index < route.length; index += 1) {
+    totalLengthMillimeters += routeSegmentLengthMillimeters(route[index]!);
+    cumulativeEndMillimeters[index] = totalLengthMillimeters;
+  }
+  return Object.freeze({
+    segments: route,
+    cumulativeEndMillimeters,
+    totalLengthMillimeters,
+  });
+}
+
+export function samplePreparedRouteInto(
+  prepared: PreparedTrafficRoute,
+  distanceAlongRouteMillimeters: number,
+  outPosition: Vector3,
+  outSample?: MutableTrafficRouteSample,
+): MutableTrafficRouteSample {
+  if (!Number.isFinite(distanceAlongRouteMillimeters)) {
+    throw new RangeError('traffic-three:invalid-route-distance');
+  }
+  const target = Math.max(
+    0,
+    Math.min(prepared.totalLengthMillimeters, distanceAlongRouteMillimeters),
+  );
+  let low = 0;
+  let high = prepared.segments.length - 1;
+  while (low < high) {
+    const middle = Math.floor((low + high) / 2);
+    if (target <= prepared.cumulativeEndMillimeters[middle]!) high = middle;
+    else low = middle + 1;
+  }
+  const segmentIndex = low;
+  const segment = prepared.segments[segmentIndex]!;
+  const previousEnd = segmentIndex === 0 ? 0 : prepared.cumulativeEndMillimeters[segmentIndex - 1]!;
+  const segmentEnd = prepared.cumulativeEndMillimeters[segmentIndex]!;
+  const segmentLength = Math.max(1, segmentEnd - previousEnd);
+  const localDistance = Math.max(0, target - previousEnd);
+  const localProgress = Math.max(0, Math.min(1, localDistance / segmentLength));
+  positionBetweenInto(segment.from, segment.to, localProgress, outPosition);
+
+  let heading = headingRadians(segment.from, segment.to);
+  const next = prepared.segments[segmentIndex + 1];
+  const distanceToEnd = segmentLength - localDistance;
+  if (next !== undefined && distanceToEnd < TURN_SMOOTHING_MILLIMETERS) {
+    const turnWeight =
+      (TURN_SMOOTHING_MILLIMETERS - Math.max(0, distanceToEnd)) / TURN_SMOOTHING_MILLIMETERS;
+    heading = blendHeadings(
+      heading,
+      headingRadians(next.from, next.to),
+      Math.max(0, Math.min(1, turnWeight)),
+    );
+  }
+  const sample = outSample ?? { headingRadians: heading, segmentIndex };
+  sample.headingRadians = heading;
+  sample.segmentIndex = segmentIndex;
+  return sample;
+}
+
 export function worldPointFromQ(point: TrafficWorldPointQ): Vector3 {
   return new Vector3(
     point.xQ / WORLD_Q_PER_METER,
@@ -61,53 +146,23 @@ export function sampleRouteEdgePosition(
   progressQ: number,
 ): Vector3 {
   const clamped = Math.max(0, Math.min(TRAFFIC_PROGRESS_MAX_Q, Math.trunc(progressQ)));
-  const t = clamped / TRAFFIC_PROGRESS_MAX_Q;
-  return worldPointFromQ(from).lerp(worldPointFromQ(to), t);
+  const position = new Vector3();
+  positionBetweenInto(from, to, clamped / TRAFFIC_PROGRESS_MAX_Q, position);
+  return position;
 }
 
-/**
- * Samples a rendered route by distance along its existing edge polyline.
- * This is presentation-only: it consumes route geometry and never changes trip progress.
- */
 export function sampleRoutePolyline(
   route: readonly TrafficRouteSegment[],
   distanceAlongRouteMillimeters: number,
 ): TrafficRouteSample {
-  if (route.length === 0) throw new RangeError('traffic-three:empty-route');
-  if (!Number.isFinite(distanceAlongRouteMillimeters)) {
-    throw new RangeError('traffic-three:invalid-route-distance');
-  }
-  let totalLength = 0;
-  for (const segment of route) totalLength += routeSegmentLengthMillimeters(segment);
-  let remaining = Math.max(0, Math.min(totalLength, distanceAlongRouteMillimeters));
-  let segmentIndex = route.length - 1;
-  let segmentLength = routeSegmentLengthMillimeters(route[route.length - 1]!);
-  for (let index = 0; index < route.length; index += 1) {
-    const length = routeSegmentLengthMillimeters(route[index]!);
-    if (remaining <= length || index === route.length - 1) {
-      segmentIndex = index;
-      segmentLength = length;
-      break;
-    }
-    remaining -= length;
-  }
-
-  const segment = route[segmentIndex]!;
-  const progressQ = Math.round((remaining * TRAFFIC_PROGRESS_MAX_Q) / segmentLength);
-  const position = sampleRouteEdgePosition(segment.from, segment.to, progressQ);
-  let heading = headingRadians(segment.from, segment.to);
-  const next = route[segmentIndex + 1];
-  if (next !== undefined && segmentLength - remaining < TURN_SMOOTHING_MILLIMETERS) {
-    const turnWeight =
-      (TURN_SMOOTHING_MILLIMETERS - Math.max(0, segmentLength - remaining)) /
-      TURN_SMOOTHING_MILLIMETERS;
-    heading = blendHeadings(
-      heading,
-      headingRadians(next.from, next.to),
-      Math.max(0, Math.min(1, turnWeight)),
-    );
-  }
-  return Object.freeze({ position, headingRadians: heading, segmentIndex });
+  const prepared = prepareTrafficRoute(route);
+  const position = new Vector3();
+  const sample = samplePreparedRouteInto(prepared, distanceAlongRouteMillimeters, position);
+  return Object.freeze({
+    position,
+    headingRadians: sample.headingRadians,
+    segmentIndex: sample.segmentIndex,
+  });
 }
 
 export function sampleSmoothTurn(
@@ -118,14 +173,14 @@ export function sampleSmoothTurn(
 ): Vector3 {
   const clamped = Math.max(0, Math.min(TRAFFIC_PROGRESS_MAX_Q, Math.trunc(turnProgressQ)));
   const t = clamped / TRAFFIC_PROGRESS_MAX_Q;
-  const p0 = worldPointFromQ(previous);
-  const p1 = worldPointFromQ(corner);
-  const p2 = worldPointFromQ(next);
   const oneMinusT = 1 - t;
   return new Vector3(
-    oneMinusT * oneMinusT * p0.x + 2 * oneMinusT * t * p1.x + t * t * p2.x,
-    oneMinusT * oneMinusT * p0.y + 2 * oneMinusT * t * p1.y + t * t * p2.y,
-    oneMinusT * oneMinusT * p0.z + 2 * oneMinusT * t * p1.z + t * t * p2.z,
+    (oneMinusT * oneMinusT * previous.xQ + 2 * oneMinusT * t * corner.xQ + t * t * next.xQ) /
+      WORLD_Q_PER_METER,
+    (oneMinusT * oneMinusT * previous.yQ + 2 * oneMinusT * t * corner.yQ + t * t * next.yQ) /
+      WORLD_Q_PER_METER,
+    (oneMinusT * oneMinusT * previous.zQ + 2 * oneMinusT * t * corner.zQ + t * t * next.zQ) /
+      WORLD_Q_PER_METER,
   );
 }
 

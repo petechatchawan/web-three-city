@@ -10,3 +10,4 @@ export * from './vehicle-agent.js';
 export * from './vehicle-appearance.js';
 export * from './vehicle-pool.js';
 export * from './vehicle-spacing.js';
+export * from './visual-scale-policy.js';

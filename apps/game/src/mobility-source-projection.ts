@@ -5,8 +5,11 @@ import type { RciSnapshot } from '@web-three-city/rci-core';
 export function createPresentCitizenMobilityProjection(
   rci: RciSnapshot,
   buildings: BuildingSnapshot,
-  _absoluteTick: number,
+  absoluteTick: number,
 ): readonly PresentCitizenMobilityProjection[] {
+  if (!Number.isSafeInteger(absoluteTick) || absoluteTick < 0) {
+    throw new RangeError('mobility-source-projection:invalid-absolute-tick');
+  }
   const validBuildingIds = new Set(
     buildings.instances
       .filter((instance) => instance.lifecycle === undefined || instance.lifecycle === 'active')

@@ -90,7 +90,10 @@ export function planGameWorldTick(
   }>,
 ): GameWorldTickPlan {
   const state = createGameWorldState(input.state);
-  const taxPressure = createTaxPressureProjection(state.economy.taxPolicy, FOUNDATION_ECONOMY_RULES);
+  const taxPressure = createTaxPressureProjection(
+    state.economy.taxPolicy,
+    FOUNDATION_ECONOMY_RULES,
+  );
   const buildingPlan = planBuildingGrowthTick({
     buildings: state.buildings,
     simulation: state.simulation,

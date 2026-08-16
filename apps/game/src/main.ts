@@ -23,6 +23,7 @@ import { createSimulationRuntime } from './simulation-runtime.js';
 import { dispatchGameToolCancel } from './game-tool-events.js';
 import { bindGameToolContext } from './game-tool-context-bridge.js';
 import type { GameToolMode } from './game-tool-mode.js';
+import { createTrafficPerformanceReleaseFixture } from './traffic-performance-release-fixture.js';
 import {
   createTrafficReleaseFixture,
   type TrafficReleaseFixtureSummary,
@@ -53,6 +54,12 @@ interface TrafficRecoveryFixtureSummary {
   readonly primaryRoadCutCell: Readonly<{ x: number; z: number }>;
 }
 
+interface TrafficPerformanceFixtureSummary {
+  readonly citizenCount: number;
+  readonly activeTripCount: number;
+  readonly focusCell: Readonly<{ x: number; z: number }>;
+}
+
 interface TrafficTestApi {
   readonly snapshot: () => Readonly<{
     readonly worldRevision: number;
@@ -64,6 +71,7 @@ interface TrafficTestApi {
   }>;
   readonly installReleaseFixture: () => TrafficReleaseFixtureSummary;
   readonly installRoadRecoveryFixture: () => TrafficRecoveryFixtureSummary;
+  readonly installPerformanceFixture: () => TrafficPerformanceFixtureSummary;
   readonly saveWorld: () => void;
   readonly loadWorld: () => void;
   readonly setTrafficView: (active: boolean) => void;
@@ -272,6 +280,16 @@ timeWindow.__WEB_THREE_CITY_TRAFFIC__ = Object.freeze({
       tripId: fixture.tripId,
       routeEdgeIds: fixture.routeEdgeIds,
       primaryRoadCutCell: fixture.primaryRoadCutCell,
+    });
+  },
+  installPerformanceFixture(): TrafficPerformanceFixtureSummary {
+    const fixture = createTrafficPerformanceReleaseFixture();
+    installWorldSaveFixture(fixture.save);
+    trafficRuntime?.setCameraAnchorFromCell(fixture.focusCell);
+    return Object.freeze({
+      citizenCount: fixture.citizenCount,
+      activeTripCount: fixture.activeTripCount,
+      focusCell: fixture.focusCell,
     });
   },
   saveWorld(): void {

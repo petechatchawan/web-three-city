@@ -5,7 +5,10 @@ import {
   prepareBuildingFixtureWorld,
 } from './helpers/building-fixture.js';
 import { openBuildCategory, waitForCityUi } from './helpers/city-ui.js';
-import { prepareDeterministicGrowthClock, readTimeSnapshot } from './helpers/growth-fixture.js';
+import {
+  prepareDeterministicGrowthClock,
+  stepLogicalTicks,
+} from './helpers/growth-fixture.js';
 import { GAME_URL } from './helpers/interaction.js';
 
 test.describe.configure({ timeout: 60_000 });
@@ -34,31 +37,12 @@ test('active Zone removal commits after background Growth skips its reserved cel
     )
     .toBe(true);
 
-  await page.evaluate(() => {
-    const api = (
-      window as Window & {
-        __WEB_THREE_CITY_TIME__?: {
-          setSpeed(speed: 'paused' | 'normal' | 'fast' | 'faster'): void;
-        };
-      }
-    ).__WEB_THREE_CITY_TIME__;
-    if (api === undefined) throw new Error('growth-reservation:missing-time-api');
-    api.setSpeed('faster');
-  });
-  await expect
-    .poll(async () => (await readTimeSnapshot(page)).simulation.absoluteTick, { timeout: 5_000 })
-    .toBeGreaterThanOrEqual(12);
-  await page.evaluate(() => {
-    const api = (
-      window as Window & {
-        __WEB_THREE_CITY_TIME__?: {
-          setSpeed(speed: 'paused' | 'normal' | 'fast' | 'faster'): void;
-        };
-      }
-    ).__WEB_THREE_CITY_TIME__;
-    if (api === undefined) throw new Error('growth-reservation:missing-time-api');
-    api.setSpeed('paused');
-  });
+  // This test owns Growth reservation semantics, not real-time clock throughput.
+  // Keep the stroke active while advancing the exact logical ticks deterministically;
+  // x4 wall-clock behavior is covered separately by the time controls/manual visual gate.
+  const afterGrowth = await stepLogicalTicks(page, 4);
+  expect(afterGrowth.simulation.absoluteTick).toBe(12);
+  expect(afterGrowth.speed).toBe('paused');
 
   await expect(page.locator('.city-tool-context-name')).toHaveText('Remove Zone');
   await expect(page.getByTestId('nav-build')).toHaveAttribute('aria-pressed', 'false');

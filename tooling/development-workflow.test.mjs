@@ -203,7 +203,7 @@ test('development workflow reserves Full Browser for explicit escalation', async
   const workflow = await readRepoText('docs/development-workflow.md');
   assert.match(workflow, /browser-observable.*targeted.*Playwright/is);
   assert.match(workflow, /Targeted browser tags:\s*traffic building/i);
-  assert.match(workflow, /targeted-browser job.*Lean artifact/is);
+  assert.match(workflow, /Browser CI.*targeted mode.*Lean artifact/is);
   assert.match(workflow, /Full Browser.*not.*default.*every PR/is);
   assert.match(workflow, /release.*milestone.*shared browser infrastructure/is);
   assert.match(workflow, /nightly/i);
@@ -212,7 +212,7 @@ test('development workflow reserves Full Browser for explicit escalation', async
 test('Development Workflow living handoff records targeted browser CI', async () => {
   const readme = await readRepoText('docs/systems/development-workflow/README.md');
   assert.match(readme, /Targeted browser tags:\s*traffic building/i);
-  assert.match(readme, /targeted-browser CI job.*Lean preview artifact/is);
+  assert.match(readme, /Browser CI targeted mode.*Lean preview artifact/is);
   assert.match(readme, /Full Browser is not the default gate for every PR/i);
 });
 

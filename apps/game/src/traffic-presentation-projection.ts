@@ -48,6 +48,12 @@ export interface TrafficPresentationSnapshot {
   readonly edges: readonly TrafficEdgeProjection[];
 }
 
+export interface TrafficPresentationRouteSegment {
+  readonly edgeId: string;
+  readonly from: TrafficPresentationPointQ;
+  readonly to: TrafficPresentationPointQ;
+}
+
 function withBuildingRevision(graph: TrafficGraph, revision: number): TrafficGraph {
   return Object.freeze({ ...graph, sourceBuildingRevision: revision });
 }
@@ -62,7 +68,9 @@ function verticalRenderQ(valueQ: number): number {
   return Math.round(logicalLevel * WORLD_CONFIG.heightStep * RENDER_Q_PER_UNIT);
 }
 
-function point(node: Readonly<{ xQ: number; yQ: number; zQ: number }>): TrafficPresentationPointQ {
+export function trafficPresentationPointForGraphNode(
+  node: Readonly<{ xQ: number; yQ: number; zQ: number }>,
+): TrafficPresentationPointQ {
   return Object.freeze({
     xQ: horizontalRenderQ(node.xQ, WORLD_HALF_X_Q),
     yQ: verticalRenderQ(node.yQ),
@@ -70,11 +78,10 @@ function point(node: Readonly<{ xQ: number; yQ: number; zQ: number }>): TrafficP
   });
 }
 
-export function createTrafficPresentationSnapshot(input: Readonly<{
-  traffic: TrafficSnapshotV1;
+function graphsFor(input: Readonly<{
   roads: RoadTrafficSourceProjection;
   buildingAccess: BuildingTrafficAccessProjection;
-}>): TrafficPresentationSnapshot {
+}>): Readonly<{ walk: TrafficGraph; drive: TrafficGraph; combined: TrafficGraph }> {
   const walk = withBuildingRevision(
     derivePedestrianTrafficGraph(input.roads),
     input.buildingAccess.buildingRevision,
@@ -83,16 +90,57 @@ export function createTrafficPresentationSnapshot(input: Readonly<{
     deriveVehicleTrafficGraph(input.roads),
     input.buildingAccess.buildingRevision,
   );
-  const combined: TrafficGraph = Object.freeze({
-    sourceRoadRevision: input.roads.roadRevision,
-    sourceBuildingRevision: input.buildingAccess.buildingRevision,
-    nodes: Object.freeze([...walk.nodes, ...drive.nodes]),
-    edges: Object.freeze([...walk.edges, ...drive.edges]),
+  const nodeMap = new Map([...walk.nodes, ...drive.nodes].map((node) => [node.nodeId, node] as const));
+  return Object.freeze({
+    walk,
+    drive,
+    combined: Object.freeze({
+      sourceRoadRevision: input.roads.roadRevision,
+      sourceBuildingRevision: input.buildingAccess.buildingRevision,
+      nodes: Object.freeze([...nodeMap.values()]),
+      edges: Object.freeze([...walk.edges, ...drive.edges]),
+    }),
   });
-  const nodeById = new Map(combined.nodes.map((node) => [node.nodeId, node] as const));
-  const edgeById = new Map(combined.edges.map((edge) => [edge.edgeId, edge] as const));
+}
+
+export function createTrafficPresentationRouteSegments(input: Readonly<{
+  roads: RoadTrafficSourceProjection;
+  buildingAccess: BuildingTrafficAccessProjection;
+  mode: 'Walk' | 'Drive';
+  routeEdgeIds: readonly string[];
+}>): readonly TrafficPresentationRouteSegment[] {
+  const graphs = graphsFor(input);
+  const graph = input.mode === 'Walk' ? graphs.walk : graphs.drive;
+  const nodeById = new Map(graph.nodes.map((node) => [node.nodeId, node] as const));
+  const edgeById = new Map(graph.edges.map((edge) => [edge.edgeId, edge] as const));
+  return Object.freeze(
+    input.routeEdgeIds.flatMap((edgeId) => {
+      const edge = edgeById.get(edgeId);
+      if (edge === undefined) return [];
+      const from = nodeById.get(edge.fromNodeId);
+      const to = nodeById.get(edge.toNodeId);
+      if (from === undefined || to === undefined) return [];
+      return [
+        Object.freeze({
+          edgeId,
+          from: trafficPresentationPointForGraphNode(from),
+          to: trafficPresentationPointForGraphNode(to),
+        }),
+      ];
+    }),
+  );
+}
+
+export function createTrafficPresentationSnapshot(input: Readonly<{
+  traffic: TrafficSnapshotV1;
+  roads: RoadTrafficSourceProjection;
+  buildingAccess: BuildingTrafficAccessProjection;
+}>): TrafficPresentationSnapshot {
+  const graphs = graphsFor(input);
+  const nodeById = new Map(graphs.combined.nodes.map((node) => [node.nodeId, node] as const));
+  const edgeById = new Map(graphs.combined.edges.map((edge) => [edge.edgeId, edge] as const));
   const logicalTripById = new Map(input.traffic.activeTrips.map((trip) => [trip.tripId, trip] as const));
-  const projection = createTrafficProjection({ snapshot: input.traffic, graph: combined });
+  const projection = createTrafficProjection({ snapshot: input.traffic, graph: graphs.combined });
   const agents = projection.agents.flatMap((agent) => {
     const edge = edgeById.get(agent.routeEdgeId);
     if (edge === undefined) return [];
@@ -112,9 +160,9 @@ export function createTrafficPresentationSnapshot(input: Readonly<{
       const nextNode = nextEdge === undefined ? undefined : nodeById.get(nextEdge.toNodeId);
       if (nextEdge !== undefined && nextNode !== undefined && nextEdge.fromNodeId === edge.toNodeId) {
         turn = Object.freeze({
-          previous: point(from),
-          corner: point(to),
-          next: point(nextNode),
+          previous: trafficPresentationPointForGraphNode(from),
+          corner: trafficPresentationPointForGraphNode(to),
+          next: trafficPresentationPointForGraphNode(nextNode),
           turnProgressQ: Math.min(
             TRAFFIC_PROGRESS_MAX_Q,
             Math.floor(((agent.progressQ - 850_000) * TRAFFIC_PROGRESS_MAX_Q) / 150_000),
@@ -125,8 +173,8 @@ export function createTrafficPresentationSnapshot(input: Readonly<{
     return [
       Object.freeze({
         ...agent,
-        from: point(from),
-        to: point(to),
+        from: trafficPresentationPointForGraphNode(from),
+        to: trafficPresentationPointForGraphNode(to),
         turn,
       }),
     ];

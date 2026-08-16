@@ -76,8 +76,7 @@ function materializeCandidate<T extends TrafficSpatialAgent>(
     candidate.distanceSquared <= nearRadiusSquared && counters.near < policy.maxCombinedFullDetail
       ? 'Near'
       : 'Mid';
-  const updateEvery =
-    tier === 'Near' ? policy.nearUpdateEveryFrames : policy.midUpdateEveryFrames;
+  const updateEvery = tier === 'Near' ? policy.nearUpdateEveryFrames : policy.midUpdateEveryFrames;
   return Object.freeze({
     agent: candidate.agent,
     tier,

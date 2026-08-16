@@ -65,7 +65,7 @@ const graph: TrafficGraph = Object.freeze({
   ]),
 });
 
-function trip(id: string, progressQ = 0): ActiveTransportTrip {
+function trip(id: string): ActiveTransportTrip {
   const route = planTransportRoute(graph, {
     requestTripId: id,
     citizenId: `citizen-${id}`,

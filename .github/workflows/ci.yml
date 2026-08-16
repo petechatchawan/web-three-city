@@ -55,7 +55,17 @@ jobs:
         run: node --test tooling/verification-scripts.test.mjs
       - name: Test clean-worktree verifier
         run: node --test tooling/verify-clean-worktree.test.mjs
-      - name: Test packages
+      - name: Test Citizen Mobility core
+        run: pnpm --filter @web-three-city/citizen-mobility-core test
+      - name: Test Traffic core
+        run: pnpm --filter @web-three-city/traffic-core test
+      - name: Test Traffic Three
+        run: pnpm --filter @web-three-city/traffic-three test
+      - name: Test Building Three
+        run: pnpm --filter @web-three-city/building-three test
+      - name: Test Game
+        run: pnpm --filter @web-three-city/game test
+      - name: Test remaining package aggregate
         run: pnpm test
       - name: Build packages
         run: pnpm build

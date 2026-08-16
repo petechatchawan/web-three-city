@@ -4,6 +4,7 @@ import {
   TrafficSpatialIndex,
   TrafficVehiclePool,
   deriveVehicleVisualPlacements,
+  sampleRouteEdgePosition,
   selectTrafficAgentsForMaterialization,
   type TrafficPresentationPolicy,
 } from '@web-three-city/traffic-three';
@@ -61,6 +62,36 @@ export class TrafficPresentation {
     return this.#visibleAgents;
   }
 
+  pickNearestAgent(
+    input: Readonly<{ x: number; z: number; maxDistance: number }>,
+  ): TrafficPresentationAgent | null {
+    if (!Number.isFinite(input.x) || !Number.isFinite(input.z) || !Number.isFinite(input.maxDistance)) {
+      throw new RangeError('traffic-presentation:invalid-pick-query');
+    }
+    if (input.maxDistance < 0) throw new RangeError('traffic-presentation:invalid-pick-query');
+
+    const maximumDistanceSquared = input.maxDistance * input.maxDistance;
+    let nearest: TrafficPresentationAgent | null = null;
+    let nearestDistanceSquared = Number.POSITIVE_INFINITY;
+    for (const agent of this.#visibleAgents) {
+      const position = sampleRouteEdgePosition(agent.from, agent.to, agent.progressQ);
+      const dx = position.x - input.x;
+      const dz = position.z - input.z;
+      const distanceSquared = dx * dx + dz * dz;
+      if (distanceSquared > maximumDistanceSquared) continue;
+      if (
+        distanceSquared < nearestDistanceSquared ||
+        (distanceSquared === nearestDistanceSquared &&
+          nearest !== null &&
+          agent.tripId < nearest.tripId)
+      ) {
+        nearest = agent;
+        nearestDistanceSquared = distanceSquared;
+      }
+    }
+    return nearest;
+  }
+
   update(
     snapshot: TrafficPresentationSnapshot,
     camera: TrafficPresentationCameraQuery,
@@ -95,11 +126,13 @@ export class TrafficPresentation {
     const vehiclePlacementByTrip = new Map(
       vehiclePlacements.map((placement) => [placement.tripId, placement] as const),
     );
+    const visibleAgents: TrafficPresentationAgent[] = [];
 
     for (const selected of selection.selected) {
       const agent = selected.agent;
       if (agent.mode === 'Walk') {
         retainedPedestrians.add(agent.tripId);
+        visibleAgents.push(agent);
         if (!selected.updateDue && this.#pedestrians.has(agent.tripId)) continue;
         const visual = this.#pedestrians.acquire({
           tripId: agent.tripId,
@@ -115,13 +148,18 @@ export class TrafficPresentation {
       }
 
       retainedVehicles.add(agent.tripId);
-      if (!selected.updateDue && this.#vehicles.has(agent.tripId)) continue;
       const placement = vehiclePlacementByTrip.get(agent.tripId);
+      const visualAgent = Object.freeze({
+        ...agent,
+        progressQ: placement?.adjustedProgressQ ?? agent.progressQ,
+      });
+      visibleAgents.push(visualAgent);
+      if (!selected.updateDue && this.#vehicles.has(agent.tripId)) continue;
       const visual = this.#vehicles.acquire({
         tripId: agent.tripId,
         citizenId: agent.citizenId,
         routeEdgeId: agent.routeEdgeId,
-        progressQ: placement?.adjustedProgressQ ?? agent.progressQ,
+        progressQ: visualAgent.progressQ,
         queued: agent.queued,
         from: agent.from,
         to: agent.to,
@@ -132,9 +170,7 @@ export class TrafficPresentation {
 
     this.#pedestrians.retainOnly(retainedPedestrians);
     this.#vehicles.retainOnly(retainedVehicles);
-    this.#visibleAgents = Object.freeze(
-      selection.selected.map(({ agent }) => agent).sort(compareAgentIdentity),
-    );
+    this.#visibleAgents = Object.freeze(visibleAgents.sort(compareAgentIdentity));
     this.#lastTrafficRevision = snapshot.trafficRevision;
     this.#debug = Object.freeze({
       trafficRevision: snapshot.trafficRevision,

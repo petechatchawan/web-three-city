@@ -32,19 +32,6 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
-      - name: Capture traffic formatter diff
-        run: |
-          pnpm exec prettier --write \
-            apps/game/src/traffic-presentation.ts \
-            apps/game/src/traffic-runtime-presentation.ts \
-            packages/traffic-three/src/pedestrian-agent.ts \
-            packages/traffic-three/src/vehicle-agent.ts
-          git diff -- \
-            apps/game/src/traffic-presentation.ts \
-            apps/game/src/traffic-runtime-presentation.ts \
-            packages/traffic-three/src/pedestrian-agent.ts \
-            packages/traffic-three/src/vehicle-agent.ts
-          exit 1
       - run: pnpm check
       - name: Archive lean build outputs
         run: tar -czf lean-builds.tar.gz apps/game/dist apps/terrain-lab/dist

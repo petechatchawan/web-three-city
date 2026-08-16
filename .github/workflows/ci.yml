@@ -31,8 +31,16 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
       # Diagnostic decomposition of the canonical Lean owner command: pnpm check
-      - name: Check formatting
-        run: pnpm format:check
+      - name: Diagnose formatting
+        run: |
+          pnpm format
+          changed="$(git diff --name-only)"
+          if [ -n "$changed" ]; then
+            while IFS= read -r file; do
+              echo "::error file=$file,line=1::Prettier would modify this file"
+            done <<< "$changed"
+            exit 1
+          fi
       - name: Lint
         run: pnpm lint
       - name: Typecheck

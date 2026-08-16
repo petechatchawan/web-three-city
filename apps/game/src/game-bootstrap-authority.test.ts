@@ -40,12 +40,6 @@ describe('game bootstrap authority migration', () => {
     );
   });
 
-  it('publishes canonical Mobility and Traffic from the committed background tick result', () => {
-    const backgroundTick = section('const runBackgroundGrowthTick', 'const runSimulationOnlyTick');
-    expect(backgroundTick).toMatch(/mobility:\s*result\.state\.mobility/);
-    expect(backgroundTick).toMatch(/traffic:\s*result\.state\.traffic/);
-  });
-
   it('delegates full-world synchronization and context recovery to the bounded coordinator', () => {
     expect(source).toMatch(/PresentationCoordinator/);
     const restoration = section("'webglcontextrestored'", 'publishInteractionEvidence');

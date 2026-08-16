@@ -1,5 +1,6 @@
 import {
   commitPlannedMobilityTrip,
+  formatMobilityTripId,
   type MobilityModeCandidate,
   type MobilityTripPlanningRequest,
 } from '@web-three-city/citizen-mobility-core';
@@ -38,7 +39,7 @@ export function createTrafficRecoveryReleaseFixture(): TrafficRecoveryReleaseFix
   const citizenId = base.summary.driveCitizenIds[0]!;
   const originBuildingId = base.summary.homeBuildingByCitizen[citizenId]!;
   const destinationBuildingId = base.summary.workBuildingByCitizen[citizenId]!;
-  const tripId = `trip:${world.mobility.nextTripSequence}`;
+  const tripId = formatMobilityTripId(world.mobility.nextTripSequence);
   const roadSource = createRoadTrafficSourceProjectionFromEnvironment(
     world.roads,
     world.environments.building,

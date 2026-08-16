@@ -30,6 +30,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
+      # Diagnostic decomposition of the canonical Lean owner command: pnpm check
       - name: Check formatting
         run: pnpm format:check
       - name: Lint

@@ -42,6 +42,76 @@ jobs:
           path: lean-builds.tar.gz
           if-no-files-found: error
 
+  targeted-browser:
+    name: Targeted browser verification
+    needs: lean
+    if: >-
+      github.event_name == 'pull_request' &&
+      contains(github.event.pull_request.body || '', 'Targeted browser tags:')
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Download lean build outputs
+        uses: actions/download-artifact@v4
+        with:
+          name: lean-builds
+      - name: Restore lean build outputs
+        run: |
+          tar -xzf lean-builds.tar.gz
+          test -d apps/game/dist
+          test -d apps/terrain-lab/dist
+          rm lean-builds.tar.gz
+      - name: Resolve targeted browser tags
+        id: targets
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const body = process.env.PR_BODY ?? '';
+          const match = body.match(/^Targeted browser tags:\s*(.+)$/im);
+          if (match === null) throw new Error('targeted-browser:missing-tags');
+          const allowed = new Set([
+            'smoke',
+            'terrain',
+            'water',
+            'road',
+            'zoning',
+            'building',
+            'rci',
+            'traffic',
+            'interaction',
+          ]);
+          const tags = [...new Set(match[1].split(/[\s,]+/).filter(Boolean))];
+          if (tags.length === 0 || tags.some((tag) => !allowed.has(tag))) {
+            throw new Error(`targeted-browser:invalid-tags:${tags.join(',')}`);
+          }
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `grep=${tags.map((tag) => `@${tag}`).join('|')}\n`);
+          NODE
+      - run: ./node_modules/.bin/playwright install chromium
+      - name: Run targeted browser ownership sets
+        env:
+          GREP: ${{ steps.targets.outputs.grep }}
+        run: ./node_modules/.bin/playwright test --grep "$GREP" --project=chromium
+      - run: node tooling/verify-clean-worktree.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: targeted-browser-evidence
+          path: |
+            playwright-report
+            test-results
+          if-no-files-found: ignore
+
   browser:
     name: Full browser verification
     needs: lean

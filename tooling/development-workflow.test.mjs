@@ -183,6 +183,7 @@ test('PR template delegates affected-consumer decisions to AGENTS and enforces s
 test('PR template separates targeted browser evidence from Full Browser escalation', async () => {
   const template = await readRepoText('.github/pull_request_template.md');
   assert.match(template, /Targeted browser verification/i);
+  assert.match(template, /Targeted browser tags:/i);
   assert.match(template, /Full Browser escalation decision/i);
   assert.match(template, /required.*not required/is);
 });
@@ -201,6 +202,8 @@ test('development workflow documents master trunk and package-targeted iteration
 test('development workflow reserves Full Browser for explicit escalation', async () => {
   const workflow = await readRepoText('docs/development-workflow.md');
   assert.match(workflow, /browser-observable.*targeted.*Playwright/is);
+  assert.match(workflow, /Targeted browser tags:\s*traffic building/i);
+  assert.match(workflow, /targeted-browser job.*Lean artifact/is);
   assert.match(workflow, /Full Browser.*not.*default.*every PR/is);
   assert.match(workflow, /release.*milestone.*shared browser infrastructure/is);
   assert.match(workflow, /nightly/i);

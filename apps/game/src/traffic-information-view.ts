@@ -19,6 +19,8 @@ import {
   createRoadTrafficSourceProjectionFromEnvironment,
 } from './traffic-source-projection.js';
 
+const TRAFFIC_Q_PER_METER = 1_000;
+const TRAFFIC_CELL_METERS = 8;
 const WORLD_HALF_X = (WORLD_CONFIG.mapWidth * WORLD_CONFIG.cellSize) / 2;
 const WORLD_HALF_Z = (WORLD_CONFIG.mapHeight * WORLD_CONFIG.cellSize) / 2;
 
@@ -43,6 +45,22 @@ function severityFor(congestionMilli: number, loadRatioMilli: number): TrafficSe
 
 function withBuildingRevision(graph: TrafficGraph, revision: number): TrafficGraph {
   return Object.freeze({ ...graph, sourceBuildingRevision: revision });
+}
+
+function renderPoint(node: Readonly<{ xQ: number; yQ: number; zQ: number }>): Readonly<{
+  x: number;
+  y: number;
+  z: number;
+}> {
+  return Object.freeze({
+    x:
+      (node.xQ / (TRAFFIC_CELL_METERS * TRAFFIC_Q_PER_METER)) * WORLD_CONFIG.cellSize -
+      WORLD_HALF_X,
+    y: (node.yQ / TRAFFIC_Q_PER_METER) * WORLD_CONFIG.heightStep + 0.12,
+    z:
+      (node.zQ / (TRAFFIC_CELL_METERS * TRAFFIC_Q_PER_METER)) * WORLD_CONFIG.cellSize -
+      WORLD_HALF_Z,
+  });
 }
 
 export function createTrafficInformationEdges(world: CommittedWorld): readonly TrafficInformationEdge[] {
@@ -82,16 +100,8 @@ export function createTrafficInformationEdges(world: CommittedWorld): readonly T
             loadRatioMilli: edge.loadRatioMilli,
             queueDelaySeconds: edge.queueDelaySeconds,
             severity: severityFor(edge.congestionMilli, edge.loadRatioMilli),
-            from: Object.freeze({
-              x: from.xQ / 1000 - WORLD_HALF_X,
-              y: from.yQ / 1000 + 0.12,
-              z: from.zQ / 1000 - WORLD_HALF_Z,
-            }),
-            to: Object.freeze({
-              x: to.xQ / 1000 - WORLD_HALF_X,
-              y: to.yQ / 1000 + 0.12,
-              z: to.zQ / 1000 - WORLD_HALF_Z,
-            }),
+            from: renderPoint(from),
+            to: renderPoint(to),
           }),
         ];
       })

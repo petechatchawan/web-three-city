@@ -55,48 +55,33 @@ function betterCandidate(
   return compareTrafficId(incomingEdgeId, current.incomingEdgeId) < 0;
 }
 
-export function planTransportRoute(
-  graph: TrafficGraph,
-  request: TransportRouteRequest,
-  costField?: TrafficCostField,
-): TransportRouteCandidate {
-  validateTrafficGraph(graph);
-  assertTrafficId(request.requestTripId);
-  assertTrafficId(request.citizenId);
-  assertTrafficId(request.originAccessNodeId);
-  assertTrafficId(request.destinationAccessNodeId);
+function unavailableCandidate(request: TransportRouteRequest): TransportRouteCandidate {
+  return Object.freeze({
+    requestTripId: request.requestTripId,
+    mode: request.mode,
+    available: false,
+    generalizedCostSeconds: null,
+    routeEdgeIds: Object.freeze([]),
+  });
+}
 
-  const nodeIds = new Set(graph.nodes.map((node) => node.nodeId));
-  if (!nodeIds.has(request.originAccessNodeId) || !nodeIds.has(request.destinationAccessNodeId)) {
-    return Object.freeze({
-      requestTripId: request.requestTripId,
-      mode: request.mode,
-      available: false,
-      generalizedCostSeconds: null,
-      routeEdgeIds: Object.freeze([]),
-    });
-  }
-  if (request.originAccessNodeId === request.destinationAccessNodeId) {
-    return Object.freeze({
-      requestTripId: request.requestTripId,
-      mode: request.mode,
-      available: true,
-      generalizedCostSeconds: 0,
-      routeEdgeIds: Object.freeze([]),
-    });
-  }
-
+function buildAdjacency(graph: TrafficGraph, mode: TrafficMode): ReadonlyMap<string, TrafficGraphEdge[]> {
   const adjacency = new Map<string, TrafficGraphEdge[]>();
   for (const edge of graph.edges) {
-    if (edge.mode !== request.mode) continue;
+    if (edge.mode !== mode) continue;
     const list = adjacency.get(edge.fromNodeId) ?? [];
     list.push(edge);
     adjacency.set(edge.fromNodeId, list);
   }
-  for (const list of adjacency.values()) {
-    list.sort((a, b) => compareTrafficId(a.edgeId, b.edgeId));
-  }
+  for (const list of adjacency.values()) list.sort((a, b) => compareTrafficId(a.edgeId, b.edgeId));
+  return adjacency;
+}
 
+function findBestStates(
+  adjacency: ReadonlyMap<string, TrafficGraphEdge[]>,
+  request: TransportRouteRequest,
+  costField?: TrafficCostField,
+): ReadonlyMap<string, BestState> {
   const best = new Map<string, BestState>();
   best.set(request.originAccessNodeId, {
     cost: 0,
@@ -128,8 +113,7 @@ export function planTransportRoute(
     for (const edge of adjacency.get(current.nodeId) ?? []) {
       const nextCost = current.totalCostSeconds + edgeCostSeconds(edge, request.mode, costField);
       const nextTraversals = current.traversalCount + 1;
-      const existing = best.get(edge.toNodeId);
-      if (!betterCandidate(nextCost, nextTraversals, edge.edgeId, existing)) continue;
+      if (!betterCandidate(nextCost, nextTraversals, edge.edgeId, best.get(edge.toNodeId))) continue;
       best.set(edge.toNodeId, {
         cost: nextCost,
         traversalCount: nextTraversals,
@@ -144,41 +128,64 @@ export function planTransportRoute(
       });
     }
   }
+  return best;
+}
 
-  const destination = best.get(request.destinationAccessNodeId);
-  if (destination === undefined) {
-    return Object.freeze({
-      requestTripId: request.requestTripId,
-      mode: request.mode,
-      available: false,
-      generalizedCostSeconds: null,
-      routeEdgeIds: Object.freeze([]),
-    });
-  }
-
+function reconstructRoute(
+  best: ReadonlyMap<string, BestState>,
+  request: TransportRouteRequest,
+): readonly string[] | null {
   const route: string[] = [];
   let cursor = request.destinationAccessNodeId;
   while (cursor !== request.originAccessNodeId) {
     const state = best.get(cursor);
     if (state === undefined || state.previousNodeId === null || state.incomingEdgeId.length === 0) {
-      return Object.freeze({
-        requestTripId: request.requestTripId,
-        mode: request.mode,
-        available: false,
-        generalizedCostSeconds: null,
-        routeEdgeIds: Object.freeze([]),
-      });
+      return null;
     }
     route.push(state.incomingEdgeId);
     cursor = state.previousNodeId;
   }
   route.reverse();
+  return Object.freeze(route);
+}
+
+export function planTransportRoute(
+  graph: TrafficGraph,
+  request: TransportRouteRequest,
+  costField?: TrafficCostField,
+): TransportRouteCandidate {
+  validateTrafficGraph(graph);
+  assertTrafficId(request.requestTripId);
+  assertTrafficId(request.citizenId);
+  assertTrafficId(request.originAccessNodeId);
+  assertTrafficId(request.destinationAccessNodeId);
+
+  const nodeIds = new Set(graph.nodes.map((node) => node.nodeId));
+  if (!nodeIds.has(request.originAccessNodeId) || !nodeIds.has(request.destinationAccessNodeId)) {
+    return unavailableCandidate(request);
+  }
+  if (request.originAccessNodeId === request.destinationAccessNodeId) {
+    return Object.freeze({
+      requestTripId: request.requestTripId,
+      mode: request.mode,
+      available: true,
+      generalizedCostSeconds: 0,
+      routeEdgeIds: Object.freeze([]),
+    });
+  }
+
+  const best = findBestStates(buildAdjacency(graph, request.mode), request, costField);
+  const destination = best.get(request.destinationAccessNodeId);
+  if (destination === undefined) return unavailableCandidate(request);
+  const routeEdgeIds = reconstructRoute(best, request);
+  if (routeEdgeIds === null) return unavailableCandidate(request);
+
   return Object.freeze({
     requestTripId: request.requestTripId,
     mode: request.mode,
     available: true,
     generalizedCostSeconds: destination.cost,
-    routeEdgeIds: Object.freeze(route),
+    routeEdgeIds,
   });
 }
 

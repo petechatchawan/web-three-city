@@ -33,15 +33,18 @@ jobs:
       # Diagnostic decomposition of the canonical Lean owner command: pnpm check
       - name: Capture exact Prettier output
         run: |
-          pnpm format
-          changed="$(git diff --name-only)"
-          if [ -n "$changed" ]; then
-            while IFS= read -r file; do
-              encoded="$(base64 -w0 "$file")"
-              echo "::error file=$file,line=1::PRETTIER_BASE64:$encoded"
-            done <<< "$changed"
-            exit 1
-          fi
+          files=(
+            packages/traffic-core/src/graph-reconciler.ts
+            packages/traffic-core/src/route-planner.ts
+            packages/traffic-three/src/traffic-agent-materializer.ts
+          )
+          pnpm exec prettier --write --log-level silent "${files[@]}"
+          for file in "${files[@]}"; do
+            echo "FORMAT_START:$file"
+            base64 -w 3000 "$file" | sed 's/^/FORMAT_DATA:/'
+            echo "FORMAT_END:$file"
+          done
+          exit 1
       - name: Lint
         run: pnpm lint
       - name: Typecheck

@@ -13,6 +13,12 @@ export interface MobilityReconciliationResult {
   readonly destinationRevalidationTripIds: readonly string[];
 }
 
+interface ExistingStateResolution {
+  readonly state: CitizenMobilityState | null;
+  readonly cancelledTripId: string | null;
+  readonly destinationRevalidationTripId: string | null;
+}
+
 function initialStateFor(citizen: PresentCitizenMobilityProjection): CitizenMobilityState {
   if (citizen.homeBuildingId !== null) {
     return Object.freeze({
@@ -51,6 +57,77 @@ function authoritativeDestination(
   return trip.purpose === 'CommuteToWork' ? citizen.workBuildingId : citizen.homeBuildingId;
 }
 
+function absentCitizenResolution(state: CitizenMobilityState): ExistingStateResolution {
+  return Object.freeze({
+    state: null,
+    cancelledTripId: state.activeTripId,
+    destinationRevalidationTripId: null,
+  });
+}
+
+function travelStateResolution(
+  state: CitizenMobilityState,
+  citizen: PresentCitizenMobilityProjection,
+  tripById: ReadonlyMap<string, MobilityTrip>,
+): ExistingStateResolution {
+  const trip = tripById.get(state.activeTripId!);
+  if (trip === undefined) throw new MobilityContractError('mobility:missing-active-trip');
+  const latestDestination = authoritativeDestination(trip, citizen);
+  const requiresRevalidation =
+    latestDestination === null || latestDestination !== trip.destinationBuildingId;
+  return Object.freeze({
+    state,
+    cancelledTripId: null,
+    destinationRevalidationTripId: requiresRevalidation ? trip.tripId : null,
+  });
+}
+
+function stationaryStateFor(
+  state: CitizenMobilityState,
+  citizen: PresentCitizenMobilityProjection,
+): CitizenMobilityState {
+  if (state.currentActivity === 'Home') {
+    return citizen.homeBuildingId !== null
+      ? Object.freeze({ ...state, stationaryBuildingId: citizen.homeBuildingId })
+      : Object.freeze({
+          ...state,
+          currentActivity: 'Idle',
+          stationaryBuildingId: citizen.workBuildingId,
+        });
+  }
+  if (state.currentActivity === 'Work') {
+    return citizen.workBuildingId !== null
+      ? Object.freeze({ ...state, stationaryBuildingId: citizen.workBuildingId })
+      : Object.freeze({
+          ...state,
+          currentActivity: citizen.homeBuildingId === null ? 'Idle' : 'Home',
+          stationaryBuildingId: citizen.homeBuildingId,
+        });
+  }
+  return state.stationaryBuildingId !== null
+    ? state
+    : Object.freeze({
+        ...state,
+        stationaryBuildingId: citizen.homeBuildingId ?? citizen.workBuildingId,
+      });
+}
+
+function resolveExistingState(
+  state: CitizenMobilityState,
+  citizen: PresentCitizenMobilityProjection | undefined,
+  tripById: ReadonlyMap<string, MobilityTrip>,
+): ExistingStateResolution {
+  if (citizen === undefined || !citizen.present) return absentCitizenResolution(state);
+  if (state.currentActivity === 'Travel' && state.activeTripId !== null) {
+    return travelStateResolution(state, citizen, tripById);
+  }
+  return Object.freeze({
+    state: stationaryStateFor(state, citizen),
+    cancelledTripId: null,
+    destinationRevalidationTripId: null,
+  });
+}
+
 export function reconcileMobilityCitizens(
   input: Readonly<{
     snapshot: MobilitySnapshotV1;
@@ -68,64 +145,15 @@ export function reconcileMobilityCitizens(
   const cancelled = new Set<string>();
 
   for (const state of snapshot.citizenStates) {
-    const citizen = projectionById.get(state.citizenId);
-    if (citizen === undefined || !citizen.present) {
-      if (state.activeTripId !== null) {
-        cancelledTripIds.push(state.activeTripId);
-        cancelled.add(state.activeTripId);
-      }
-      continue;
+    const resolution = resolveExistingState(state, projectionById.get(state.citizenId), tripById);
+    if (resolution.state !== null) nextStates.push(resolution.state);
+    if (resolution.cancelledTripId !== null) {
+      cancelledTripIds.push(resolution.cancelledTripId);
+      cancelled.add(resolution.cancelledTripId);
     }
-
-    if (state.currentActivity === 'Travel' && state.activeTripId !== null) {
-      const trip = tripById.get(state.activeTripId);
-      if (trip === undefined) throw new MobilityContractError('mobility:missing-active-trip');
-      const latestDestination = authoritativeDestination(trip, citizen);
-      if (latestDestination === null || latestDestination !== trip.destinationBuildingId) {
-        destinationRevalidationTripIds.push(trip.tripId);
-      }
-      nextStates.push(state);
-      continue;
+    if (resolution.destinationRevalidationTripId !== null) {
+      destinationRevalidationTripIds.push(resolution.destinationRevalidationTripId);
     }
-
-    if (state.currentActivity === 'Home') {
-      if (citizen.homeBuildingId !== null) {
-        nextStates.push(Object.freeze({ ...state, stationaryBuildingId: citizen.homeBuildingId }));
-      } else {
-        nextStates.push(
-          Object.freeze({
-            ...state,
-            currentActivity: 'Idle',
-            stationaryBuildingId: citizen.workBuildingId,
-          }),
-        );
-      }
-      continue;
-    }
-
-    if (state.currentActivity === 'Work') {
-      if (citizen.workBuildingId !== null) {
-        nextStates.push(Object.freeze({ ...state, stationaryBuildingId: citizen.workBuildingId }));
-      } else {
-        nextStates.push(
-          Object.freeze({
-            ...state,
-            currentActivity: citizen.homeBuildingId === null ? 'Idle' : 'Home',
-            stationaryBuildingId: citizen.homeBuildingId,
-          }),
-        );
-      }
-      continue;
-    }
-
-    nextStates.push(
-      state.stationaryBuildingId !== null
-        ? state
-        : Object.freeze({
-            ...state,
-            stationaryBuildingId: citizen.homeBuildingId ?? citizen.workBuildingId,
-          }),
-    );
   }
 
   const existingIds = new Set(nextStates.map((state) => state.citizenId));

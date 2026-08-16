@@ -65,7 +65,11 @@ export class TrafficPresentation {
   pickNearestAgent(
     input: Readonly<{ x: number; z: number; maxDistance: number }>,
   ): TrafficPresentationAgent | null {
-    if (!Number.isFinite(input.x) || !Number.isFinite(input.z) || !Number.isFinite(input.maxDistance)) {
+    if (
+      !Number.isFinite(input.x) ||
+      !Number.isFinite(input.z) ||
+      !Number.isFinite(input.maxDistance)
+    ) {
       throw new RangeError('traffic-presentation:invalid-pick-query');
     }
     if (input.maxDistance < 0) throw new RangeError('traffic-presentation:invalid-pick-query');

@@ -36,6 +36,7 @@ City UI does **not** own simulation, Economy, RCI, World, Building, Road, Zoning
 - Population / RCI: current aggregate information only
 - Zoning: current demand/development information only
 - Roads: current network information only
+- Traffic: current flow, queue, and congestion information only
 
 Do not create fake tabs or placeholder systems for capabilities that do not yet exist.
 
@@ -45,8 +46,9 @@ Do not create fake tabs or placeholder systems for capabilities that do not yet 
 - Road
 - Zone
 - Terrain
+- Citizen / Vehicle (read-only Traffic-linked inspect)
 
-Selection priority in Navigate mode is deterministic: Building → Road → Zone → Terrain. Inspect content is read-only unless an existing typed application command already owns the requested action.
+Selection priority in Navigate mode is deterministic: Building → Road → Zone → Terrain. Citizen/Vehicle inspect is resolved from committed Traffic presentation projections and is read-only unless an existing typed application command already owns the requested action.
 
 ## Persistence
 
@@ -152,6 +154,7 @@ arrives.
 - Inspect content is reprojected from the latest committed world. A target removed after opening renders `Unavailable` instead of stale values.
 - Active build tools retain world-input ownership; inspect does not switch tools or intercept placement.
 - The information-view registry enforces one active view and deterministic activate, replace, and deactivate lifecycle.
+- Traffic Information View and Citizen/Vehicle Inspect consume committed Mobility/Traffic projections, preserve modal background-input blocking, and do not reset active tools or simulation controls.
 - v0.1 exposes only the existing canonical grid and zoning visualization. Player projections exclude raw IDs, revisions, fingerprints, and debug state.
 
 ### Browser acceptance

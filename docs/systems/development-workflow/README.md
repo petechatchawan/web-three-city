@@ -1,6 +1,6 @@
 # Development Workflow System
 
-**Status:** Implemented — v0.2 policy candidate  
+**Status:** Implemented — Browser Verification Policy v0.2<br>
 **System:** Development Workflow  
 **Primary ownership:** repository root configuration, `.github/`, `AGENTS.md`, and development documentation  
 **Persistence:** Git-tracked repository configuration and documentation only

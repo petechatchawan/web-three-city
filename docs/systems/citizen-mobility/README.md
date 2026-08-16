@@ -1,10 +1,9 @@
 # Citizen Mobility System
 
-**Status:** Partial — core + commute logic implemented; world/traffic integration pending  
+**Status:** Implemented — v0.1 release candidate; owner visual acceptance pending<br>
 **Milestone:** Citizen Mobility & Traffic Foundation v0.1  
-**Planning baseline:** `master@6fb09e426147369dfaa274d55339994edf0e8e69`  
-**Primary ownership:** `packages/citizen-mobility-core`; atomic composition by `apps/game` is planned in PR6  
-**Planned persistence:** `MobilitySaveV1` inside `WorldSaveV7`
+**Primary ownership:** `packages/citizen-mobility-core`; atomic composition by `apps/game`<br>
+**Persistence:** `MobilitySaveV1` inside `WorldSaveV7`
 
 ## Purpose
 
@@ -51,6 +50,9 @@ The package has no dependency on `rci-core`, `building-core`, `road-core`, `traf
 - committed Active/Failed trip creation without storing Traffic route/progress;
 - lifecycle reconciliation for newly present/deceased/emigrated Citizens, Home/Job changes, and active-destination revalidation;
 - trip settlement back to Home/Work/Idle state.
+- `apps/game` projection of real RCI Citizens, Home, and Employment facts; no synthetic Citizen identity is created;
+- atomic Mobility + Traffic tick composition, including deterministic active-trip reconciliation after Road changes;
+- `WorldSaveV7` persistence and V1–V6 migration, with active Mobility/Traffic continuation and no synthetic historical trips.
 
 Source entry points:
 
@@ -63,9 +65,9 @@ Source entry points:
 - `packages/citizen-mobility-core/src/mobility-reconciler.ts`
 - `packages/citizen-mobility-core/src/persistence.ts`
 
-## Remaining Foundation Work
+## Current Limitations and Extension Points
 
-Traffic PR3–PR5 must provide real Walk/Drive candidate routes and progression. PR6 must project current RCI Housing/Employment facts, compose Mobility/Traffic atomically, migrate V1–V6 saves, and resume exact active trips. Three.js/UI/release slices remain downstream.
+Public transit, parking, private-car ownership, non-commute destination policy, and broader Citizen AI remain deferred. Traffic owns route topology, progression, queues, congestion, and recovery; `apps/game` remains the only composition boundary. Presentation and UI consume committed projections and cannot create or mutate Mobility authority.
 
 ## Planning Documents
 
@@ -75,4 +77,4 @@ Traffic PR3–PR5 must provide real Walk/Drive candidate routes and progression.
 - [ADR-0001 — Existing RCI Citizen remains identity authority](adrs/0001-existing-rci-citizen-remains-identity-authority.md)
 - Related: [RCI](../rci/README.md), [Buildings](../buildings/README.md), [Simulation Time](../simulation-time/README.md), [Traffic](../traffic/README.md)
 
-Verification is intentionally deferred until the final test phase requested for this execution run.
+Release verification covers deterministic commute lifecycle, Save/Load continuation, Road recovery, scale fixtures, and the targeted `@traffic|@building` browser ownership set. Owner-controlled manual visual acceptance remains the final gate for this release candidate.

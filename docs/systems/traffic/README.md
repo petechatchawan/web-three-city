@@ -1,10 +1,9 @@
 # Traffic System
 
-**Status:** Partial — traffic-core implemented; world/Three.js/UI integration pending  
+**Status:** Implemented — v0.1 release candidate; owner visual acceptance pending<br>
 **Milestone:** Citizen Mobility & Traffic Foundation v0.1  
-**Planning baseline:** `master@6fb09e426147369dfaa274d55339994edf0e8e69`  
-**Primary ownership:** `packages/traffic-core`, planned `packages/traffic-three`; atomic composition by `apps/game`  
-**Planned persistence:** `TrafficSaveV1` inside `WorldSaveV7`
+**Primary ownership:** `packages/traffic-core`, `packages/traffic-three`; atomic composition by `apps/game`<br>
+**Persistence:** `TrafficSaveV1` inside `WorldSaveV7`
 
 ## Purpose
 
@@ -56,12 +55,16 @@ Roads + Buildings + Simulation + Citizen Mobility
 - topology/destination route recovery from a stable logical node;
 - fail-closed `TrafficSaveV1` codec that persists route/progress/queue authority, never graph/cache/render state;
 - no imports from RCI, Mobility, Road, Building, DOM, or Three.js.
+- `apps/game` atomic integration with real Mobility trips, Road/Building projections, Simulation time, and deterministic Road-change recovery;
+- `WorldSaveV7` persistence and V1–V6 migration, preserving logical route/progress/queue state without synthetic trips;
+- `traffic-three` pooled pedestrian/vehicle materialization, spatial indexing, deterministic caps, and LOD where every materialized agent resolves to a real Citizen-linked trip;
+- Citizen/Vehicle Inspect projections and the localized Traffic Information View consume committed state without mutating Traffic authority.
 
 Flow policy v1 keeps zero-load time equal to free-flow and adds monotonic delay only when load exceeds edge capacity or queue wait exists. Ordinary congestion never reroutes an active trip; only topology/destination invalidation invokes recovery.
 
-## Remaining Foundation Work
+## Current Limitations and Extension Points
 
-PR6 integrates RCI/Road/Building/Mobility/Traffic into one committed world and `WorldSaveV7`. PR7–PR9 add real Three.js pedestrian/car materialization and production hardening. PR10–PR11 close Inspect/Traffic View/browser/performance/manual acceptance.
+Public transit, parking, signals, freight, accidents, and ordinary congestion-triggered mid-trip rerouting remain deferred. Road topology/destination invalidation can recover or fail active trips deterministically; ordinary congestion does not reroute an active trip in v0.1.
 
 ## Performance Contract
 
@@ -82,4 +85,4 @@ PR6 integrates RCI/Road/Building/Mobility/Traffic into one committed world and `
 - [ADR-0001 — Logical real trips with materialized visual agents](adrs/0001-logical-real-trips-materialized-visual-agents.md)
 - [ADR-0002 — Derived transport graphs and lagged congestion costs](adrs/0002-derived-transport-graphs-and-lagged-costs.md)
 
-Verification is intentionally deferred until the final test phase requested for this execution run.
+Release verification covers deterministic 20,000-Citizen/5,000-trip fixtures, Save/Load continuation, Road recovery, presentation caps/LOD, and the targeted `@traffic|@building` browser ownership set. Owner-controlled manual visual acceptance remains the final gate for this release candidate.

@@ -1,8 +1,8 @@
 # Simulation Time System
 
-**Status:** Implemented — final stacked verification pending  
+**Status:** Implemented — participates in the Mobility/Traffic release candidate<br>
 **Primary ownership:** `packages/simulation-core`, `apps/game/src/simulation-runtime.ts`, and time HUD integration  
-**Persistence:** `SimulationSaveV1` inside `WorldSaveV5`
+**Persistence:** `SimulationSaveV2` inside `WorldSaveV7`; V1 migration remains supported
 
 ## Purpose
 
@@ -27,6 +27,7 @@ Own deterministic in-game time, calendar derivation, tick planning/commit, time-
 - Runtime clamps frame delta and resets accumulated time on speed or visibility changes.
 - Revision, absolute tick, and Building growth sequence persist across Save/Load.
 - Application orchestration stages the next Simulation snapshot with Building and RCI results before atomic publication.
+- Mobility schedule boundaries and Traffic progression are staged from the same committed Simulation transition; failed downstream work prevents publication.
 
 ## Ownership and State
 
@@ -51,14 +52,15 @@ flowchart LR
   RCI --> GameWorldTick
   GameWorldTick --> StateStore[GameWorldStateStore]
   StateStore --> TimeHUD
-  StateStore --> WorldSaveV5
+  StateStore --> MobilityTraffic[Mobility + Traffic]
+  MobilityTraffic --> WorldSaveV7
 ```
 
 `simulation-core` does not import Building or RCI packages. `apps/game` owns orchestration and dependency direction.
 
 ## Persistence
 
-`SimulationSaveV1` stores revision, absolute tick, and growth sequence. Runtime speed and accumulated real milliseconds are not persisted. Older World Saves create a deterministic initial Simulation snapshot and seed growth sequence from existing Building count. V5 restores Simulation and RCI evaluated ticks together.
+`SimulationSaveV2` stores revision, absolute tick, and growth sequence. Runtime speed and accumulated real milliseconds are not persisted. Older World Saves create a deterministic initial Simulation snapshot and seed growth sequence from existing Building count. V7 restores Simulation, RCI, Economy, Mobility, and Traffic together.
 
 ## Invariants and Failure Behavior
 
@@ -68,7 +70,7 @@ flowchart LR
 - Paused runtime emits no automatic ticks; Step emits one tick only while paused.
 - Frame rate and callback batching do not change committed domain results.
 - Save/load/resume matches continuous execution from the same committed tick.
-- A failed Building or RCI stage prevents publication of the staged Simulation snapshot.
+- A failed Building, RCI, Mobility, or Traffic stage prevents publication of the staged Simulation snapshot.
 
 ## Extension Points
 
@@ -84,4 +86,4 @@ No seasonal calendar, leap years, offline progress, general event scheduler, var
 - Runtime: `apps/game/src/simulation-runtime.ts`
 - Atomic orchestration: `apps/game/src/game-world-tick.ts`
 - UI: `apps/game/src/game-time-ui.ts`, `game-time-presentation.ts`
-- Related systems: [Buildings](../buildings/README.md), [RCI](../rci/README.md), [World](../world/README.md)
+- Related systems: [Buildings](../buildings/README.md), [RCI](../rci/README.md), [Citizen Mobility](../citizen-mobility/README.md), [Traffic](../traffic/README.md), [World](../world/README.md)

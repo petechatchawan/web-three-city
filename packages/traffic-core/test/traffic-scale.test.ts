@@ -18,7 +18,7 @@ const graph: TrafficGraph = Object.freeze({
       edgeId: 'ab',
       fromNodeId: 'A',
       toNodeId: 'B',
-      mode: 'Drive',
+      mode: 'Drive' as const,
       lengthQ: 8_000,
       freeFlowTravelSeconds: 10,
       capacityUnits: 100,

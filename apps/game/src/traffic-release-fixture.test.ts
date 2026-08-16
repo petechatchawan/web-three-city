@@ -22,7 +22,7 @@ describe('Citizen Mobility & Traffic release fixture', () => {
 
     expect(decoded.value.simulation.absoluteTick).toBe(fixture.summary.startAbsoluteTick);
     expect(decoded.value.rci.population.citizens.map((citizen) => citizen.citizenId)).toEqual(
-      fixture.summary.citizenIds,
+      fixture.world.rci.population.citizens.map((citizen) => citizen.citizenId),
     );
     const projected = createPresentCitizenMobilityProjection(
       decoded.value.rci,

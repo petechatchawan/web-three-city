@@ -106,12 +106,18 @@ function withBuildingRevision(graph: TrafficGraph, buildingRevision: number): Tr
   return Object.freeze({ ...graph, sourceBuildingRevision: buildingRevision });
 }
 
-function nodeTouchesAffected(node: TrafficGraphNode, affectedCellKeys: ReadonlySet<string>): boolean {
+function nodeTouchesAffected(
+  node: TrafficGraphNode,
+  affectedCellKeys: ReadonlySet<string>,
+): boolean {
   const key = parseNodeCell(node.nodeId);
   return key !== null && affectedCellKeys.has(key);
 }
 
-function edgeTouchesAffected(edge: TrafficGraphEdge, affectedCellKeys: ReadonlySet<string>): boolean {
+function edgeTouchesAffected(
+  edge: TrafficGraphEdge,
+  affectedCellKeys: ReadonlySet<string>,
+): boolean {
   const fromKey = parseNodeCell(edge.fromNodeId);
   const toKey = parseNodeCell(edge.toNodeId);
   return (

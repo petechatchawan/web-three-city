@@ -38,6 +38,7 @@ export function createTrafficRecoveryReleaseFixture(): TrafficRecoveryReleaseFix
   const citizenId = base.summary.driveCitizenIds[0]!;
   const originBuildingId = base.summary.homeBuildingByCitizen[citizenId]!;
   const destinationBuildingId = base.summary.workBuildingByCitizen[citizenId]!;
+  const tripId = `trip:${world.mobility.nextTripSequence}`;
   const roadSource = createRoadTrafficSourceProjectionFromEnvironment(
     world.roads,
     world.environments.building,
@@ -62,7 +63,7 @@ export function createTrafficRecoveryReleaseFixture(): TrafficRecoveryReleaseFix
     throw new Error('traffic-recovery-fixture:missing-building-access');
   }
   const candidates = planModeCandidates({
-    requestTripId: 'trip:1',
+    requestTripId: tripId,
     citizenId,
     originWalkAccessNodeId: origin.walkAccessNodeId,
     destinationWalkAccessNodeId: destination.walkAccessNodeId,
@@ -76,7 +77,7 @@ export function createTrafficRecoveryReleaseFixture(): TrafficRecoveryReleaseFix
     throw new Error('traffic-recovery-fixture:drive-route-unavailable');
   }
   const request: MobilityTripPlanningRequest = Object.freeze({
-    tripId: 'trip:1',
+    tripId,
     citizenId,
     purpose: 'CommuteToWork',
     originBuildingId,

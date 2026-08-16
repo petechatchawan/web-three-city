@@ -13,6 +13,7 @@ export default defineConfig({
   retries: 1,
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
+    baseURL: 'http://127.0.0.1:4174',
     headless: true,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',

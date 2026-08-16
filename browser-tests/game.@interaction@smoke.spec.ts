@@ -75,8 +75,8 @@ test('changes quality and round-trips world save data', async ({ page }) => {
     schemaVersion: 7,
     buildings: { schemaVersion: 2 },
     rci: { kind: 'rci-save', schemaVersion: 1 },
-    mobility: { kind: 'mobility-save', schemaVersion: 1 },
-    traffic: { kind: 'traffic-save', schemaVersion: 1 },
+    mobility: { schemaVersion: 1 },
+    traffic: { schemaVersion: 1 },
   });
 
   await openGameMenu(page);

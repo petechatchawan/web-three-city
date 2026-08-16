@@ -97,7 +97,7 @@ test('uses Building over Zone and inspects Road and remaining Zone cells', async
 
   await clickGameMenuAction(page, 'Save world');
   const instances = await page.evaluate(() => {
-    const raw = localStorage.getItem('web-three-city:world-save:v6');
+    const raw = localStorage.getItem('web-three-city:world-save:v7');
     const save = JSON.parse(raw ?? '{}') as {
       buildings?: { instances?: Array<{ originCell: { x: number; z: number } }> };
     };

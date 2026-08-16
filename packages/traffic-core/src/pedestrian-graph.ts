@@ -1,73 +1,61 @@
-import {
-  TRAFFIC_POSITION_Q_PER_METER,
-  compareTrafficId,
-  validateRoadTrafficSourceProjection,
-  validateTrafficGraph,
-  type RoadTrafficSourceCell,
-  type RoadTrafficSourceProjection,
-  type TrafficCardinalDirection,
-  type TrafficGraph,
-  type TrafficGraphEdge,
-  type TrafficGraphNode,
+import type {
+  RoadTrafficSourceCell,
+  RoadTrafficSourceProjection,
+  TrafficCardinalDirection,
+  TrafficGraph,
+  TrafficGraphEdge,
+  TrafficGraphNode,
 } from './contracts.js';
+import { validateRoadTrafficSourceProjection } from './contracts.js';
 import {
-  FOUNDATION_TRAFFIC_ROAD_PROFILES,
+  ROAD_EAST,
+  ROAD_NORTH,
+  ROAD_SOUTH,
+  ROAD_WEST,
   resolveTrafficRoadProfile,
   type TrafficRoadProfileV1,
+  FOUNDATION_TRAFFIC_ROAD_PROFILES,
 } from './road-profile.js';
 
-const CELL_SIZE_Q = 8 * TRAFFIC_POSITION_Q_PER_METER;
+const CELL_SIZE_Q = 8_000;
 const HALF_CELL_Q = CELL_SIZE_Q / 2;
-const WALK_SPEED_Q_PER_SECOND = 1_400;
-const WALK_EDGE_CAPACITY = 100;
-const ROAD_NORTH = 1 << 0;
-const ROAD_EAST = 1 << 1;
-const ROAD_SOUTH = 1 << 2;
-const ROAD_WEST = 1 << 3;
 
-const DIRECTIONS: readonly Readonly<{
-  side: TrafficCardinalDirection;
-  dx: number;
-  dz: number;
-  bit: number;
-  oppositeBit: number;
-  oppositeSide: TrafficCardinalDirection;
-}>[] = Object.freeze([
+const DIRECTIONS = Object.freeze([
   Object.freeze({
-    side: 'N',
+    side: 'N' as const,
     dx: 0,
     dz: -1,
     bit: ROAD_NORTH,
     oppositeBit: ROAD_SOUTH,
-    oppositeSide: 'S',
+    oppositeSide: 'S' as const,
   }),
   Object.freeze({
-    side: 'E',
+    side: 'E' as const,
     dx: 1,
     dz: 0,
     bit: ROAD_EAST,
     oppositeBit: ROAD_WEST,
-    oppositeSide: 'W',
+    oppositeSide: 'W' as const,
   }),
   Object.freeze({
-    side: 'S',
+    side: 'S' as const,
     dx: 0,
     dz: 1,
     bit: ROAD_SOUTH,
     oppositeBit: ROAD_NORTH,
-    oppositeSide: 'N',
+    oppositeSide: 'N' as const,
   }),
   Object.freeze({
-    side: 'W',
+    side: 'W' as const,
     dx: -1,
     dz: 0,
     bit: ROAD_WEST,
     oppositeBit: ROAD_EAST,
-    oppositeSide: 'E',
+    oppositeSide: 'E' as const,
   }),
 ]);
 
-const RING: readonly (readonly [TrafficCardinalDirection, TrafficCardinalDirection][]) =
+const RING: readonly (readonly [TrafficCardinalDirection, TrafficCardinalDirection])[] =
   Object.freeze([
     Object.freeze(['N', 'E']) as readonly ['N', 'E'],
     Object.freeze(['E', 'S']) as readonly ['E', 'S'],
@@ -107,23 +95,31 @@ function nodeFor(
   });
 }
 
-function lengthQ(first: TrafficGraphNode, second: TrafficGraphNode): number {
-  const dx = second.xQ - first.xQ;
-  const dy = second.yQ - first.yQ;
-  const dz = second.zQ - first.zQ;
+function edgeLengthQ(from: TrafficGraphNode, to: TrafficGraphNode): number {
+  const dx = to.xQ - from.xQ;
+  const dy = to.yQ - from.yQ;
+  const dz = to.zQ - from.zQ;
   return Math.max(1, Math.ceil(Math.sqrt(dx * dx + dy * dy + dz * dz)));
 }
 
-function walkEdge(from: TrafficGraphNode, to: TrafficGraphNode, label: string): TrafficGraphEdge {
-  const distance = lengthQ(from, to);
+function edge(
+  edgeId: string,
+  from: TrafficGraphNode,
+  to: TrafficGraphNode,
+  speedMillimetersPerSecond: number,
+): TrafficGraphEdge {
+  const lengthQ = edgeLengthQ(from, to);
   return Object.freeze({
-    edgeId: `walk:${label}:${from.nodeId}->${to.nodeId}`,
+    edgeId,
     fromNodeId: from.nodeId,
     toNodeId: to.nodeId,
-    mode: 'Walk',
-    lengthQ: distance,
-    freeFlowTravelSeconds: Math.max(1, Math.ceil(distance / WALK_SPEED_Q_PER_SECOND)),
-    capacityUnits: WALK_EDGE_CAPACITY,
+    mode: 'Walk' as const,
+    lengthQ,
+    freeFlowTravelSeconds: Math.max(
+      1,
+      Math.ceil(lengthQ / Math.max(1, speedMillimetersPerSecond)),
+    ),
+    capacityUnits: Number.MAX_SAFE_INTEGER,
   });
 }
 
@@ -132,47 +128,71 @@ export function derivePedestrianTrafficGraph(
   profiles: readonly TrafficRoadProfileV1[] = FOUNDATION_TRAFFIC_ROAD_PROFILES,
 ): TrafficGraph {
   validateRoadTrafficSourceProjection(roads);
-  const cells = [...roads.cells].sort((a, b) => a.z - b.z || a.x - b.x);
-  const byCell = new Map(cells.map((cell) => [key(cell.x, cell.z), cell] as const));
+  const sortedCells = [...roads.cells].sort((a, b) => a.z - b.z || a.x - b.x);
+  const byCell = new Map(sortedCells.map((cell) => [key(cell.x, cell.z), cell] as const));
   const nodes: TrafficGraphNode[] = [];
-  const nodeById = new Map<string, TrafficGraphNode>();
+  const edges: TrafficGraphEdge[] = [];
+  const nodesById = new Map<string, TrafficGraphNode>();
 
-  for (const cell of cells) {
+  for (const cell of sortedCells) {
     const profile = resolveTrafficRoadProfile(cell.definitionCode, profiles);
-    for (const side of ['N', 'E', 'S', 'W'] as const) {
-      const node = nodeFor(cell, side, profile.pedestrianOffsetMillimeters);
+    for (const direction of DIRECTIONS) {
+      const node = nodeFor(cell, direction.side, profile.pedestrianOffsetMillimeters);
       nodes.push(node);
-      nodeById.set(node.nodeId, node);
+      nodesById.set(node.nodeId, node);
     }
   }
 
-  const edges: TrafficGraphEdge[] = [];
-  for (const cell of cells) {
-    for (const [fromSide, toSide] of RING) {
-      const from = nodeById.get(walkSideNodeId(cell.x, cell.z, fromSide))!;
-      const to = nodeById.get(walkSideNodeId(cell.x, cell.z, toSide))!;
-      edges.push(walkEdge(from, to, `ring:${cell.x},${cell.z}`));
-      edges.push(walkEdge(to, from, `ring:${cell.x},${cell.z}`));
+  for (const cell of sortedCells) {
+    const profile = resolveTrafficRoadProfile(cell.definitionCode, profiles);
+    for (const [firstSide, secondSide] of RING) {
+      const first = nodesById.get(walkSideNodeId(cell.x, cell.z, firstSide))!;
+      const second = nodesById.get(walkSideNodeId(cell.x, cell.z, secondSide))!;
+      edges.push(
+        edge(
+          `walk:${cell.x},${cell.z}:${firstSide}->${secondSide}`,
+          first,
+          second,
+          profile.pedestrianSpeedMillimetersPerSecond,
+        ),
+      );
+      edges.push(
+        edge(
+          `walk:${cell.x},${cell.z}:${secondSide}->${firstSide}`,
+          second,
+          first,
+          profile.pedestrianSpeedMillimetersPerSecond,
+        ),
+      );
     }
+
     for (const direction of DIRECTIONS) {
       if ((cell.connectionMask & direction.bit) === 0) continue;
       const neighbor = byCell.get(key(cell.x + direction.dx, cell.z + direction.dz));
-      if (neighbor === undefined || (neighbor.connectionMask & direction.oppositeBit) === 0)
-        continue;
-      const from = nodeById.get(walkSideNodeId(cell.x, cell.z, direction.side))!;
-      const to = nodeById.get(walkSideNodeId(neighbor.x, neighbor.z, direction.oppositeSide))!;
-      edges.push(walkEdge(from, to, `link:${cell.x},${cell.z}`));
+      if (neighbor === undefined || (neighbor.connectionMask & direction.oppositeBit) === 0) continue;
+      const neighborProfile = resolveTrafficRoadProfile(neighbor.definitionCode, profiles);
+      const from = nodesById.get(walkSideNodeId(cell.x, cell.z, direction.side))!;
+      const to = nodesById.get(
+        walkSideNodeId(neighbor.x, neighbor.z, direction.oppositeSide),
+      )!;
+      edges.push(
+        edge(
+          `walk:${cell.x},${cell.z}:${direction.side}->${neighbor.x},${neighbor.z}:${direction.oppositeSide}`,
+          from,
+          to,
+          Math.min(
+            profile.pedestrianSpeedMillimetersPerSecond,
+            neighborProfile.pedestrianSpeedMillimetersPerSecond,
+          ),
+        ),
+      );
     }
   }
 
-  nodes.sort((a, b) => compareTrafficId(a.nodeId, b.nodeId));
-  edges.sort((a, b) => compareTrafficId(a.edgeId, b.edgeId));
-  const graph: TrafficGraph = Object.freeze({
+  return Object.freeze({
     sourceRoadRevision: roads.roadRevision,
     sourceBuildingRevision: 0,
-    nodes: Object.freeze(nodes),
-    edges: Object.freeze(edges),
+    nodes: Object.freeze(nodes.sort((a, b) => (a.nodeId < b.nodeId ? -1 : a.nodeId > b.nodeId ? 1 : 0))),
+    edges: Object.freeze(edges.sort((a, b) => (a.edgeId < b.edgeId ? -1 : a.edgeId > b.edgeId ? 1 : 0))),
   });
-  validateTrafficGraph(graph);
-  return graph;
 }

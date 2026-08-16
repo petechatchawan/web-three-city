@@ -84,43 +84,40 @@ describe('Citizen Mobility & Traffic release fixture', () => {
     expect(result.traffic.activeTrips).toHaveLength(0);
   });
 
-  it(
-    'carries the release fixture through hourly world ticks into the deterministic commute home',
-    () => {
-      const fixture = createTrafficReleaseFixture();
-      const world = fixture.world;
-      const store = new GameWorldStateStore({
-        revision: world.revision,
-        simulation: world.simulation,
-        buildings: world.buildings,
-        rci: world.rci,
-        roads: world.roads,
-        economy: world.economy,
-        mobility: world.mobility,
-        traffic: world.traffic,
+  it('continues hourly fixture ticks through commute home', () => {
+    const fixture = createTrafficReleaseFixture();
+    const world = fixture.world;
+    const store = new GameWorldStateStore({
+      revision: world.revision,
+      simulation: world.simulation,
+      buildings: world.buildings,
+      rci: world.rci,
+      roads: world.roads,
+      economy: world.economy,
+      mobility: world.mobility,
+      traffic: world.traffic,
+    });
+    const registries = createFoundationRciRegistries();
+
+    while (store.snapshot().simulation.absoluteTick < 17) {
+      executeGameWorldTick({
+        store,
+        environment: world.environments.building,
+        config: WORLD_CONFIG,
+        registries,
       });
-      const registries = createFoundationRciRegistries();
+    }
 
-      while (store.snapshot().simulation.absoluteTick < 17) {
-        executeGameWorldTick({
-          store,
-          environment: world.environments.building,
-          config: WORLD_CONFIG,
-          registries,
-        });
-      }
-
-      const finished = store.snapshot();
-      expect(finished.simulation.absoluteTick).toBe(17);
-      expect(finished.mobility.trips).toHaveLength(fixture.summary.citizenIds.length * 2);
-      expect(
-        finished.mobility.trips.filter((trip) => trip.purpose === 'CommuteHome'),
-      ).toHaveLength(fixture.summary.citizenIds.length);
-      expect(
-        finished.mobility.citizenStates.every((state) => state.currentActivity === 'Home'),
-      ).toBe(true);
-    },
-  );
+    const finished = store.snapshot();
+    expect(finished.simulation.absoluteTick).toBe(17);
+    expect(finished.mobility.trips).toHaveLength(fixture.summary.citizenIds.length * 2);
+    expect(finished.mobility.trips.filter((trip) => trip.purpose === 'CommuteHome')).toHaveLength(
+      fixture.summary.citizenIds.length,
+    );
+    expect(finished.mobility.citizenStates.every((state) => state.currentActivity === 'Home')).toBe(
+      true,
+    );
+  });
 
   it('contains a deterministic alternate Road corridor around the primary recovery cut', () => {
     const fixture = createTrafficReleaseFixture();

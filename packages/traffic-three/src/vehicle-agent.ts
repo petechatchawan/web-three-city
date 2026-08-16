@@ -1,4 +1,10 @@
-import { BoxGeometry, Group, Mesh, MeshStandardMaterial, type Vector3 } from 'three';
+import {
+  BoxGeometry,
+  Group,
+  Mesh,
+  MeshStandardMaterial,
+  type Vector3,
+} from 'three';
 import { vehicleAppearanceForTrip } from './vehicle-appearance.js';
 import {
   headingRadians,
@@ -36,7 +42,9 @@ export class TrafficVehicleAgent {
   readonly #scalePolicy: TrafficVisualScalePolicy;
   #tripId: string | null = null;
 
-  constructor(scalePolicy: TrafficVisualScalePolicy = FOUNDATION_TRAFFIC_VISUAL_SCALE_POLICY) {
+  constructor(
+    scalePolicy: TrafficVisualScalePolicy = FOUNDATION_TRAFFIC_VISUAL_SCALE_POLICY,
+  ) {
     this.#scalePolicy = scalePolicy;
     this.object.name = 'traffic-vehicle-agent';
     const bodyHeight = scalePolicy.vehicleHeightWorldUnits * 0.55;
@@ -58,7 +66,11 @@ export class TrafficVehicleAgent {
       ),
       new MeshStandardMaterial(),
     );
-    this.#roof.position.set(0, bodyHeight + roofHeight / 2, -scalePolicy.vehicleLengthWorldUnits * 0.04);
+    this.#roof.position.set(
+      0,
+      bodyHeight + roofHeight / 2,
+      -scalePolicy.vehicleLengthWorldUnits * 0.04,
+    );
     this.object.add(this.#body, this.#roof);
     this.object.visible = false;
   }
@@ -77,10 +89,17 @@ export class TrafficVehicleAgent {
     const position =
       turn === null
         ? sampleRouteEdgePosition(input.from, input.to, input.progressQ)
-        : sampleSmoothTurn(turn.previous, turn.corner, turn.next, turn.turnProgressQ);
+        : sampleSmoothTurn(
+            turn.previous,
+            turn.corner,
+            turn.next,
+            turn.turnProgressQ,
+          );
     this.setTransform(
       position,
-      turn === null ? headingRadians(input.from, input.to) : headingRadians(turn.corner, turn.next),
+      turn === null
+        ? headingRadians(input.from, input.to)
+        : headingRadians(turn.corner, turn.next),
     );
     this.object.userData.routeEdgeId = input.routeEdgeId;
     this.setVisualState(input.queued, turn !== null);
@@ -92,7 +111,11 @@ export class TrafficVehicleAgent {
   }
 
   setVisualState(queued: boolean, turning: boolean): void {
-    this.object.userData.trafficVisualState = queued ? 'Stop' : turning ? 'Turn' : 'Drive';
+    this.object.userData.trafficVisualState = queued
+      ? 'Stop'
+      : turning
+        ? 'Turn'
+        : 'Drive';
   }
 
   release(): void {
@@ -113,12 +136,20 @@ export class TrafficVehicleAgent {
   }
 
   #bind(input: TrafficVehicleVisualInput): void {
-    if (this.#tripId !== null) throw new Error('traffic-three:vehicle-bind-active');
+    if (this.#tripId !== null)
+      throw new Error('traffic-three:vehicle-bind-active');
     const appearance = vehicleAppearanceForTrip(input.tripId, input.citizenId);
-    (this.#body.material as MeshStandardMaterial).color.setHex(appearance.bodyColor);
+    (this.#body.material as MeshStandardMaterial).color.setHex(
+      appearance.bodyColor,
+    );
     (this.#roof.material as MeshStandardMaterial).color.setHex(0x9da9b0);
     const variation = this.#scalePolicy.appearanceScaleVariation;
-    const scale = appearance.bodyVariant === 0 ? 1 - variation : appearance.bodyVariant === 1 ? 1 : 1 + variation;
+    const scale =
+      appearance.bodyVariant === 0
+        ? 1 - variation
+        : appearance.bodyVariant === 1
+          ? 1
+          : 1 + variation;
     this.object.scale.setScalar(scale);
     this.object.userData.trafficAgentKind = 'vehicle';
     this.object.userData.tripId = input.tripId;

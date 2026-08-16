@@ -65,7 +65,7 @@ function advanceOneTrip(
   newlyQueued: boolean;
 }> {
   let trip = input.trip;
-  if (trip.status !== 'Active' || trip.queuedMovement !== null || input.elapsedSeconds === 0) {
+  if (trip.status !== 'Active' || trip.queuedMovement !== null) {
     return Object.freeze({ trip, arrived: false, newlyQueued: false });
   }
   const edgeById = new Map(input.graph.edges.map((edge) => [edge.edgeId, edge] as const));
@@ -94,7 +94,6 @@ function advanceOneTrip(
         ),
       });
       elapsedUsed += elapsedRemaining;
-      elapsedRemaining = 0;
       break;
     }
 

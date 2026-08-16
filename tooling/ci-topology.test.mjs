@@ -57,6 +57,12 @@ function evaluateWorkflowCondition(condition, context) {
     return true;
   }
   if (
+    normalized.includes("github.event_name == 'schedule'") &&
+    context.event === 'schedule'
+  ) {
+    return true;
+  }
+  if (
     normalized.includes("github.event_name == 'pull_request'") &&
     normalized.includes("contains(github.event.pull_request.labels.*.name, 'full-ci')")
   ) {
@@ -98,6 +104,28 @@ test('workflow triggers include labeled pull requests and manual dispatch', asyn
   const workflow = await readRepoText('.github/workflows/ci.yml');
   assert.match(workflow, /types:\s*\[opened,\s*synchronize,\s*reopened,\s*labeled\]/);
   assert.match(workflow, /workflow_dispatch:/);
+});
+
+test('Full Browser remains opt-in for pull requests and runs as nightly regression', async () => {
+  const workflow = await readRepoText('.github/workflows/ci.yml');
+  const jobs = await readWorkflowJobs('.github/workflows/ci.yml');
+  assert.match(workflow, /schedule:\s*\n\s*- cron:\s*['"]0 18 \* \* \*['"]/);
+  assert.match(jobs.browser.if, /github\.event_name == 'schedule'/);
+  assert.equal(
+    evaluateWorkflowCondition(jobs.browser.if, {
+      event: 'pull_request',
+      action: 'synchronize',
+      labels: [],
+    }),
+    false,
+  );
+  assert.equal(
+    evaluateWorkflowCondition(jobs.browser.if, {
+      event: 'schedule',
+      labels: [],
+    }),
+    true,
+  );
 });
 
 test('CI dependency installs disable lifecycle scripts', async () => {

@@ -1,6 +1,17 @@
-import { BoxGeometry, Group, Mesh, MeshStandardMaterial, SphereGeometry, type Vector3 } from 'three';
+import {
+  BoxGeometry,
+  Group,
+  Mesh,
+  MeshStandardMaterial,
+  SphereGeometry,
+  type Vector3,
+} from 'three';
 import { pedestrianAppearanceForCitizen } from './pedestrian-appearance.js';
-import { headingRadians, sampleRouteEdgePosition, type TrafficWorldPointQ } from './route-geometry.js';
+import {
+  headingRadians,
+  sampleRouteEdgePosition,
+  type TrafficWorldPointQ,
+} from './route-geometry.js';
 import {
   FOUNDATION_TRAFFIC_VISUAL_SCALE_POLICY,
   type TrafficVisualScalePolicy,
@@ -37,7 +48,10 @@ export class TrafficPedestrianAgent {
       new MeshStandardMaterial(),
     );
     this.#body.position.y = bodyHeight / 2;
-    this.#head = new Mesh(new SphereGeometry(headDiameter / 2, 8, 6), new MeshStandardMaterial());
+    this.#head = new Mesh(
+      new SphereGeometry(headDiameter / 2, 8, 6),
+      new MeshStandardMaterial(),
+    );
     this.#head.position.y = bodyHeight + headDiameter / 2;
     this.object.add(this.#body, this.#head);
     this.object.visible = false;

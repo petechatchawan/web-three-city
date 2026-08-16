@@ -70,6 +70,7 @@ test.describe('Citizen Mobility & Traffic Foundation v0.1', () => {
     await traffic.click();
     await expect(page.locator('[data-testid="information-view-legend"]')).toContainText('Traffic');
 
+    await page.keyboard.press('Escape');
     await page.getByTestId('nav-city').click();
     const thai = page.locator('[data-testid="locale-th"]');
     await expect(thai).toBeVisible();

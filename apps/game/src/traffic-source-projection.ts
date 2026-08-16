@@ -100,7 +100,9 @@ export function createTrafficGraphDirtyRegion(
   }
   return Object.freeze({
     changedRoadCells: Object.freeze([...roadByKey.values()].sort((a, b) => a.z - b.z || a.x - b.x)),
-    changedBuildingIds: Object.freeze([...new Set(changedBuildingIds)].sort()),
+    changedBuildingIds: Object.freeze(
+      [...new Set(changedBuildingIds)].sort((a, b) => a.localeCompare(b)),
+    ),
   });
 }
 
@@ -155,13 +157,7 @@ export function createBuildingTrafficAccessProjection(
       });
     })
     .filter((value): value is NonNullable<typeof value> => value !== null)
-    .sort((a, b) =>
-      a.buildingInstanceId < b.buildingInstanceId
-        ? -1
-        : a.buildingInstanceId > b.buildingInstanceId
-          ? 1
-          : 0,
-    );
+    .sort((a, b) => a.buildingInstanceId.localeCompare(b.buildingInstanceId));
   return Object.freeze({
     buildingRevision: buildings.revision,
     accesses: Object.freeze(accesses),

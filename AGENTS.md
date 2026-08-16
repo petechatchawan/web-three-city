@@ -66,41 +66,55 @@ relevant focused tooling test, when available
 
 ### Targeted Browser Feedback
 
-Browser-observable changes may use ownership tags during development:
+Browser-observable changes require targeted Playwright verification before the pull request is ready. Use the smallest spec, test name, ownership tag, or union of tags that covers the behavior changed.
 
 ```bash
+pnpm exec playwright test browser-tests/<affected>.spec.ts
+pnpm exec playwright test --grep @traffic
 pnpm exec playwright test --grep @road
 pnpm exec playwright test --grep @rci
 pnpm exec playwright test --grep @building
 pnpm exec playwright test --grep @smoke
 ```
 
-Supported ownership tags are `@smoke`, `@terrain`, `@water`, `@road`, `@zoning`, `@building`, `@rci`, `@interaction`, `@visual`, `@performance`, and `@release`. Select the tag or union of tags that covers the changed behavior. If several domains or shared interaction paths are affected, run every relevant subset or escalate under the existing verification rules.
+Supported ownership/evidence tags are `@smoke`, `@terrain`, `@water`, `@road`, `@zoning`, `@building`, `@rci`, `@traffic`, `@interaction`, `@visual`, `@performance`, and `@release`. Select every affected subset when several domains or shared interaction paths changed.
 
-Tagged subsets are affected fast feedback; they are not a new verification level and never replace the full browser release authority. Do not run the full browser suite after every small edit when a focused subset answers the development question.
+Targeted browser verification is mandatory affected-behavior evidence for browser-observable changes. Record the command/spec and result in the pull request. It does not claim release-wide regression coverage.
 
 ### Browser Release Authority
 
-- The release authority is the one unfiltered Chromium project. Repository topology tests enforce its current inventory and require approved ownership tags without excluding tests from the full project.
-- Level 4 uses the canonical `pnpm verify:full` command and therefore runs the full browser authority.
-- Targeted `--grep` subsets cannot qualify as full release, browser-acceptance, or milestone-closure evidence.
-- Playwright currently enforces `workers: 2` and `retries: 0`. Do not add retries to conceal flaky behavior or broaden workers/timeouts repository-wide as a workaround. Change worker count or timeout strategy only from measured evidence, using narrow per-spec budgets when a specific test requires one.
+**Full Browser is not the default gate for every PR.** The unfiltered Chromium project remains the broad regression authority, but it is an escalation gate rather than the normal debugging loop.
+
+Escalate to Full Browser when release closure, milestone closure, or shared browser infrastructure makes the affected boundary too broad to verify safely with targeted subsets. Shared browser infrastructure includes Playwright project/test-discovery topology and application-wide navigation, input, modal, or browser harness behavior whose impact cannot be bounded confidently.
+
+Full Browser also runs when a pull request is explicitly labeled `full-ci`, when a maintainer uses `workflow_dispatch`, and from the nightly scheduled regression workflow. The canonical local/manual command remains `pnpm verify:full`.
+
+Targeted Playwright subsets cannot be presented as Full Browser or release-wide regression evidence. They can, however, satisfy the browser gate for a normal browser-observable PR when the affected boundary is explicit and all affected behavior is covered.
+
+Playwright currently serializes CI with one worker, uses two workers locally, and has one retry for rare browser-process failures. Do not broaden workers, retries, or global timeouts to conceal product/test failures; change those controls only from measured evidence and with an explicit verification-topology decision.
 
 ### CI Verification Ownership
 
 ```text
+Pull request
+  ↓
 Lean CI
   ├─ repository verification, unit tests, typecheck, and build
   └─ publish exact browser preview build artifact
-          ↓
-Browser CI
+          ↓ only when Full Browser is explicitly triggered
+Full Browser CI
   ├─ consume the exact Lean artifact
   ├─ install browser runtime
-  └─ run browser acceptance/release evidence
+  └─ run unfiltered browser regression evidence
+
+Nightly schedule / workflow_dispatch
+  ↓
+Lean CI → Full Browser CI
 ```
 
-- Lean CI owns repository verification and application builds.
-- Browser CI reuses the exact Lean-produced Game and Terrain Lab outputs. Apart from dependency/browser setup, clean-worktree validation, and evidence retention, its responsibility is browser verification only.
+- Lean CI owns repository verification and application builds and remains the normal mandatory PR CI gate.
+- Full Browser CI reuses the exact Lean-produced Game and Terrain Lab outputs. Apart from dependency/browser setup, clean-worktree validation, and evidence retention, its responsibility is browser verification only.
+- Ordinary pull-request synchronization does not run Full Browser unless the PR has the `full-ci` label.
 - Browser CI must not duplicate `pnpm check`, unit suites, typecheck, or application builds.
 - A CI-topology change must update the architecture/CI topology contract tests in the same PR. Do not add duplicate verification “for safety” without an explicit architecture decision backed by evidence.
 
@@ -110,25 +124,28 @@ The final gate is determined by these normative rules. Lower levels remain the p
 
 ```text
 request/change → owning system → Level 0 focused iteration → Level 1 owner
-→ Level 2 affected consumers → targeted browser tags when browser-observable
-→ Level 3 when triggered → Level 4 when triggered → exact-head evidence → PR/merge
+→ Level 2 affected consumers → targeted Playwright when browser-observable
+→ Level 3 when triggered → Level 4 only when Full Browser escalation is triggered
+→ exact-head evidence → PR/merge
 ```
 
 - **Level 0 — Focused iteration.** Run a focused Vitest file/test name or package `test:watch` while actively editing. Do not run repository-wide verification.
 - **Level 1 — Owning package.** Default localized-code gate: owning package `test` plus `typecheck`.
 - **Level 2 — Affected consumers.** A public/exported contract, exported type, runtime assumption, Save-facing contract, or behavior observable by another package requires at least Level 2. Run the owner and the consumers listed in the static map below.
 - **Level 3 — PR finalization / repository tooling.** Root/workspace/tooling configuration changes, including TypeScript, ESLint, Prettier, Vitest, pnpm workspace, CI workflow, shared verification tooling, or development-dependency configuration, require Level 3. Canonical gate: `pnpm verify`.
-- **Level 4 — Browser/release/milestone closure.** Browser-visible behavior requiring browser acceptance, release closure, milestone closure, or another explicit repository trigger requires Level 4. Canonical gate: `pnpm verify:full`.
+- **Level 4 — Full Browser escalation.** Run the canonical `pnpm verify:full` / unfiltered Chromium authority only for explicit full-regression triggers: release or milestone closure, shared browser infrastructure with an unbounded impact surface, an explicit `full-ci` escalation, or equivalent maintainer-required full regression. Scheduled nightly and manual dispatch exercise the same authority outside normal PR synchronization.
+
+Browser-observable behavior by itself does **not** imply Level 4. It does require targeted Playwright evidence for the affected behavior before PR readiness.
 
 Conflict resolution:
 
 1. The **highest required level wins** as the final gate; lower levels are still used first for fast feedback.
 2. Public/exported contract change implies at least Level 2; never stop at the owner when a consumer can observe the change.
 3. Root/workspace/tooling configuration change implies Level 3.
-4. Browser-visible behavior requiring browser acceptance, release closure, or milestone closure implies Level 4 at finalization.
+4. Browser-observable behavior requires targeted Playwright coverage. Escalate to Level 4 only for release/milestone closure, shared browser infrastructure with an unbounded impact surface, or another explicit full-regression trigger.
 5. Save schema/compatibility behavior requires the owner plus `game` at Level 2 minimum, followed by the relevant final gate required by the milestone.
 6. A workspace dependency relationship addition/removal that changes consumers must update the Static Level 2 Verification Map in the **same PR**.
-7. Uncertain ownership or impact means escalate one level and inspect the registry/manifests. Do not jump directly to Level 4 merely because of uncertainty.
+7. Uncertain ownership or impact means expand affected verification and inspect the registry/manifests. Do not jump directly to Level 4 merely because of uncertainty.
 8. PR templates cannot redefine escalation; this section is the repository authority.
 
 ## Static Level 2 Verification Map
@@ -161,7 +178,7 @@ Maintenance rules:
 - Update this map in the same PR as any dependency relationship change that alters consumers.
 - A new package must have ownership and Level 2 consumers assigned before its implementation PR is ready.
 - If a listed consumer has no `test` script, run its available `typecheck`/build gate as appropriate rather than fabricating a no-op test.
-- v0.2 may replace this table with affected/dependent graph tooling; until then this map is authoritative for Level 2 selection.
+- A later workflow version may replace this table with affected/dependent graph tooling; until then this map is authoritative for Level 2 selection.
 
 ## Branch Policy
 
@@ -182,7 +199,8 @@ A bounded post-merge documentation-only closure commit is allowed only when an o
 - Scope/system ownership is correct and no unrelated behavior is included.
 - Targeted Level 0/1 verification is used during implementation and the required final level passes.
 - Required Level 2 consumers are selected from this file, not from memory.
-- Browser-observable affected feedback uses the relevant ownership tags, while any triggered Level 4 gate uses the full unfiltered browser authority.
+- Browser-observable changes have targeted Playwright evidence covering the affected behavior.
+- The PR records whether Full Browser escalation is required and why; Level 4 is not assumed merely because a UI/browser path changed.
 - Repository tooling changes use focused contracts and `pnpm test:deployment` before the required Level 3 final gate.
 - Relevant living documentation is updated in the same PR.
 - Determinism and Save compatibility are preserved or explicitly addressed where applicable.
@@ -192,7 +210,8 @@ A bounded post-merge documentation-only closure commit is allowed only when an o
 ## Forbidden Shortcuts
 
 - Do not use whole-repository `pnpm verify` or `pnpm verify:full` after every small edit instead of targeted feedback.
-- Do not present targeted browser subsets as full release evidence or weaken failures with broad retries, worker increases, or global timeout expansion.
+- Do not run Full Browser as a debugger after each small browser fix when an affected spec/tag can answer the question.
+- Do not present targeted browser subsets as Full Browser/release-wide evidence, or weaken failures with broad retry, worker, or timeout expansion.
 - Do not make Browser CI repeat Lean-owned checks, tests, typechecks, or builds without an approved, evidence-backed architecture change.
 - Do not skip Level 2 for observable public-contract changes.
 - Do not invent downstream consumers from memory when this map and workspace manifests exist.

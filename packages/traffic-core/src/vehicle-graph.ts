@@ -17,10 +17,10 @@ import {
 
 const CELL_SIZE_Q = 8 * TRAFFIC_POSITION_Q_PER_METER;
 const HALF_CELL_Q = CELL_SIZE_Q / 2;
-const ROAD_NORTH = 1 << 0;
-const ROAD_EAST = 1 << 1;
-const ROAD_SOUTH = 1 << 2;
-const ROAD_WEST = 1 << 3;
+const ROAD_NORTH = 1;
+const ROAD_EAST = 2;
+const ROAD_SOUTH = 4;
+const ROAD_WEST = 8;
 
 const DIRECTIONS = Object.freeze([
   Object.freeze({ name: 'N', dx: 0, dz: -1, bit: ROAD_NORTH, opposite: ROAD_SOUTH }),

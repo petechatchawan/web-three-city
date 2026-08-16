@@ -31,20 +31,23 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
       # Diagnostic decomposition of the canonical Lean owner command: pnpm check
-      - name: Capture exact Prettier output
+      - name: Format remediation sources
         run: |
-          files=(
+          pnpm exec prettier --write --log-level silent \
+            packages/traffic-core/src/graph-reconciler.ts \
+            packages/traffic-core/src/route-planner.ts \
+            packages/traffic-three/src/traffic-agent-materializer.ts
+      - name: Upload exact formatted sources
+        uses: actions/upload-artifact@v4
+        with:
+          name: prettier-remediation
+          path: |
             packages/traffic-core/src/graph-reconciler.ts
             packages/traffic-core/src/route-planner.ts
             packages/traffic-three/src/traffic-agent-materializer.ts
-          )
-          pnpm exec prettier --write --log-level silent "${files[@]}"
-          for file in "${files[@]}"; do
-            echo "FORMAT_START:$file"
-            base64 -w 3000 "$file" | sed 's/^/FORMAT_DATA:/'
-            echo "FORMAT_END:$file"
-          done
-          exit 1
+          if-no-files-found: error
+      - name: Stop after formatting capture
+        run: exit 1
       - name: Lint
         run: pnpm lint
       - name: Typecheck

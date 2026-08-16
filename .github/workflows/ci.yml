@@ -31,13 +31,14 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
       # Diagnostic decomposition of the canonical Lean owner command: pnpm check
-      - name: Diagnose formatting
+      - name: Capture exact Prettier output
         run: |
           pnpm format
           changed="$(git diff --name-only)"
           if [ -n "$changed" ]; then
             while IFS= read -r file; do
-              echo "::error file=$file,line=1::Prettier would modify this file"
+              encoded="$(base64 -w0 "$file")"
+              echo "::error file=$file,line=1::PRETTIER_BASE64:$encoded"
             done <<< "$changed"
             exit 1
           fi

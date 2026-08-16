@@ -15,13 +15,15 @@ Development Workflow v0.2 makes verification proportional to the affected surfac
 
 Browser-observable changes now require targeted Playwright evidence for every affected browser path before PR readiness. Full Browser is not the default gate for every PR: the unfiltered Chromium suite is reserved for explicit Level 4 escalation such as release or milestone closure, shared browser infrastructure with an unbounded impact surface, an explicit `full-ci` PR label, manual workflow dispatch, and nightly scheduled regression.
 
+For CI-backed targeted evidence, a PR may declare an approved union such as `Targeted browser tags: traffic building`. The targeted-browser CI job depends on Lean, validates the requested ownership tags against a fixed allowlist, consumes the exact Lean preview artifact, and runs only that Playwright union. Removing the PR-body metadata after evidence collection prevents later targeted reruns without changing the candidate SHA.
+
 The repository exposes root `pnpm format`, root `test:watch`, and `test:watch` in the 21 workspaces that currently use Vitest. Husky invokes lint-staged at pre-commit so staged TypeScript/JavaScript receives the approved Prettier/ESLint fixes and staged YAML receives Prettier. The hook does not run TypeScript, tests, builds, `pnpm verify`, or Playwright.
 
 Root `AGENTS.md` is the normative workflow authority. It owns code-location guidance, architecture boundaries, Level 0–4 conflict resolution, targeted browser evidence, Full Browser escalation, the explicit static Level 2 verification map, trunk policy, Definition of Done, and the exact-head documentation exception.
 
-GitHub contribution surfaces include the YAML Bug Issue Form and PR template. The PR template delegates affected-consumer selection to `AGENTS.md` and records targeted browser evidence separately from the Full Browser escalation decision.
+GitHub contribution surfaces include the YAML Bug Issue Form and PR template. The PR template delegates affected-consumer selection to `AGENTS.md`, exposes optional targeted browser tag metadata, and records targeted browser evidence separately from the Full Browser escalation decision.
 
-Lean CI remains the normal mandatory PR CI owner and produces the exact Game/Terrain Lab build artifacts. Full Browser CI consumes those artifacts but ordinary PR synchronization does not run it without `full-ci`. Manual dispatch and the nightly schedule retain broad regression coverage without putting the long suite in every development loop.
+Lean CI remains the normal mandatory PR CI owner and produces the exact Game/Terrain Lab build artifacts. Targeted Browser CI and Full Browser CI both consume those artifacts rather than rebuilding. Ordinary PR synchronization does not run Full Browser without `full-ci`; manual dispatch and the nightly schedule retain broad regression coverage without putting the long suite in every development loop.
 
 `master` is the always-releasable trunk by repository policy. Short-lived `feat/*`, `fix/*`, `docs/*`, and `chore/*` branches merge to `master` by pull request; there is no `develop` integration branch. This policy does not claim that GitHub branch protection is technically enabled.
 
@@ -54,4 +56,4 @@ v0.2 intentionally does not:
 7. Human workflow overview: [`docs/development-workflow.md`](../../development-workflow.md)
 8. System registry: [`docs/systems/README.md`](../README.md)
 
-The v0.1 documents remain historical design/execution records. v0.2 changes only verification topology and policy; it does not alter gameplay/runtime contracts.
+The v0.1 documents remain historical design/execution records. v0.2 changes verification topology and policy; it does not redesign gameplay/runtime contracts.

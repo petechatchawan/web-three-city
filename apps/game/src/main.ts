@@ -14,6 +14,8 @@ import {
 import { createFoundationRciRegistries } from '@web-three-city/rci-core';
 import type { SimulationSpeed } from '@web-three-city/simulation-core';
 import type { TerraformBrushSize } from '@web-three-city/terrain-core';
+import { WORLD_CONFIG } from '@web-three-city/world-core';
+import { WORLD_SAVE_KEY } from './application/save-coordinator.js';
 import { bootstrapGame } from './game-bootstrap.js';
 import { renderGameCanvas } from './game-ui.js';
 import { bindGameKeyboardShortcuts } from './game-keyboard-shortcuts.js';
@@ -21,6 +23,11 @@ import { createSimulationRuntime } from './simulation-runtime.js';
 import { dispatchGameToolCancel } from './game-tool-events.js';
 import { bindGameToolContext } from './game-tool-context-bridge.js';
 import type { GameToolMode } from './game-tool-mode.js';
+import {
+  createTrafficReleaseFixture,
+  type TrafficReleaseFixtureSummary,
+} from './traffic-release-fixture.js';
+import { takeTrafficJourneyReceipts } from './traffic-journey-receipt-registry.js';
 import { TrafficRuntimePresentation } from './traffic-runtime-presentation.js';
 import { mountCityUi } from './ui/city-ui-runtime.js';
 
@@ -47,6 +54,9 @@ interface TrafficTestApi {
     readonly traffic: ReturnType<ReturnType<typeof bootstrapGame>['snapshot']>['traffic'];
     readonly presentation: ReturnType<TrafficRuntimePresentation['debugSnapshot']> | null;
   }>;
+  readonly installReleaseFixture: () => TrafficReleaseFixtureSummary;
+  readonly saveWorld: () => void;
+  readonly loadWorld: () => void;
   readonly setTrafficView: (active: boolean) => void;
   readonly focusCell: (x: number, z: number) => void;
 }
@@ -125,7 +135,9 @@ function synchronizeCommittedWorld(
   }
   setBuildingPresentationAbsoluteTick(world.simulation.absoluteTick);
   refreshConstructionPhaseIfNeeded(world);
+  const journeyReceipts = takeTrafficJourneyReceipts(world.rci);
   trafficRuntime?.synchronize(world);
+  trafficRuntime?.enqueueJourneyReceipts(world, journeyReceipts);
   cityUi.update(world);
 }
 
@@ -229,12 +241,27 @@ timeWindow.__WEB_THREE_CITY_TRAFFIC__ = Object.freeze({
       presentation: trafficRuntime?.debugSnapshot() ?? null,
     });
   },
+  installReleaseFixture(): TrafficReleaseFixtureSummary {
+    const fixture = createTrafficReleaseFixture();
+    localStorage.setItem(WORLD_SAVE_KEY, JSON.stringify(fixture.save));
+    automaticGrowthEnabled = true;
+    setSimulationSpeed('paused');
+    runtime.loadWorld();
+    trafficRuntime?.setCameraAnchorFromCell({ x: 64, z: 64 });
+    return fixture.summary;
+  },
+  saveWorld(): void {
+    runtime.saveWorld();
+  },
+  loadWorld(): void {
+    runtime.loadWorld();
+  },
   setTrafficView(active: boolean): void {
     trafficRuntime?.setTrafficInformationView(active);
   },
   focusCell(x: number, z: number): void {
     if (!Number.isInteger(x) || !Number.isInteger(z)) return;
-    if (x < 0 || z < 0 || x >= 64 || z >= 64) return;
+    if (x < 0 || z < 0 || x >= WORLD_CONFIG.mapWidth || z >= WORLD_CONFIG.mapHeight) return;
     trafficRuntime?.setCameraAnchorFromCell({ x, z });
   },
 });
@@ -245,7 +272,7 @@ function simulationFrame(timestamp: number): void {
   previousFrameTimestamp = timestamp;
   if (document.visibilityState !== 'hidden') {
     simulationRuntime.advance(delta, advanceOneLogicalTick);
-    trafficRuntime?.frame();
+    trafficRuntime?.frame(timestamp);
   }
   frameRequest = requestAnimationFrame(simulationFrame);
 }

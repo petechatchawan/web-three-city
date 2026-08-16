@@ -53,15 +53,15 @@ test.describe('Citizen Mobility & Traffic Foundation v0.1', () => {
     expect(state.mobility).toBeTruthy();
     expect(state.traffic).toBeTruthy();
     expect(state.presentation).toBeTruthy();
-    await expect(page.getByRole('button', { name: 'Build' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'City' })).toBeVisible();
+    await expect(page.getByTestId('nav-build')).toBeVisible();
+    await expect(page.getByTestId('nav-city')).toBeVisible();
     await expect(page.locator('body')).not.toHaveCSS('overflow-x', 'scroll');
   });
 
   test('registers Traffic as the single active information view and supports Thai copy', async ({
     page,
   }) => {
-    await page.getByRole('button', { name: 'City' }).click();
+    await page.getByTestId('nav-city').click();
     const informationEntry = page.getByRole('button', { name: /Information Views/i });
     await expect(informationEntry).toBeVisible();
     await informationEntry.click();
@@ -70,11 +70,11 @@ test.describe('Citizen Mobility & Traffic Foundation v0.1', () => {
     await traffic.click();
     await expect(page.locator('[data-testid="information-view-legend"]')).toContainText('Traffic');
 
-    await page.getByRole('button', { name: /City|เมือง/ }).click();
+    await page.getByTestId('nav-city').click();
     const thai = page.locator('[data-testid="locale-th"]');
     await expect(thai).toBeVisible();
     await thai.click();
-    await expect(page.getByRole('button', { name: 'เมือง' })).toBeVisible();
+    await expect(page.getByTestId('nav-city')).toHaveAccessibleName('เมือง');
 
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth);
     expect(overflow).toBeLessThanOrEqual(0);
@@ -93,9 +93,9 @@ test.describe('Citizen Mobility & Traffic Foundation v0.1', () => {
       api.installReleaseFixture();
     });
     const before = await readTraffic(page);
-    await page.getByRole('button', { name: 'City' }).click();
+    await page.getByTestId('nav-city').click();
     await page.keyboard.press('Escape');
-    await page.getByRole('button', { name: 'Build' }).click();
+    await page.getByTestId('nav-build').click();
     await page.keyboard.press('Escape');
     const after = await readTraffic(page);
     expect(after.citizenIds).toEqual(before.citizenIds);

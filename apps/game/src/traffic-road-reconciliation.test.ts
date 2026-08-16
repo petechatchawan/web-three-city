@@ -1,5 +1,6 @@
 import {
   commitPlannedMobilityTrip,
+  formatMobilityTripId,
   type MobilityModeCandidate,
   type MobilityTripPlanningRequest,
 } from '@web-three-city/citizen-mobility-core';
@@ -33,6 +34,7 @@ function activeDriveState() {
   const citizenId = fixture.summary.driveCitizenIds[0]!;
   const originBuildingId = fixture.summary.homeBuildingByCitizen[citizenId]!;
   const destinationBuildingId = fixture.summary.workBuildingByCitizen[citizenId]!;
+  const tripId = formatMobilityTripId(world.mobility.nextTripSequence);
   const roadSource = createRoadTrafficSourceProjectionFromEnvironment(
     world.roads,
     world.environments.building,
@@ -54,7 +56,7 @@ function activeDriveState() {
   const origin = access.find((entry) => entry.buildingInstanceId === originBuildingId)!;
   const destination = access.find((entry) => entry.buildingInstanceId === destinationBuildingId)!;
   const candidates = planModeCandidates({
-    requestTripId: 'trip:1',
+    requestTripId: tripId,
     citizenId,
     originWalkAccessNodeId: origin.walkAccessNodeId,
     destinationWalkAccessNodeId: destination.walkAccessNodeId,
@@ -66,7 +68,7 @@ function activeDriveState() {
   const drive = candidates.find((candidate) => candidate.mode === 'Drive')!;
   expect(drive.available).toBe(true);
   const request: MobilityTripPlanningRequest = Object.freeze({
-    tripId: 'trip:1',
+    tripId,
     citizenId,
     purpose: 'CommuteToWork',
     originBuildingId,

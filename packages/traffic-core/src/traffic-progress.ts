@@ -165,13 +165,13 @@ export function advanceTrafficSnapshot(
   ) {
     throw new TrafficContractError('traffic:invalid-state');
   }
-  if (input.elapsedSeconds === 0) {
+  if (input.elapsedSeconds === 0 || snapshot.activeTrips.length === 0) {
     return Object.freeze({
       snapshot,
       receipt: Object.freeze({
         beforeRevision: snapshot.revision,
         afterRevision: snapshot.revision,
-        elapsedSeconds: 0,
+        elapsedSeconds: input.elapsedSeconds,
         arrivedTripIds: Object.freeze([]),
         newlyQueuedTripIds: Object.freeze([]),
         releasedTripIds: Object.freeze([]),

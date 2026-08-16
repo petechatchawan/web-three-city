@@ -112,6 +112,7 @@ describe('atomic game-world tick', () => {
   it('does not publish any staged Building or Simulation result when the RCI plan is invalid', () => {
     const state = initialState();
     const store = new GameWorldStateStore(state);
+    const committedBefore = store.snapshot();
     const invalidEnvironment = {
       ...environment,
       waterSourceTerrainRevision: 1,
@@ -124,6 +125,6 @@ describe('atomic game-world tick', () => {
     });
     expect(plan.valid).toBe(false);
     expect(() => commitGameWorldTick(store, plan)).toThrow('game-world-tick:invalid-plan');
-    expect(store.snapshot()).toBe(state);
+    expect(store.snapshot()).toBe(committedBefore);
   });
 });

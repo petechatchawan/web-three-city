@@ -1,4 +1,5 @@
 import { createEmptyBuildingSnapshot } from '@web-three-city/building-core';
+import { createEmptyMobilitySnapshot } from '@web-three-city/citizen-mobility-core';
 import {
   createInitialEconomySnapshot,
   FOUNDATION_ECONOMY_RULES,
@@ -7,12 +8,17 @@ import { createInitialRciSnapshot } from '@web-three-city/rci-core';
 import { createEmptyRoadSnapshot, type RoadSnapshot } from '@web-three-city/road-core';
 import { createInitialSimulationSnapshot } from '@web-three-city/simulation-core';
 import { createTerrainMap } from '@web-three-city/terrain-core';
+import { createEmptyTrafficSnapshot } from '@web-three-city/traffic-core';
 import { deriveWaterSnapshot } from '@web-three-city/water-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { createEmptyZoneSnapshot, type ZoneSnapshot } from '@web-three-city/zone-core';
 import { describe, expect, it } from 'vitest';
 import { createBuildingDevelopmentEnvironment } from '../building-development-environment.js';
 import { createBuildingWorldOccupancy } from '../building-world-occupancy.js';
+import {
+  recallMobilityTrafficState,
+  rememberMobilityTrafficState,
+} from '../mobility-traffic-state-registry.js';
 import { createRoadPlacementEnvironment } from '../road-placement-environment.js';
 import { createZonePlacementEnvironment } from '../zone-placement-environment.js';
 import {
@@ -134,6 +140,23 @@ describe('CommittedWorldStore', () => {
       'committed-world:invalid-next-revision',
     );
     expect(fingerprintCommittedWorld(store.snapshot())).toBe(fingerprintCommittedWorld(before));
+  });
+
+  it('keeps snapshot reads observational for pending Mobility/Traffic compatibility state', () => {
+    const store = new CommittedWorldStore(sourceWorld(0));
+    const committed = store.snapshot();
+    const pendingMobility = createEmptyMobilitySnapshot();
+    const pendingTraffic = createEmptyTrafficSnapshot({
+      roadRevision: committed.roads.revision,
+      buildingRevision: committed.buildings.revision,
+    });
+    rememberMobilityTrafficState(committed.rci, pendingMobility, pendingTraffic);
+
+    store.snapshot();
+
+    const recalled = recallMobilityTrafficState(committed.rci);
+    expect(recalled?.mobility).toBe(pendingMobility);
+    expect(recalled?.traffic).toBe(pendingTraffic);
   });
 
   it('copies authoritative typed arrays on publication and on read', () => {

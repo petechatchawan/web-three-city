@@ -103,6 +103,15 @@ test('AGENTS defines actionable repository navigation and verification policy', 
   assert.match(agents, /master.*always-releasable/is);
 });
 
+test('AGENTS requires targeted browser evidence without making Full Browser the default PR gate', async () => {
+  const agents = await readRepoText('AGENTS.md');
+  assert.match(agents, /browser-observable.*targeted.*Playwright/is);
+  assert.match(agents, /Full Browser.*not.*default.*every PR/is);
+  assert.match(agents, /release.*milestone.*shared browser infrastructure/is);
+  assert.match(agents, /full-ci/i);
+  assert.match(agents, /nightly/i);
+});
+
 test('AGENTS static Level 2 map contains every approved changed-owner row', async () => {
   const agents = await readRepoText('AGENTS.md');
   for (const owner of [
@@ -171,6 +180,13 @@ test('PR template delegates affected-consumer decisions to AGENTS and enforces s
   assert.match(template, /debug|temporary/i);
 });
 
+test('PR template separates targeted browser evidence from Full Browser escalation', async () => {
+  const template = await readRepoText('.github/pull_request_template.md');
+  assert.match(template, /Targeted browser verification/i);
+  assert.match(template, /Full Browser escalation decision/i);
+  assert.match(template, /required.*not required/is);
+});
+
 test('development workflow documents master trunk and package-targeted iteration instead of develop integration', async () => {
   const workflow = await readRepoText('docs/development-workflow.md');
   assert.match(workflow, /master.*always-releasable.*trunk/is);
@@ -180,6 +196,14 @@ test('development workflow documents master trunk and package-targeted iteration
   assert.match(workflow, /pnpm --filter @web-three-city\/<pkg> test/);
   assert.doesNotMatch(workflow, /develop is the active integration branch/i);
   assert.doesNotMatch(workflow, /target `develop`/i);
+});
+
+test('development workflow reserves Full Browser for explicit escalation', async () => {
+  const workflow = await readRepoText('docs/development-workflow.md');
+  assert.match(workflow, /browser-observable.*targeted.*Playwright/is);
+  assert.match(workflow, /Full Browser.*not.*default.*every PR/is);
+  assert.match(workflow, /release.*milestone.*shared browser infrastructure/is);
+  assert.match(workflow, /nightly/i);
 });
 
 test('system registry reports implemented RCI and the Development Workflow system', async () => {

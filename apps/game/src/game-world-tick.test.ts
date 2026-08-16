@@ -14,7 +14,11 @@ import {
 } from '@web-three-city/simulation-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { describe, expect, it } from 'vitest';
-import { commitGameWorldTick, planGameWorldTick } from './game-world-tick.js';
+import {
+  commitGameWorldTick,
+  planGameWorldTick,
+  requiresMobilityTrafficSourceDerivation,
+} from './game-world-tick.js';
 import { GameWorldStateStore } from './game-world-state.js';
 
 const environment = Object.freeze({
@@ -83,6 +87,7 @@ describe('atomic game-world tick', () => {
     ).toBeGreaterThan(0);
     expect(plan.proposedState.economy.taxPolicy.residentialBp).toBe(200);
   });
+
   it('plans deterministically and advances Simulation/RCI through one proposed world state', () => {
     const registries = createFoundationRciRegistries();
     const state = initialState();
@@ -93,6 +98,24 @@ describe('atomic game-world tick', () => {
     expect(first.proposedState.revision).toBe(1);
     expect(first.proposedState.simulation.absoluteTick).toBe(state.simulation.absoluteTick + 1);
     expect(first.proposedState.buildings).toBe(state.buildings);
+  });
+
+  it('skips expensive Traffic source derivation when no Mobility or Traffic work exists', () => {
+    const state = new GameWorldStateStore(initialState()).snapshot();
+    expect(
+      requiresMobilityTrafficSourceDerivation({
+        citizenCount: 0,
+        mobility: state.mobility,
+        traffic: state.traffic,
+      }),
+    ).toBe(false);
+    expect(
+      requiresMobilityTrafficSourceDerivation({
+        citizenCount: 1,
+        mobility: state.mobility,
+        traffic: state.traffic,
+      }),
+    ).toBe(true);
   });
 
   it('publishes a valid plan once and rejects stale replay without partial state', () => {

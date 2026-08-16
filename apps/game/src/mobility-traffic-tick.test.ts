@@ -128,4 +128,35 @@ describe('planMobilityTrafficTick', () => {
     expect(second.mobility.trips[0]?.status).toBe('Arrived');
     expect(second.traffic.activeTrips).toHaveLength(0);
   });
+
+  it('rebases empty Traffic provenance without deriving graph cells when no Citizens exist', () => {
+    const untouchedRoads = Object.freeze({
+      roadRevision: 7,
+      width: 8,
+      height: 8,
+      get cells(): never {
+        throw new Error('empty-tick:traffic-graph-should-not-be-derived');
+      },
+    });
+    const result = planMobilityTrafficTick({
+      mobilityBefore: createEmptyMobilitySnapshot(),
+      trafficBefore: createEmptyTrafficSnapshot({ roadRevision: 1, buildingRevision: 1 }),
+      citizensAfter: Object.freeze([]),
+      simulationBefore: simulation(8),
+      simulationAfter: simulation(9),
+      trafficSource: {
+        roads: untouchedRoads,
+        buildingAccess: Object.freeze({ buildingRevision: 9, accesses: Object.freeze([]) }),
+      },
+    });
+
+    expect(result.mobility).toEqual(createEmptyMobilitySnapshot());
+    expect(result.traffic).toMatchObject({
+      graphSourceRoadRevision: 7,
+      graphSourceBuildingRevision: 9,
+      activeTrips: [],
+    });
+    expect(result.mobilityReceipts).toEqual([]);
+    expect(result.trafficReceipts).toEqual([]);
+  });
 });

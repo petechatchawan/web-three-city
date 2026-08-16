@@ -1,8 +1,10 @@
 import { TRAFFIC_PROGRESS_MAX_Q } from '@web-three-city/traffic-core';
 import {
+  FOUNDATION_TRAFFIC_PRESENTATION_POLICY,
   TrafficPedestrianPool,
   TrafficVehiclePool,
   sampleRouteEdgePosition,
+  type TrafficPresentationPolicy,
 } from '@web-three-city/traffic-three';
 import { WORLD_CONFIG, type CellCoord } from '@web-three-city/world-core';
 import type { Scene } from 'three';
@@ -38,10 +40,23 @@ interface TrafficJourneyReplay {
   readonly durationMs: number;
 }
 
+const LOGICAL_METERS_PER_GAMEPLAY_CELL = 8;
 const REPLAY_MIN_DURATION_MS = 3_000;
 const REPLAY_MAX_DURATION_MS = 12_000;
 const WALK_REPLAY_MS_PER_SEGMENT = 520;
 const DRIVE_REPLAY_MS_PER_SEGMENT = 280;
+
+export const GAME_TRAFFIC_PRESENTATION_POLICY: TrafficPresentationPolicy = Object.freeze({
+  ...FOUNDATION_TRAFFIC_PRESENTATION_POLICY,
+  nearRadiusMeters:
+    FOUNDATION_TRAFFIC_PRESENTATION_POLICY.nearRadiusMeters / LOGICAL_METERS_PER_GAMEPLAY_CELL,
+  midRadiusMeters:
+    FOUNDATION_TRAFFIC_PRESENTATION_POLICY.midRadiusMeters / LOGICAL_METERS_PER_GAMEPLAY_CELL,
+  vehicleMinimumHeadwayMillimeters: Math.round(
+    FOUNDATION_TRAFFIC_PRESENTATION_POLICY.vehicleMinimumHeadwayMillimeters /
+      LOGICAL_METERS_PER_GAMEPLAY_CELL,
+  ),
+});
 
 function cellCenter(cell: CellCoord): TrafficRuntimeCameraAnchor {
   return Object.freeze({
@@ -132,7 +147,7 @@ export class TrafficRuntimePresentation {
   #replayVisibleAgents: readonly TrafficPresentationAgent[] = Object.freeze([]);
 
   constructor(scene: Scene) {
-    this.#presentation = new TrafficPresentation(scene);
+    this.#presentation = new TrafficPresentation(scene, GAME_TRAFFIC_PRESENTATION_POLICY);
     this.#overlay = new TrafficInformationViewOverlay(scene);
     this.#replayPedestrians.root.name = 'traffic-journey-replay-pedestrian-root';
     this.#replayVehicles.root.name = 'traffic-journey-replay-vehicle-root';

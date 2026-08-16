@@ -65,7 +65,10 @@ function unavailableCandidate(request: TransportRouteRequest): TransportRouteCan
   });
 }
 
-function buildAdjacency(graph: TrafficGraph, mode: TrafficMode): ReadonlyMap<string, TrafficGraphEdge[]> {
+function buildAdjacency(
+  graph: TrafficGraph,
+  mode: TrafficMode,
+): ReadonlyMap<string, TrafficGraphEdge[]> {
   const adjacency = new Map<string, TrafficGraphEdge[]>();
   for (const edge of graph.edges) {
     if (edge.mode !== mode) continue;
@@ -113,7 +116,8 @@ function findBestStates(
     for (const edge of adjacency.get(current.nodeId) ?? []) {
       const nextCost = current.totalCostSeconds + edgeCostSeconds(edge, request.mode, costField);
       const nextTraversals = current.traversalCount + 1;
-      if (!betterCandidate(nextCost, nextTraversals, edge.edgeId, best.get(edge.toNodeId))) continue;
+      if (!betterCandidate(nextCost, nextTraversals, edge.edgeId, best.get(edge.toNodeId)))
+        continue;
       best.set(edge.toNodeId, {
         cost: nextCost,
         traversalCount: nextTraversals,

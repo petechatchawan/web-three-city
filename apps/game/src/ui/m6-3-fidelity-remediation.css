@@ -24,6 +24,23 @@
 /* Gameplay chrome must never intercept a modal/sheet interaction. */
 .city-ui .city-dialog-backdrop {
   z-index: 200;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Grid-item automatic minimum sizing must not let long management content expand the sheet
+   beyond the viewport. The body already owns vertical scrolling. */
+.city-ui .city-sheet {
+  box-sizing: border-box;
+  height: min(90dvh, 90vh);
+  min-height: 0;
+  max-height: min(90dvh, 90vh);
+}
+
+.city-ui .city-sheet-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 /* Tool Context remains above contextual tools, but below modal management surfaces. */

@@ -47,6 +47,14 @@ pnpm exec playwright test --grep @smoke
 
 Record the targeted command/spec and result in the pull request. Expand the subset when multiple browser domains or shared interaction paths are affected.
 
+For CI-backed targeted evidence, add one metadata line to the pull request body using only approved ownership tags:
+
+```text
+Targeted browser tags: traffic building
+```
+
+Lean CI validates the repository and publishes the exact preview build artifact first. The targeted-browser job validates the metadata against the approved tag allowlist, consumes that Lean artifact, and runs the union of the requested Playwright ownership sets. Remove the metadata line after evidence is collected when future commits should stop rerunning that targeted subset; editing PR metadata does not change the candidate SHA.
+
 **Full Browser is not the default gate for every PR.** Targeted browser verification is the normal browser-observable PR gate. Escalate to the unfiltered suite when release closure, milestone closure, or shared browser infrastructure makes the impact too broad to bound safely with targeted tests.
 
 Full Browser also remains available through the `full-ci` pull-request label and manual `workflow_dispatch`. A nightly scheduled CI run executes the same unfiltered regression authority on the default branch so broad regression coverage is retained without forcing every PR through the long suite.
@@ -72,13 +80,15 @@ For exact-head verification, commit the complete candidate first and verify that
 
 Lean CI is the mandatory repository verification owner for normal pull requests. It runs `pnpm check` and publishes the exact Game/Terrain Lab browser preview artifacts.
 
+Targeted Browser CI depends on Lean and runs only when the PR body contains an approved `Targeted browser tags:` request. It consumes the Lean artifacts and runs only the selected ownership-tag union.
+
 Full Browser CI depends on Lean, consumes those exact artifacts, and runs only when:
 
 - the pull request has `full-ci`;
 - a maintainer uses `workflow_dispatch`; or
 - the nightly schedule executes.
 
-Full Browser CI does not rerun Lean-owned unit, typecheck, or build work.
+Targeted Browser and Full Browser CI do not rerun Lean-owned unit, typecheck, or build work.
 
 ## Vercel deployment policy
 

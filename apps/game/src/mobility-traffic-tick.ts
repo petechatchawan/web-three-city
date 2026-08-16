@@ -26,6 +26,17 @@ import {
   type TrafficSnapshotV1,
 } from '@web-three-city/traffic-core';
 
+export interface TrafficJourneyDepartureReceipt extends Readonly<Record<string, unknown>> {
+  readonly kind: 'departure';
+  readonly tripId: string;
+  readonly citizenId: string;
+  readonly mode: 'Walk' | 'Drive';
+  readonly departureGameMinute: number;
+  readonly routeEdgeIds: readonly string[];
+  readonly originBuildingId: string;
+  readonly destinationBuildingId: string;
+}
+
 export interface MobilityTrafficTickResult {
   readonly mobility: MobilitySnapshotV1;
   readonly traffic: TrafficSnapshotV1;
@@ -80,6 +91,22 @@ function settleTerminalTraffic(
     mobility: nextMobility,
     traffic: createTrafficSnapshot({ ...traffic, activeTrips: retained }),
   });
+}
+
+export function isTrafficJourneyDepartureReceipt(
+  receipt: Readonly<Record<string, unknown>>,
+): receipt is TrafficJourneyDepartureReceipt {
+  return (
+    receipt.kind === 'departure' &&
+    typeof receipt.tripId === 'string' &&
+    typeof receipt.citizenId === 'string' &&
+    (receipt.mode === 'Walk' || receipt.mode === 'Drive') &&
+    Number.isSafeInteger(receipt.departureGameMinute) &&
+    Array.isArray(receipt.routeEdgeIds) &&
+    receipt.routeEdgeIds.every((edgeId) => typeof edgeId === 'string') &&
+    typeof receipt.originBuildingId === 'string' &&
+    typeof receipt.destinationBuildingId === 'string'
+  );
 }
 
 export function planMobilityTrafficTick(input: Readonly<{
@@ -255,6 +282,18 @@ export function planMobilityTrafficTick(input: Readonly<{
         revision: traffic.revision + 1,
         activeTrips: [...traffic.activeTrips, active],
       });
+      trafficReceipts.push(
+        Object.freeze({
+          kind: 'departure' as const,
+          tripId: active.tripId,
+          citizenId: active.citizenId,
+          mode: active.mode,
+          departureGameMinute: request.departureGameMinute,
+          routeEdgeIds: Object.freeze([...active.routeEdgeIds]),
+          originBuildingId: active.originBuildingId,
+          destinationBuildingId: active.destinationBuildingId,
+        } satisfies TrafficJourneyDepartureReceipt),
+      );
     }
   }
 

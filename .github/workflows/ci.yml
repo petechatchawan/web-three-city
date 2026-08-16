@@ -30,7 +30,20 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: pnpm check
+      - name: Check formatting
+        run: pnpm format:check
+      - name: Lint
+        run: pnpm lint
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Check provenance
+        run: pnpm provenance:check
+      - name: Test deployment tooling
+        run: pnpm test:deployment
+      - name: Test packages
+        run: pnpm test
+      - name: Build packages
+        run: pnpm build
       - name: Archive lean build outputs
         run: tar -czf lean-builds.tar.gz apps/game/dist apps/terrain-lab/dist
       - name: Upload lean build outputs

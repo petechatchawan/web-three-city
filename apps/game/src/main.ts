@@ -15,7 +15,7 @@ import { createFoundationRciRegistries } from '@web-three-city/rci-core';
 import type { SimulationSpeed } from '@web-three-city/simulation-core';
 import type { TerraformBrushSize } from '@web-three-city/terrain-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
-import { WORLD_SAVE_KEY } from './application/save-coordinator.js';
+import { writeBrowserWorldSaveFixture } from './browser-world-save-fixture.js';
 import { bootstrapGame } from './game-bootstrap.js';
 import { renderGameCanvas } from './game-ui.js';
 import { bindGameKeyboardShortcuts } from './game-keyboard-shortcuts.js';
@@ -188,7 +188,7 @@ function setInformationView(key: 'grid' | 'zoning' | 'traffic' | null): void {
 }
 
 function installWorldSaveFixture(payload: unknown): void {
-  localStorage.setItem(WORLD_SAVE_KEY, JSON.stringify(payload));
+  writeBrowserWorldSaveFixture(payload);
   automaticGrowthEnabled = true;
   setSimulationSpeed('paused');
   runtime.loadWorld();

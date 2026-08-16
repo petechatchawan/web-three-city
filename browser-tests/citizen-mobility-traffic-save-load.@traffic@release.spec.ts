@@ -79,8 +79,8 @@ test('WorldSaveV7 restores Mobility/Traffic authority and continues deterministi
   expect(JSON.parse(persisted ?? '{}')).toMatchObject({
     kind: 'world-save',
     schemaVersion: 7,
-    mobility: { kind: 'mobility-save', schemaVersion: 1 },
-    traffic: { kind: 'traffic-save', schemaVersion: 1 },
+    mobility: { schemaVersion: 1 },
+    traffic: { schemaVersion: 1 },
   });
 
   await step(page, 3);

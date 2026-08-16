@@ -17,6 +17,7 @@ import type {
   TrafficPresentationAgent,
   TrafficPresentationSnapshot,
 } from './traffic-presentation-projection.js';
+import type { InspectTarget } from './ui/inspect/inspect-target.js';
 
 export interface TrafficPresentationCameraQuery {
   readonly x: number;
@@ -62,25 +63,19 @@ export class TrafficPresentation {
     return this.#visibleAgents;
   }
 
-  pickNearestAgent(
-    input: Readonly<{ x: number; z: number; maxDistance: number }>,
-  ): TrafficPresentationAgent | null {
-    if (
-      !Number.isFinite(input.x) ||
-      !Number.isFinite(input.z) ||
-      !Number.isFinite(input.maxDistance)
-    ) {
+  pickNearestAgent(x: number, z: number, maxDistance: number): InspectTarget | null {
+    if (!Number.isFinite(x) || !Number.isFinite(z) || !Number.isFinite(maxDistance)) {
       throw new RangeError('traffic-presentation:invalid-pick-query');
     }
-    if (input.maxDistance < 0) throw new RangeError('traffic-presentation:invalid-pick-query');
+    if (maxDistance < 0) throw new RangeError('traffic-presentation:invalid-pick-query');
 
-    const maximumDistanceSquared = input.maxDistance * input.maxDistance;
+    const maximumDistanceSquared = maxDistance * maxDistance;
     let nearest: TrafficPresentationAgent | null = null;
     let nearestDistanceSquared = Number.POSITIVE_INFINITY;
     for (const agent of this.#visibleAgents) {
       const position = sampleRouteEdgePosition(agent.from, agent.to, agent.progressQ);
-      const dx = position.x - input.x;
-      const dz = position.z - input.z;
+      const dx = position.x - x;
+      const dz = position.z - z;
       const distanceSquared = dx * dx + dz * dz;
       if (distanceSquared > maximumDistanceSquared) continue;
       if (
@@ -93,7 +88,18 @@ export class TrafficPresentation {
         nearestDistanceSquared = distanceSquared;
       }
     }
-    return nearest;
+    if (nearest === null) return null;
+    return nearest.mode === 'Drive'
+      ? Object.freeze({
+          kind: 'vehicle' as const,
+          citizenId: nearest.citizenId,
+          tripId: nearest.tripId,
+        })
+      : Object.freeze({
+          kind: 'citizen' as const,
+          citizenId: nearest.citizenId,
+          tripId: nearest.tripId,
+        });
   }
 
   update(

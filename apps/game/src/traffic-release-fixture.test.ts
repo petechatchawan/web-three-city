@@ -1,6 +1,9 @@
+import { createFoundationRciRegistries } from '@web-three-city/rci-core';
 import { createSimulationSnapshot } from '@web-three-city/simulation-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { describe, expect, it } from 'vitest';
+import { GameWorldStateStore } from './game-world-state.js';
+import { executeGameWorldTick } from './game-world-tick.js';
 import { createPresentCitizenMobilityProjection } from './mobility-source-projection.js';
 import {
   isTrafficJourneyDepartureReceipt,
@@ -79,6 +82,41 @@ describe('Citizen Mobility & Traffic release fixture', () => {
     }
     expect(result.mobility.trips.every((trip) => trip.status === 'Arrived')).toBe(true);
     expect(result.traffic.activeTrips).toHaveLength(0);
+  });
+
+  it('carries the release fixture through hourly world ticks into the deterministic commute home', () => {
+    const fixture = createTrafficReleaseFixture();
+    const world = fixture.world;
+    const store = new GameWorldStateStore({
+      revision: world.revision,
+      simulation: world.simulation,
+      buildings: world.buildings,
+      rci: world.rci,
+      roads: world.roads,
+      economy: world.economy,
+      mobility: world.mobility,
+      traffic: world.traffic,
+    });
+    const registries = createFoundationRciRegistries();
+
+    while (store.snapshot().simulation.absoluteTick < 17) {
+      executeGameWorldTick({
+        store,
+        environment: world.environments.building,
+        config: WORLD_CONFIG,
+        registries,
+      });
+    }
+
+    const finished = store.snapshot();
+    expect(finished.simulation.absoluteTick).toBe(17);
+    expect(finished.mobility.trips).toHaveLength(fixture.summary.citizenIds.length * 2);
+    expect(
+      finished.mobility.trips.filter((trip) => trip.purpose === 'CommuteHome'),
+    ).toHaveLength(fixture.summary.citizenIds.length);
+    expect(finished.mobility.citizenStates.every((state) => state.currentActivity === 'Home')).toBe(
+      true,
+    );
   });
 
   it('contains a deterministic alternate Road corridor around the primary recovery cut', () => {

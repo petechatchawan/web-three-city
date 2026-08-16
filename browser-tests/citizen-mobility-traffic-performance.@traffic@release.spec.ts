@@ -1,7 +1,4 @@
 import { expect, test } from '@playwright/test';
-import { createTrafficPerformanceReleaseFixture } from '../apps/game/src/traffic-performance-release-fixture.js';
-
-const SAVE_KEY = 'web-three-city:world-save:v7';
 
 interface TrafficPerformanceDebug {
   logicalActiveTrips: number;
@@ -19,6 +16,12 @@ interface TrafficApiSnapshot {
   citizenIds: string[];
   traffic: { activeTrips: unknown[] };
   presentation: TrafficPerformanceDebug | null;
+}
+
+interface TrafficPerformanceFixtureSummary {
+  citizenCount: number;
+  activeTripCount: number;
+  focusCell: { x: number; z: number };
 }
 
 async function sampleFrames(
@@ -52,7 +55,6 @@ test('5,000 logical trips remain spatially bounded and presentation-capped', asy
   page,
 }, testInfo) => {
   test.setTimeout(120_000);
-  const fixture = createTrafficPerformanceReleaseFixture();
   await page.setViewportSize({ width: 414, height: 896 });
   await page.goto('/');
   await expect
@@ -65,23 +67,17 @@ test('5,000 logical trips remain spatially bounded and presentation-capped', asy
     )
     .toBe(true);
 
-  await page.evaluate(
-    ({ key, payload, focus }) => {
-      localStorage.setItem(key, JSON.stringify(payload));
-      const api = (
-        window as Window & {
-          __WEB_THREE_CITY_TRAFFIC__?: {
-            loadWorld(): void;
-            focusCell(x: number, z: number): void;
-          };
-        }
-      ).__WEB_THREE_CITY_TRAFFIC__;
-      if (api === undefined) throw new Error('traffic test API unavailable');
-      api.loadWorld();
-      api.focusCell(focus.x, focus.z);
-    },
-    { key: SAVE_KEY, payload: fixture.save, focus: fixture.focusCell },
-  );
+  const fixture = await page.evaluate(() => {
+    const api = (
+      window as Window & {
+        __WEB_THREE_CITY_TRAFFIC__?: {
+          installPerformanceFixture(): TrafficPerformanceFixtureSummary;
+        };
+      }
+    ).__WEB_THREE_CITY_TRAFFIC__;
+    if (api === undefined) throw new Error('traffic test API unavailable');
+    return api.installPerformanceFixture();
+  });
 
   await expect
     .poll(

@@ -31,7 +31,7 @@ export type GameWorldStateInput = Omit<GameWorldState, 'mobility' | 'traffic'> &
     traffic?: TrafficSnapshotV1;
   }>;
 
-function completeGameWorldState(input: GameWorldStateInput): GameWorldState {
+export function createGameWorldState(input: GameWorldStateInput): GameWorldState {
   if (input.mobility !== undefined && input.traffic !== undefined) {
     const state = Object.isFrozen(input)
       ? (input as GameWorldState)
@@ -42,13 +42,17 @@ function completeGameWorldState(input: GameWorldStateInput): GameWorldState {
 
   const recalled = recallMobilityTrafficState(input.rci);
   const mobility = input.mobility ?? recalled?.mobility ?? createEmptyMobilitySnapshot();
+  const recalledTraffic = recalled?.traffic;
   const traffic =
     input.traffic ??
-    recalled?.traffic ??
-    createEmptyTrafficSnapshot({
-      roadRevision: input.roads.revision,
-      buildingRevision: input.buildings.revision,
-    });
+    (recalledTraffic !== undefined &&
+    recalledTraffic.graphSourceRoadRevision === input.roads.revision &&
+    recalledTraffic.graphSourceBuildingRevision === input.buildings.revision
+      ? recalledTraffic
+      : createEmptyTrafficSnapshot({
+          roadRevision: input.roads.revision,
+          buildingRevision: input.buildings.revision,
+        }));
   const state = Object.freeze({
     ...input,
     mobility,
@@ -62,7 +66,7 @@ export class GameWorldStateStore {
   #state: GameWorldState;
 
   constructor(initialState: GameWorldStateInput) {
-    this.#state = completeGameWorldState(initialState);
+    this.#state = createGameWorldState(initialState);
   }
 
   snapshot(): GameWorldState {
@@ -74,7 +78,7 @@ export class GameWorldStateStore {
       throw new Error('game-world-state:stale-revision');
     if (nextState.revision !== expectedRevision + 1)
       throw new Error('game-world-state:invalid-next-revision');
-    this.#state = completeGameWorldState(nextState);
+    this.#state = createGameWorldState(nextState);
     return this.#state;
   }
 
@@ -98,7 +102,7 @@ export class GameWorldStateStore {
       (input.mobility === undefined || this.#state.mobility === input.mobility) &&
       (input.traffic === undefined || this.#state.traffic === input.traffic);
     if (unchanged) return this.#state;
-    this.#state = completeGameWorldState({
+    this.#state = createGameWorldState({
       revision: this.#state.revision + 1,
       simulation: input.simulation,
       buildings: input.buildings,

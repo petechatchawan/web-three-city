@@ -38,8 +38,22 @@ jobs:
         run: pnpm typecheck
       - name: Check provenance
         run: pnpm provenance:check
-      - name: Test deployment tooling
-        run: pnpm test:deployment
+      - name: Test architecture boundary
+        run: node --test tooling/architecture-boundary.test.mjs
+      - name: Test topology
+        run: node --test tooling/test-topology.test.mjs
+      - name: Test CI topology
+        run: node --test tooling/ci-topology.test.mjs
+      - name: Test development workflow
+        run: node --test tooling/development-workflow.test.mjs
+      - name: Test Vercel composition
+        run: node --test tooling/compose-vercel-output.test.mjs
+      - name: Test Vercel bootstrap
+        run: node --test tooling/bootstrap-vercel-project.test.mjs
+      - name: Test verification scripts
+        run: node --test tooling/verification-scripts.test.mjs
+      - name: Test clean-worktree verifier
+        run: node --test tooling/verify-clean-worktree.test.mjs
       - name: Test packages
         run: pnpm test
       - name: Build packages

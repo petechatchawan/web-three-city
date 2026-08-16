@@ -4,6 +4,7 @@ import {
   deriveVehicleTrafficGraph,
   type TrafficGraph,
 } from '@web-three-city/traffic-core';
+import { WORLD_CONFIG } from '@web-three-city/world-core';
 import {
   BufferGeometry,
   Group,
@@ -17,6 +18,9 @@ import {
   createBuildingTrafficAccessProjection,
   createRoadTrafficSourceProjectionFromEnvironment,
 } from './traffic-source-projection.js';
+
+const WORLD_HALF_X = (WORLD_CONFIG.mapWidth * WORLD_CONFIG.cellSize) / 2;
+const WORLD_HALF_Z = (WORLD_CONFIG.mapHeight * WORLD_CONFIG.cellSize) / 2;
 
 export type TrafficSeverity = 'free' | 'moderate' | 'heavy' | 'congested';
 
@@ -78,8 +82,16 @@ export function createTrafficInformationEdges(world: CommittedWorld): readonly T
             loadRatioMilli: edge.loadRatioMilli,
             queueDelaySeconds: edge.queueDelaySeconds,
             severity: severityFor(edge.congestionMilli, edge.loadRatioMilli),
-            from: Object.freeze({ x: from.xQ / 1000, y: from.yQ / 1000 + 0.12, z: from.zQ / 1000 }),
-            to: Object.freeze({ x: to.xQ / 1000, y: to.yQ / 1000 + 0.12, z: to.zQ / 1000 }),
+            from: Object.freeze({
+              x: from.xQ / 1000 - WORLD_HALF_X,
+              y: from.yQ / 1000 + 0.12,
+              z: from.zQ / 1000 - WORLD_HALF_Z,
+            }),
+            to: Object.freeze({
+              x: to.xQ / 1000 - WORLD_HALF_X,
+              y: to.yQ / 1000 + 0.12,
+              z: to.zQ / 1000 - WORLD_HALF_Z,
+            }),
           }),
         ];
       })

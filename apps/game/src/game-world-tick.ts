@@ -25,6 +25,7 @@ import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
 import { GameWorldStateStore, type GameWorldState } from './game-world-state.js';
 import { createPresentCitizenMobilityProjection } from './mobility-source-projection.js';
 import { planMobilityTrafficTick } from './mobility-traffic-tick.js';
+import { rememberTrafficJourneyReceipts } from './traffic-journey-receipt-registry.js';
 import {
   createBuildingTrafficAccessProjection,
   createRoadTrafficSourceProjectionFromEnvironment,
@@ -273,6 +274,7 @@ export function executeGameWorldTick(
     ...(input.reservedCells === undefined ? {} : { reservedCells: input.reservedCells }),
   });
   const state = commitGameWorldTick(input.store, plan);
+  rememberTrafficJourneyReceipts(state.rci, plan.trafficReceipts);
   return Object.freeze({
     state,
     buildingReceipt: plan.buildingReceipt,

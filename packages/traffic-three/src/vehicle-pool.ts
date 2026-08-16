@@ -28,6 +28,10 @@ export class TrafficVehiclePool {
     return this.#active.has(tripId);
   }
 
+  get(tripId: string): TrafficVehicleAgent | undefined {
+    return this.#active.get(tripId);
+  }
+
   acquire(input: TrafficVehicleVisualInput): TrafficVehicleAgent {
     const existing = this.#active.get(input.tripId);
     if (existing !== undefined) {

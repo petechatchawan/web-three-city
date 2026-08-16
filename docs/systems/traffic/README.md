@@ -11,6 +11,8 @@ Own deterministic pedestrian/vehicle graph derivation, multimodal routing, logic
 
 The production goal is visual truth: a visible pedestrian is a real Citizen Walk trip and a visible car is a real Citizen Drive trip. Off-screen trips remain logical; renderer state never becomes canonical Traffic state.
 
+For vehicle presentation, canonical Traffic progress remains simulation authority. The renderer derives a presentation target from the existing route polyline, keeps a stable trip-to-pooled-vehicle mapping, interpolates transforms on render frames, and applies deterministic visual headway/lateral separation. Rendered position, heading, interpolation, arrival cleanup, and separation are presentation state only and must never mutate canonical trip progress, queue order, or save state.
+
 ## Does Not Own
 
 - Citizen identity, Household, Housing, Employment, migration, or RCI Demand.

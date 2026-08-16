@@ -140,4 +140,22 @@ describe('traffic-three production hardening', () => {
     ).toBeGreaterThanOrEqual(4_500);
     expect(rear.adjustedProgressQ).toBeLessThan(850_000);
   });
+
+  it('assigns deterministic lateral lanes to same-tick same-route vehicles', () => {
+    const inputs = ['a', 'b', 'c'].map((tripId) => ({
+      tripId,
+      edgeId: 'shared-edge',
+      progressQ: 500_000,
+      edgeLengthMillimeters: 8_000,
+      queued: false,
+    }));
+    const first = deriveVehicleVisualPlacements(inputs, 1_000);
+    const second = deriveVehicleVisualPlacements([...inputs].reverse(), 1_000);
+
+    expect(first.map((placement) => placement.tripId)).toEqual(['a', 'b', 'c']);
+    expect(first.map((placement) => placement.lateralOffsetMillimeters)).toEqual([
+      0, 1_700, -1_700,
+    ]);
+    expect(second).toEqual(first);
+  });
 });

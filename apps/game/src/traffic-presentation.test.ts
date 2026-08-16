@@ -18,6 +18,15 @@ function snapshot(): TrafficPresentationSnapshot {
         from: Object.freeze({ xQ: 0, yQ: 0, zQ: 0 }),
         to: Object.freeze({ xQ: 8_000, yQ: 0, zQ: 0 }),
         turn: null,
+        routeSegments: Object.freeze([
+          Object.freeze({
+            edgeId: 'walk-edge',
+            from: Object.freeze({ xQ: 0, yQ: 0, zQ: 0 }),
+            to: Object.freeze({ xQ: 8_000, yQ: 0, zQ: 0 }),
+            lengthMillimeters: 8_000,
+          }),
+        ]),
+        routeDistanceMillimeters: 4_000,
       }),
       Object.freeze({
         tripId: 'drive-trip',
@@ -29,6 +38,15 @@ function snapshot(): TrafficPresentationSnapshot {
         from: Object.freeze({ xQ: 0, yQ: 0, zQ: 8_000 }),
         to: Object.freeze({ xQ: 8_000, yQ: 0, zQ: 8_000 }),
         turn: null,
+        routeSegments: Object.freeze([
+          Object.freeze({
+            edgeId: 'drive-edge',
+            from: Object.freeze({ xQ: 0, yQ: 0, zQ: 8_000 }),
+            to: Object.freeze({ xQ: 8_000, yQ: 0, zQ: 8_000 }),
+            lengthMillimeters: 8_000,
+          }),
+        ]),
+        routeDistanceMillimeters: 4_000,
       }),
     ]),
   });
@@ -72,6 +90,53 @@ describe('TrafficPresentation real-agent contract', () => {
     expect(presentation.debugSnapshot().visibleVehicles).toBe(0);
     expect(committed.agents).toHaveLength(2);
     expect(committed.agents.map((agent) => agent.tripId)).toEqual(['walk-trip', 'drive-trip']);
+    presentation.dispose();
+  });
+
+  it('interpolates a stable vehicle visual between canonical snapshots', () => {
+    const scene = new Scene();
+    const presentation = new TrafficPresentation(scene);
+    const initial = snapshot();
+    presentation.update(initial, { x: 4, z: 4 }, 0, 0);
+
+    const next = Object.freeze({
+      ...initial,
+      trafficRevision: 8,
+      agents: Object.freeze(
+        initial.agents.map((agent) =>
+          agent.mode === 'Drive'
+            ? Object.freeze({ ...agent, progressQ: 1_000_000, routeDistanceMillimeters: 8_000 })
+            : agent,
+        ),
+      ),
+    });
+    presentation.update(next, { x: 4, z: 4 }, 1, 1_000);
+    presentation.update(next, { x: 4, z: 4 }, 2, 1_500);
+
+    const vehicleRoot = scene.getObjectByName('traffic-vehicle-root')!;
+    const vehicle = vehicleRoot.children[0]!;
+    expect(vehicle.position.x).toBeGreaterThan(4);
+    expect(vehicle.position.x).toBeLessThan(8);
+    expect(initial.agents[1]!.progressQ).toBe(500_000);
+    presentation.dispose();
+  });
+
+  it('keeps a completed vehicle visible for a bounded route-end presentation', () => {
+    const scene = new Scene();
+    const presentation = new TrafficPresentation(scene);
+    const initial = snapshot();
+    presentation.update(initial, { x: 4, z: 4 }, 0, 0);
+
+    const arrived = Object.freeze({
+      ...initial,
+      trafficRevision: 8,
+      agents: Object.freeze([initial.agents[0]!]),
+    });
+    presentation.update(arrived, { x: 4, z: 4 }, 1, 1_000);
+    expect(presentation.debugSnapshot().visibleVehicles).toBe(1);
+
+    presentation.update(arrived, { x: 4, z: 4 }, 2, 1_200);
+    expect(presentation.debugSnapshot().visibleVehicles).toBe(0);
     presentation.dispose();
   });
 });

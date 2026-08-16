@@ -10,6 +10,7 @@ import {
   type TrafficSnapshotV1,
 } from '@web-three-city/traffic-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
+import type { TrafficRouteSegment } from '@web-three-city/traffic-three';
 
 const TRAFFIC_Q_PER_METER = 1_000;
 const TRAFFIC_CELL_METERS = 8;
@@ -40,6 +41,8 @@ export interface TrafficPresentationAgent {
   readonly from: TrafficPresentationPointQ;
   readonly to: TrafficPresentationPointQ;
   readonly turn: TrafficPresentationTurn | null;
+  readonly routeSegments: readonly TrafficPresentationRouteSegment[];
+  readonly routeDistanceMillimeters: number;
 }
 
 export interface TrafficPresentationSnapshot {
@@ -48,10 +51,8 @@ export interface TrafficPresentationSnapshot {
   readonly edges: readonly TrafficEdgeProjection[];
 }
 
-export interface TrafficPresentationRouteSegment {
-  readonly edgeId: string;
-  readonly from: TrafficPresentationPointQ;
-  readonly to: TrafficPresentationPointQ;
+export interface TrafficPresentationRouteSegment extends TrafficRouteSegment {
+  readonly lengthMillimeters: number;
 }
 
 function withBuildingRevision(graph: TrafficGraph, revision: number): TrafficGraph {
@@ -107,6 +108,44 @@ function graphsFor(
   });
 }
 
+function routeSegmentsForGraph(
+  nodeById: ReadonlyMap<string, Readonly<{ xQ: number; yQ: number; zQ: number }>>,
+  edgeById: ReadonlyMap<
+    string,
+    Readonly<{ edgeId: string; fromNodeId: string; toNodeId: string; lengthQ: number }>
+  >,
+  routeEdgeIds: readonly string[],
+): readonly TrafficPresentationRouteSegment[] {
+  return Object.freeze(
+    routeEdgeIds.flatMap((edgeId) => {
+      const edge = edgeById.get(edgeId);
+      if (edge === undefined) return [];
+      const from = nodeById.get(edge.fromNodeId);
+      const to = nodeById.get(edge.toNodeId);
+      if (from === undefined || to === undefined) return [];
+      const renderedFrom = trafficPresentationPointForGraphNode(from);
+      const renderedTo = trafficPresentationPointForGraphNode(to);
+      return [
+        Object.freeze({
+          edgeId,
+          from: renderedFrom,
+          to: renderedTo,
+          lengthMillimeters: Math.max(
+            1,
+            Math.ceil(
+              Math.sqrt(
+                (renderedTo.xQ - renderedFrom.xQ) ** 2 +
+                  (renderedTo.yQ - renderedFrom.yQ) ** 2 +
+                  (renderedTo.zQ - renderedFrom.zQ) ** 2,
+              ),
+            ),
+          ),
+        }),
+      ];
+    }),
+  );
+}
+
 export function createTrafficPresentationRouteSegments(
   input: Readonly<{
     roads: RoadTrafficSourceProjection;
@@ -119,22 +158,7 @@ export function createTrafficPresentationRouteSegments(
   const graph = input.mode === 'Walk' ? graphs.walk : graphs.drive;
   const nodeById = new Map(graph.nodes.map((node) => [node.nodeId, node] as const));
   const edgeById = new Map(graph.edges.map((edge) => [edge.edgeId, edge] as const));
-  return Object.freeze(
-    input.routeEdgeIds.flatMap((edgeId) => {
-      const edge = edgeById.get(edgeId);
-      if (edge === undefined) return [];
-      const from = nodeById.get(edge.fromNodeId);
-      const to = nodeById.get(edge.toNodeId);
-      if (from === undefined || to === undefined) return [];
-      return [
-        Object.freeze({
-          edgeId,
-          from: trafficPresentationPointForGraphNode(from),
-          to: trafficPresentationPointForGraphNode(to),
-        }),
-      ];
-    }),
-  );
+  return routeSegmentsForGraph(nodeById, edgeById, input.routeEdgeIds);
 }
 
 export function createTrafficPresentationSnapshot(
@@ -147,6 +171,10 @@ export function createTrafficPresentationSnapshot(
   const graphs = graphsFor(input);
   const nodeById = new Map(graphs.combined.nodes.map((node) => [node.nodeId, node] as const));
   const edgeById = new Map(graphs.combined.edges.map((edge) => [edge.edgeId, edge] as const));
+  const walkNodeById = new Map(graphs.walk.nodes.map((node) => [node.nodeId, node] as const));
+  const walkEdgeById = new Map(graphs.walk.edges.map((edge) => [edge.edgeId, edge] as const));
+  const driveNodeById = new Map(graphs.drive.nodes.map((node) => [node.nodeId, node] as const));
+  const driveEdgeById = new Map(graphs.drive.edges.map((edge) => [edge.edgeId, edge] as const));
   const logicalTripById = new Map(
     input.traffic.activeTrips.map((trip) => [trip.tripId, trip] as const),
   );
@@ -157,7 +185,45 @@ export function createTrafficPresentationSnapshot(
     const from = nodeById.get(edge.fromNodeId);
     const to = nodeById.get(edge.toNodeId);
     if (from === undefined || to === undefined) return [];
+    const renderedFrom = trafficPresentationPointForGraphNode(from);
+    const renderedTo = trafficPresentationPointForGraphNode(to);
     const logicalTrip = logicalTripById.get(agent.tripId);
+    const routeSegments =
+      logicalTrip === undefined
+        ? Object.freeze([
+            Object.freeze({
+              edgeId: agent.routeEdgeId,
+              from: renderedFrom,
+              to: renderedTo,
+              lengthMillimeters: Math.max(
+                1,
+                Math.ceil(
+                  Math.sqrt(
+                    (renderedTo.xQ - renderedFrom.xQ) ** 2 +
+                      (renderedTo.yQ - renderedFrom.yQ) ** 2 +
+                      (renderedTo.zQ - renderedFrom.zQ) ** 2,
+                  ),
+                ),
+              ),
+            }),
+          ])
+        : routeSegmentsForGraph(
+            agent.mode === 'Walk' ? walkNodeById : driveNodeById,
+            agent.mode === 'Walk' ? walkEdgeById : driveEdgeById,
+            logicalTrip.routeEdgeIds,
+          );
+    const currentRouteSegmentIndex = Math.max(
+      0,
+      routeSegments.findIndex((segment) => segment.edgeId === agent.routeEdgeId),
+    );
+    let routeDistanceMillimeters = 0;
+    for (let index = 0; index < currentRouteSegmentIndex; index += 1) {
+      routeDistanceMillimeters += routeSegments[index]!.lengthMillimeters;
+    }
+    routeDistanceMillimeters += Math.floor(
+      (agent.progressQ * routeSegments[currentRouteSegmentIndex]!.lengthMillimeters) /
+        TRAFFIC_PROGRESS_MAX_Q,
+    );
     let turn: TrafficPresentationTurn | null = null;
     if (
       agent.mode === 'Drive' &&
@@ -174,8 +240,8 @@ export function createTrafficPresentationSnapshot(
         nextEdge.fromNodeId === edge.toNodeId
       ) {
         turn = Object.freeze({
-          previous: trafficPresentationPointForGraphNode(from),
-          corner: trafficPresentationPointForGraphNode(to),
+          previous: renderedFrom,
+          corner: renderedTo,
           next: trafficPresentationPointForGraphNode(nextNode),
           turnProgressQ: Math.min(
             TRAFFIC_PROGRESS_MAX_Q,
@@ -187,9 +253,11 @@ export function createTrafficPresentationSnapshot(
     return [
       Object.freeze({
         ...agent,
-        from: trafficPresentationPointForGraphNode(from),
-        to: trafficPresentationPointForGraphNode(to),
+        from: renderedFrom,
+        to: renderedTo,
         turn,
+        routeSegments,
+        routeDistanceMillimeters,
       }),
     ];
   });

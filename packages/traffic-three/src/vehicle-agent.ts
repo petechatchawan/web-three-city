@@ -1,4 +1,4 @@
-import { BoxGeometry, Group, Mesh, MeshStandardMaterial } from 'three';
+import { BoxGeometry, Group, Mesh, MeshStandardMaterial, type Vector3 } from 'three';
 import { vehicleAppearanceForTrip } from './vehicle-appearance.js';
 import {
   headingRadians,
@@ -56,9 +56,10 @@ export class TrafficVehicleAgent {
       turn === null
         ? sampleRouteEdgePosition(input.from, input.to, input.progressQ)
         : sampleSmoothTurn(turn.previous, turn.corner, turn.next, turn.turnProgressQ);
-    this.object.position.copy(position);
-    this.object.rotation.y =
-      turn === null ? headingRadians(input.from, input.to) : headingRadians(turn.corner, turn.next);
+    this.setTransform(
+      position,
+      turn === null ? headingRadians(input.from, input.to) : headingRadians(turn.corner, turn.next),
+    );
     this.object.userData.trafficAgentKind = 'vehicle';
     this.object.userData.tripId = input.tripId;
     this.object.userData.citizenId = input.citizenId;
@@ -70,6 +71,15 @@ export class TrafficVehicleAgent {
         : 'Turn';
     this.#tripId = input.tripId;
     this.object.visible = true;
+  }
+
+  setTransform(position: Vector3, heading: number): void {
+    this.object.position.copy(position);
+    this.object.rotation.y = heading;
+  }
+
+  setVisualState(queued: boolean, turning: boolean): void {
+    this.object.userData.trafficVisualState = queued ? 'Stop' : turning ? 'Turn' : 'Drive';
   }
 
   release(): void {

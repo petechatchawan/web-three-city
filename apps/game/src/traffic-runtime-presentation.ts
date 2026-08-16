@@ -108,6 +108,10 @@ function replayAgentAt(
     0,
     Math.min(TRAFFIC_PROGRESS_MAX_Q, Math.floor(localProgress * TRAFFIC_PROGRESS_MAX_Q)),
   );
+  const routeDistanceMillimeters =
+    replay.segments.slice(0, segmentIndex).reduce((sum, routeSegment) => {
+      return sum + routeSegment.lengthMillimeters;
+    }, 0) + Math.floor((progressQ * segment.lengthMillimeters) / TRAFFIC_PROGRESS_MAX_Q);
   const nextSegment = replay.segments[segmentIndex + 1];
   const turn =
     replay.mode === 'Drive' && progressQ >= 850_000 && nextSegment !== undefined
@@ -131,6 +135,8 @@ function replayAgentAt(
     from: segment.from,
     to: segment.to,
     turn,
+    routeSegments: replay.segments,
+    routeDistanceMillimeters,
   });
 }
 

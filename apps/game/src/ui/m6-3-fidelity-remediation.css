@@ -35,6 +35,23 @@
   height: min(90dvh, 90vh);
   min-height: 0;
   max-height: min(90dvh, 90vh);
+  transform-origin: bottom center;
+  animation-name: city-sheet-contained-enter;
+}
+
+/* Keep the animated sheet's geometric bounds inside the viewport for the whole transition.
+   Translating the sheet by 100% made its Playwright/DOM bounds extend below the viewport even
+   though the backdrop clipped the pixels. */
+@keyframes city-sheet-contained-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .city-ui .city-sheet-body {

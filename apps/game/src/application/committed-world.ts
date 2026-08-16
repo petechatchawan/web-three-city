@@ -6,6 +6,7 @@ import {
 import {
   createEmptyMobilitySnapshot,
   createMobilitySnapshot,
+  reconcileMobilityCitizens,
   type MobilitySnapshotV1,
 } from '@web-three-city/citizen-mobility-core';
 import {
@@ -36,7 +37,17 @@ import {
 } from '@web-three-city/zone-core';
 import { createBuildingDevelopmentEnvironment } from '../building-development-environment.js';
 import { createBuildingWorldOccupancy } from '../building-world-occupancy.js';
+import { createPresentCitizenMobilityProjection } from '../mobility-source-projection.js';
+import {
+  recallMobilityTrafficState,
+  rememberMobilityTrafficState,
+} from '../mobility-traffic-state-registry.js';
 import { createRoadPlacementEnvironment } from '../road-placement-environment.js';
+import { reconcileTrafficAfterRoadChange } from '../traffic-road-reconciliation.js';
+import {
+  createBuildingTrafficAccessProjection,
+  createRoadTrafficSourceProjectionFromEnvironment,
+} from '../traffic-source-projection.js';
 import { createZonePlacementEnvironment } from '../zone-placement-environment.js';
 
 export interface CommittedWorld {
@@ -171,7 +182,7 @@ export function createCommittedWorld(input: CommittedWorldInput): CommittedWorld
     ),
     building: createBuildingDevelopmentEnvironment(terrain, water, roads, zones, WORLD_CONFIG),
   });
-  return Object.freeze({
+  const world = Object.freeze({
     revision: input.revision,
     terrain,
     water,
@@ -185,6 +196,8 @@ export function createCommittedWorld(input: CommittedWorldInput): CommittedWorld
     traffic,
     environments,
   });
+  rememberMobilityTrafficState(world.rci, world.mobility, world.traffic);
+  return world;
 }
 
 export class CommittedWorldStore {
@@ -219,6 +232,26 @@ export type CommittedDomainState = Readonly<{
   traffic?: TrafficSnapshotV1;
 }>;
 
+function requiresTrafficReconciliation(
+  traffic: TrafficSnapshotV1,
+  mobility: MobilitySnapshotV1,
+  roads: RoadSnapshot,
+  buildings: BuildingSnapshot,
+): boolean {
+  if (
+    traffic.graphSourceRoadRevision !== roads.revision ||
+    traffic.graphSourceBuildingRevision !== buildings.revision
+  ) {
+    return true;
+  }
+  const activeMobilityTripIds = new Set(
+    mobility.trips.filter((trip) => trip.status === 'Active').map((trip) => trip.tripId),
+  );
+  return traffic.activeTrips.some(
+    (trip) => trip.status === 'Active' && !activeMobilityTripIds.has(trip.tripId),
+  );
+}
+
 export function createCommittedWorldFromDomainState(input: CommittedDomainState): CommittedWorld {
   const waterResult = deriveWaterSnapshot(input.terrain, WORLD_CONFIG);
   if (!waterResult.ok) throw new Error(`committed-world:water-derivation:${waterResult.error.code}`);
@@ -239,13 +272,47 @@ export function createCommittedWorldFromDomainState(input: CommittedDomainState)
       WORLD_CONFIG,
     ),
   });
-  const mobility = input.mobility ?? createEmptyMobilitySnapshot();
-  const traffic =
+
+  const recalled = recallMobilityTrafficState(input.rci);
+  let mobility = input.mobility ?? recalled?.mobility ?? createEmptyMobilitySnapshot();
+  if (input.mobility === undefined) {
+    mobility = reconcileMobilityCitizens({
+      snapshot: mobility,
+      citizens: createPresentCitizenMobilityProjection(
+        input.rci,
+        input.buildings,
+        input.simulation.absoluteTick,
+      ),
+    }).snapshot;
+  }
+
+  let traffic =
     input.traffic ??
+    recalled?.traffic ??
     createEmptyTrafficSnapshot({
       roadRevision: input.roads.revision,
       buildingRevision: input.buildings.revision,
     });
+
+  if (requiresTrafficReconciliation(traffic, mobility, input.roads, input.buildings)) {
+    traffic = reconcileTrafficAfterRoadChange({
+      traffic,
+      mobility,
+      trafficSourceAfter: Object.freeze({
+        roads: createRoadTrafficSourceProjectionFromEnvironment(
+          input.roads,
+          environments.building,
+        ),
+        buildingAccess: createBuildingTrafficAccessProjection(
+          input.buildings,
+          input.roads,
+          environments.building,
+        ),
+      }),
+    });
+  }
+
+  rememberMobilityTrafficState(input.rci, mobility, traffic);
   return createCommittedWorld({
     ...input,
     mobility,

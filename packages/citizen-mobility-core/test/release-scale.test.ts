@@ -33,7 +33,11 @@ function planningFingerprint() {
   const plan = planMobilityBoundaries({ snapshot, boundaries, citizens: inputCitizens });
   return JSON.stringify({
     boundaryCount: boundaries.length,
-    boundaries: boundaries.map((entry) => [entry.citizenId, entry.atGameMinute, entry.kind]),
+    boundaries: boundaries.map((entry) => [
+      entry.citizenId,
+      entry.atGameMinute,
+      entry.nextActivity,
+    ]),
     requests: plan.planningRequests.map((request) => [
       request.tripId,
       request.citizenId,

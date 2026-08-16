@@ -1,4 +1,4 @@
-import { BoxGeometry, Group, Mesh, MeshStandardMaterial, SphereGeometry } from 'three';
+import { BoxGeometry, Group, Mesh, MeshStandardMaterial, SphereGeometry, type Vector3 } from 'three';
 import { pedestrianAppearanceForCitizen } from './pedestrian-appearance.js';
 import { headingRadians, sampleRouteEdgePosition, type TrafficWorldPointQ } from './route-geometry.js';
 import {
@@ -54,10 +54,18 @@ export class TrafficPedestrianAgent {
 
   updateSourceState(input: TrafficPedestrianVisualInput): void {
     const position = sampleRouteEdgePosition(input.from, input.to, input.progressQ);
-    this.object.position.copy(position);
-    this.object.rotation.y = headingRadians(input.from, input.to);
+    this.setTransform(position, headingRadians(input.from, input.to));
     this.object.userData.routeEdgeId = input.routeEdgeId;
-    this.object.userData.trafficVisualState = input.queued ? 'Idle' : 'Walk';
+    this.setVisualState(input.queued);
+  }
+
+  setTransform(position: Vector3, heading: number): void {
+    this.object.position.copy(position);
+    this.object.rotation.y = heading;
+  }
+
+  setVisualState(queued: boolean): void {
+    this.object.userData.trafficVisualState = queued ? 'Idle' : 'Walk';
   }
 
   release(): void {
@@ -83,7 +91,12 @@ export class TrafficPedestrianAgent {
     (this.#body.material as MeshStandardMaterial).color.setHex(appearance.clothingColor);
     (this.#head.material as MeshStandardMaterial).color.setHex(appearance.accentColor);
     const variation = this.#scalePolicy.appearanceScaleVariation;
-    const scale = appearance.bodyVariant === 0 ? 1 - variation : appearance.bodyVariant === 1 ? 1 : 1 + variation;
+    const scale =
+      appearance.bodyVariant === 0
+        ? 1 - variation
+        : appearance.bodyVariant === 1
+          ? 1
+          : 1 + variation;
     this.object.scale.setScalar(scale);
     this.object.userData.trafficAgentKind = 'citizen';
     this.object.userData.tripId = input.tripId;

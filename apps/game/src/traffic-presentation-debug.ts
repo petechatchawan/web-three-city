@@ -14,6 +14,10 @@ export interface TrafficPresentationDebugSnapshot {
   readonly journeyReplayCount: number;
   readonly journeyReplayPedestrians: number;
   readonly journeyReplayVehicles: number;
+  readonly reconciliationCount: number;
+  readonly frameSampleCount: number;
+  readonly preparedRouteCount: number;
+  readonly lastFrameTimestampMs: number;
 }
 
 export const EMPTY_TRAFFIC_PRESENTATION_DEBUG: TrafficPresentationDebugSnapshot = Object.freeze({
@@ -32,4 +36,8 @@ export const EMPTY_TRAFFIC_PRESENTATION_DEBUG: TrafficPresentationDebugSnapshot 
   journeyReplayCount: 0,
   journeyReplayPedestrians: 0,
   journeyReplayVehicles: 0,
+  reconciliationCount: 0,
+  frameSampleCount: 0,
+  preparedRouteCount: 0,
+  lastFrameTimestampMs: -1,
 });

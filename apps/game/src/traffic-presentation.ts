@@ -1,13 +1,20 @@
 import {
   FOUNDATION_TRAFFIC_PRESENTATION_POLICY,
+  FOUNDATION_TRAFFIC_VISUAL_SCALE_POLICY,
   TrafficPedestrianPool,
   TrafficSpatialIndex,
   TrafficVehiclePool,
   deriveVehicleVisualPlacements,
-  sampleRoutePolyline,
+  prepareTrafficRoute,
+  samplePreparedRouteInto,
   sampleRouteEdgePosition,
   selectTrafficAgentsForMaterialization,
+  type MutableTrafficRouteSample,
+  type PreparedTrafficRoute,
+  type TrafficPedestrianAgent,
   type TrafficPresentationPolicy,
+  type TrafficVehicleAgent,
+  type TrafficVisualScalePolicy,
 } from '@web-three-city/traffic-three';
 import { Vector3, type Scene } from 'three';
 import {
@@ -25,8 +32,10 @@ export interface TrafficPresentationCameraQuery {
   readonly z: number;
 }
 
-interface VehicleMotionState {
+interface MotionState {
+  readonly tripId: string;
   routeSegments: TrafficPresentationAgent['routeSegments'];
+  preparedRoute: PreparedTrafficRoute;
   startDistanceMillimeters: number;
   targetDistanceMillimeters: number;
   currentDistanceMillimeters: number;
@@ -36,14 +45,30 @@ interface VehicleMotionState {
   startHeadingRadians: number;
   currentHeadingRadians: number;
   readonly position: Vector3;
-  readonly startPosition: Vector3;
+  readonly sample: MutableTrafficRouteSample;
   startTimestampMs: number;
   durationMs: number;
 }
 
+interface VehicleFrameBinding {
+  readonly tripId: string;
+  readonly visual: TrafficVehicleAgent;
+  readonly motion: MotionState;
+  queued: boolean;
+  turning: boolean;
+}
+
+interface PedestrianFrameBinding {
+  readonly tripId: string;
+  readonly visual: TrafficPedestrianAgent;
+  readonly motion: MotionState;
+  queued: boolean;
+}
+
 interface VehicleArrivalState {
   readonly expiresAtMs: number;
-  readonly motion: VehicleMotionState;
+  readonly visual: TrafficVehicleAgent;
+  readonly motion: MotionState;
 }
 
 const MOTION_MIN_DURATION_MS = 80;
@@ -88,50 +113,47 @@ function applyLateralOffset(position: Vector3, heading: number, offsetMillimeter
   position.z -= Math.sin(heading) * offset;
 }
 
-function sampleVehicleTarget(
-  agent: TrafficPresentationAgent,
-  routeDistanceMillimeters: number,
-  lateralOffsetMillimeters: number,
-): Readonly<{ position: Vector3; headingRadians: number }> {
-  if (agent.routeSegments.length === 0) {
-    const position = sampleRouteEdgePosition(agent.from, agent.to, agent.progressQ);
-    const headingRadians = Math.atan2(agent.to.xQ - agent.from.xQ, agent.to.zQ - agent.from.zQ);
-    applyLateralOffset(position, headingRadians, lateralOffsetMillimeters);
-    return Object.freeze({ position, headingRadians });
-  }
-  const sample = sampleRoutePolyline(agent.routeSegments, routeDistanceMillimeters);
-  applyLateralOffset(sample.position, sample.headingRadians, lateralOffsetMillimeters);
-  return Object.freeze({ position: sample.position, headingRadians: sample.headingRadians });
-}
-
-function sampleMotionRoute(
-  routeSegments: TrafficPresentationAgent['routeSegments'],
-  routeDistanceMillimeters: number,
-  lateralOffsetMillimeters: number,
-): Readonly<{ position: Vector3; headingRadians: number }> {
-  const sample = sampleRoutePolyline(routeSegments, routeDistanceMillimeters);
-  applyLateralOffset(sample.position, sample.headingRadians, lateralOffsetMillimeters);
-  return Object.freeze({ position: sample.position, headingRadians: sample.headingRadians });
+function routeForAgent(agent: TrafficPresentationAgent): TrafficPresentationAgent['routeSegments'] {
+  if (agent.routeSegments.length > 0) return agent.routeSegments;
+  return Object.freeze([
+    Object.freeze({
+      edgeId: agent.routeEdgeId,
+      from: agent.from,
+      to: agent.to,
+      lengthMillimeters: edgeLengthMillimeters(agent),
+    }),
+  ]);
 }
 
 export class TrafficPresentation {
-  readonly #pedestrians = new TrafficPedestrianPool();
-  readonly #vehicles = new TrafficVehiclePool();
+  readonly #pedestrians: TrafficPedestrianPool;
+  readonly #vehicles: TrafficVehiclePool;
   readonly #policy: TrafficPresentationPolicy;
   #lastTrafficRevision = -1;
+  #lastCameraX = Number.NaN;
+  #lastCameraZ = Number.NaN;
   #spatialIndex: TrafficSpatialIndex<TrafficPresentationAgent> | null = null;
   #debug: TrafficPresentationDebugSnapshot = EMPTY_TRAFFIC_PRESENTATION_DEBUG;
   #visibleAgents: readonly TrafficPresentationAgent[] = Object.freeze([]);
-  #vehicleMotion = new Map<string, VehicleMotionState>();
-  #vehicleArrivals = new Map<string, VehicleArrivalState>();
-  #activeVehicleIds: ReadonlySet<string> = new Set();
+  readonly #vehicleMotion = new Map<string, MotionState>();
+  readonly #pedestrianMotion = new Map<string, MotionState>();
+  readonly #vehicleArrivals = new Map<string, VehicleArrivalState>();
+  #frameVehicles: VehicleFrameBinding[] = [];
+  #framePedestrians: PedestrianFrameBinding[] = [];
   #lastSnapshotTimestampMs: number | null = null;
+  #reconciliationCount = 0;
+  #frameSampleCount = 0;
+  #preparedRouteCount = 0;
+  #lastFrameTimestampMs = -1;
 
   constructor(
     scene: Scene,
     policy: TrafficPresentationPolicy = FOUNDATION_TRAFFIC_PRESENTATION_POLICY,
+    visualScalePolicy: TrafficVisualScalePolicy = FOUNDATION_TRAFFIC_VISUAL_SCALE_POLICY,
   ) {
     this.#policy = policy;
+    this.#pedestrians = new TrafficPedestrianPool(visualScalePolicy);
+    this.#vehicles = new TrafficVehiclePool(visualScalePolicy);
     scene.add(this.#pedestrians.root, this.#vehicles.root);
   }
 
@@ -148,7 +170,6 @@ export class TrafficPresentation {
       throw new RangeError('traffic-presentation:invalid-pick-query');
     }
     if (maxDistance < 0) throw new RangeError('traffic-presentation:invalid-pick-query');
-
     const maximumDistanceSquared = maxDistance * maxDistance;
     let nearest: TrafficPresentationAgent | null = null;
     let nearestDistanceSquared = Number.POSITIVE_INFINITY;
@@ -160,9 +181,7 @@ export class TrafficPresentation {
       if (distanceSquared > maximumDistanceSquared) continue;
       if (
         distanceSquared < nearestDistanceSquared ||
-        (distanceSquared === nearestDistanceSquared &&
-          nearest !== null &&
-          agent.tripId < nearest.tripId)
+        (distanceSquared === nearestDistanceSquared && nearest !== null && agent.tripId < nearest.tripId)
       ) {
         nearest = agent;
         nearestDistanceSquared = distanceSquared;
@@ -170,32 +189,19 @@ export class TrafficPresentation {
     }
     if (nearest === null) return null;
     return nearest.mode === 'Drive'
-      ? Object.freeze({
-          kind: 'vehicle' as const,
-          citizenId: nearest.citizenId,
-          tripId: nearest.tripId,
-        })
-      : Object.freeze({
-          kind: 'citizen' as const,
-          citizenId: nearest.citizenId,
-          tripId: nearest.tripId,
-        });
+      ? Object.freeze({ kind: 'vehicle' as const, citizenId: nearest.citizenId, tripId: nearest.tripId })
+      : Object.freeze({ kind: 'citizen' as const, citizenId: nearest.citizenId, tripId: nearest.tripId });
   }
 
-  update(
+  reconcile(
     snapshot: TrafficPresentationSnapshot,
     camera: TrafficPresentationCameraQuery,
     frameIndex: number,
-    timestampMs = frameIndex * 16.667,
+    timestampMs: number,
   ): void {
     const snapshotChanged = this.#lastTrafficRevision !== snapshot.trafficRevision;
-    if (this.#spatialIndex === null || this.#lastTrafficRevision !== snapshot.trafficRevision) {
+    if (this.#spatialIndex === null || snapshotChanged) {
       this.#spatialIndex = new TrafficSpatialIndex(snapshot.agents);
-    }
-    if (snapshotChanged) {
-      this.#activeVehicleIds = new Set(
-        snapshot.agents.filter((agent) => agent.mode === 'Drive').map((agent) => agent.tripId),
-      );
     }
     const query = this.#spatialIndex.query({
       centerX: camera.x,
@@ -207,8 +213,6 @@ export class TrafficPresentation {
       frameIndex,
       policy: this.#policy,
     });
-    const retainedPedestrians = new Set<string>();
-    const retainedVehicles = new Set<string>();
     const vehicleSelections = selection.selected.filter(({ agent }) => agent.mode === 'Drive');
     const vehiclePlacements = deriveVehicleVisualPlacements(
       vehicleSelections.map(({ agent }) => ({
@@ -223,84 +227,145 @@ export class TrafficPresentation {
     const vehiclePlacementByTrip = new Map(
       vehiclePlacements.map((placement) => [placement.tripId, placement] as const),
     );
-    const visibleAgents: TrafficPresentationAgent[] = [];
+    const retainedPedestrians = new Set<string>();
+    const retainedVehicles = new Set<string>();
     const selectedVehicleIds = new Set<string>();
+    const selectedPedestrianIds = new Set<string>();
+    const activeTripIds = new Set(snapshot.agents.map((agent) => agent.tripId));
+    const visibleAgents: TrafficPresentationAgent[] = [];
+    const frameVehicles: VehicleFrameBinding[] = [];
+    const framePedestrians: PedestrianFrameBinding[] = [];
     const targetDurationMs =
       !snapshotChanged || this.#lastSnapshotTimestampMs === null
         ? 0
         : Math.max(
             MOTION_MIN_DURATION_MS,
-            Math.min(
-              MOTION_MAX_DURATION_MS,
-              Math.max(0, timestampMs - this.#lastSnapshotTimestampMs),
-            ),
+            Math.min(MOTION_MAX_DURATION_MS, timestampMs - this.#lastSnapshotTimestampMs),
           );
 
     for (const selected of selection.selected) {
       const agent = selected.agent;
       if (agent.mode === 'Walk') {
         retainedPedestrians.add(agent.tripId);
+        selectedPedestrianIds.add(agent.tripId);
         visibleAgents.push(agent);
-        if (!selected.updateDue && this.#pedestrians.has(agent.tripId)) continue;
-        const visual = this.#pedestrians.acquire({
-          tripId: agent.tripId,
-          citizenId: agent.citizenId,
-          routeEdgeId: agent.routeEdgeId,
-          progressQ: agent.progressQ,
-          queued: agent.queued,
-          from: agent.from,
-          to: agent.to,
-        });
+        let visual = this.#pedestrians.get(agent.tripId);
+        if (visual === undefined) {
+          visual = this.#pedestrians.acquire({
+            tripId: agent.tripId,
+            citizenId: agent.citizenId,
+            routeEdgeId: agent.routeEdgeId,
+            progressQ: agent.progressQ,
+            queued: agent.queued,
+            from: agent.from,
+            to: agent.to,
+          });
+        }
+        visual.object.userData.routeEdgeId = agent.routeEdgeId;
         visual.object.userData.trafficLodTier = selected.tier;
+        visual.setVisualState(agent.queued);
+        const motion = this.#reconcileMotion(
+          this.#pedestrianMotion,
+          agent,
+          agent.routeDistanceMillimeters,
+          0,
+          timestampMs,
+          targetDurationMs,
+        );
+        framePedestrians.push({ tripId: agent.tripId, visual, motion, queued: agent.queued });
         continue;
       }
 
-      retainedVehicles.add(agent.tripId);
       selectedVehicleIds.add(agent.tripId);
+      retainedVehicles.add(agent.tripId);
       this.#vehicleArrivals.delete(agent.tripId);
       const placement = vehiclePlacementByTrip.get(agent.tripId);
-      const visualAgent = Object.freeze({
-        ...agent,
-        progressQ: placement?.adjustedProgressQ ?? agent.progressQ,
-      });
-      visibleAgents.push(visualAgent);
+      const adjustedProgressQ = placement?.adjustedProgressQ ?? agent.progressQ;
       const edgeLength = edgeLengthMillimeters(agent);
       const adjustedDistance = Math.max(
         0,
-        visualAgent.routeDistanceMillimeters +
-          Math.floor(((visualAgent.progressQ - agent.progressQ) * edgeLength) / 1_000_000),
+        agent.routeDistanceMillimeters +
+          Math.floor(((adjustedProgressQ - agent.progressQ) * edgeLength) / 1_000_000),
       );
-      const placementOffset = placement?.lateralOffsetMillimeters ?? 0;
-      const vehicle =
-        this.#vehicles.get(agent.tripId) ??
-        this.#vehicles.acquire({
+      const visualAgent = Object.freeze({ ...agent, progressQ: adjustedProgressQ });
+      visibleAgents.push(visualAgent);
+      let visual = this.#vehicles.get(agent.tripId);
+      if (visual === undefined) {
+        visual = this.#vehicles.acquire({
           tripId: agent.tripId,
           citizenId: agent.citizenId,
           routeEdgeId: agent.routeEdgeId,
-          progressQ: visualAgent.progressQ,
+          progressQ: adjustedProgressQ,
           queued: agent.queued,
           from: agent.from,
           to: agent.to,
           turn: agent.turn,
         });
-      const motion = this.#updateVehicleMotion(
+      }
+      visual.object.userData.routeEdgeId = agent.routeEdgeId;
+      visual.object.userData.trafficLodTier = selected.tier;
+      visual.setVisualState(agent.queued, agent.turn !== null);
+      const motion = this.#reconcileMotion(
+        this.#vehicleMotion,
         agent,
         adjustedDistance,
-        placementOffset,
+        placement?.lateralOffsetMillimeters ?? 0,
         timestampMs,
         targetDurationMs,
       );
-      vehicle.setTransform(motion.position, motion.headingRadians);
-      vehicle.setVisualState(agent.queued, agent.turn !== null);
-      vehicle.object.userData.trafficLodTier = selected.tier;
+      frameVehicles.push({
+        tripId: agent.tripId,
+        visual,
+        motion,
+        queued: agent.queued,
+        turning: agent.turn !== null,
+      });
+    }
+
+    for (const tripId of [...this.#pedestrianMotion.keys()]) {
+      if (selectedPedestrianIds.has(tripId)) continue;
+      this.#pedestrianMotion.delete(tripId);
+      this.#pedestrians.release(tripId);
+    }
+
+    for (const [tripId, motion] of this.#vehicleMotion) {
+      if (selectedVehicleIds.has(tripId)) continue;
+      if (activeTripIds.has(tripId)) {
+        this.#vehicleArrivals.delete(tripId);
+        this.#vehicleMotion.delete(tripId);
+        this.#vehicles.release(tripId);
+        continue;
+      }
+      const visual = this.#vehicles.get(tripId);
+      if (visual === undefined) {
+        this.#vehicleMotion.delete(tripId);
+        continue;
+      }
+      let arrival = this.#vehicleArrivals.get(tripId);
+      if (arrival === undefined) {
+        this.#sampleMotion(motion, timestampMs);
+        motion.startDistanceMillimeters = motion.currentDistanceMillimeters;
+        motion.targetDistanceMillimeters = motion.preparedRoute.totalLengthMillimeters;
+        motion.startLateralOffsetMillimeters = motion.currentLateralOffsetMillimeters;
+        motion.targetLateralOffsetMillimeters = motion.currentLateralOffsetMillimeters;
+        motion.startTimestampMs = timestampMs;
+        motion.durationMs = ARRIVAL_PRESENTATION_DURATION_MS;
+        arrival = { expiresAtMs: timestampMs + ARRIVAL_PRESENTATION_DURATION_MS, visual, motion };
+        this.#vehicleArrivals.set(tripId, arrival);
+      }
+      retainedVehicles.add(tripId);
     }
 
     this.#pedestrians.retainOnly(retainedPedestrians);
-    this.#updateVehicleArrivals(selectedVehicleIds, retainedVehicles, timestampMs);
     this.#vehicles.retainOnly(retainedVehicles);
+    this.#framePedestrians = framePedestrians;
+    this.#frameVehicles = frameVehicles;
     this.#visibleAgents = Object.freeze(visibleAgents.sort(compareAgentIdentity));
     this.#lastTrafficRevision = snapshot.trafficRevision;
+    this.#lastCameraX = camera.x;
+    this.#lastCameraZ = camera.z;
     if (snapshotChanged) this.#lastSnapshotTimestampMs = timestampMs;
+    this.#reconciliationCount += 1;
     this.#debug = Object.freeze({
       trafficRevision: snapshot.trafficRevision,
       logicalActiveTrips: snapshot.agents.length,
@@ -317,7 +382,51 @@ export class TrafficPresentation {
       journeyReplayCount: 0,
       journeyReplayPedestrians: 0,
       journeyReplayVehicles: 0,
+      reconciliationCount: this.#reconciliationCount,
+      frameSampleCount: this.#frameSampleCount,
+      preparedRouteCount: this.#preparedRouteCount,
+      lastFrameTimestampMs: this.#lastFrameTimestampMs,
     });
+  }
+
+  frame(timestampMs: number): void {
+    for (const binding of this.#framePedestrians) {
+      this.#sampleMotion(binding.motion, timestampMs);
+      binding.visual.setTransform(binding.motion.position, binding.motion.currentHeadingRadians);
+      binding.visual.setVisualState(binding.queued);
+    }
+    for (const binding of this.#frameVehicles) {
+      this.#sampleMotion(binding.motion, timestampMs);
+      binding.visual.setTransform(binding.motion.position, binding.motion.currentHeadingRadians);
+      binding.visual.setVisualState(binding.queued, binding.turning);
+    }
+    for (const [tripId, arrival] of this.#vehicleArrivals) {
+      if (timestampMs >= arrival.expiresAtMs) {
+        this.#vehicleArrivals.delete(tripId);
+        this.#vehicleMotion.delete(tripId);
+        this.#vehicles.release(tripId);
+        continue;
+      }
+      this.#sampleMotion(arrival.motion, timestampMs);
+      arrival.visual.setTransform(arrival.motion.position, arrival.motion.currentHeadingRadians);
+    }
+    this.#frameSampleCount += 1;
+    this.#lastFrameTimestampMs = timestampMs;
+  }
+
+  update(
+    snapshot: TrafficPresentationSnapshot,
+    camera: TrafficPresentationCameraQuery,
+    frameIndex: number,
+    timestampMs = performance.now(),
+  ): void {
+    const dirty =
+      this.#spatialIndex === null ||
+      this.#lastTrafficRevision !== snapshot.trafficRevision ||
+      this.#lastCameraX !== camera.x ||
+      this.#lastCameraZ !== camera.z;
+    if (dirty) this.reconcile(snapshot, camera, frameIndex, timestampMs);
+    this.frame(timestampMs);
   }
 
   clear(): void {
@@ -326,15 +435,32 @@ export class TrafficPresentation {
     this.#spatialIndex = null;
     this.#visibleAgents = Object.freeze([]);
     this.#lastTrafficRevision = -1;
+    this.#lastCameraX = Number.NaN;
+    this.#lastCameraZ = Number.NaN;
     this.#vehicleMotion.clear();
+    this.#pedestrianMotion.clear();
     this.#vehicleArrivals.clear();
-    this.#activeVehicleIds = new Set();
+    this.#frameVehicles = [];
+    this.#framePedestrians = [];
     this.#lastSnapshotTimestampMs = null;
+    this.#reconciliationCount = 0;
+    this.#frameSampleCount = 0;
+    this.#preparedRouteCount = 0;
+    this.#lastFrameTimestampMs = -1;
     this.#debug = EMPTY_TRAFFIC_PRESENTATION_DEBUG;
   }
 
   debugSnapshot(): TrafficPresentationDebugSnapshot {
-    return this.#debug;
+    return Object.freeze({
+      ...this.#debug,
+      visiblePedestrians: this.#pedestrians.activeCount,
+      visibleVehicles: this.#vehicles.activeCount,
+      poolReuseCount: this.#pedestrians.reuseCount + this.#vehicles.reuseCount,
+      reconciliationCount: this.#reconciliationCount,
+      frameSampleCount: this.#frameSampleCount,
+      preparedRouteCount: this.#preparedRouteCount,
+      lastFrameTimestampMs: this.#lastFrameTimestampMs,
+    });
   }
 
   dispose(): void {
@@ -345,63 +471,92 @@ export class TrafficPresentation {
     this.#spatialIndex = null;
     this.#visibleAgents = Object.freeze([]);
     this.#vehicleMotion.clear();
+    this.#pedestrianMotion.clear();
     this.#vehicleArrivals.clear();
-    this.#activeVehicleIds = new Set();
-    this.#lastSnapshotTimestampMs = null;
+    this.#frameVehicles = [];
+    this.#framePedestrians = [];
   }
 
-  #updateVehicleMotion(
+  #reconcileMotion(
+    store: Map<string, MotionState>,
     agent: TrafficPresentationAgent,
     targetDistanceMillimeters: number,
     targetLateralOffsetMillimeters: number,
     timestampMs: number,
     durationMs: number,
-  ): Readonly<{ position: Vector3; headingRadians: number }> {
-    let motion = this.#vehicleMotion.get(agent.tripId);
+  ): MotionState {
+    const segments = routeForAgent(agent);
+    let motion = store.get(agent.tripId);
     if (motion === undefined) {
-      const target = sampleVehicleTarget(
-        agent,
+      motion = this.#createMotion(
+        agent.tripId,
+        segments,
         targetDistanceMillimeters,
         targetLateralOffsetMillimeters,
+        timestampMs,
       );
-      motion = {
-        routeSegments: agent.routeSegments,
-        startDistanceMillimeters: targetDistanceMillimeters,
-        targetDistanceMillimeters,
-        currentDistanceMillimeters: targetDistanceMillimeters,
-        startLateralOffsetMillimeters: targetLateralOffsetMillimeters,
-        targetLateralOffsetMillimeters,
-        currentLateralOffsetMillimeters: targetLateralOffsetMillimeters,
-        startHeadingRadians: target.headingRadians,
-        currentHeadingRadians: target.headingRadians,
-        position: target.position,
-        startPosition: target.position.clone(),
-        startTimestampMs: timestampMs,
-        durationMs: 0,
-      };
-      this.#vehicleMotion.set(agent.tripId, motion);
-    } else if (
-      motion.targetDistanceMillimeters !== targetDistanceMillimeters ||
-      motion.targetLateralOffsetMillimeters !== targetLateralOffsetMillimeters ||
-      !sameRoute(motion.routeSegments, agent.routeSegments)
-    ) {
-      motion.startDistanceMillimeters = motion.currentDistanceMillimeters;
-      motion.startLateralOffsetMillimeters = motion.currentLateralOffsetMillimeters;
-      motion.startHeadingRadians = motion.currentHeadingRadians;
-      motion.targetDistanceMillimeters = targetDistanceMillimeters;
-      motion.targetLateralOffsetMillimeters = targetLateralOffsetMillimeters;
-      motion.startTimestampMs = timestampMs;
-      motion.durationMs = sameRoute(motion.routeSegments, agent.routeSegments)
-        ? durationMs
-        : MOTION_MIN_DURATION_MS;
-      motion.startPosition.copy(motion.position);
-      if (!sameRoute(motion.routeSegments, agent.routeSegments)) {
-        motion.routeSegments = agent.routeSegments;
-      }
+      store.set(agent.tripId, motion);
+      return motion;
     }
+    this.#sampleMotion(motion, timestampMs);
+    if (!sameRoute(motion.routeSegments, segments)) {
+      motion.routeSegments = segments;
+      motion.preparedRoute = prepareTrafficRoute(segments);
+      this.#preparedRouteCount += 1;
+      motion.currentDistanceMillimeters = Math.min(
+        motion.currentDistanceMillimeters,
+        motion.preparedRoute.totalLengthMillimeters,
+      );
+    }
+    motion.startDistanceMillimeters = motion.currentDistanceMillimeters;
+    motion.targetDistanceMillimeters = Math.max(
+      0,
+      Math.min(motion.preparedRoute.totalLengthMillimeters, targetDistanceMillimeters),
+    );
+    motion.startLateralOffsetMillimeters = motion.currentLateralOffsetMillimeters;
+    motion.targetLateralOffsetMillimeters = targetLateralOffsetMillimeters;
+    motion.startHeadingRadians = motion.currentHeadingRadians;
+    motion.startTimestampMs = timestampMs;
+    motion.durationMs = durationMs;
+    return motion;
+  }
 
+  #createMotion(
+    tripId: string,
+    segments: TrafficPresentationAgent['routeSegments'],
+    targetDistanceMillimeters: number,
+    targetLateralOffsetMillimeters: number,
+    timestampMs: number,
+  ): MotionState {
+    const preparedRoute = prepareTrafficRoute(segments);
+    this.#preparedRouteCount += 1;
+    const position = new Vector3();
+    const sample: MutableTrafficRouteSample = { headingRadians: 0, segmentIndex: 0 };
+    const distance = Math.max(0, Math.min(preparedRoute.totalLengthMillimeters, targetDistanceMillimeters));
+    samplePreparedRouteInto(preparedRoute, distance, position, sample);
+    applyLateralOffset(position, sample.headingRadians, targetLateralOffsetMillimeters);
+    return {
+      tripId,
+      routeSegments: segments,
+      preparedRoute,
+      startDistanceMillimeters: distance,
+      targetDistanceMillimeters: distance,
+      currentDistanceMillimeters: distance,
+      startLateralOffsetMillimeters: targetLateralOffsetMillimeters,
+      targetLateralOffsetMillimeters,
+      currentLateralOffsetMillimeters: targetLateralOffsetMillimeters,
+      startHeadingRadians: sample.headingRadians,
+      currentHeadingRadians: sample.headingRadians,
+      position,
+      sample,
+      startTimestampMs: timestampMs,
+      durationMs: 0,
+    };
+  }
+
+  #sampleMotion(motion: MotionState, timestampMs: number): void {
     const progress =
-      motion.durationMs === 0
+      motion.durationMs <= 0
         ? 1
         : Math.max(0, Math.min(1, (timestampMs - motion.startTimestampMs) / motion.durationMs));
     motion.currentDistanceMillimeters =
@@ -410,64 +565,21 @@ export class TrafficPresentation {
     motion.currentLateralOffsetMillimeters =
       motion.startLateralOffsetMillimeters +
       (motion.targetLateralOffsetMillimeters - motion.startLateralOffsetMillimeters) * progress;
-    const sampled = sampleVehicleTarget(
-      agent,
+    samplePreparedRouteInto(
+      motion.preparedRoute,
       motion.currentDistanceMillimeters,
+      motion.position,
+      motion.sample,
+    );
+    applyLateralOffset(
+      motion.position,
+      motion.sample.headingRadians,
       motion.currentLateralOffsetMillimeters,
     );
-    motion.position.copy(sampled.position);
     motion.currentHeadingRadians = interpolateAngle(
       motion.startHeadingRadians,
-      sampled.headingRadians,
+      motion.sample.headingRadians,
       progress,
     );
-    return Object.freeze({
-      position: motion.position,
-      headingRadians: motion.currentHeadingRadians,
-    });
-  }
-
-  #updateVehicleArrivals(
-    selectedVehicleIds: ReadonlySet<string>,
-    retainedVehicles: Set<string>,
-    timestampMs: number,
-  ): void {
-    for (const [tripId, motion] of this.#vehicleMotion) {
-      if (this.#activeVehicleIds.has(tripId) || selectedVehicleIds.has(tripId)) continue;
-      let arrival = this.#vehicleArrivals.get(tripId);
-      if (arrival === undefined) {
-        arrival = Object.freeze({
-          expiresAtMs: timestampMs + ARRIVAL_PRESENTATION_DURATION_MS,
-          motion,
-        });
-        this.#vehicleArrivals.set(tripId, arrival);
-        motion.startDistanceMillimeters = motion.currentDistanceMillimeters;
-        motion.targetDistanceMillimeters = motion.routeSegments.reduce(
-          (sum, segment) => sum + segment.lengthMillimeters,
-          0,
-        );
-        motion.startTimestampMs = timestampMs;
-        motion.durationMs = ARRIVAL_PRESENTATION_DURATION_MS;
-      }
-      if (timestampMs < arrival.expiresAtMs && this.#vehicles.has(tripId)) {
-        retainedVehicles.add(tripId);
-        const progress = Math.max(
-          0,
-          Math.min(1, (timestampMs - motion.startTimestampMs) / motion.durationMs),
-        );
-        motion.currentDistanceMillimeters =
-          motion.startDistanceMillimeters +
-          (motion.targetDistanceMillimeters - motion.startDistanceMillimeters) * progress;
-        const sample = sampleMotionRoute(
-          motion.routeSegments,
-          motion.currentDistanceMillimeters,
-          motion.currentLateralOffsetMillimeters,
-        );
-        this.#vehicles.get(tripId)?.setTransform(sample.position, motion.currentHeadingRadians);
-      } else {
-        this.#vehicleArrivals.delete(tripId);
-        this.#vehicleMotion.delete(tripId);
-      }
-    }
   }
 }

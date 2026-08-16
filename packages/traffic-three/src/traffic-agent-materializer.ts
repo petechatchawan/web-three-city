@@ -25,6 +25,15 @@ export interface TrafficMaterializationSelection<
   readonly midUpdateCount: number;
 }
 
+interface MaterializationCounters {
+  pedestrians: number;
+  vehicles: number;
+  near: number;
+  mid: number;
+  nearUpdateCount: number;
+  midUpdateCount: number;
+}
+
 function modePriority(mode: TrafficSpatialAgent['mode']): number {
   return mode === 'Walk' ? 0 : 1;
 }
@@ -45,6 +54,53 @@ function compareCandidates<T extends TrafficSpatialAgent>(
       : 0;
 }
 
+function modeCapacityReached(
+  mode: TrafficSpatialAgent['mode'],
+  counters: MaterializationCounters,
+  policy: TrafficPresentationPolicy,
+): boolean {
+  return mode === 'Walk'
+    ? counters.pedestrians >= policy.maxPedestrians
+    : counters.vehicles >= policy.maxVehicles;
+}
+
+function materializeCandidate<T extends TrafficSpatialAgent>(
+  candidate: TrafficSpatialCandidate<T>,
+  frameIndex: number,
+  policy: TrafficPresentationPolicy,
+  counters: MaterializationCounters,
+  nearRadiusSquared: number,
+): MaterializedTrafficAgent<T> | null {
+  if (modeCapacityReached(candidate.agent.mode, counters, policy)) return null;
+  const tier: TrafficLodTier =
+    candidate.distanceSquared <= nearRadiusSquared && counters.near < policy.maxCombinedFullDetail
+      ? 'Near'
+      : 'Mid';
+  const updateEvery =
+    tier === 'Near' ? policy.nearUpdateEveryFrames : policy.midUpdateEveryFrames;
+  return Object.freeze({
+    agent: candidate.agent,
+    tier,
+    distanceSquared: candidate.distanceSquared,
+    updateDue: frameIndex % updateEvery === 0,
+  });
+}
+
+function recordMaterialized(
+  selection: MaterializedTrafficAgent,
+  counters: MaterializationCounters,
+): void {
+  if (selection.agent.mode === 'Walk') counters.pedestrians += 1;
+  else counters.vehicles += 1;
+  if (selection.tier === 'Near') {
+    counters.near += 1;
+    if (selection.updateDue) counters.nearUpdateCount += 1;
+    return;
+  }
+  counters.mid += 1;
+  if (selection.updateDue) counters.midUpdateCount += 1;
+}
+
 export function selectTrafficAgentsForMaterialization<T extends TrafficSpatialAgent>(
   input: Readonly<{
     candidates: readonly TrafficSpatialCandidate<T>[];
@@ -62,50 +118,35 @@ export function selectTrafficAgentsForMaterialization<T extends TrafficSpatialAg
     .filter((candidate) => candidate.distanceSquared <= midRadiusSquared)
     .sort(compareCandidates);
   const selected: MaterializedTrafficAgent<T>[] = [];
-  let pedestrians = 0;
-  let vehicles = 0;
-  let near = 0;
-  let mid = 0;
-  let nearUpdateCount = 0;
-  let midUpdateCount = 0;
+  const counters: MaterializationCounters = {
+    pedestrians: 0,
+    vehicles: 0,
+    near: 0,
+    mid: 0,
+    nearUpdateCount: 0,
+    midUpdateCount: 0,
+  };
 
   for (const candidate of sorted) {
-    if (candidate.agent.mode === 'Walk' && pedestrians >= policy.maxPedestrians) continue;
-    if (candidate.agent.mode === 'Drive' && vehicles >= policy.maxVehicles) continue;
-
-    const eligibleForNear =
-      candidate.distanceSquared <= nearRadiusSquared && near < policy.maxCombinedFullDetail;
-    const tier: TrafficLodTier = eligibleForNear ? 'Near' : 'Mid';
-    const updateEvery =
-      tier === 'Near' ? policy.nearUpdateEveryFrames : policy.midUpdateEveryFrames;
-    const updateDue = input.frameIndex % updateEvery === 0;
-
-    selected.push(
-      Object.freeze({
-        agent: candidate.agent,
-        tier,
-        distanceSquared: candidate.distanceSquared,
-        updateDue,
-      }),
+    const materialized = materializeCandidate(
+      candidate,
+      input.frameIndex,
+      policy,
+      counters,
+      nearRadiusSquared,
     );
-    if (candidate.agent.mode === 'Walk') pedestrians += 1;
-    else vehicles += 1;
-    if (tier === 'Near') {
-      near += 1;
-      if (updateDue) nearUpdateCount += 1;
-    } else {
-      mid += 1;
-      if (updateDue) midUpdateCount += 1;
-    }
+    if (materialized === null) continue;
+    selected.push(materialized);
+    recordMaterialized(materialized, counters);
   }
 
   return Object.freeze({
     selected: Object.freeze(selected),
-    pedestrianCount: pedestrians,
-    vehicleCount: vehicles,
-    nearCount: near,
-    midCount: mid,
-    nearUpdateCount,
-    midUpdateCount,
+    pedestrianCount: counters.pedestrians,
+    vehicleCount: counters.vehicles,
+    nearCount: counters.near,
+    midCount: counters.mid,
+    nearUpdateCount: counters.nearUpdateCount,
+    midUpdateCount: counters.midUpdateCount,
   });
 }

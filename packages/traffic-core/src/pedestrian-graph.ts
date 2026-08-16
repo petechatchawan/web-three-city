@@ -1,24 +1,26 @@
-import type {
-  RoadTrafficSourceCell,
-  RoadTrafficSourceProjection,
-  TrafficCardinalDirection,
-  TrafficGraph,
-  TrafficGraphEdge,
-  TrafficGraphNode,
-} from './contracts.js';
-import { validateRoadTrafficSourceProjection } from './contracts.js';
 import {
-  ROAD_EAST,
-  ROAD_NORTH,
-  ROAD_SOUTH,
-  ROAD_WEST,
+  TRAFFIC_POSITION_Q_PER_METER,
+  validateRoadTrafficSourceProjection,
+  type RoadTrafficSourceCell,
+  type RoadTrafficSourceProjection,
+  type TrafficCardinalDirection,
+  type TrafficGraph,
+  type TrafficGraphEdge,
+  type TrafficGraphNode,
+} from './contracts.js';
+import {
+  FOUNDATION_TRAFFIC_ROAD_PROFILES,
   resolveTrafficRoadProfile,
   type TrafficRoadProfileV1,
-  FOUNDATION_TRAFFIC_ROAD_PROFILES,
 } from './road-profile.js';
 
-const CELL_SIZE_Q = 8_000;
+const CELL_SIZE_Q = 8 * TRAFFIC_POSITION_Q_PER_METER;
 const HALF_CELL_Q = CELL_SIZE_Q / 2;
+const FOUNDATION_PEDESTRIAN_SPEED_MILLIMETERS_PER_SECOND = 1_400;
+const ROAD_NORTH = 1 << 0;
+const ROAD_EAST = 1 << 1;
+const ROAD_SOUTH = 1 << 2;
+const ROAD_WEST = 1 << 3;
 
 const DIRECTIONS = Object.freeze([
   Object.freeze({
@@ -106,7 +108,6 @@ function edge(
   edgeId: string,
   from: TrafficGraphNode,
   to: TrafficGraphNode,
-  speedMillimetersPerSecond: number,
 ): TrafficGraphEdge {
   const lengthQ = edgeLengthQ(from, to);
   return Object.freeze({
@@ -115,7 +116,10 @@ function edge(
     toNodeId: to.nodeId,
     mode: 'Walk' as const,
     lengthQ,
-    freeFlowTravelSeconds: Math.max(1, Math.ceil(lengthQ / Math.max(1, speedMillimetersPerSecond))),
+    freeFlowTravelSeconds: Math.max(
+      1,
+      Math.ceil(lengthQ / FOUNDATION_PEDESTRIAN_SPEED_MILLIMETERS_PER_SECOND),
+    ),
     capacityUnits: Number.MAX_SAFE_INTEGER,
   });
 }
@@ -141,45 +145,30 @@ export function derivePedestrianTrafficGraph(
   }
 
   for (const cell of sortedCells) {
-    const profile = resolveTrafficRoadProfile(cell.definitionCode, profiles);
+    resolveTrafficRoadProfile(cell.definitionCode, profiles);
     for (const [firstSide, secondSide] of RING) {
       const first = nodesById.get(walkSideNodeId(cell.x, cell.z, firstSide))!;
       const second = nodesById.get(walkSideNodeId(cell.x, cell.z, secondSide))!;
-      edges.push(
-        edge(
-          `walk:${cell.x},${cell.z}:${firstSide}->${secondSide}`,
-          first,
-          second,
-          profile.pedestrianSpeedMillimetersPerSecond,
-        ),
-      );
-      edges.push(
-        edge(
-          `walk:${cell.x},${cell.z}:${secondSide}->${firstSide}`,
-          second,
-          first,
-          profile.pedestrianSpeedMillimetersPerSecond,
-        ),
-      );
+      edges.push(edge(`walk:${cell.x},${cell.z}:${firstSide}->${secondSide}`, first, second));
+      edges.push(edge(`walk:${cell.x},${cell.z}:${secondSide}->${firstSide}`, second, first));
     }
 
     for (const direction of DIRECTIONS) {
       if ((cell.connectionMask & direction.bit) === 0) continue;
       const neighbor = byCell.get(key(cell.x + direction.dx, cell.z + direction.dz));
-      if (neighbor === undefined || (neighbor.connectionMask & direction.oppositeBit) === 0)
+      if (neighbor === undefined || (neighbor.connectionMask & direction.oppositeBit) === 0) {
         continue;
-      const neighborProfile = resolveTrafficRoadProfile(neighbor.definitionCode, profiles);
+      }
+      resolveTrafficRoadProfile(neighbor.definitionCode, profiles);
       const from = nodesById.get(walkSideNodeId(cell.x, cell.z, direction.side))!;
-      const to = nodesById.get(walkSideNodeId(neighbor.x, neighbor.z, direction.oppositeSide))!;
+      const to = nodesById.get(
+        walkSideNodeId(neighbor.x, neighbor.z, direction.oppositeSide),
+      )!;
       edges.push(
         edge(
           `walk:${cell.x},${cell.z}:${direction.side}->${neighbor.x},${neighbor.z}:${direction.oppositeSide}`,
           from,
           to,
-          Math.min(
-            profile.pedestrianSpeedMillimetersPerSecond,
-            neighborProfile.pedestrianSpeedMillimetersPerSecond,
-          ),
         ),
       );
     }

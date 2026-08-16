@@ -11,8 +11,11 @@ import {
 } from '@web-three-city/traffic-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 
-const WORLD_HALF_X_Q = (WORLD_CONFIG.mapWidth * WORLD_CONFIG.cellSize * 1_000) / 2;
-const WORLD_HALF_Z_Q = (WORLD_CONFIG.mapHeight * WORLD_CONFIG.cellSize * 1_000) / 2;
+const TRAFFIC_Q_PER_METER = 1_000;
+const TRAFFIC_CELL_METERS = 8;
+const RENDER_Q_PER_UNIT = 1_000;
+const WORLD_HALF_X_Q = (WORLD_CONFIG.mapWidth * WORLD_CONFIG.cellSize * RENDER_Q_PER_UNIT) / 2;
+const WORLD_HALF_Z_Q = (WORLD_CONFIG.mapHeight * WORLD_CONFIG.cellSize * RENDER_Q_PER_UNIT) / 2;
 
 export interface TrafficPresentationPointQ {
   readonly xQ: number;
@@ -49,11 +52,21 @@ function withBuildingRevision(graph: TrafficGraph, revision: number): TrafficGra
   return Object.freeze({ ...graph, sourceBuildingRevision: revision });
 }
 
+function horizontalRenderQ(valueQ: number, worldHalfQ: number): number {
+  const cellCoordinate = valueQ / (TRAFFIC_CELL_METERS * TRAFFIC_Q_PER_METER);
+  return Math.round(cellCoordinate * WORLD_CONFIG.cellSize * RENDER_Q_PER_UNIT - worldHalfQ);
+}
+
+function verticalRenderQ(valueQ: number): number {
+  const logicalLevel = valueQ / TRAFFIC_Q_PER_METER;
+  return Math.round(logicalLevel * WORLD_CONFIG.heightStep * RENDER_Q_PER_UNIT);
+}
+
 function point(node: Readonly<{ xQ: number; yQ: number; zQ: number }>): TrafficPresentationPointQ {
   return Object.freeze({
-    xQ: node.xQ - WORLD_HALF_X_Q,
-    yQ: node.yQ,
-    zQ: node.zQ - WORLD_HALF_Z_Q,
+    xQ: horizontalRenderQ(node.xQ, WORLD_HALF_X_Q),
+    yQ: verticalRenderQ(node.yQ),
+    zQ: horizontalRenderQ(node.zQ, WORLD_HALF_Z_Q),
   });
 }
 

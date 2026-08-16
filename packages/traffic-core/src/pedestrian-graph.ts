@@ -104,11 +104,7 @@ function edgeLengthQ(from: TrafficGraphNode, to: TrafficGraphNode): number {
   return Math.max(1, Math.ceil(Math.sqrt(dx * dx + dy * dy + dz * dz)));
 }
 
-function edge(
-  edgeId: string,
-  from: TrafficGraphNode,
-  to: TrafficGraphNode,
-): TrafficGraphEdge {
+function edge(edgeId: string, from: TrafficGraphNode, to: TrafficGraphNode): TrafficGraphEdge {
   const lengthQ = edgeLengthQ(from, to);
   return Object.freeze({
     edgeId,
@@ -161,9 +157,7 @@ export function derivePedestrianTrafficGraph(
       }
       resolveTrafficRoadProfile(neighbor.definitionCode, profiles);
       const from = nodesById.get(walkSideNodeId(cell.x, cell.z, direction.side))!;
-      const to = nodesById.get(
-        walkSideNodeId(neighbor.x, neighbor.z, direction.oppositeSide),
-      )!;
+      const to = nodesById.get(walkSideNodeId(neighbor.x, neighbor.z, direction.oppositeSide))!;
       edges.push(
         edge(
           `walk:${cell.x},${cell.z}:${direction.side}->${neighbor.x},${neighbor.z}:${direction.oppositeSide}`,

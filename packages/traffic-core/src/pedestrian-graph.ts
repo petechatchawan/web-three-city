@@ -115,10 +115,7 @@ function edge(
     toNodeId: to.nodeId,
     mode: 'Walk' as const,
     lengthQ,
-    freeFlowTravelSeconds: Math.max(
-      1,
-      Math.ceil(lengthQ / Math.max(1, speedMillimetersPerSecond)),
-    ),
+    freeFlowTravelSeconds: Math.max(1, Math.ceil(lengthQ / Math.max(1, speedMillimetersPerSecond))),
     capacityUnits: Number.MAX_SAFE_INTEGER,
   });
 }
@@ -169,12 +166,11 @@ export function derivePedestrianTrafficGraph(
     for (const direction of DIRECTIONS) {
       if ((cell.connectionMask & direction.bit) === 0) continue;
       const neighbor = byCell.get(key(cell.x + direction.dx, cell.z + direction.dz));
-      if (neighbor === undefined || (neighbor.connectionMask & direction.oppositeBit) === 0) continue;
+      if (neighbor === undefined || (neighbor.connectionMask & direction.oppositeBit) === 0)
+        continue;
       const neighborProfile = resolveTrafficRoadProfile(neighbor.definitionCode, profiles);
       const from = nodesById.get(walkSideNodeId(cell.x, cell.z, direction.side))!;
-      const to = nodesById.get(
-        walkSideNodeId(neighbor.x, neighbor.z, direction.oppositeSide),
-      )!;
+      const to = nodesById.get(walkSideNodeId(neighbor.x, neighbor.z, direction.oppositeSide))!;
       edges.push(
         edge(
           `walk:${cell.x},${cell.z}:${direction.side}->${neighbor.x},${neighbor.z}:${direction.oppositeSide}`,
@@ -192,7 +188,11 @@ export function derivePedestrianTrafficGraph(
   return Object.freeze({
     sourceRoadRevision: roads.roadRevision,
     sourceBuildingRevision: 0,
-    nodes: Object.freeze(nodes.sort((a, b) => (a.nodeId < b.nodeId ? -1 : a.nodeId > b.nodeId ? 1 : 0))),
-    edges: Object.freeze(edges.sort((a, b) => (a.edgeId < b.edgeId ? -1 : a.edgeId > b.edgeId ? 1 : 0))),
+    nodes: Object.freeze(
+      nodes.sort((a, b) => (a.nodeId < b.nodeId ? -1 : a.nodeId > b.nodeId ? 1 : 0)),
+    ),
+    edges: Object.freeze(
+      edges.sort((a, b) => (a.edgeId < b.edgeId ? -1 : a.edgeId > b.edgeId ? 1 : 0)),
+    ),
   });
 }

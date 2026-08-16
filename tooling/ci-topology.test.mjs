@@ -179,6 +179,32 @@ test('Browser job retains failure artifacts', async () => {
   assert.match(jobs.browser.text, /test-results/);
 });
 
+test('maintainers can request a whitelisted targeted browser ownership tag', async () => {
+  const workflow = await readRepoText('.github/workflows/targeted-browser.yml');
+  assert.match(workflow, /issue_comment:/);
+  assert.match(workflow, /author_association/);
+  assert.match(workflow, /OWNER/);
+  assert.match(workflow, /MEMBER/);
+  assert.match(workflow, /COLLABORATOR/);
+  assert.match(workflow, /refs\/pull\/\$\{\{ github\.event\.issue\.number \}\}\/head/);
+  assert.match(workflow, /\/verify-browser/);
+  for (const tag of [
+    'smoke',
+    'terrain',
+    'water',
+    'road',
+    'zoning',
+    'building',
+    'rci',
+    'traffic',
+    'interaction',
+  ]) {
+    assert.match(workflow, new RegExp(`\\b${tag}\\b`));
+  }
+  assert.match(workflow, /playwright test --grep "@\$TARGET" --project=chromium/);
+  assert.doesNotMatch(workflow, /pnpm test:browser:only/);
+});
+
 test('Full browser release command remains available', async () => {
   const packageJson = await readRepoJson('package.json');
   assert.match(packageJson.scripts['verify:full'], /test:browser:only/);

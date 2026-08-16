@@ -12,6 +12,10 @@ import {
   createEmptyTrafficSnapshot,
   type TrafficSnapshotV1,
 } from '@web-three-city/traffic-core';
+import {
+  recallMobilityTrafficState,
+  rememberMobilityTrafficState,
+} from './mobility-traffic-state-registry.js';
 
 export interface GameWorldState {
   readonly revision: number;
@@ -31,16 +35,22 @@ export type GameWorldStateInput = Omit<GameWorldState, 'mobility' | 'traffic'> &
   }>;
 
 function completeGameWorldState(input: GameWorldStateInput): GameWorldState {
-  return Object.freeze({
+  const recalled = recallMobilityTrafficState(input.rci);
+  const mobility = input.mobility ?? recalled?.mobility ?? createEmptyMobilitySnapshot();
+  const traffic =
+    input.traffic ??
+    recalled?.traffic ??
+    createEmptyTrafficSnapshot({
+      roadRevision: input.roads.revision,
+      buildingRevision: input.buildings.revision,
+    });
+  const state = Object.freeze({
     ...input,
-    mobility: input.mobility ?? createEmptyMobilitySnapshot(),
-    traffic:
-      input.traffic ??
-      createEmptyTrafficSnapshot({
-        roadRevision: input.roads.revision,
-        buildingRevision: input.buildings.revision,
-      }),
+    mobility,
+    traffic,
   });
+  rememberMobilityTrafficState(state.rci, state.mobility, state.traffic);
+  return state;
 }
 
 export class GameWorldStateStore {
@@ -97,7 +107,7 @@ export class GameWorldStateStore {
 
 /** Compatibility projection while legacy runtime wiring migrates to CommittedWorldStore. */
 export function gameWorldStateFromCommittedWorld(world: CommittedWorld): GameWorldState {
-  return Object.freeze({
+  const state = Object.freeze({
     revision: world.revision,
     simulation: world.simulation,
     buildings: world.buildings,
@@ -107,4 +117,6 @@ export function gameWorldStateFromCommittedWorld(world: CommittedWorld): GameWor
     mobility: world.mobility,
     traffic: world.traffic,
   });
+  rememberMobilityTrafficState(state.rci, state.mobility, state.traffic);
+  return state;
 }

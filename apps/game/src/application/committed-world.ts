@@ -139,7 +139,16 @@ function cloneWaterSnapshot(input: WaterSnapshot): WaterSnapshot {
 }
 
 function cloneForRead(world: CommittedWorld): CommittedWorld {
-  return createCommittedWorld(world);
+  const pendingMobilityTraffic = recallMobilityTrafficState(world.rci);
+  const clone = createCommittedWorld(world);
+  if (pendingMobilityTraffic !== null) {
+    rememberMobilityTrafficState(
+      world.rci,
+      pendingMobilityTraffic.mobility,
+      pendingMobilityTraffic.traffic,
+    );
+  }
+  return clone;
 }
 
 export function createCommittedWorld(input: CommittedWorldInput): CommittedWorld {

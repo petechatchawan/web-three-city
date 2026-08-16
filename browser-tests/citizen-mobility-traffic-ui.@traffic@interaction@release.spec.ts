@@ -1,45 +1,56 @@
 import { expect, test } from '@playwright/test';
 
+type TrafficApiSnapshot = {
+  worldRevision: number;
+  absoluteTick: number;
+  citizenIds: string[];
+  mobility: unknown;
+  traffic: unknown;
+  presentation: {
+    visiblePedestrians: number;
+    visibleVehicles: number;
+    journeyReplayCount: number;
+  } | null;
+};
+
+async function trafficApiReady(page: import('@playwright/test').Page): Promise<void> {
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        Boolean(
+          (window as Window & { __WEB_THREE_CITY_TRAFFIC__?: unknown }).__WEB_THREE_CITY_TRAFFIC__,
+        ),
+      ),
+    )
+    .toBe(true);
+}
+
+async function readTraffic(page: import('@playwright/test').Page): Promise<TrafficApiSnapshot> {
+  return page.evaluate(() => {
+    const api = (window as Window & {
+      __WEB_THREE_CITY_TRAFFIC__?: { snapshot(): TrafficApiSnapshot };
+    }).__WEB_THREE_CITY_TRAFFIC__;
+    if (api === undefined) throw new Error('traffic test API unavailable');
+    return api.snapshot();
+  });
+}
+
 test.describe('Citizen Mobility & Traffic Foundation v0.1', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 414, height: 896 });
     await page.goto('/');
-    await expect
-      .poll(() =>
-        page.evaluate(() =>
-          Boolean(
-            (window as Window & {
-              __TRAFFIC_WORLD__?: () => unknown;
-              __TRAFFIC_DEBUG__?: () => unknown;
-            }).__TRAFFIC_WORLD__,
-          ),
-        ),
-      )
-      .toBe(true);
+    await trafficApiReady(page);
   });
 
   test('exposes committed Mobility/Traffic debug state without changing the frozen shell', async ({
     page,
   }) => {
-    const state = await page.evaluate(() => {
-      const app = window as Window & {
-        __TRAFFIC_WORLD__?: () => {
-          mobilityRevision: number;
-          trafficRevision: number;
-          activeMobilityTrips: number;
-          activeTransportTrips: number;
-        };
-        __TRAFFIC_DEBUG__?: () => {
-          visiblePedestrians: number;
-          visibleVehicles: number;
-        } | null;
-      };
-      return Object.freeze({ world: app.__TRAFFIC_WORLD__?.(), visual: app.__TRAFFIC_DEBUG__?.() });
-    });
-    expect(state.world).toBeTruthy();
-    expect(state.world?.activeMobilityTrips).toBeGreaterThanOrEqual(0);
-    expect(state.world?.activeTransportTrips).toBeGreaterThanOrEqual(0);
-    expect(state.visual).toBeTruthy();
+    const state = await readTraffic(page);
+    expect(state.worldRevision).toBeGreaterThanOrEqual(0);
+    expect(state.absoluteTick).toBeGreaterThanOrEqual(0);
+    expect(state.mobility).toBeTruthy();
+    expect(state.traffic).toBeTruthy();
+    expect(state.presentation).toBeTruthy();
     await expect(page.getByRole('button', { name: 'Build' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'City' })).toBeVisible();
     await expect(page.locator('body')).not.toHaveCSS('overflow-x', 'scroll');
@@ -66,16 +77,22 @@ test.describe('Citizen Mobility & Traffic Foundation v0.1', () => {
   });
 
   test('opening presentation surfaces does not mutate Mobility/Traffic authority', async ({ page }) => {
-    const before = await page.evaluate(() =>
-      (window as Window & { __TRAFFIC_WORLD__?: () => unknown }).__TRAFFIC_WORLD__?.(),
-    );
+    await page.evaluate(() => {
+      const api = (window as Window & {
+        __WEB_THREE_CITY_TRAFFIC__?: { installReleaseFixture(): unknown };
+      }).__WEB_THREE_CITY_TRAFFIC__;
+      if (api === undefined) throw new Error('traffic test API unavailable');
+      api.installReleaseFixture();
+    });
+    const before = await readTraffic(page);
     await page.getByRole('button', { name: 'City' }).click();
     await page.keyboard.press('Escape');
     await page.getByRole('button', { name: 'Build' }).click();
     await page.keyboard.press('Escape');
-    const after = await page.evaluate(() =>
-      (window as Window & { __TRAFFIC_WORLD__?: () => unknown }).__TRAFFIC_WORLD__?.(),
-    );
-    expect(after).toEqual(before);
+    const after = await readTraffic(page);
+    expect(after.citizenIds).toEqual(before.citizenIds);
+    expect(after.mobility).toEqual(before.mobility);
+    expect(after.traffic).toEqual(before.traffic);
+    expect(after.absoluteTick).toBe(before.absoluteTick);
   });
 });

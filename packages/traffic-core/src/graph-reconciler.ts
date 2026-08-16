@@ -53,6 +53,15 @@ function inBounds(
   return cell.x >= 0 && cell.z >= 0 && cell.x < roads.width && cell.z < roads.height;
 }
 
+function boundedCardinalNeighbors(
+  cell: Readonly<{ x: number; z: number }>,
+  roads: RoadTrafficSourceProjection,
+): readonly Readonly<{ x: number; z: number }>[] {
+  return CARDINAL.map((direction) =>
+    Object.freeze({ x: cell.x + direction.dx, z: cell.z + direction.dz }),
+  ).filter((neighbor) => inBounds(neighbor, roads));
+}
+
 function expandCells(
   cells: readonly Readonly<{ x: number; z: number }>[],
   roads: RoadTrafficSourceProjection,
@@ -66,9 +75,7 @@ function expandCells(
   for (let step = 0; step < radius; step += 1) {
     const next = new Map<string, Readonly<{ x: number; z: number }>>();
     for (const cell of frontier.values()) {
-      for (const direction of CARDINAL) {
-        const neighbor = Object.freeze({ x: cell.x + direction.dx, z: cell.z + direction.dz });
-        if (!inBounds(neighbor, roads)) continue;
+      for (const neighbor of boundedCardinalNeighbors(cell, roads)) {
         const key = cellKey(neighbor.x, neighbor.z);
         if (!all.has(key)) next.set(key, neighbor);
       }
@@ -99,6 +106,75 @@ function withBuildingRevision(graph: TrafficGraph, buildingRevision: number): Tr
   return Object.freeze({ ...graph, sourceBuildingRevision: buildingRevision });
 }
 
+function nodeTouchesAffected(node: TrafficGraphNode, affectedCellKeys: ReadonlySet<string>): boolean {
+  const key = parseNodeCell(node.nodeId);
+  return key !== null && affectedCellKeys.has(key);
+}
+
+function edgeTouchesAffected(edge: TrafficGraphEdge, affectedCellKeys: ReadonlySet<string>): boolean {
+  const fromKey = parseNodeCell(edge.fromNodeId);
+  const toKey = parseNodeCell(edge.toNodeId);
+  return (
+    (fromKey !== null && affectedCellKeys.has(fromKey)) ||
+    (toKey !== null && affectedCellKeys.has(toKey))
+  );
+}
+
+function removedNodeIdsFor(
+  previous: TrafficGraph,
+  affectedCellKeys: ReadonlySet<string>,
+): ReadonlySet<string> {
+  return new Set(
+    previous.nodes
+      .filter((node) => nodeTouchesAffected(node, affectedCellKeys))
+      .map((node) => node.nodeId),
+  );
+}
+
+function mergeGraphNodes(
+  previous: TrafficGraph,
+  local: TrafficGraph,
+  affectedCellKeys: ReadonlySet<string>,
+  removedNodeIds: ReadonlySet<string>,
+): Map<string, TrafficGraphNode> {
+  const nextNodes = new Map<string, TrafficGraphNode>();
+  for (const node of previous.nodes) {
+    if (!removedNodeIds.has(node.nodeId)) nextNodes.set(node.nodeId, node);
+  }
+  for (const node of local.nodes) {
+    if (nodeTouchesAffected(node, affectedCellKeys)) nextNodes.set(node.nodeId, node);
+  }
+  return nextNodes;
+}
+
+function localAffectedEdges(
+  local: TrafficGraph,
+  affectedCellKeys: ReadonlySet<string>,
+): readonly TrafficGraphEdge[] {
+  return local.edges.filter((edge) => edgeTouchesAffected(edge, affectedCellKeys));
+}
+
+function mergeGraphEdges(
+  previous: TrafficGraph,
+  localEdges: readonly TrafficGraphEdge[],
+  affectedCellKeys: ReadonlySet<string>,
+  removedNodeIds: ReadonlySet<string>,
+  nextNodes: ReadonlyMap<string, TrafficGraphNode>,
+): Map<string, TrafficGraphEdge> {
+  const nextEdges = new Map<string, TrafficGraphEdge>();
+  for (const edge of previous.edges) {
+    if (edgeTouchesAffected(edge, affectedCellKeys)) continue;
+    if (removedNodeIds.has(edge.fromNodeId) || removedNodeIds.has(edge.toNodeId)) continue;
+    nextEdges.set(edge.edgeId, edge);
+  }
+  for (const edge of localEdges) {
+    if (nextNodes.has(edge.fromNodeId) && nextNodes.has(edge.toNodeId)) {
+      nextEdges.set(edge.edgeId, edge);
+    }
+  }
+  return nextEdges;
+}
+
 function mergeLocalGraph(
   input: Readonly<{
     previous: TrafficGraph;
@@ -108,55 +184,20 @@ function mergeLocalGraph(
     buildingRevision: number;
   }>,
 ): TrafficGraph {
-  const removedNodeIds = new Set<string>();
-  for (const node of input.previous.nodes) {
-    const key = parseNodeCell(node.nodeId);
-    if (key !== null && input.affectedCellKeys.has(key)) removedNodeIds.add(node.nodeId);
-  }
-
-  const nextNodes = new Map<string, TrafficGraphNode>();
-  for (const node of input.previous.nodes) {
-    if (!removedNodeIds.has(node.nodeId)) nextNodes.set(node.nodeId, node);
-  }
-  for (const node of input.local.nodes) {
-    const key = parseNodeCell(node.nodeId);
-    if (key !== null && input.affectedCellKeys.has(key)) nextNodes.set(node.nodeId, node);
-  }
-
-  const localEdgeIds = new Set<string>();
-  const localEdges: TrafficGraphEdge[] = [];
-  for (const edge of input.local.edges) {
-    const fromKey = parseNodeCell(edge.fromNodeId);
-    const toKey = parseNodeCell(edge.toNodeId);
-    if (
-      (fromKey !== null && input.affectedCellKeys.has(fromKey)) ||
-      (toKey !== null && input.affectedCellKeys.has(toKey))
-    ) {
-      localEdgeIds.add(edge.edgeId);
-      localEdges.push(edge);
-    }
-  }
-
-  const nextEdges = new Map<string, TrafficGraphEdge>();
-  for (const edge of input.previous.edges) {
-    const fromKey = parseNodeCell(edge.fromNodeId);
-    const toKey = parseNodeCell(edge.toNodeId);
-    const touchesAffected =
-      (fromKey !== null && input.affectedCellKeys.has(fromKey)) ||
-      (toKey !== null && input.affectedCellKeys.has(toKey));
-    if (
-      !touchesAffected &&
-      !removedNodeIds.has(edge.fromNodeId) &&
-      !removedNodeIds.has(edge.toNodeId)
-    ) {
-      nextEdges.set(edge.edgeId, edge);
-    }
-  }
-  for (const edge of localEdges) {
-    if (nextNodes.has(edge.fromNodeId) && nextNodes.has(edge.toNodeId))
-      nextEdges.set(edge.edgeId, edge);
-  }
-
+  const removedNodeIds = removedNodeIdsFor(input.previous, input.affectedCellKeys);
+  const nextNodes = mergeGraphNodes(
+    input.previous,
+    input.local,
+    input.affectedCellKeys,
+    removedNodeIds,
+  );
+  const nextEdges = mergeGraphEdges(
+    input.previous,
+    localAffectedEdges(input.local, input.affectedCellKeys),
+    input.affectedCellKeys,
+    removedNodeIds,
+    nextNodes,
+  );
   const nodes = [...nextNodes.values()].sort((a, b) => compareTrafficId(a.nodeId, b.nodeId));
   const edges = [...nextEdges.values()].sort((a, b) => compareTrafficId(a.edgeId, b.edgeId));
   return Object.freeze({

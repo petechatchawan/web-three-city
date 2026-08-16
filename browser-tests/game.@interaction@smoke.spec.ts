@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { openBuildCategory, openGameMenu, waitForCityUi } from './helpers/city-ui.js';
 import { GAME_URL, clickGameMenuAction, readEvidence } from './helpers/interaction.js';
 
-const SAVE_KEY = 'web-three-city:world-save:v6';
+const SAVE_KEY = 'web-three-city:world-save:v7';
 
 async function waitForReady(page: import('@playwright/test').Page): Promise<void> {
   await page.goto(GAME_URL);
@@ -72,9 +72,11 @@ test('changes quality and round-trips world save data', async ({ page }) => {
   expect(saved).not.toBeNull();
   expect(JSON.parse(saved ?? '{}')).toMatchObject({
     kind: 'world-save',
-    schemaVersion: 6,
+    schemaVersion: 7,
     buildings: { schemaVersion: 2 },
     rci: { kind: 'rci-save', schemaVersion: 1 },
+    mobility: { kind: 'mobility-save', schemaVersion: 1 },
+    traffic: { kind: 'traffic-save', schemaVersion: 1 },
   });
 
   await openGameMenu(page);

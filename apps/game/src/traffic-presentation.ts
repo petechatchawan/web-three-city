@@ -29,6 +29,10 @@ function edgeLengthMillimeters(agent: TrafficPresentationAgent): number {
   return Math.max(1, Math.ceil(Math.sqrt(dx * dx + dy * dy + dz * dz)));
 }
 
+function compareAgentIdentity(first: TrafficPresentationAgent, second: TrafficPresentationAgent): number {
+  return first.tripId < second.tripId ? -1 : first.tripId > second.tripId ? 1 : 0;
+}
+
 export class TrafficPresentation {
   readonly #pedestrians = new TrafficPedestrianPool();
   readonly #vehicles = new TrafficVehiclePool();
@@ -36,6 +40,7 @@ export class TrafficPresentation {
   #lastTrafficRevision = -1;
   #spatialIndex: TrafficSpatialIndex<TrafficPresentationAgent> | null = null;
   #debug: TrafficPresentationDebugSnapshot = EMPTY_TRAFFIC_PRESENTATION_DEBUG;
+  #visibleAgents: readonly TrafficPresentationAgent[] = Object.freeze([]);
 
   constructor(scene: Scene, policy: TrafficPresentationPolicy = FOUNDATION_TRAFFIC_PRESENTATION_POLICY) {
     this.#policy = policy;
@@ -44,6 +49,10 @@ export class TrafficPresentation {
 
   get lastTrafficRevision(): number {
     return this.#lastTrafficRevision;
+  }
+
+  visibleAgents(): readonly TrafficPresentationAgent[] {
+    return this.#visibleAgents;
   }
 
   update(
@@ -117,6 +126,9 @@ export class TrafficPresentation {
 
     this.#pedestrians.retainOnly(retainedPedestrians);
     this.#vehicles.retainOnly(retainedVehicles);
+    this.#visibleAgents = Object.freeze(
+      selection.selected.map(({ agent }) => agent).sort(compareAgentIdentity),
+    );
     this.#lastTrafficRevision = snapshot.trafficRevision;
     this.#debug = Object.freeze({
       trafficRevision: snapshot.trafficRevision,
@@ -138,6 +150,7 @@ export class TrafficPresentation {
     this.#pedestrians.retainOnly(new Set());
     this.#vehicles.retainOnly(new Set());
     this.#spatialIndex = null;
+    this.#visibleAgents = Object.freeze([]);
     this.#lastTrafficRevision = -1;
     this.#debug = EMPTY_TRAFFIC_PRESENTATION_DEBUG;
   }
@@ -152,5 +165,6 @@ export class TrafficPresentation {
     this.#pedestrians.dispose();
     this.#vehicles.dispose();
     this.#spatialIndex = null;
+    this.#visibleAgents = Object.freeze([]);
   }
 }

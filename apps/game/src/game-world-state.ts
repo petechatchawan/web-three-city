@@ -32,6 +32,14 @@ export type GameWorldStateInput = Omit<GameWorldState, 'mobility' | 'traffic'> &
   }>;
 
 function completeGameWorldState(input: GameWorldStateInput): GameWorldState {
+  if (input.mobility !== undefined && input.traffic !== undefined) {
+    const state = Object.isFrozen(input)
+      ? (input as GameWorldState)
+      : Object.freeze(input as GameWorldState);
+    rememberMobilityTrafficState(state.rci, state.mobility, state.traffic);
+    return state;
+  }
+
   const recalled = recallMobilityTrafficState(input.rci);
   const mobility = input.mobility ?? recalled?.mobility ?? createEmptyMobilitySnapshot();
   const traffic =

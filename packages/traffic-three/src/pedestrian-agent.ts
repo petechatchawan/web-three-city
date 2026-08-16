@@ -34,9 +34,7 @@ export class TrafficPedestrianAgent {
   readonly #scalePolicy: TrafficVisualScalePolicy;
   #tripId: string | null = null;
 
-  constructor(
-    scalePolicy: TrafficVisualScalePolicy = FOUNDATION_TRAFFIC_VISUAL_SCALE_POLICY,
-  ) {
+  constructor(scalePolicy: TrafficVisualScalePolicy = FOUNDATION_TRAFFIC_VISUAL_SCALE_POLICY) {
     this.#scalePolicy = scalePolicy;
     this.object.name = 'traffic-pedestrian-agent';
     const headDiameter = scalePolicy.pedestrianWidthWorldUnits * 0.72;
@@ -50,10 +48,7 @@ export class TrafficPedestrianAgent {
       new MeshStandardMaterial(),
     );
     this.#body.position.y = bodyHeight / 2;
-    this.#head = new Mesh(
-      new SphereGeometry(headDiameter / 2, 8, 6),
-      new MeshStandardMaterial(),
-    );
+    this.#head = new Mesh(new SphereGeometry(headDiameter / 2, 8, 6), new MeshStandardMaterial());
     this.#head.position.y = bodyHeight + headDiameter / 2;
     this.object.add(this.#body, this.#head);
     this.object.visible = false;
@@ -69,11 +64,7 @@ export class TrafficPedestrianAgent {
   }
 
   updateSourceState(input: TrafficPedestrianVisualInput): void {
-    const position = sampleRouteEdgePosition(
-      input.from,
-      input.to,
-      input.progressQ,
-    );
+    const position = sampleRouteEdgePosition(input.from, input.to, input.progressQ);
     this.setTransform(position, headingRadians(input.from, input.to));
     this.object.userData.routeEdgeId = input.routeEdgeId;
     this.setVisualState(input.queued);
@@ -106,15 +97,10 @@ export class TrafficPedestrianAgent {
   }
 
   #bind(input: TrafficPedestrianVisualInput): void {
-    if (this.#tripId !== null)
-      throw new Error('traffic-three:pedestrian-bind-active');
+    if (this.#tripId !== null) throw new Error('traffic-three:pedestrian-bind-active');
     const appearance = pedestrianAppearanceForCitizen(input.citizenId);
-    (this.#body.material as MeshStandardMaterial).color.setHex(
-      appearance.clothingColor,
-    );
-    (this.#head.material as MeshStandardMaterial).color.setHex(
-      appearance.accentColor,
-    );
+    (this.#body.material as MeshStandardMaterial).color.setHex(appearance.clothingColor);
+    (this.#head.material as MeshStandardMaterial).color.setHex(appearance.accentColor);
     const variation = this.#scalePolicy.appearanceScaleVariation;
     const scale =
       appearance.bodyVariant === 0

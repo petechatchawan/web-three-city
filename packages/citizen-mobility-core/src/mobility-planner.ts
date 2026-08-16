@@ -18,6 +18,42 @@ export interface MobilityPlanResult {
   }>[];
 }
 
+type MobilitySkipReason = 'OriginUnavailable' | 'DestinationUnavailable';
+
+type ResolvedTripEndpoints =
+  | Readonly<{ ok: true; originBuildingId: string; destinationBuildingId: string }>
+  | Readonly<{ ok: false; reason: MobilitySkipReason }>;
+
+function compareDueMobilityBoundaries(
+  first: DueMobilityBoundary,
+  second: DueMobilityBoundary,
+): number {
+  if (first.atGameMinute !== second.atGameMinute) {
+    return first.atGameMinute - second.atGameMinute;
+  }
+  if (first.nextActivity !== second.nextActivity) {
+    return first.nextActivity === 'Work' ? -1 : 1;
+  }
+  return compareMobilityId(first.citizenId, second.citizenId);
+}
+
+function resolveTripEndpoints(
+  boundary: DueMobilityBoundary,
+  citizen: PresentCitizenMobilityProjection,
+): ResolvedTripEndpoints {
+  const originBuildingId =
+    boundary.nextActivity === 'Work' ? citizen.homeBuildingId : citizen.workBuildingId;
+  const destinationBuildingId =
+    boundary.nextActivity === 'Work' ? citizen.workBuildingId : citizen.homeBuildingId;
+  if (originBuildingId === null) {
+    return Object.freeze({ ok: false, reason: 'OriginUnavailable' });
+  }
+  if (destinationBuildingId === null || originBuildingId === destinationBuildingId) {
+    return Object.freeze({ ok: false, reason: 'DestinationUnavailable' });
+  }
+  return Object.freeze({ ok: true, originBuildingId, destinationBuildingId });
+}
+
 export function formatMobilityTripId(sequence: number): string {
   if (!Number.isSafeInteger(sequence) || sequence < 1) {
     throw new MobilityContractError('mobility:invalid-sequence');
@@ -39,18 +75,9 @@ export function planMobilityBoundaries(
   const stateByCitizenId = new Map(
     snapshot.citizenStates.map((state) => [state.citizenId, state] as const),
   );
-  const sortedBoundaries = [...input.boundaries].sort((first, second) =>
-    first.atGameMinute !== second.atGameMinute
-      ? first.atGameMinute - second.atGameMinute
-      : first.nextActivity !== second.nextActivity
-        ? first.nextActivity === 'Work'
-          ? -1
-          : 1
-        : compareMobilityId(first.citizenId, second.citizenId),
-  );
+  const sortedBoundaries = [...input.boundaries].sort(compareDueMobilityBoundaries);
   const planningRequests: MobilityTripPlanningRequest[] = [];
-  const skipped: { citizenId: string; reason: 'OriginUnavailable' | 'DestinationUnavailable' }[] =
-    [];
+  const skipped: { citizenId: string; reason: MobilitySkipReason }[] = [];
   const requestedCitizens = new Set<string>();
 
   for (const boundary of sortedBoundaries) {
@@ -60,20 +87,9 @@ export function planMobilityBoundaries(
     if (citizen === undefined || !citizen.present || state === undefined) continue;
     if (state.activeTripId !== null || requestedCitizens.has(boundary.citizenId)) continue;
 
-    const originBuildingId =
-      boundary.nextActivity === 'Work' ? citizen.homeBuildingId : citizen.workBuildingId;
-    const destinationBuildingId =
-      boundary.nextActivity === 'Work' ? citizen.workBuildingId : citizen.homeBuildingId;
-    if (originBuildingId === null) {
-      skipped.push({ citizenId: citizen.citizenId, reason: 'OriginUnavailable' });
-      continue;
-    }
-    if (destinationBuildingId === null) {
-      skipped.push({ citizenId: citizen.citizenId, reason: 'DestinationUnavailable' });
-      continue;
-    }
-    if (originBuildingId === destinationBuildingId) {
-      skipped.push({ citizenId: citizen.citizenId, reason: 'DestinationUnavailable' });
+    const endpoints = resolveTripEndpoints(boundary, citizen);
+    if (!endpoints.ok) {
+      skipped.push({ citizenId: citizen.citizenId, reason: endpoints.reason });
       continue;
     }
 
@@ -83,8 +99,8 @@ export function planMobilityBoundaries(
         tripId: formatMobilityTripId(tripSequence),
         citizenId: citizen.citizenId,
         purpose: boundary.nextActivity === 'Work' ? 'CommuteToWork' : 'CommuteHome',
-        originBuildingId,
-        destinationBuildingId,
+        originBuildingId: endpoints.originBuildingId,
+        destinationBuildingId: endpoints.destinationBuildingId,
         departureGameMinute: boundary.atGameMinute,
       }),
     );

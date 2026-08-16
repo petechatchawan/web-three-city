@@ -5,6 +5,7 @@ import {
   type MobilityTrip,
 } from '@web-three-city/citizen-mobility-core';
 import {
+  createFoundationRciRegistries,
   createInitialRciSnapshot,
   createRciSnapshot,
   type RciSnapshot,
@@ -28,6 +29,8 @@ import { encodeWorldSaveV7, type WorldSaveV7 } from './world-save.js';
 
 export const TRAFFIC_PERFORMANCE_LOGICAL_CITIZENS = 5_000;
 export const TRAFFIC_PERFORMANCE_LOGICAL_TRIPS = 5_000;
+
+const FOUNDATION_RCI_REGISTRIES = createFoundationRciRegistries();
 
 export interface TrafficPerformanceReleaseFixture {
   readonly save: WorldSaveV7;
@@ -114,23 +117,10 @@ function performanceRci(
     {
       buildings: base.buildings,
       simulation: base.simulation,
-      registries: (awaitlessRegistries()),
+      registries: FOUNDATION_RCI_REGISTRIES,
     },
   );
 }
-
-function awaitlessRegistries() {
-  // Kept local so performance fixture construction has no registry mutation surface.
-  return requireFoundationRegistries();
-}
-
-function requireFoundationRegistries() {
-  // Dynamic helper is replaced at module initialization below to keep fixture code deterministic.
-  return foundationRegistries;
-}
-
-import { createFoundationRciRegistries } from '@web-three-city/rci-core';
-const foundationRegistries = createFoundationRciRegistries();
 
 function withBuildingRevision(graph: TrafficGraph, revision: number): TrafficGraph {
   return Object.freeze({ ...graph, sourceBuildingRevision: revision });

@@ -58,6 +58,23 @@ export function deterministicScheduleOffset(
   return hashText(`${citizenId}|${dayIndex}|${scheduleSeedVersion}|${policyVersion}`) % span;
 }
 
+export function workStartGameMinuteForCitizen(
+  citizenId: string,
+  dayIndex: number,
+  policy: FoundationMobilitySchedulePolicyV1 = FOUNDATION_MOBILITY_SCHEDULE_POLICY_V1,
+  scheduleSeedVersion = 1,
+): number {
+  assertMobilityId(citizenId);
+  assertDayIndex(dayIndex);
+  const dayStart = dayIndex * 1440;
+  if (!Number.isSafeInteger(dayStart)) throw new MobilityContractError('mobility:invalid-time');
+  return (
+    dayStart +
+    policy.workStartEarliestMinuteOfDay +
+    deterministicScheduleOffset(citizenId, dayIndex, scheduleSeedVersion, policy.version)
+  );
+}
+
 export function deriveCitizenScheduleForDay(
   citizen: PresentCitizenMobilityProjection,
   dayIndex: number,
@@ -69,12 +86,12 @@ export function deriveCitizenScheduleForDay(
   if (!citizen.present || citizen.homeBuildingId === null || citizen.workBuildingId === null) {
     return Object.freeze([]);
   }
-  const dayStart = dayIndex * 1440;
-  if (!Number.isSafeInteger(dayStart)) throw new MobilityContractError('mobility:invalid-time');
-  const workStart =
-    dayStart +
-    policy.workStartEarliestMinuteOfDay +
-    deterministicScheduleOffset(citizen.citizenId, dayIndex, scheduleSeedVersion, policy.version);
+  const workStart = workStartGameMinuteForCitizen(
+    citizen.citizenId,
+    dayIndex,
+    policy,
+    scheduleSeedVersion,
+  );
   const returnHome = workStart + policy.workDurationMinutes;
   return Object.freeze([
     Object.freeze({

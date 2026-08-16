@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  advanceTrafficSnapshot,
   applyRouteRecovery,
   createActiveTransportTrip,
   createEmptyTrafficSnapshot,
@@ -85,6 +86,24 @@ function trip(id: string): ActiveTransportTrip {
 }
 
 describe('Traffic flow and persistence', () => {
+  it('does not advance committed Traffic revision while no trips are active', () => {
+    const snapshot = createEmptyTrafficSnapshot({ roadRevision: 1, buildingRevision: 1 });
+    const result = advanceTrafficSnapshot({
+      snapshot,
+      graph,
+      elapsedSeconds: 3_600,
+      intervalStartGameSecond: 0,
+    });
+
+    expect(result.snapshot.revision).toBe(snapshot.revision);
+    expect(result.snapshot.activeTrips).toEqual(snapshot.activeTrips);
+    expect(result.receipt).toMatchObject({
+      beforeRevision: snapshot.revision,
+      afterRevision: snapshot.revision,
+      elapsedSeconds: 3_600,
+    });
+  });
+
   it('adds monotonic congestion only after capacity is exceeded', () => {
     const one = createTrafficEdgeProjections({ graph, trips: [trip('t1')] }).find(
       (edge) => edge.edgeId === 'ab',

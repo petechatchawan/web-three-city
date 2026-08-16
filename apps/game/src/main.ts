@@ -7,6 +7,7 @@ import './ui/m6-4-mobile-declutter.css';
 import { constructionProgressAtTick } from '@web-three-city/building-core';
 import {
   constructionVisualPhase,
+  latestBuildingPresentationScene,
   reloadLatestBuildingPresentation,
   setBuildingPresentationAbsoluteTick,
 } from '@web-three-city/building-three';
@@ -20,6 +21,7 @@ import { createSimulationRuntime } from './simulation-runtime.js';
 import { dispatchGameToolCancel } from './game-tool-events.js';
 import { bindGameToolContext } from './game-tool-context-bridge.js';
 import type { GameToolMode } from './game-tool-mode.js';
+import { TrafficRuntimePresentation } from './traffic-runtime-presentation.js';
 import { mountCityUi } from './ui/city-ui-runtime.js';
 
 interface GameTimeTestApi {
@@ -36,8 +38,22 @@ interface GameTimeTestApi {
   readonly resetForTest: () => void;
 }
 
+interface TrafficTestApi {
+  readonly snapshot: () => Readonly<{
+    readonly worldRevision: number;
+    readonly absoluteTick: number;
+    readonly citizenIds: readonly string[];
+    readonly mobility: ReturnType<ReturnType<typeof bootstrapGame>['snapshot']>['mobility'];
+    readonly traffic: ReturnType<ReturnType<typeof bootstrapGame>['snapshot']>['traffic'];
+    readonly presentation: ReturnType<TrafficRuntimePresentation['debugSnapshot']> | null;
+  }>;
+  readonly setTrafficView: (active: boolean) => void;
+  readonly focusCell: (x: number, z: number) => void;
+}
+
 type GameTimeWindow = Window & {
   __WEB_THREE_CITY_TIME__?: GameTimeTestApi;
+  __WEB_THREE_CITY_TRAFFIC__?: TrafficTestApi;
 };
 
 const rootElement = document.querySelector<HTMLElement>('#app');
@@ -46,6 +62,8 @@ const root: HTMLElement = rootElement;
 const host = renderGameCanvas(root);
 const runtime = bootstrapGame(host);
 const rciRegistries = createFoundationRciRegistries();
+const trafficScene = latestBuildingPresentationScene();
+const trafficRuntime = trafficScene === null ? null : new TrafficRuntimePresentation(trafficScene);
 
 const bindings = new AbortController();
 const automatedBrowser = navigator.webdriver === true;
@@ -107,6 +125,7 @@ function synchronizeCommittedWorld(
   }
   setBuildingPresentationAbsoluteTick(world.simulation.absoluteTick);
   refreshConstructionPhaseIfNeeded(world);
+  trafficRuntime?.synchronize(world);
   cityUi.update(world);
 }
 
@@ -126,6 +145,17 @@ function resetSimulationForTest(): void {
   const world = runtime.resetSimulationForTest();
   setBuildingPresentationAbsoluteTick(world.simulation.absoluteTick);
   refreshConstructionPhaseIfNeeded(world);
+  trafficRuntime?.synchronize(world);
+}
+
+function setInformationView(key: 'grid' | 'zoning' | 'traffic' | null): void {
+  if (key === 'traffic') {
+    runtime.setInformationView(null);
+    trafficRuntime?.setTrafficInformationView(true);
+    return;
+  }
+  trafficRuntime?.setTrafficInformationView(false);
+  runtime.setInformationView(key);
 }
 
 const cityUi = mountCityUi(root, {
@@ -136,7 +166,7 @@ const cityUi = mountCityUi(root, {
     runtime.setTerraformBrush(size);
   },
   submitTaxPolicy: (policy) => runtime.submitTaxPolicy(policy),
-  setInformationView: (key) => runtime.setInformationView(key),
+  setInformationView,
   saveWorld: () => runtime.saveWorld(),
   loadWorld: () => runtime.loadWorld(),
   rotateLeft: () => runtime.rotateLeft(),
@@ -156,10 +186,14 @@ host.onStatus((value) => cityUi.toolContextSheet.setStatus(value));
 host.onUndoAvailable((available) => cityUi.toolContextSheet.setUndoAvailable(available));
 
 const unsubscribeCommittedWorld = runtime.subscribeCommittedWorld(synchronizeCommittedWorld);
-const unsubscribeWorldSelection = runtime.subscribeWorldSelection((cell) =>
-  cityUi.inspectCell(cell),
-);
+const unsubscribeWorldSelection = runtime.subscribeWorldSelection((cell) => {
+  trafficRuntime?.setCameraAnchorFromCell(cell);
+  const trafficTarget = trafficRuntime?.inspectTargetAtCell(cell) ?? null;
+  if (trafficTarget === null) cityUi.inspectCell(cell);
+  else cityUi.inspectTarget(trafficTarget);
+});
 const initialWorld = runtime.snapshot();
+trafficRuntime?.synchronize(initialWorld);
 cityUi.update(initialWorld);
 setBuildingPresentationAbsoluteTick(initialWorld.simulation.absoluteTick);
 refreshConstructionPhaseIfNeeded(initialWorld);
@@ -183,6 +217,27 @@ timeWindow.__WEB_THREE_CITY_TIME__ = Object.freeze({
   },
   resetForTest: resetSimulationForTest,
 });
+timeWindow.__WEB_THREE_CITY_TRAFFIC__ = Object.freeze({
+  snapshot: () => {
+    const world = runtime.snapshot();
+    return Object.freeze({
+      worldRevision: world.revision,
+      absoluteTick: world.simulation.absoluteTick,
+      citizenIds: Object.freeze(world.rci.population.citizens.map((citizen) => citizen.citizenId)),
+      mobility: world.mobility,
+      traffic: world.traffic,
+      presentation: trafficRuntime?.debugSnapshot() ?? null,
+    });
+  },
+  setTrafficView(active: boolean): void {
+    trafficRuntime?.setTrafficInformationView(active);
+  },
+  focusCell(x: number, z: number): void {
+    if (!Number.isInteger(x) || !Number.isInteger(z)) return;
+    if (x < 0 || z < 0 || x >= 64 || z >= 64) return;
+    trafficRuntime?.setCameraAnchorFromCell({ x, z });
+  },
+});
 
 function simulationFrame(timestamp: number): void {
   if (previousFrameTimestamp === null) previousFrameTimestamp = timestamp;
@@ -190,6 +245,7 @@ function simulationFrame(timestamp: number): void {
   previousFrameTimestamp = timestamp;
   if (document.visibilityState !== 'hidden') {
     simulationRuntime.advance(delta, advanceOneLogicalTick);
+    trafficRuntime?.frame();
   }
   frameRequest = requestAnimationFrame(simulationFrame);
 }
@@ -235,10 +291,12 @@ window.addEventListener(
     cancelAnimationFrame(frameRequest);
     unsubscribeCommittedWorld();
     unsubscribeWorldSelection();
+    trafficRuntime?.dispose();
     cityUi.dispose();
     bindings.abort();
     runtime.dispose();
     delete timeWindow.__WEB_THREE_CITY_TIME__;
+    delete timeWindow.__WEB_THREE_CITY_TRAFFIC__;
   },
   { once: true },
 );

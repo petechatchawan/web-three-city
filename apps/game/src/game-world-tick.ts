@@ -22,7 +22,12 @@ import {
 import { occupiedRoadCellCount } from '@web-three-city/road-core';
 import { deriveGameCalendar } from '@web-three-city/simulation-core';
 import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
-import { GameWorldStateStore, type GameWorldState } from './game-world-state.js';
+import {
+  createGameWorldState,
+  GameWorldStateStore,
+  type GameWorldState,
+  type GameWorldStateInput,
+} from './game-world-state.js';
 import { createPresentCitizenMobilityProjection } from './mobility-source-projection.js';
 import { planMobilityTrafficTick } from './mobility-traffic-tick.js';
 import { rememberTrafficJourneyReceipts } from './traffic-journey-receipt-registry.js';
@@ -77,56 +82,54 @@ function invalidTickPlan(
 
 export function planGameWorldTick(
   input: Readonly<{
-    state: GameWorldState;
+    state: GameWorldStateInput;
     environment: BuildingDevelopmentEnvironment;
     config: WorldConfig;
     registries: RciDefinitionRegistries;
     reservedCells?: readonly CellCoord[];
   }>,
 ): GameWorldTickPlan {
-  const taxPressure = createTaxPressureProjection(
-    input.state.economy.taxPolicy,
-    FOUNDATION_ECONOMY_RULES,
-  );
+  const state = createGameWorldState(input.state);
+  const taxPressure = createTaxPressureProjection(state.economy.taxPolicy, FOUNDATION_ECONOMY_RULES);
   const buildingPlan = planBuildingGrowthTick({
-    buildings: input.state.buildings,
-    simulation: input.state.simulation,
+    buildings: state.buildings,
+    simulation: state.simulation,
     environment: input.environment,
     config: input.config,
-    growthPolicy: createBuildingGrowthPolicy(input.state.rci),
+    growthPolicy: createBuildingGrowthPolicy(state.rci),
     ...(input.reservedCells === undefined ? {} : { reservedCells: input.reservedCells }),
   });
   if (!buildingPlan.valid) {
     return invalidTickPlan({
-      state: input.state,
+      state,
       buildingReceipt: Object.freeze({
-        beforeBuildingRevision: input.state.buildings.revision,
-        afterBuildingRevision: input.state.buildings.revision,
-        beforeSimulationRevision: input.state.simulation.revision,
-        afterSimulationRevision: input.state.simulation.revision,
-        beforeAbsoluteTick: input.state.simulation.absoluteTick,
-        afterAbsoluteTick: input.state.simulation.absoluteTick,
+        beforeBuildingRevision: state.buildings.revision,
+        afterBuildingRevision: state.buildings.revision,
+        beforeSimulationRevision: state.simulation.revision,
+        afterSimulationRevision: state.simulation.revision,
+        beforeAbsoluteTick: state.simulation.absoluteTick,
+        afterAbsoluteTick: state.simulation.absoluteTick,
         startedInstanceIds: Object.freeze([]),
         completedInstanceIds: Object.freeze([]),
         dirtyChunks: Object.freeze([]),
       }),
-      rciReceipt: emptyRciReceipt(input.state),
+      rciReceipt: emptyRciReceipt(state),
       reason: buildingPlan.invalidReason,
     });
   }
 
   const buildingCommit = commitBuildingGrowthTick({
-    buildings: input.state.buildings,
-    simulation: input.state.simulation,
+    buildings: state.buildings,
+    simulation: state.simulation,
     environment: input.environment,
     config: input.config,
     plan: buildingPlan,
   });
   const rciPlan = planRciTick({
-    rci: input.state.rci,
-    simulationBefore: input.state.simulation,
+    rci: state.rci,
+    simulationBefore: state.simulation,
     simulationAfter: buildingCommit.simulation,
-    buildingsBefore: input.state.buildings,
+    buildingsBefore: state.buildings,
     buildingsAfter: buildingCommit.buildings,
     registries: input.registries,
     configuration: FOUNDATION_RCI_CONFIGURATION,
@@ -141,18 +144,18 @@ export function planGameWorldTick(
   });
   if (!rciPlan.valid) {
     return invalidTickPlan({
-      state: input.state,
+      state,
       buildingReceipt: buildingCommit.receipt,
-      rciReceipt: emptyRciReceipt(input.state),
+      rciReceipt: emptyRciReceipt(state),
       reason: rciPlan.invalidReason,
     });
   }
 
   const rciCommit = commitRciTick({
-    rci: input.state.rci,
-    simulationBefore: input.state.simulation,
+    rci: state.rci,
+    simulationBefore: state.simulation,
     simulationAfter: buildingCommit.simulation,
-    buildingsBefore: input.state.buildings,
+    buildingsBefore: state.buildings,
     buildingsAfter: buildingCommit.buildings,
     plan: rciPlan,
   });
@@ -165,26 +168,23 @@ export function planGameWorldTick(
       buildingCommit.simulation.absoluteTick,
     );
     mobilityTraffic = planMobilityTrafficTick({
-      mobilityBefore: input.state.mobility,
-      trafficBefore: input.state.traffic,
+      mobilityBefore: state.mobility,
+      trafficBefore: state.traffic,
       citizensAfter,
-      simulationBefore: input.state.simulation,
+      simulationBefore: state.simulation,
       simulationAfter: buildingCommit.simulation,
       trafficSource: {
-        roads: createRoadTrafficSourceProjectionFromEnvironment(
-          input.state.roads,
-          input.environment,
-        ),
+        roads: createRoadTrafficSourceProjectionFromEnvironment(state.roads, input.environment),
         buildingAccess: createBuildingTrafficAccessProjection(
           buildingCommit.buildings,
-          input.state.roads,
+          state.roads,
           input.environment,
         ),
       },
     });
   } catch (error) {
     return invalidTickPlan({
-      state: input.state,
+      state,
       buildingReceipt: buildingCommit.receipt,
       rciReceipt: rciCommit.receipt,
       contributions: rciPlan.demandContributions,
@@ -198,9 +198,9 @@ export function planGameWorldTick(
     buildingCommit.simulation.absoluteTick,
   );
   const settlement = settleScheduledEconomy(
-    input.state.economy,
+    state.economy,
     {
-      beforeTick: input.state.simulation.absoluteTick,
+      beforeTick: state.simulation.absoluteTick,
       afterTick: buildingCommit.simulation.absoluteTick,
       calendar: deriveGameCalendar(buildingCommit.simulation.absoluteTick),
       taxableActivity: {
@@ -212,13 +212,13 @@ export function planGameWorldTick(
           rciProjection.factorContext.industrialPositionCapacity -
           rciProjection.factorContext.industrialVacantPositionCount,
       },
-      roadMaintenance: { occupiedRoadCells: occupiedRoadCellCount(input.state.roads) },
+      roadMaintenance: { occupiedRoadCells: occupiedRoadCellCount(state.roads) },
     },
     FOUNDATION_ECONOMY_RULES,
   );
   if (!settlement.ok) {
     return invalidTickPlan({
-      state: input.state,
+      state,
       buildingReceipt: buildingCommit.receipt,
       rciReceipt: rciCommit.receipt,
       contributions: rciPlan.demandContributions,
@@ -227,13 +227,13 @@ export function planGameWorldTick(
   }
 
   return Object.freeze({
-    baseWorldRevision: input.state.revision,
+    baseWorldRevision: state.revision,
     proposedState: Object.freeze({
-      revision: input.state.revision + 1,
+      revision: state.revision + 1,
       simulation: buildingCommit.simulation,
       buildings: buildingCommit.buildings,
       rci: rciCommit.snapshot,
-      roads: input.state.roads,
+      roads: state.roads,
       economy: settlement.snapshot,
       mobility: mobilityTraffic.mobility,
       traffic: mobilityTraffic.traffic,

@@ -1,3 +1,4 @@
+import { Box3, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { TrafficVehiclePool, vehicleAppearanceForTrip } from '../src/index.js';
 
@@ -23,6 +24,25 @@ describe('Traffic vehicle agents', () => {
     expect(vehicleAppearanceForTrip('drive-trip-1', 'citizen-1')).toEqual(
       vehicleAppearanceForTrip('drive-trip-1', 'citizen-1'),
     );
+    pool.dispose();
+  });
+
+  it('keeps the complete vehicle visual inside the basic-road presentation envelope', () => {
+    const pool = new TrafficVehiclePool();
+    const agent = pool.acquire({
+      tripId: 'drive-scale-1',
+      citizenId: 'citizen-scale-1',
+      routeEdgeId: 'drive-edge-1',
+      progressQ: 500_000,
+      queued: false,
+      from: { xQ: 0, yQ: 0, zQ: 0 },
+      to: { xQ: 8_000, yQ: 0, zQ: 0 },
+      turn: null,
+    });
+    const size = new Box3().setFromObject(agent.object).getSize(new Vector3());
+
+    expect(size.x).toBeLessThanOrEqual(0.288);
+    expect(size.z).toBeLessThanOrEqual(0.612);
     pool.dispose();
   });
 

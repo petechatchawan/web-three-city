@@ -1,3 +1,4 @@
+import { Box3, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import {
   TrafficPedestrianPool,
@@ -30,6 +31,24 @@ describe('Traffic pedestrian agents', () => {
     expect(pedestrianAppearanceForCitizen('citizen-1')).toEqual(
       pedestrianAppearanceForCitizen('citizen-1'),
     );
+    pool.dispose();
+  });
+
+  it('keeps the complete Citizen visual subordinate to the basic-road vehicle envelope', () => {
+    const pool = new TrafficPedestrianPool();
+    const agent = pool.acquire({
+      tripId: 'walk-scale-1',
+      citizenId: 'citizen-scale-1',
+      routeEdgeId: 'walk-edge-1',
+      progressQ: 500_000,
+      queued: false,
+      from: { xQ: 0, yQ: 0, zQ: 0 },
+      to: { xQ: 8_000, yQ: 0, zQ: 0 },
+    });
+    const size = new Box3().setFromObject(agent.object).getSize(new Vector3());
+
+    expect(size.x).toBeLessThanOrEqual(0.1);
+    expect(size.y).toBeLessThanOrEqual(0.26);
     pool.dispose();
   });
 

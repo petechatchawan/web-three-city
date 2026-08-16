@@ -1,4 +1,6 @@
+import { Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
+import * as trafficThree from '../src/index.js';
 import { headingRadians, sampleRoutePolyline, type TrafficRouteSegment } from '../src/index.js';
 
 const route: readonly TrafficRouteSegment[] = Object.freeze([
@@ -22,6 +24,25 @@ describe('traffic presentation route motion', () => {
     expect(sample.position.z).toBeCloseTo(2);
     expect(sample.headingRadians).toBeCloseTo(0);
     expect(headingRadians(route[0]!.from, route[0]!.to)).toBeCloseTo(Math.PI / 2);
+  });
+
+  it('prepares route distance metadata once and samples into caller-owned position state', () => {
+    const namespace = trafficThree as unknown as Record<string, unknown>;
+    const prepare = namespace.prepareTrafficRoute as
+      | ((segments: readonly TrafficRouteSegment[]) => unknown)
+      | undefined;
+    const sampleInto = namespace.samplePreparedRouteInto as
+      | ((prepared: unknown, distanceMillimeters: number, out: Vector3) => unknown)
+      | undefined;
+
+    expect(typeof prepare).toBe('function');
+    expect(typeof sampleInto).toBe('function');
+
+    const prepared = prepare!(route);
+    const out = new Vector3(99, 99, 99);
+    sampleInto!(prepared, 10_000, out);
+    expect(out.x).toBeCloseTo(8);
+    expect(out.z).toBeCloseTo(2);
   });
 
   it('keeps a vehicle visual bound to its trip while reusing the pool', async () => {

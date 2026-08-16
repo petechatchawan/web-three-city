@@ -56,6 +56,7 @@ describe('Traffic runtime presentation', () => {
     expect(debug.journeyReplayVehicles).toBe(fixture.summary.driveCitizenIds.length);
     expect(debug.visiblePedestrians).toBe(fixture.summary.walkCitizenIds.length);
     expect(debug.visibleVehicles).toBe(fixture.summary.driveCitizenIds.length);
+    expect((debug as unknown as Record<string, number>).lastFrameTimestampMs).toBe(1_500);
 
     presentation.frame(20_000);
     expect(presentation.debugSnapshot().journeyReplayCount).toBe(0);

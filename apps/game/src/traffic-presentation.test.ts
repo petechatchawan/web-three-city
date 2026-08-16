@@ -79,6 +79,21 @@ describe('TrafficPresentation real-agent contract', () => {
     presentation.dispose();
   });
 
+  it('does not rerun heavy reconciliation on unchanged render frames', () => {
+    const scene = new Scene();
+    const presentation = new TrafficPresentation(scene);
+    const committed = snapshot();
+
+    presentation.update(committed, { x: 4, z: 4 }, 0, 1_000);
+    presentation.update(committed, { x: 4, z: 4 }, 1, 1_016);
+    presentation.update(committed, { x: 4, z: 4 }, 2, 1_032);
+
+    const debug = presentation.debugSnapshot() as unknown as Record<string, number>;
+    expect(debug.reconciliationCount).toBe(1);
+    expect(debug.frameSampleCount).toBe(3);
+    presentation.dispose();
+  });
+
   it('dematerializes outside the camera bubble without mutating logical snapshot input', () => {
     const scene = new Scene();
     const presentation = new TrafficPresentation(scene);

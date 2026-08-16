@@ -1,8 +1,8 @@
 # Traffic Foundation v0.1 — PR11 Browser Performance Evidence
 
-Status: **PENDING EXECUTION**
+Status: **RE-VERIFYING SCALE / FRAME-PIPELINE REMEDIATION**
 
-This record is intentionally created before the PR11 verification phase because the implementation workflow writes the complete production/test packet first and executes tests afterward. No PASS, timing, memory, CI, or release claim is recorded here until the exact-head verification run exists.
+This record covers both the existing logical Traffic scale evidence and the 2026-08-17 production remediation for owner-observed vehicle/Citizen scale and 4× render judder. Canonical Traffic/Mobility authority is unchanged.
 
 ## Deterministic workload
 
@@ -10,6 +10,7 @@ This record is intentionally created before the PR11 verification phase because 
 - Canonical viewport: 414×896 portrait
 - Logical Citizens: 5,000 real RCI Citizen IDs in the browser performance fixture
 - Logical active Traffic trips: 5,000, mixed Walk/Drive
+- Additional deterministic Citizen scale fixture: 20,000 Citizens
 - Road graph: deterministic distributed grid across the committed world
 - Presentation policy gates:
   - visible pedestrians <= 300
@@ -19,9 +20,37 @@ This record is intentionally created before the PR11 verification phase because 
   - visited spatial buckets < total spatial buckets
   - camera leave/return increases pool reuse
 
-The browser performance fixture is release/debug evidence only. Canonical Traffic and Citizen authority remain the committed snapshots; presentation caps, LOD, spatial indexing, pooling, and measured frame timing are derived concerns.
+The browser performance fixture is release/debug evidence only. Canonical Traffic and Citizen authority remain the committed snapshots; presentation caps, LOD, spatial indexing, pooling, visual scale, interpolation, and frame timing are derived concerns.
 
-## Measurements to record after execution
+## Traffic Presentation architectural budget
+
+The Scale & Frame Pipeline Remediation adds a deterministic architectural performance gate rather than a device-specific FPS promise.
+
+After presentation warmup with stable Traffic revision and camera context:
+
+- repeated RAF frames must not rerun spatial/materialization/headway reconciliation;
+- `reconciliationCount` remains stable until Traffic revision or materialization camera context changes;
+- prepared routes are created/rebound only when a visual trip route is first bound or canonically changes;
+- `preparedRouteCount` remains stable across repeated RAF frames and across progress-only canonical revisions on the same route;
+- `frameSampleCount` advances on every render-frame sample;
+- `lastFrameTimestampMs` is the real supplied render timestamp, not a synthetic `frameIndex * 16.667` clock;
+- canonical input snapshots remain immutable while presentation advances through 1×/2×/4×-representative target cadence;
+- pooled visual identity is stable after warmup and static appearance/scale binding is not repeated every frame;
+- replay route-distance sampling uses prepared cumulative route data; no per-frame route-history `slice(...).reduce(...)` remains in the production replay path.
+
+Absolute FPS is intentionally not hard-coded in CI because runner and target-device performance differ. Owner manual acceptance at 414×896 remains the final smoothness/readability gate.
+
+## Visual scale budget
+
+For the current basic rendered road width of `0.72` world units:
+
+- vehicle width target is approximately `0.24` and must remain <= 40% of road width;
+- vehicle length target is approximately `0.50` and must remain <= 85% of road width;
+- pedestrian width target is approximately `0.08` and remains less than half vehicle width;
+- deterministic visual size variants are bounded to ±5%;
+- `traffic-three` owns ratios/policy only; the game adapter supplies the rendered road width and canonical Traffic remains unaware of visual scale.
+
+## Measurements to record after final exact-head execution
 
 The browser test captures three same-environment frame-duration samples and attaches `traffic-performance-measurements.json` containing:
 
@@ -33,22 +62,20 @@ The browser test captures three same-environment frame-duration samples and atta
 - median of run medians
 - JS heap observation when the browser exposes `performance.memory`
 
-Timing remains observational unless repeated CI evidence proves a stable failure threshold. Deterministic workload/cap/spatial-work assertions remain the release gate.
+Timing remains observational unless repeated CI evidence proves a stable failure threshold. Deterministic workload/cap/spatial-work assertions and the RAF architectural budget remain the automated release gates.
 
 ## Exact-head evidence
 
-- Candidate SHA: **PENDING**
-- Focused browser result: **PENDING**
-- Full Chromium inventory/result: **PENDING**
-- CI run: **PENDING**
-- Browser evidence artifact ID/digest: **PENDING**
-- Sonar/quality result on same SHA: **PENDING**
-- Measurement run 1: **PENDING**
-- Measurement run 2: **PENDING**
-- Measurement run 3: **PENDING**
-- Median/spread: **PENDING**
-- Memory observation: **PENDING**
+- Candidate SHA: **PENDING FINAL R6 HEAD**
+- Focused Traffic/Traffic-three result: **PENDING FINAL HEAD**
+- Lean CI / `pnpm check`: core GREEN passed on intermediate remediation head `059d57450138fa36d7823f98169b99a48cdf616b` in CI #1598 / run `31975215952`; final R6 head re-verification pending
+- Targeted Browser result: **PENDING FINAL HEAD**
+- Browser evidence artifact ID: **PENDING FINAL HEAD**
+- Sonar/quality result on same SHA: **PENDING FINAL HEAD**
+- 5,000 logical Traffic fixture: **PENDING FINAL R6 HEAD** (previous candidate passed)
+- 20,000-Citizen fixture: **PENDING FINAL R6 HEAD** (previous candidate passed)
+- Presentation architectural budget: implementation + focused test written; **PENDING FINAL R6 HEAD verification**
 
 ## Manual visual acceptance
 
-Owner visual acceptance at 414×896 remains a separate mandatory PR11 gate and is **PENDING**. Automated performance evidence does not substitute for visual acceptance of real pedestrians, cars, queues, Inspect, Traffic overlay, or peak-flow readability.
+Owner visual acceptance at 414×896 remains a separate mandatory gate and is **FAIL / PENDING OWNER RE-TEST** after the new exact candidate is automated-green. Automated performance evidence does not substitute for visual acceptance of scale, real pedestrians/cars, queues, Inspect, Traffic overlay, or 4× peak-flow readability.

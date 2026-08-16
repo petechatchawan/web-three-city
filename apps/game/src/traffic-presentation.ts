@@ -143,6 +143,9 @@ export class TrafficPresentation {
       totalSpatialBuckets: query.metrics.bucketCount,
       nearUpdateCount: selection.nearUpdateCount,
       midUpdateCount: selection.midUpdateCount,
+      journeyReplayCount: 0,
+      journeyReplayPedestrians: 0,
+      journeyReplayVehicles: 0,
     });
   }
 

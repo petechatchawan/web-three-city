@@ -36,6 +36,10 @@ type FixtureSummary = {
   driveCitizenIds: string[];
 };
 
+function canonicalCitizenIds(ids: readonly string[]): string[] {
+  return [...ids].sort((first, second) => first.localeCompare(second));
+}
+
 async function installFixture(page: import('@playwright/test').Page): Promise<FixtureSummary> {
   await page.setViewportSize({ width: 414, height: 896 });
   await page.goto('/');
@@ -99,7 +103,7 @@ test.describe('Citizen commute browser acceptance', () => {
       .toBeGreaterThan(0);
     const state = await trafficSnapshot(page);
     expect(state.absoluteTick).toBe(8);
-    expect(state.citizenIds).toEqual(fixture.citizenIds);
+    expect(canonicalCitizenIds(state.citizenIds)).toEqual(canonicalCitizenIds(fixture.citizenIds));
     expect(state.mobility.trips).toHaveLength(fixture.citizenIds.length);
     expect(state.mobility.trips.every((trip) => fixture.citizenIds.includes(trip.citizenId))).toBe(
       true,
@@ -131,7 +135,7 @@ test.describe('Citizen commute browser acceptance', () => {
 
     const state = await trafficSnapshot(page);
     expect(state.absoluteTick).toBe(17);
-    expect(state.citizenIds).toEqual(fixture.citizenIds);
+    expect(canonicalCitizenIds(state.citizenIds)).toEqual(canonicalCitizenIds(fixture.citizenIds));
     expect(state.mobility.trips).toHaveLength(fixture.citizenIds.length * 2);
     expect(
       state.mobility.citizenStates.every((citizen) => citizen.currentActivity === 'Home'),

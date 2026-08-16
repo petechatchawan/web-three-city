@@ -5,9 +5,8 @@ import type { RciSnapshot } from '@web-three-city/rci-core';
 export function createPresentCitizenMobilityProjection(
   rci: RciSnapshot,
   buildings: BuildingSnapshot,
-  absoluteTick: number,
+  _absoluteTick: number,
 ): readonly PresentCitizenMobilityProjection[] {
-  void absoluteTick;
   const validBuildingIds = new Set(
     buildings.instances
       .filter((instance) => instance.lifecycle === undefined || instance.lifecycle === 'active')

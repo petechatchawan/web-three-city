@@ -9,6 +9,10 @@ import {
   type TrafficGraph,
   type TrafficSnapshotV1,
 } from '@web-three-city/traffic-core';
+import { WORLD_CONFIG } from '@web-three-city/world-core';
+
+const WORLD_HALF_X_Q = (WORLD_CONFIG.mapWidth * WORLD_CONFIG.cellSize * 1_000) / 2;
+const WORLD_HALF_Z_Q = (WORLD_CONFIG.mapHeight * WORLD_CONFIG.cellSize * 1_000) / 2;
 
 export interface TrafficPresentationPointQ {
   readonly xQ: number;
@@ -46,7 +50,11 @@ function withBuildingRevision(graph: TrafficGraph, revision: number): TrafficGra
 }
 
 function point(node: Readonly<{ xQ: number; yQ: number; zQ: number }>): TrafficPresentationPointQ {
-  return Object.freeze({ xQ: node.xQ, yQ: node.yQ, zQ: node.zQ });
+  return Object.freeze({
+    xQ: node.xQ - WORLD_HALF_X_Q,
+    yQ: node.yQ,
+    zQ: node.zQ - WORLD_HALF_Z_Q,
+  });
 }
 
 export function createTrafficPresentationSnapshot(input: Readonly<{

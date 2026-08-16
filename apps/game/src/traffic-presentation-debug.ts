@@ -11,6 +11,9 @@ export interface TrafficPresentationDebugSnapshot {
   readonly totalSpatialBuckets: number;
   readonly nearUpdateCount: number;
   readonly midUpdateCount: number;
+  readonly journeyReplayCount: number;
+  readonly journeyReplayPedestrians: number;
+  readonly journeyReplayVehicles: number;
 }
 
 export const EMPTY_TRAFFIC_PRESENTATION_DEBUG: TrafficPresentationDebugSnapshot = Object.freeze({
@@ -26,4 +29,7 @@ export const EMPTY_TRAFFIC_PRESENTATION_DEBUG: TrafficPresentationDebugSnapshot 
   totalSpatialBuckets: 0,
   nearUpdateCount: 0,
   midUpdateCount: 0,
+  journeyReplayCount: 0,
+  journeyReplayPedestrians: 0,
+  journeyReplayVehicles: 0,
 });

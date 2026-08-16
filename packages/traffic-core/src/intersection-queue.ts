@@ -26,12 +26,14 @@ function directionForEdge(edge: TrafficGraphEdge, graph: TrafficGraph): TrafficC
   return dz >= 0 ? 'S' : 'N';
 }
 
-export function serviceIntersectionQueues(input: Readonly<{
-  trips: readonly ActiveTransportTrip[];
-  graph: TrafficGraph;
-  elapsedSeconds: number;
-  policy?: FoundationIntersectionPolicyV1;
-}>): IntersectionQueueServiceResult {
+export function serviceIntersectionQueues(
+  input: Readonly<{
+    trips: readonly ActiveTransportTrip[];
+    graph: TrafficGraph;
+    elapsedSeconds: number;
+    policy?: FoundationIntersectionPolicyV1;
+  }>,
+): IntersectionQueueServiceResult {
   const policy = input.policy ?? FOUNDATION_INTERSECTION_POLICY_V1;
   const edgeById = new Map(input.graph.edges.map((edge) => [edge.edgeId, edge] as const));
   const byNode = new Map<string, ActiveTransportTrip[]>();
@@ -45,7 +47,9 @@ export function serviceIntersectionQueues(input: Readonly<{
   }
 
   const slotsPerNode =
-    input.elapsedSeconds <= 0 ? 0 : Math.floor(input.elapsedSeconds / policy.serviceIntervalSeconds);
+    input.elapsedSeconds <= 0
+      ? 0
+      : Math.floor(input.elapsedSeconds / policy.serviceIntervalSeconds);
   const released: string[] = [];
   const waiting: string[] = [];
 

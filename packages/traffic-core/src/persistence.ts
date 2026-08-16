@@ -119,11 +119,16 @@ export function encodeTrafficSaveV1(snapshot: TrafficSnapshotV1): TrafficSaveV1 
     policyVersion: TRAFFIC_POLICY_VERSION,
     graphSourceRoadRevision: canonical.graphSourceRoadRevision,
     graphSourceBuildingRevision: canonical.graphSourceBuildingRevision,
-    activeTrips: Object.freeze(canonical.activeTrips.map((trip) => Object.freeze({
-      ...trip,
-      routeEdgeIds: Object.freeze([...trip.routeEdgeIds]),
-      queuedMovement: trip.queuedMovement === null ? null : Object.freeze({ ...trip.queuedMovement }),
-    }))),
+    activeTrips: Object.freeze(
+      canonical.activeTrips.map((trip) =>
+        Object.freeze({
+          ...trip,
+          routeEdgeIds: Object.freeze([...trip.routeEdgeIds]),
+          queuedMovement:
+            trip.queuedMovement === null ? null : Object.freeze({ ...trip.queuedMovement }),
+        }),
+      ),
+    ),
   });
 }
 

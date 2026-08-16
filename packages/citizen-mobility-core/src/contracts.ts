@@ -6,9 +6,7 @@ export type MobilityTripMode = 'Walk' | 'Drive';
 export type MobilityTripPurpose = 'CommuteToWork' | 'CommuteHome';
 export type MobilityTripStatus = 'Planned' | 'Active' | 'Arrived' | 'Failed' | 'Cancelled';
 export type MobilityTripFailureReason =
-  | 'Unreachable'
-  | 'OriginUnavailable'
-  | 'DestinationUnavailable';
+  'Unreachable' | 'OriginUnavailable' | 'DestinationUnavailable';
 
 export interface CitizenMobilityState {
   readonly citizenId: string;
@@ -72,7 +70,8 @@ export function assertNonNegativeSafeInteger(value: unknown): asserts value is n
 export function validateCitizenMobilityState(state: CitizenMobilityState): void {
   assertMobilityId(state.citizenId);
   assertNonNegativeSafeInteger(state.scheduleCursorDay);
-  if (state.nextBoundaryGameMinute !== null) assertNonNegativeSafeInteger(state.nextBoundaryGameMinute);
+  if (state.nextBoundaryGameMinute !== null)
+    assertNonNegativeSafeInteger(state.nextBoundaryGameMinute);
   if (state.stationaryBuildingId !== null) assertMobilityId(state.stationaryBuildingId);
   if (state.activeTripId !== null) assertMobilityId(state.activeTripId);
 
@@ -90,7 +89,10 @@ export function validateCitizenMobilityState(state: CitizenMobilityState): void 
     throw new MobilityContractError('mobility:stationary-with-active-trip');
   }
 
-  if ((state.currentActivity === 'Home' || state.currentActivity === 'Work') && state.stationaryBuildingId === null) {
+  if (
+    (state.currentActivity === 'Home' || state.currentActivity === 'Work') &&
+    state.stationaryBuildingId === null
+  ) {
     throw new MobilityContractError('mobility:missing-stationary-building');
   }
 }

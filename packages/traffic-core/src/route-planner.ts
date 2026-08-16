@@ -182,18 +182,20 @@ export function planTransportRoute(
   });
 }
 
-export function planModeCandidates(input: Readonly<{
-  requestTripId: string;
-  citizenId: string;
-  originWalkAccessNodeId: string;
-  destinationWalkAccessNodeId: string;
-  originDriveAccessNodeId: string;
-  destinationDriveAccessNodeId: string;
-  pedestrianGraph: TrafficGraph;
-  vehicleGraph: TrafficGraph;
-  previousTrafficCostField?: TrafficCostField;
-  driveAccessSeconds?: number;
-}>): readonly TransportRouteCandidate[] {
+export function planModeCandidates(
+  input: Readonly<{
+    requestTripId: string;
+    citizenId: string;
+    originWalkAccessNodeId: string;
+    destinationWalkAccessNodeId: string;
+    originDriveAccessNodeId: string;
+    destinationDriveAccessNodeId: string;
+    pedestrianGraph: TrafficGraph;
+    vehicleGraph: TrafficGraph;
+    previousTrafficCostField?: TrafficCostField;
+    driveAccessSeconds?: number;
+  }>,
+): readonly TransportRouteCandidate[] {
   const walk = planTransportRoute(input.pedestrianGraph, {
     requestTripId: input.requestTripId,
     citizenId: input.citizenId,

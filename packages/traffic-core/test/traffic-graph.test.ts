@@ -21,8 +21,22 @@ function roads(
 
 function twoRoads(revision = 0): RoadTrafficSourceProjection {
   return roads(revision, [
-    Object.freeze({ x: 1, z: 1, definitionCode: 1, connectionMask: E, elevationStartQ: 0, elevationEndQ: 0 }),
-    Object.freeze({ x: 2, z: 1, definitionCode: 1, connectionMask: W, elevationStartQ: 0, elevationEndQ: 0 }),
+    Object.freeze({
+      x: 1,
+      z: 1,
+      definitionCode: 1,
+      connectionMask: E,
+      elevationStartQ: 0,
+      elevationEndQ: 0,
+    }),
+    Object.freeze({
+      x: 2,
+      z: 1,
+      definitionCode: 1,
+      connectionMask: W,
+      elevationStartQ: 0,
+      elevationEndQ: 0,
+    }),
   ]);
 }
 
@@ -50,10 +64,7 @@ describe('Traffic derived graph foundation', () => {
 
     expect(fingerprintTrafficGraph(first)).toBe(fingerprintTrafficGraph(second));
     expect(first.edges).toHaveLength(2);
-    expect(first.edges.map((edge) => edge.edgeId)).toEqual([
-      'drive:1,1->2,1',
-      'drive:2,1->1,1',
-    ]);
+    expect(first.edges.map((edge) => edge.edgeId)).toEqual(['drive:1,1->2,1', 'drive:2,1->1,1']);
   });
 
   it('derives pedestrian corridors offset from vehicle center nodes', () => {
@@ -81,12 +92,39 @@ describe('Traffic derived graph foundation', () => {
 
   it('incrementally reconciles one Road edit to the same graph as a full rebuild', () => {
     const beforeSource = twoRoads(0);
-    const previousVehicle = { ...deriveVehicleTrafficGraph(beforeSource), sourceBuildingRevision: 3 };
-    const previousPedestrian = { ...derivePedestrianTrafficGraph(beforeSource), sourceBuildingRevision: 3 };
+    const previousVehicle = {
+      ...deriveVehicleTrafficGraph(beforeSource),
+      sourceBuildingRevision: 3,
+    };
+    const previousPedestrian = {
+      ...derivePedestrianTrafficGraph(beforeSource),
+      sourceBuildingRevision: 3,
+    };
     const afterSource = roads(1, [
-      Object.freeze({ x: 1, z: 1, definitionCode: 1, connectionMask: E, elevationStartQ: 0, elevationEndQ: 0 }),
-      Object.freeze({ x: 2, z: 1, definitionCode: 1, connectionMask: E | W, elevationStartQ: 0, elevationEndQ: 0 }),
-      Object.freeze({ x: 3, z: 1, definitionCode: 1, connectionMask: W, elevationStartQ: 0, elevationEndQ: 0 }),
+      Object.freeze({
+        x: 1,
+        z: 1,
+        definitionCode: 1,
+        connectionMask: E,
+        elevationStartQ: 0,
+        elevationEndQ: 0,
+      }),
+      Object.freeze({
+        x: 2,
+        z: 1,
+        definitionCode: 1,
+        connectionMask: E | W,
+        elevationStartQ: 0,
+        elevationEndQ: 0,
+      }),
+      Object.freeze({
+        x: 3,
+        z: 1,
+        definitionCode: 1,
+        connectionMask: W,
+        elevationStartQ: 0,
+        elevationEndQ: 0,
+      }),
     ]);
     const result = reconcileTrafficGraphs({
       previousVehicleGraph: previousVehicle,
@@ -96,7 +134,10 @@ describe('Traffic derived graph foundation', () => {
       dirty: { changedRoadCells: [{ x: 3, z: 1 }], changedBuildingIds: [] },
     });
     const fullVehicle = { ...deriveVehicleTrafficGraph(afterSource), sourceBuildingRevision: 3 };
-    const fullPedestrian = { ...derivePedestrianTrafficGraph(afterSource), sourceBuildingRevision: 3 };
+    const fullPedestrian = {
+      ...derivePedestrianTrafficGraph(afterSource),
+      sourceBuildingRevision: 3,
+    };
 
     expect(result.fullRebuild).toBe(false);
     expect(fingerprintTrafficGraph(result.vehicleGraph)).toBe(fingerprintTrafficGraph(fullVehicle));

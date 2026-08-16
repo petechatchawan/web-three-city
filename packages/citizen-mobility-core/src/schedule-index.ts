@@ -11,13 +11,15 @@ function activityPriority(activity: DueMobilityBoundary['nextActivity']): number
   return activity === 'Work' ? 0 : 1;
 }
 
-export function collectDueMobilityBoundaries(input: Readonly<{
-  citizens: readonly PresentCitizenMobilityProjection[];
-  fromGameMinuteExclusive: number;
-  toGameMinuteInclusive: number;
-  policy?: FoundationMobilitySchedulePolicyV1;
-  scheduleSeedVersion?: number;
-}>): readonly DueMobilityBoundary[] {
+export function collectDueMobilityBoundaries(
+  input: Readonly<{
+    citizens: readonly PresentCitizenMobilityProjection[];
+    fromGameMinuteExclusive: number;
+    toGameMinuteInclusive: number;
+    policy?: FoundationMobilitySchedulePolicyV1;
+    scheduleSeedVersion?: number;
+  }>,
+): readonly DueMobilityBoundary[] {
   const { fromGameMinuteExclusive, toGameMinuteInclusive } = input;
   if (
     !Number.isSafeInteger(fromGameMinuteExclusive) ||

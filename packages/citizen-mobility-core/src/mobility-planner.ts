@@ -25,14 +25,20 @@ export function formatMobilityTripId(sequence: number): string {
   return `mobility-trip-${String(sequence).padStart(10, '0')}`;
 }
 
-export function planMobilityBoundaries(input: Readonly<{
-  snapshot: MobilitySnapshotV1;
-  boundaries: readonly DueMobilityBoundary[];
-  citizens: readonly PresentCitizenMobilityProjection[];
-}>): MobilityPlanResult {
+export function planMobilityBoundaries(
+  input: Readonly<{
+    snapshot: MobilitySnapshotV1;
+    boundaries: readonly DueMobilityBoundary[];
+    citizens: readonly PresentCitizenMobilityProjection[];
+  }>,
+): MobilityPlanResult {
   const snapshot = createMobilitySnapshot(input.snapshot);
-  const citizenById = new Map(input.citizens.map((citizen) => [citizen.citizenId, citizen] as const));
-  const stateByCitizenId = new Map(snapshot.citizenStates.map((state) => [state.citizenId, state] as const));
+  const citizenById = new Map(
+    input.citizens.map((citizen) => [citizen.citizenId, citizen] as const),
+  );
+  const stateByCitizenId = new Map(
+    snapshot.citizenStates.map((state) => [state.citizenId, state] as const),
+  );
   const sortedBoundaries = [...input.boundaries].sort((first, second) =>
     first.atGameMinute !== second.atGameMinute
       ? first.atGameMinute - second.atGameMinute
@@ -43,7 +49,8 @@ export function planMobilityBoundaries(input: Readonly<{
         : compareMobilityId(first.citizenId, second.citizenId),
   );
   const planningRequests: MobilityTripPlanningRequest[] = [];
-  const skipped: { citizenId: string; reason: 'OriginUnavailable' | 'DestinationUnavailable' }[] = [];
+  const skipped: { citizenId: string; reason: 'OriginUnavailable' | 'DestinationUnavailable' }[] =
+    [];
   const requestedCitizens = new Set<string>();
 
   for (const boundary of sortedBoundaries) {

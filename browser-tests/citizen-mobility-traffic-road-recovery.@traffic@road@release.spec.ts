@@ -41,16 +41,20 @@ test('bulldozing a future route edge recovers the active trip without orphaning 
     .toBe(true);
 
   const fixture = await page.evaluate(() => {
-    const api = (window as Window & {
-      __WEB_THREE_CITY_TRAFFIC__?: { installRoadRecoveryFixture(): RecoveryFixture };
-    }).__WEB_THREE_CITY_TRAFFIC__;
+    const api = (
+      window as Window & {
+        __WEB_THREE_CITY_TRAFFIC__?: { installRoadRecoveryFixture(): RecoveryFixture };
+      }
+    ).__WEB_THREE_CITY_TRAFFIC__;
     if (api === undefined) throw new Error('traffic test API unavailable');
     return api.installRoadRecoveryFixture();
   });
   const before = await page.evaluate(() => {
-    const api = (window as Window & {
-      __WEB_THREE_CITY_TRAFFIC__?: { snapshot(): TrafficState };
-    }).__WEB_THREE_CITY_TRAFFIC__;
+    const api = (
+      window as Window & {
+        __WEB_THREE_CITY_TRAFFIC__?: { snapshot(): TrafficState };
+      }
+    ).__WEB_THREE_CITY_TRAFFIC__;
     if (api === undefined) throw new Error('traffic test API unavailable');
     return api.snapshot();
   });
@@ -65,18 +69,22 @@ test('bulldozing a future route edge recovers the active trip without orphaning 
   await expect
     .poll(() =>
       page.evaluate(() => {
-        const api = (window as Window & {
-          __WEB_THREE_CITY_TRAFFIC__?: { snapshot(): TrafficState };
-        }).__WEB_THREE_CITY_TRAFFIC__;
+        const api = (
+          window as Window & {
+            __WEB_THREE_CITY_TRAFFIC__?: { snapshot(): TrafficState };
+          }
+        ).__WEB_THREE_CITY_TRAFFIC__;
         return api?.snapshot().traffic.graphSourceRoadRevision ?? -1;
       }),
     )
     .toBeGreaterThan(before.traffic.graphSourceRoadRevision);
 
   const after = await page.evaluate(() => {
-    const api = (window as Window & {
-      __WEB_THREE_CITY_TRAFFIC__?: { snapshot(): TrafficState };
-    }).__WEB_THREE_CITY_TRAFFIC__;
+    const api = (
+      window as Window & {
+        __WEB_THREE_CITY_TRAFFIC__?: { snapshot(): TrafficState };
+      }
+    ).__WEB_THREE_CITY_TRAFFIC__;
     if (api === undefined) throw new Error('traffic test API unavailable');
     return api.snapshot();
   });

@@ -27,10 +27,7 @@ export interface TrafficEdgeProjection {
   readonly congestionMilli: number;
 }
 
-function queueDelayForEdge(
-  edge: TrafficGraphEdge,
-  trips: readonly ActiveTransportTrip[],
-): number {
+function queueDelayForEdge(edge: TrafficGraphEdge, trips: readonly ActiveTransportTrip[]): number {
   let total = 0;
   for (const trip of trips) {
     if (trip.status !== 'Active' || trip.mode !== 'Drive' || trip.queuedMovement === null) continue;
@@ -70,11 +67,13 @@ export function projectTrafficEdgeFlow(
   });
 }
 
-export function createTrafficEdgeProjections(input: Readonly<{
-  graph: TrafficGraph;
-  trips: readonly ActiveTransportTrip[];
-  policy?: TrafficFlowPolicyV1;
-}>): readonly TrafficEdgeProjection[] {
+export function createTrafficEdgeProjections(
+  input: Readonly<{
+    graph: TrafficGraph;
+    trips: readonly ActiveTransportTrip[];
+    policy?: TrafficFlowPolicyV1;
+  }>,
+): readonly TrafficEdgeProjection[] {
   const policy = input.policy ?? FOUNDATION_TRAFFIC_FLOW_POLICY_V1;
   const projections = input.graph.edges.map((edge) =>
     projectTrafficEdgeFlow(edge, input.trips, policy),

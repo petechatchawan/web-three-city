@@ -85,7 +85,8 @@ export type CommittedWorldInput = Readonly<{
 }>;
 
 function assertApplicationRevision(revision: number): void {
-  if (!Number.isSafeInteger(revision) || revision < 0) throw new RangeError('committed-world:invalid-revision');
+  if (!Number.isSafeInteger(revision) || revision < 0)
+    throw new RangeError('committed-world:invalid-revision');
 }
 
 function assertEnvironmentProvenance(input: CommittedWorldInput): void {
@@ -212,8 +213,10 @@ export class CommittedWorldStore {
   }
 
   replace(expectedRevision: number, next: CommittedWorldInput): CommittedWorld {
-    if (expectedRevision !== this.#world.revision) throw new Error('committed-world:stale-revision');
-    if (next.revision !== this.#world.revision + 1) throw new Error('committed-world:invalid-next-revision');
+    if (expectedRevision !== this.#world.revision)
+      throw new Error('committed-world:stale-revision');
+    if (next.revision !== this.#world.revision + 1)
+      throw new Error('committed-world:invalid-next-revision');
     this.#world = createCommittedWorld(next);
     return this.snapshot();
   }
@@ -254,7 +257,8 @@ function requiresTrafficReconciliation(
 
 export function createCommittedWorldFromDomainState(input: CommittedDomainState): CommittedWorld {
   const waterResult = deriveWaterSnapshot(input.terrain, WORLD_CONFIG);
-  if (!waterResult.ok) throw new Error(`committed-world:water-derivation:${waterResult.error.code}`);
+  if (!waterResult.ok)
+    throw new Error(`committed-world:water-derivation:${waterResult.error.code}`);
   const environments = Object.freeze({
     road: createRoadPlacementEnvironment(input.terrain, waterResult.value, WORLD_CONFIG),
     zone: createZonePlacementEnvironment(
@@ -299,10 +303,7 @@ export function createCommittedWorldFromDomainState(input: CommittedDomainState)
       traffic,
       mobility,
       trafficSourceAfter: Object.freeze({
-        roads: createRoadTrafficSourceProjectionFromEnvironment(
-          input.roads,
-          environments.building,
-        ),
+        roads: createRoadTrafficSourceProjectionFromEnvironment(input.roads, environments.building),
         buildingAccess: createBuildingTrafficAccessProjection(
           input.buildings,
           input.roads,

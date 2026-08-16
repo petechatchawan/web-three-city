@@ -20,7 +20,10 @@ function activeHouseholdId(world: CommittedWorld, citizenId: string): string | n
   );
 }
 
-function activeEmployment(world: CommittedWorld, citizenId: string): Readonly<{
+function activeEmployment(
+  world: CommittedWorld,
+  citizenId: string,
+): Readonly<{
   employmentAssignmentId: string;
   workplaceId: string;
   workBuildingId: string | null;
@@ -45,7 +48,10 @@ function mobilityPurposeLabel(value: string | null): string {
   return value ?? 'None';
 }
 
-function trafficContext(world: CommittedWorld, tripId: string): Readonly<{
+function trafficContext(
+  world: CommittedWorld,
+  tripId: string,
+): Readonly<{
   edgeId: string | null;
   congestionMilli: number | null;
   effectiveTravelSeconds: number | null;
@@ -71,7 +77,10 @@ function trafficContext(world: CommittedWorld, tripId: string): Readonly<{
   }
   const presentation = createTrafficPresentationSnapshot({
     traffic: world.traffic,
-    roads: createRoadTrafficSourceProjectionFromEnvironment(world.roads, world.environments.building),
+    roads: createRoadTrafficSourceProjectionFromEnvironment(
+      world.roads,
+      world.environments.building,
+    ),
     buildingAccess: createBuildingTrafficAccessProjection(
       world.buildings,
       world.roads,
@@ -87,11 +96,10 @@ function trafficContext(world: CommittedWorld, tripId: string): Readonly<{
   });
 }
 
-function citizenProjection(
-  world: CommittedWorld,
-  target: CitizenInspectTarget,
-): InspectProjection {
-  const citizen = world.rci.population.citizens.find((entry) => entry.citizenId === target.citizenId);
+function citizenProjection(world: CommittedWorld, target: CitizenInspectTarget): InspectProjection {
+  const citizen = world.rci.population.citizens.find(
+    (entry) => entry.citizenId === target.citizenId,
+  );
   if (citizen === undefined || citizen.presence !== 'resident') {
     return Object.freeze({ kind: 'unavailable', title: 'Unavailable' });
   }
@@ -109,8 +117,9 @@ function citizenProjection(
     target.tripId === null
       ? mobilityState?.activeTripId === null || mobilityState?.activeTripId === undefined
         ? null
-        : world.mobility.trips.find((entry) => entry.tripId === mobilityState.activeTripId) ?? null
-      : world.mobility.trips.find((entry) => entry.tripId === target.tripId) ?? null;
+        : (world.mobility.trips.find((entry) => entry.tripId === mobilityState.activeTripId) ??
+          null)
+      : (world.mobility.trips.find((entry) => entry.tripId === target.tripId) ?? null);
   const traffic = trip === null ? null : trafficContext(world, trip.tripId);
   const fields = [
     field('Citizen ID', target.citizenId),
@@ -137,10 +146,7 @@ function citizenProjection(
   });
 }
 
-function vehicleProjection(
-  world: CommittedWorld,
-  target: VehicleInspectTarget,
-): InspectProjection {
+function vehicleProjection(world: CommittedWorld, target: VehicleInspectTarget): InspectProjection {
   const transport = world.traffic.activeTrips.find(
     (trip) => trip.tripId === target.tripId && trip.citizenId === target.citizenId,
   );
@@ -167,7 +173,10 @@ function vehicleProjection(
       field('Destination', mobilityTrip.destinationBuildingId),
       field('Current road', traffic.edgeId ?? 'Unavailable'),
       field('Travel state', traffic.queued ? 'Queued' : 'Moving'),
-      field('Congestion', traffic.congestionMilli === null ? 'Unavailable' : `${traffic.congestionMilli}‰`),
+      field(
+        'Congestion',
+        traffic.congestionMilli === null ? 'Unavailable' : `${traffic.congestionMilli}‰`,
+      ),
       field(
         'ETA',
         traffic.effectiveTravelSeconds === null

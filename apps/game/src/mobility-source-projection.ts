@@ -39,16 +39,25 @@ export function createPresentCitizenMobilityProjection(
       .sort((a, b) => (a.citizenId < b.citizenId ? -1 : a.citizenId > b.citizenId ? 1 : 0))
       .map((citizen) => {
         const membership = activeMembershipByCitizen.get(citizen.citizenId);
-        const housing = membership === undefined ? undefined : activeHousingByHousehold.get(membership.householdId);
-        const dwelling = housing === undefined ? undefined : dwellingById.get(housing.dwellingUnitId);
+        const housing =
+          membership === undefined
+            ? undefined
+            : activeHousingByHousehold.get(membership.householdId);
+        const dwelling =
+          housing === undefined ? undefined : dwellingById.get(housing.dwellingUnitId);
         const employment = activeEmploymentByCitizen.get(citizen.citizenId);
-        const workplace = employment === undefined ? undefined : workplaceById.get(employment.workplaceId);
+        const workplace =
+          employment === undefined ? undefined : workplaceById.get(employment.workplaceId);
         const homeBuildingId =
-          dwelling !== undefined && dwelling.retiredAtTick === null && validBuildingIds.has(dwelling.buildingInstanceId)
+          dwelling !== undefined &&
+          dwelling.retiredAtTick === null &&
+          validBuildingIds.has(dwelling.buildingInstanceId)
             ? dwelling.buildingInstanceId
             : null;
         const workBuildingId =
-          workplace !== undefined && workplace.retiredAtTick === null && validBuildingIds.has(workplace.buildingInstanceId)
+          workplace !== undefined &&
+          workplace.retiredAtTick === null &&
+          validBuildingIds.has(workplace.buildingInstanceId)
             ? workplace.buildingInstanceId
             : null;
         return Object.freeze({

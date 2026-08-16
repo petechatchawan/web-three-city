@@ -8,10 +8,7 @@ import type { EconomySnapshotV1 } from '@web-three-city/economy-core';
 import type { RciSnapshot } from '@web-three-city/rci-core';
 import type { RoadSnapshot } from '@web-three-city/road-core';
 import type { SimulationSnapshot } from '@web-three-city/simulation-core';
-import {
-  createEmptyTrafficSnapshot,
-  type TrafficSnapshotV1,
-} from '@web-three-city/traffic-core';
+import { createEmptyTrafficSnapshot, type TrafficSnapshotV1 } from '@web-three-city/traffic-core';
 import {
   recallMobilityTrafficState,
   rememberMobilityTrafficState,
@@ -65,8 +62,10 @@ export class GameWorldStateStore {
   }
 
   replace(expectedRevision: number, nextState: GameWorldState): GameWorldState {
-    if (this.#state.revision !== expectedRevision) throw new Error('game-world-state:stale-revision');
-    if (nextState.revision !== expectedRevision + 1) throw new Error('game-world-state:invalid-next-revision');
+    if (this.#state.revision !== expectedRevision)
+      throw new Error('game-world-state:stale-revision');
+    if (nextState.revision !== expectedRevision + 1)
+      throw new Error('game-world-state:invalid-next-revision');
     this.#state = completeGameWorldState(nextState);
     return this.#state;
   }

@@ -59,7 +59,9 @@ export interface WorldPresentationPort {
 
 function validMobilityTraffic(world: CommittedWorld): boolean {
   const mobilityByTrip = new Map(world.mobility.trips.map((trip) => [trip.tripId, trip] as const));
-  const trafficByTrip = new Map(world.traffic.activeTrips.map((trip) => [trip.tripId, trip] as const));
+  const trafficByTrip = new Map(
+    world.traffic.activeTrips.map((trip) => [trip.tripId, trip] as const),
+  );
   for (const trip of world.traffic.activeTrips) {
     const mobilityTrip = mobilityByTrip.get(trip.tripId);
     if (
@@ -83,7 +85,8 @@ function validCandidate(world: CommittedWorld): boolean {
       const cell = { x, z };
       if (
         roadOccupiedAt(world.roads, cell) &&
-        roadCellPolicyInvalidReason(world.roads, cell, world.environments.road, WORLD_CONFIG) !== null
+        roadCellPolicyInvalidReason(world.roads, cell, world.environments.road, WORLD_CONFIG) !==
+          null
       ) {
         return false;
       }
@@ -120,7 +123,8 @@ function validCandidate(world: CommittedWorld): boolean {
     const definition = buildingDefinitionForId(instance.buildingDefinitionId);
     const cells = occupiedCellsForBuilding(instance);
     const firstCell = cells[0];
-    const zoneId = firstCell === undefined ? null : world.environments.building.zoneDefinitionIdAt(firstCell);
+    const zoneId =
+      firstCell === undefined ? null : world.environments.building.zoneDefinitionIdAt(firstCell);
     if (
       zoneId === null ||
       !definition.compatibleZoneDefinitionIds.includes(zoneId) ||
@@ -147,7 +151,10 @@ function validCandidate(world: CommittedWorld): boolean {
   );
 }
 
-function rejected(world: CommittedWorld, reason: WorldPublicationRejection): WorldPublicationResult {
+function rejected(
+  world: CommittedWorld,
+  reason: WorldPublicationRejection,
+): WorldPublicationResult {
   return Object.freeze({ status: 'rejected' as const, world, reason });
 }
 
@@ -168,10 +175,13 @@ export class DefaultWorldTransactionCoordinator implements WorldTransactionCoord
     const current = this.#worldStore.snapshot();
     const currentFingerprint = fingerprintCommittedWorld(current);
     if (plan.baseRevision !== current.revision) return rejected(current, 'world:stale-revision');
-    if (plan.baseFingerprint !== currentFingerprint) return rejected(current, 'world:stale-content');
+    if (plan.baseFingerprint !== currentFingerprint)
+      return rejected(current, 'world:stale-content');
     const candidateFingerprint = fingerprintCommittedWorld(plan.nextWorld);
-    if (plan.nextFingerprint !== candidateFingerprint) return rejected(current, 'world:stale-content');
-    if (plan.nextWorld.revision !== current.revision + 1) return rejected(current, 'world:stale-content');
+    if (plan.nextFingerprint !== candidateFingerprint)
+      return rejected(current, 'world:stale-content');
+    if (plan.nextWorld.revision !== current.revision + 1)
+      return rejected(current, 'world:stale-content');
 
     let candidate: CommittedWorld;
     try {

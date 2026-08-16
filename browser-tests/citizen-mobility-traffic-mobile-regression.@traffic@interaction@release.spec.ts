@@ -45,9 +45,11 @@ test('Traffic information view does not synthesize Navigate, clear active tool, 
   await page.getByRole('button', { name: 'Build Road', exact: true }).click();
   await expect(page.locator('.city-tool-context-name')).toHaveText('Build Road');
   const beforeSpeed = await page.evaluate(() => {
-    const api = (window as Window & {
-      __WEB_THREE_CITY_TIME__?: { snapshot(): { speed: string } };
-    }).__WEB_THREE_CITY_TIME__;
+    const api = (
+      window as Window & {
+        __WEB_THREE_CITY_TIME__?: { snapshot(): { speed: string } };
+      }
+    ).__WEB_THREE_CITY_TIME__;
     if (api === undefined) throw new Error('time test API unavailable');
     return api.snapshot().speed;
   });
@@ -59,9 +61,11 @@ test('Traffic information view does not synthesize Navigate, clear active tool, 
   await expect(page.locator('.city-tool-context-name')).toHaveText('Build Road');
 
   const afterSpeed = await page.evaluate(() => {
-    const api = (window as Window & {
-      __WEB_THREE_CITY_TIME__?: { snapshot(): { speed: string } };
-    }).__WEB_THREE_CITY_TIME__;
+    const api = (
+      window as Window & {
+        __WEB_THREE_CITY_TIME__?: { snapshot(): { speed: string } };
+      }
+    ).__WEB_THREE_CITY_TIME__;
     if (api === undefined) throw new Error('time test API unavailable');
     return api.snapshot().speed;
   });

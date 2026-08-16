@@ -5,14 +5,7 @@ import {
   type TrafficGraph,
 } from '@web-three-city/traffic-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
-import {
-  BufferGeometry,
-  Group,
-  LineBasicMaterial,
-  LineSegments,
-  Vector3,
-  type Scene,
-} from 'three';
+import { BufferGeometry, Group, LineBasicMaterial, LineSegments, Vector3, type Scene } from 'three';
 import type { CommittedWorld } from './application/committed-world.js';
 import {
   createBuildingTrafficAccessProjection,
@@ -63,7 +56,9 @@ function renderPoint(node: Readonly<{ xQ: number; yQ: number; zQ: number }>): Re
   });
 }
 
-export function createTrafficInformationEdges(world: CommittedWorld): readonly TrafficInformationEdge[] {
+export function createTrafficInformationEdges(
+  world: CommittedWorld,
+): readonly TrafficInformationEdge[] {
   const roads = createRoadTrafficSourceProjectionFromEnvironment(
     world.roads,
     world.environments.building,

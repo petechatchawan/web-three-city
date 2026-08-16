@@ -135,7 +135,11 @@ export function validateTrafficGraph(graph: TrafficGraph): void {
   const nodeIds = new Set<string>();
   for (const node of graph.nodes) {
     assertTrafficId(node.nodeId);
-    if (!Number.isSafeInteger(node.xQ) || !Number.isSafeInteger(node.yQ) || !Number.isSafeInteger(node.zQ)) {
+    if (
+      !Number.isSafeInteger(node.xQ) ||
+      !Number.isSafeInteger(node.yQ) ||
+      !Number.isSafeInteger(node.zQ)
+    ) {
       throw new TrafficContractError('traffic:invalid-graph');
     }
     if (nodeIds.has(node.nodeId)) throw new TrafficContractError('traffic:duplicate-node');
@@ -165,16 +169,22 @@ export function validateActiveTransportTrip(trip: ActiveTransportTrip): void {
   assertTrafficSafeInteger(trip.routeGraphRevision);
   assertTrafficSafeInteger(trip.segmentIndex);
   assertTrafficSafeInteger(trip.progressQ);
-  if (trip.progressQ > TRAFFIC_PROGRESS_MAX_Q) throw new TrafficContractError('traffic:invalid-trip');
+  if (trip.progressQ > TRAFFIC_PROGRESS_MAX_Q)
+    throw new TrafficContractError('traffic:invalid-trip');
   assertTrafficId(trip.lastStableNodeId);
   for (const edgeId of trip.routeEdgeIds) assertTrafficId(edgeId);
   if (trip.status === 'Active') {
-    if (trip.failureReason !== null || trip.routeEdgeIds.length === 0 || trip.segmentIndex >= trip.routeEdgeIds.length) {
+    if (
+      trip.failureReason !== null ||
+      trip.routeEdgeIds.length === 0 ||
+      trip.segmentIndex >= trip.routeEdgeIds.length
+    ) {
       throw new TrafficContractError('traffic:invalid-trip');
     }
   }
   if (trip.status === 'Failed') {
-    if (trip.failureReason !== 'UnreachableDestination') throw new TrafficContractError('traffic:invalid-trip');
+    if (trip.failureReason !== 'UnreachableDestination')
+      throw new TrafficContractError('traffic:invalid-trip');
   } else if (trip.failureReason !== null) {
     throw new TrafficContractError('traffic:invalid-trip');
   }

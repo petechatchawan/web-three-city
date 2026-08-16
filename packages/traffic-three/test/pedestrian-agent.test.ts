@@ -24,7 +24,9 @@ describe('Traffic pedestrian agents', () => {
       tripId: 'walk-trip-1',
       trafficVisualState: 'Walk',
     });
-    expect(agent.object.position.toArray()).toEqual(sampleRouteEdgePosition(input.from, input.to, 500_000).toArray());
+    expect(agent.object.position.toArray()).toEqual(
+      sampleRouteEdgePosition(input.from, input.to, 500_000).toArray(),
+    );
     expect(pedestrianAppearanceForCitizen('citizen-1')).toEqual(
       pedestrianAppearanceForCitizen('citizen-1'),
     );

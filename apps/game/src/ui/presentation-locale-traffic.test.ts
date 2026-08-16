@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  localizeInspectFieldLabel,
-  localizeInspectTitle,
-  uiText,
-} from './presentation-locale.js';
+import { localizeInspectFieldLabel, localizeInspectTitle, uiText } from './presentation-locale.js';
 
 describe('Citizen / Traffic presentation locale', () => {
   it('resolves required traffic copy in English and Thai through one catalog', () => {

@@ -18,7 +18,10 @@ export interface TrafficSnapshotV1 {
 }
 
 export function createTrafficSnapshot(input: TrafficSnapshotV1): TrafficSnapshotV1 {
-  if (input.schemaVersion !== TRAFFIC_SCHEMA_VERSION || input.policyVersion !== TRAFFIC_POLICY_VERSION) {
+  if (
+    input.schemaVersion !== TRAFFIC_SCHEMA_VERSION ||
+    input.policyVersion !== TRAFFIC_POLICY_VERSION
+  ) {
     throw new TrafficContractError('traffic:invalid-state');
   }
   if (
@@ -57,10 +60,12 @@ export function createTrafficSnapshot(input: TrafficSnapshotV1): TrafficSnapshot
   });
 }
 
-export function createEmptyTrafficSnapshot(input: Readonly<{
-  roadRevision?: number;
-  buildingRevision?: number;
-}> = {}): TrafficSnapshotV1 {
+export function createEmptyTrafficSnapshot(
+  input: Readonly<{
+    roadRevision?: number;
+    buildingRevision?: number;
+  }> = {},
+): TrafficSnapshotV1 {
   return createTrafficSnapshot({
     schemaVersion: TRAFFIC_SCHEMA_VERSION,
     revision: 0,

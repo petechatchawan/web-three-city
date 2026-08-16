@@ -152,9 +152,11 @@ describe('Traffic reconciliation after committed Road changes', () => {
     expect(trip.routeGraphRevision).toBe(roadsAfter.revision);
     expect(trip.routeEdgeIds).not.toEqual(state.trip.routeEdgeIds);
     expect(trip.citizenId).toBe(state.trip.citizenId);
-    expect(state.fixture.world.rci.population.citizens.some((citizen) => citizen.citizenId === trip.citizenId)).toBe(
-      true,
-    );
+    expect(
+      state.fixture.world.rci.population.citizens.some(
+        (citizen) => citizen.citizenId === trip.citizenId,
+      ),
+    ).toBe(true);
   });
 
   it('fails only the Traffic trip when both primary and alternate paths are disconnected', () => {
@@ -172,9 +174,13 @@ describe('Traffic reconciliation after committed Road changes', () => {
     const trip = reconciled.activeTrips[0]!;
     expect(trip.status).toBe('Failed');
     expect(trip.failureReason).toBe('UnreachableDestination');
-    expect(state.mobility.trips.find((candidate) => candidate.tripId === trip.tripId)?.status).toBe('Active');
-    expect(state.fixture.world.rci.population.citizens.some((citizen) => citizen.citizenId === trip.citizenId)).toBe(
-      true,
+    expect(state.mobility.trips.find((candidate) => candidate.tripId === trip.tripId)?.status).toBe(
+      'Active',
     );
+    expect(
+      state.fixture.world.rci.population.citizens.some(
+        (citizen) => citizen.citizenId === trip.citizenId,
+      ),
+    ).toBe(true);
   });
 });

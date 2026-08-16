@@ -91,7 +91,10 @@ export function deriveVehicleTrafficGraph(
           mode: 'Drive' as const,
           lengthQ,
           freeFlowTravelSeconds: Math.max(1, Math.ceil(lengthQ / speed)),
-          capacityUnits: Math.min(currentProfile.edgeCapacityUnits, neighborProfile.edgeCapacityUnits),
+          capacityUnits: Math.min(
+            currentProfile.edgeCapacityUnits,
+            neighborProfile.edgeCapacityUnits,
+          ),
         }),
       );
     }

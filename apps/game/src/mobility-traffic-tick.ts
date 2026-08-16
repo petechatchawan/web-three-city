@@ -49,7 +49,9 @@ function withBuildingRevision(graph: TrafficGraph, buildingRevision: number): Tr
 }
 
 function combinedGraph(walk: TrafficGraph, drive: TrafficGraph): TrafficGraph {
-  const nodes = new Map([...walk.nodes, ...drive.nodes].map((node) => [node.nodeId, node] as const));
+  const nodes = new Map(
+    [...walk.nodes, ...drive.nodes].map((node) => [node.nodeId, node] as const),
+  );
   return Object.freeze({
     sourceRoadRevision: drive.sourceRoadRevision,
     sourceBuildingRevision: drive.sourceBuildingRevision,
@@ -57,7 +59,9 @@ function combinedGraph(walk: TrafficGraph, drive: TrafficGraph): TrafficGraph {
       [...nodes.values()].sort((a, b) => (a.nodeId < b.nodeId ? -1 : a.nodeId > b.nodeId ? 1 : 0)),
     ),
     edges: Object.freeze(
-      [...walk.edges, ...drive.edges].sort((a, b) => (a.edgeId < b.edgeId ? -1 : a.edgeId > b.edgeId ? 1 : 0)),
+      [...walk.edges, ...drive.edges].sort((a, b) =>
+        a.edgeId < b.edgeId ? -1 : a.edgeId > b.edgeId ? 1 : 0,
+      ),
     ),
   });
 }
@@ -109,17 +113,19 @@ export function isTrafficJourneyDepartureReceipt(
   );
 }
 
-export function planMobilityTrafficTick(input: Readonly<{
-  mobilityBefore: MobilitySnapshotV1;
-  trafficBefore: TrafficSnapshotV1;
-  citizensAfter: readonly PresentCitizenMobilityProjection[];
-  simulationBefore: SimulationSnapshot;
-  simulationAfter: SimulationSnapshot;
-  trafficSource: Readonly<{
-    roads: RoadTrafficSourceProjection;
-    buildingAccess: BuildingTrafficAccessProjection;
-  }>;
-}>): MobilityTrafficTickResult {
+export function planMobilityTrafficTick(
+  input: Readonly<{
+    mobilityBefore: MobilitySnapshotV1;
+    trafficBefore: TrafficSnapshotV1;
+    citizensAfter: readonly PresentCitizenMobilityProjection[];
+    simulationBefore: SimulationSnapshot;
+    simulationAfter: SimulationSnapshot;
+    trafficSource: Readonly<{
+      roads: RoadTrafficSourceProjection;
+      buildingAccess: BuildingTrafficAccessProjection;
+    }>;
+  }>,
+): MobilityTrafficTickResult {
   if (input.simulationAfter.absoluteTick < input.simulationBefore.absoluteTick) {
     throw new RangeError('mobility-traffic-tick:time-regressed');
   }
@@ -265,7 +271,11 @@ export function planMobilityTrafficTick(input: Readonly<{
         }),
       );
       const selectedMode = chooseMobilityMode(mobilityCandidates);
-      mobility = commitPlannedMobilityTrip({ snapshot: mobility, request, candidates: mobilityCandidates });
+      mobility = commitPlannedMobilityTrip({
+        snapshot: mobility,
+        request,
+        candidates: mobilityCandidates,
+      });
       if (selectedMode === null) continue;
       const route = candidates.find((candidate) => candidate.mode === selectedMode)!;
       const active = createActiveTransportTrip({

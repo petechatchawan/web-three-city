@@ -29,21 +29,22 @@ export function remainingRouteValid(trip: ActiveTransportTrip, graph: TrafficGra
   return true;
 }
 
-export function recoverInvalidatedRoute(input: Readonly<{
-  trip: ActiveTransportTrip;
-  graph: TrafficGraph;
-  request: RouteRecoveryRequest;
-  previousCostField?: TrafficCostField;
-}>): RouteRecoveryResult {
+export function recoverInvalidatedRoute(
+  input: Readonly<{
+    trip: ActiveTransportTrip;
+    graph: TrafficGraph;
+    request: RouteRecoveryRequest;
+    previousCostField?: TrafficCostField;
+  }>,
+): RouteRecoveryResult {
   if (input.request.latestDestinationAccessNodeId === null) {
     return Object.freeze({ status: 'failed', reason: 'UnreachableDestination' });
   }
-  if (
-    input.request.tripId === input.trip.tripId &&
-    remainingRouteValid(input.trip, input.graph)
-  ) {
+  if (input.request.tripId === input.trip.tripId && remainingRouteValid(input.trip, input.graph)) {
     const currentDestinationEdgeId = input.trip.routeEdgeIds.at(-1);
-    const destinationEdge = input.graph.edges.find((edge) => edge.edgeId === currentDestinationEdgeId);
+    const destinationEdge = input.graph.edges.find(
+      (edge) => edge.edgeId === currentDestinationEdgeId,
+    );
     if (destinationEdge?.toNodeId === input.request.latestDestinationAccessNodeId) {
       return Object.freeze({
         status: 'unchanged',

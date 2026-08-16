@@ -14,12 +14,13 @@ export interface DueMobilityBoundary {
   readonly nextActivity: 'Work' | 'Home';
 }
 
-export const FOUNDATION_MOBILITY_SCHEDULE_POLICY_V1: FoundationMobilitySchedulePolicyV1 = Object.freeze({
-  version: 1,
-  workStartEarliestMinuteOfDay: 420,
-  workStartLatestMinuteOfDay: 540,
-  workDurationMinutes: 540,
-});
+export const FOUNDATION_MOBILITY_SCHEDULE_POLICY_V1: FoundationMobilitySchedulePolicyV1 =
+  Object.freeze({
+    version: 1,
+    workStartEarliestMinuteOfDay: 420,
+    workStartLatestMinuteOfDay: 540,
+    workDurationMinutes: 540,
+  });
 
 function assertDayIndex(dayIndex: number): void {
   if (!Number.isSafeInteger(dayIndex) || dayIndex < 0) {
@@ -76,7 +77,15 @@ export function deriveCitizenScheduleForDay(
     deterministicScheduleOffset(citizen.citizenId, dayIndex, scheduleSeedVersion, policy.version);
   const returnHome = workStart + policy.workDurationMinutes;
   return Object.freeze([
-    Object.freeze({ citizenId: citizen.citizenId, atGameMinute: workStart, nextActivity: 'Work' as const }),
-    Object.freeze({ citizenId: citizen.citizenId, atGameMinute: returnHome, nextActivity: 'Home' as const }),
+    Object.freeze({
+      citizenId: citizen.citizenId,
+      atGameMinute: workStart,
+      nextActivity: 'Work' as const,
+    }),
+    Object.freeze({
+      citizenId: citizen.citizenId,
+      atGameMinute: returnHome,
+      nextActivity: 'Home' as const,
+    }),
   ]);
 }

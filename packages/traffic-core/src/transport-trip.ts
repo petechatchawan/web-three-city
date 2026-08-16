@@ -7,15 +7,17 @@ import {
 import { TrafficContractError } from './errors.js';
 import type { TransportRouteCandidate } from './route-planner.js';
 
-export function createActiveTransportTrip(input: Readonly<{
-  tripId: string;
-  citizenId: string;
-  originBuildingId: string;
-  destinationBuildingId: string;
-  route: TransportRouteCandidate;
-  graph: TrafficGraph;
-  routeGraphRevision: number;
-}>): ActiveTransportTrip {
+export function createActiveTransportTrip(
+  input: Readonly<{
+    tripId: string;
+    citizenId: string;
+    originBuildingId: string;
+    destinationBuildingId: string;
+    route: TransportRouteCandidate;
+    graph: TrafficGraph;
+    routeGraphRevision: number;
+  }>,
+): ActiveTransportTrip {
   assertTrafficId(input.tripId);
   assertTrafficId(input.citizenId);
   assertTrafficId(input.originBuildingId);

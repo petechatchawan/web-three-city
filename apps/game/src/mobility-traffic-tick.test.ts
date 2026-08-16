@@ -27,8 +27,22 @@ const roads = Object.freeze({
   width: 8,
   height: 8,
   cells: Object.freeze([
-    Object.freeze({ x: 1, z: 1, definitionCode: 1, connectionMask: E, elevationStartQ: 0, elevationEndQ: 0 }),
-    Object.freeze({ x: 2, z: 1, definitionCode: 1, connectionMask: W, elevationStartQ: 0, elevationEndQ: 0 }),
+    Object.freeze({
+      x: 1,
+      z: 1,
+      definitionCode: 1,
+      connectionMask: E,
+      elevationStartQ: 0,
+      elevationEndQ: 0,
+    }),
+    Object.freeze({
+      x: 2,
+      z: 1,
+      definitionCode: 1,
+      connectionMask: W,
+      elevationStartQ: 0,
+      elevationEndQ: 0,
+    }),
   ]),
 });
 

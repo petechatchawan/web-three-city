@@ -13,7 +13,9 @@ export interface MaterializedTrafficAgent<T extends TrafficSpatialAgent = Traffi
   readonly updateDue: boolean;
 }
 
-export interface TrafficMaterializationSelection<T extends TrafficSpatialAgent = TrafficSpatialAgent> {
+export interface TrafficMaterializationSelection<
+  T extends TrafficSpatialAgent = TrafficSpatialAgent,
+> {
   readonly selected: readonly MaterializedTrafficAgent<T>[];
   readonly pedestrianCount: number;
   readonly vehicleCount: number;
@@ -36,14 +38,20 @@ function compareCandidates<T extends TrafficSpatialAgent>(
   }
   const modeOrder = modePriority(first.agent.mode) - modePriority(second.agent.mode);
   if (modeOrder !== 0) return modeOrder;
-  return first.agent.tripId < second.agent.tripId ? -1 : first.agent.tripId > second.agent.tripId ? 1 : 0;
+  return first.agent.tripId < second.agent.tripId
+    ? -1
+    : first.agent.tripId > second.agent.tripId
+      ? 1
+      : 0;
 }
 
-export function selectTrafficAgentsForMaterialization<T extends TrafficSpatialAgent>(input: Readonly<{
-  candidates: readonly TrafficSpatialCandidate<T>[];
-  frameIndex: number;
-  policy?: TrafficPresentationPolicy;
-}>): TrafficMaterializationSelection<T> {
+export function selectTrafficAgentsForMaterialization<T extends TrafficSpatialAgent>(
+  input: Readonly<{
+    candidates: readonly TrafficSpatialCandidate<T>[];
+    frameIndex: number;
+    policy?: TrafficPresentationPolicy;
+  }>,
+): TrafficMaterializationSelection<T> {
   const policy = input.policy ?? FOUNDATION_TRAFFIC_PRESENTATION_POLICY;
   if (!Number.isSafeInteger(input.frameIndex) || input.frameIndex < 0) {
     throw new RangeError('traffic-three:invalid-frame-index');

@@ -49,9 +49,11 @@ async function installFixture(page: import('@playwright/test').Page): Promise<Fi
     )
     .toBe(true);
   return page.evaluate(() => {
-    const api = (window as Window & {
-      __WEB_THREE_CITY_TRAFFIC__?: { installReleaseFixture(): FixtureSummary };
-    }).__WEB_THREE_CITY_TRAFFIC__;
+    const api = (
+      window as Window & {
+        __WEB_THREE_CITY_TRAFFIC__?: { installReleaseFixture(): FixtureSummary };
+      }
+    ).__WEB_THREE_CITY_TRAFFIC__;
     if (api === undefined) throw new Error('traffic test API unavailable');
     return api.installReleaseFixture();
   });
@@ -60,9 +62,11 @@ async function installFixture(page: import('@playwright/test').Page): Promise<Fi
 async function step(page: import('@playwright/test').Page, count = 1): Promise<void> {
   for (let index = 0; index < count; index += 1) {
     const advanced = await page.evaluate(() => {
-      const api = (window as Window & {
-        __WEB_THREE_CITY_TIME__?: { step(): boolean };
-      }).__WEB_THREE_CITY_TIME__;
+      const api = (
+        window as Window & {
+          __WEB_THREE_CITY_TIME__?: { step(): boolean };
+        }
+      ).__WEB_THREE_CITY_TIME__;
       if (api === undefined) throw new Error('time test API unavailable');
       return api.step();
     });
@@ -72,9 +76,11 @@ async function step(page: import('@playwright/test').Page, count = 1): Promise<v
 
 async function trafficSnapshot(page: import('@playwright/test').Page): Promise<TrafficSnapshot> {
   return page.evaluate(() => {
-    const api = (window as Window & {
-      __WEB_THREE_CITY_TRAFFIC__?: { snapshot(): TrafficSnapshot };
-    }).__WEB_THREE_CITY_TRAFFIC__;
+    const api = (
+      window as Window & {
+        __WEB_THREE_CITY_TRAFFIC__?: { snapshot(): TrafficSnapshot };
+      }
+    ).__WEB_THREE_CITY_TRAFFIC__;
     if (api === undefined) throw new Error('traffic test API unavailable');
     return api.snapshot();
   });
@@ -95,11 +101,15 @@ test.describe('Citizen commute browser acceptance', () => {
     expect(state.absoluteTick).toBe(8);
     expect(state.citizenIds).toEqual(fixture.citizenIds);
     expect(state.mobility.trips).toHaveLength(fixture.citizenIds.length);
-    expect(state.mobility.trips.every((trip) => fixture.citizenIds.includes(trip.citizenId))).toBe(true);
+    expect(state.mobility.trips.every((trip) => fixture.citizenIds.includes(trip.citizenId))).toBe(
+      true,
+    );
 
     const modeByCitizen = new Map(state.mobility.trips.map((trip) => [trip.citizenId, trip.mode]));
-    for (const citizenId of fixture.walkCitizenIds) expect(modeByCitizen.get(citizenId)).toBe('Walk');
-    for (const citizenId of fixture.driveCitizenIds) expect(modeByCitizen.get(citizenId)).toBe('Drive');
+    for (const citizenId of fixture.walkCitizenIds)
+      expect(modeByCitizen.get(citizenId)).toBe('Walk');
+    for (const citizenId of fixture.driveCitizenIds)
+      expect(modeByCitizen.get(citizenId)).toBe('Drive');
 
     expect(state.presentation?.journeyReplayPedestrians).toBe(fixture.walkCitizenIds.length);
     expect(state.presentation?.journeyReplayVehicles).toBe(fixture.driveCitizenIds.length);
@@ -123,9 +133,9 @@ test.describe('Citizen commute browser acceptance', () => {
     expect(state.absoluteTick).toBe(17);
     expect(state.citizenIds).toEqual(fixture.citizenIds);
     expect(state.mobility.trips).toHaveLength(fixture.citizenIds.length * 2);
-    expect(state.mobility.citizenStates.every((citizen) => citizen.currentActivity === 'Home')).toBe(
-      true,
-    );
+    expect(
+      state.mobility.citizenStates.every((citizen) => citizen.currentActivity === 'Home'),
+    ).toBe(true);
     expect(new Set(state.mobility.trips.map((trip) => trip.citizenId))).toEqual(
       new Set(fixture.citizenIds),
     );

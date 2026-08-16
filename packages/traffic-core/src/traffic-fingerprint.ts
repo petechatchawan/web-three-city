@@ -30,8 +30,12 @@ export function fingerprintTrafficSnapshot(snapshot: TrafficSnapshotV1): string 
 
 export function fingerprintTrafficGraph(graph: TrafficGraph): string {
   validateTrafficGraph(graph);
-  const nodes = [...graph.nodes].sort((a, b) => (a.nodeId < b.nodeId ? -1 : a.nodeId > b.nodeId ? 1 : 0));
-  const edges = [...graph.edges].sort((a, b) => (a.edgeId < b.edgeId ? -1 : a.edgeId > b.edgeId ? 1 : 0));
+  const nodes = [...graph.nodes].sort((a, b) =>
+    a.nodeId < b.nodeId ? -1 : a.nodeId > b.nodeId ? 1 : 0,
+  );
+  const edges = [...graph.edges].sort((a, b) =>
+    a.edgeId < b.edgeId ? -1 : a.edgeId > b.edgeId ? 1 : 0,
+  );
   return JSON.stringify({
     sourceRoadRevision: graph.sourceRoadRevision,
     sourceBuildingRevision: graph.sourceBuildingRevision,

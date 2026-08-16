@@ -12,7 +12,10 @@ import {
 import { createTrafficReleaseFixture } from './traffic-release-fixture.js';
 import { decodeWorldSave, encodeWorldSaveV7 } from './world-save.js';
 
-function simulationAt(base: ReturnType<typeof createTrafficReleaseFixture>['world']['simulation'], absoluteTick: number) {
+function simulationAt(
+  base: ReturnType<typeof createTrafficReleaseFixture>['world']['simulation'],
+  absoluteTick: number,
+) {
   return createSimulationSnapshot({
     revision: base.revision + Math.max(1, absoluteTick - base.absoluteTick),
     absoluteTick,

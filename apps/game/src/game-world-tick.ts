@@ -53,13 +53,15 @@ function emptyRciReceipt(state: GameWorldState): RciTickReceipt {
   });
 }
 
-function invalidTickPlan(input: Readonly<{
-  state: GameWorldState;
-  buildingReceipt: BuildingGrowthReceipt;
-  rciReceipt: RciTickReceipt;
-  contributions?: readonly RciDemandFactorContribution[];
-  reason: string | null;
-}>): GameWorldTickPlan {
+function invalidTickPlan(
+  input: Readonly<{
+    state: GameWorldState;
+    buildingReceipt: BuildingGrowthReceipt;
+    rciReceipt: RciTickReceipt;
+    contributions?: readonly RciDemandFactorContribution[];
+    reason: string | null;
+  }>,
+): GameWorldTickPlan {
   return Object.freeze({
     baseWorldRevision: input.state.revision,
     proposedState: input.state,
@@ -169,7 +171,10 @@ export function planGameWorldTick(
       simulationBefore: input.state.simulation,
       simulationAfter: buildingCommit.simulation,
       trafficSource: {
-        roads: createRoadTrafficSourceProjectionFromEnvironment(input.state.roads, input.environment),
+        roads: createRoadTrafficSourceProjectionFromEnvironment(
+          input.state.roads,
+          input.environment,
+        ),
         buildingAccess: createBuildingTrafficAccessProjection(
           buildingCommit.buildings,
           input.state.roads,

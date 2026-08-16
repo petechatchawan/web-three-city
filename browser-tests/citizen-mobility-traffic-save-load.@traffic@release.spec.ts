@@ -22,9 +22,11 @@ async function bootFixture(page: import('@playwright/test').Page): Promise<void>
     )
     .toBe(true);
   await page.evaluate(() => {
-    const api = (window as Window & {
-      __WEB_THREE_CITY_TRAFFIC__?: { installReleaseFixture(): unknown };
-    }).__WEB_THREE_CITY_TRAFFIC__;
+    const api = (
+      window as Window & {
+        __WEB_THREE_CITY_TRAFFIC__?: { installReleaseFixture(): unknown };
+      }
+    ).__WEB_THREE_CITY_TRAFFIC__;
     if (api === undefined) throw new Error('traffic test API unavailable');
     api.installReleaseFixture();
   });
@@ -45,9 +47,11 @@ async function step(page: import('@playwright/test').Page, count: number): Promi
 
 async function snapshot(page: import('@playwright/test').Page): Promise<Snapshot> {
   return page.evaluate(() => {
-    const api = (window as Window & {
-      __WEB_THREE_CITY_TRAFFIC__?: { snapshot(): Snapshot };
-    }).__WEB_THREE_CITY_TRAFFIC__;
+    const api = (
+      window as Window & {
+        __WEB_THREE_CITY_TRAFFIC__?: { snapshot(): Snapshot };
+      }
+    ).__WEB_THREE_CITY_TRAFFIC__;
     if (api === undefined) throw new Error('traffic test API unavailable');
     return api.snapshot();
   });
@@ -62,9 +66,11 @@ test('WorldSaveV7 restores Mobility/Traffic authority and continues deterministi
   expect(beforeSave.absoluteTick).toBe(8);
 
   await page.evaluate(() => {
-    const api = (window as Window & {
-      __WEB_THREE_CITY_TRAFFIC__?: { saveWorld(): void };
-    }).__WEB_THREE_CITY_TRAFFIC__;
+    const api = (
+      window as Window & {
+        __WEB_THREE_CITY_TRAFFIC__?: { saveWorld(): void };
+      }
+    ).__WEB_THREE_CITY_TRAFFIC__;
     if (api === undefined) throw new Error('traffic test API unavailable');
     api.saveWorld();
   });
@@ -80,9 +86,11 @@ test('WorldSaveV7 restores Mobility/Traffic authority and continues deterministi
   await step(page, 3);
   expect((await snapshot(page)).absoluteTick).toBe(11);
   await page.evaluate(() => {
-    const api = (window as Window & {
-      __WEB_THREE_CITY_TRAFFIC__?: { loadWorld(): void };
-    }).__WEB_THREE_CITY_TRAFFIC__;
+    const api = (
+      window as Window & {
+        __WEB_THREE_CITY_TRAFFIC__?: { loadWorld(): void };
+      }
+    ).__WEB_THREE_CITY_TRAFFIC__;
     if (api === undefined) throw new Error('traffic test API unavailable');
     api.loadWorld();
   });

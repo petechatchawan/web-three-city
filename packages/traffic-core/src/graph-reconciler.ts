@@ -99,13 +99,15 @@ function withBuildingRevision(graph: TrafficGraph, buildingRevision: number): Tr
   return Object.freeze({ ...graph, sourceBuildingRevision: buildingRevision });
 }
 
-function mergeLocalGraph(input: Readonly<{
-  previous: TrafficGraph;
-  local: TrafficGraph;
-  affectedCellKeys: ReadonlySet<string>;
-  roadRevision: number;
-  buildingRevision: number;
-}>): TrafficGraph {
+function mergeLocalGraph(
+  input: Readonly<{
+    previous: TrafficGraph;
+    local: TrafficGraph;
+    affectedCellKeys: ReadonlySet<string>;
+    roadRevision: number;
+    buildingRevision: number;
+  }>,
+): TrafficGraph {
   const removedNodeIds = new Set<string>();
   for (const node of input.previous.nodes) {
     const key = parseNodeCell(node.nodeId);
@@ -142,12 +144,17 @@ function mergeLocalGraph(input: Readonly<{
     const touchesAffected =
       (fromKey !== null && input.affectedCellKeys.has(fromKey)) ||
       (toKey !== null && input.affectedCellKeys.has(toKey));
-    if (!touchesAffected && !removedNodeIds.has(edge.fromNodeId) && !removedNodeIds.has(edge.toNodeId)) {
+    if (
+      !touchesAffected &&
+      !removedNodeIds.has(edge.fromNodeId) &&
+      !removedNodeIds.has(edge.toNodeId)
+    ) {
       nextEdges.set(edge.edgeId, edge);
     }
   }
   for (const edge of localEdges) {
-    if (nextNodes.has(edge.fromNodeId) && nextNodes.has(edge.toNodeId)) nextEdges.set(edge.edgeId, edge);
+    if (nextNodes.has(edge.fromNodeId) && nextNodes.has(edge.toNodeId))
+      nextEdges.set(edge.edgeId, edge);
   }
 
   const nodes = [...nextNodes.values()].sort((a, b) => compareTrafficId(a.nodeId, b.nodeId));
@@ -170,13 +177,15 @@ function fullGraphs(
   });
 }
 
-export function reconcileTrafficGraphs(input: Readonly<{
-  previousVehicleGraph: TrafficGraph;
-  previousPedestrianGraph: TrafficGraph;
-  roads: RoadTrafficSourceProjection;
-  buildingAccess: BuildingTrafficAccessProjection;
-  dirty: TrafficGraphDirtyRegion;
-}>): TrafficGraphReconciliationResult {
+export function reconcileTrafficGraphs(
+  input: Readonly<{
+    previousVehicleGraph: TrafficGraph;
+    previousPedestrianGraph: TrafficGraph;
+    roads: RoadTrafficSourceProjection;
+    buildingAccess: BuildingTrafficAccessProjection;
+    dirty: TrafficGraphDirtyRegion;
+  }>,
+): TrafficGraphReconciliationResult {
   const buildingRevision = input.buildingAccess.buildingRevision;
   const changedBuildingIds = Object.freeze(
     [...new Set(input.dirty.changedBuildingIds)].sort(compareTrafficId),
@@ -184,8 +193,10 @@ export function reconcileTrafficGraphs(input: Readonly<{
   const affected = expandCells(input.dirty.changedRoadCells, input.roads, 1);
   const expectedPreviousRoadRevision = Math.max(0, input.roads.roadRevision - 1);
   const previousCoherent =
-    input.previousVehicleGraph.sourceRoadRevision === input.previousPedestrianGraph.sourceRoadRevision &&
-    input.previousVehicleGraph.sourceBuildingRevision === input.previousPedestrianGraph.sourceBuildingRevision;
+    input.previousVehicleGraph.sourceRoadRevision ===
+      input.previousPedestrianGraph.sourceRoadRevision &&
+    input.previousVehicleGraph.sourceBuildingRevision ===
+      input.previousPedestrianGraph.sourceBuildingRevision;
 
   const canReuseUnchangedTopology =
     previousCoherent &&
@@ -212,7 +223,9 @@ export function reconcileTrafficGraphs(input: Readonly<{
       ...full,
       fullRebuild: true,
       rebuiltRoadCellKeys: Object.freeze(
-        [...new Set(input.roads.cells.map((cell) => cellKey(cell.x, cell.z)))].sort(compareTrafficId),
+        [...new Set(input.roads.cells.map((cell) => cellKey(cell.x, cell.z)))].sort(
+          compareTrafficId,
+        ),
       ),
       changedBuildingIds,
     });

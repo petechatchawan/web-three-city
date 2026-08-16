@@ -33,18 +33,47 @@ const DIRECTIONS: readonly Readonly<{
   oppositeBit: number;
   oppositeSide: TrafficCardinalDirection;
 }>[] = Object.freeze([
-  Object.freeze({ side: 'N', dx: 0, dz: -1, bit: ROAD_NORTH, oppositeBit: ROAD_SOUTH, oppositeSide: 'S' }),
-  Object.freeze({ side: 'E', dx: 1, dz: 0, bit: ROAD_EAST, oppositeBit: ROAD_WEST, oppositeSide: 'W' }),
-  Object.freeze({ side: 'S', dx: 0, dz: 1, bit: ROAD_SOUTH, oppositeBit: ROAD_NORTH, oppositeSide: 'N' }),
-  Object.freeze({ side: 'W', dx: -1, dz: 0, bit: ROAD_WEST, oppositeBit: ROAD_EAST, oppositeSide: 'E' }),
+  Object.freeze({
+    side: 'N',
+    dx: 0,
+    dz: -1,
+    bit: ROAD_NORTH,
+    oppositeBit: ROAD_SOUTH,
+    oppositeSide: 'S',
+  }),
+  Object.freeze({
+    side: 'E',
+    dx: 1,
+    dz: 0,
+    bit: ROAD_EAST,
+    oppositeBit: ROAD_WEST,
+    oppositeSide: 'W',
+  }),
+  Object.freeze({
+    side: 'S',
+    dx: 0,
+    dz: 1,
+    bit: ROAD_SOUTH,
+    oppositeBit: ROAD_NORTH,
+    oppositeSide: 'N',
+  }),
+  Object.freeze({
+    side: 'W',
+    dx: -1,
+    dz: 0,
+    bit: ROAD_WEST,
+    oppositeBit: ROAD_EAST,
+    oppositeSide: 'E',
+  }),
 ]);
 
-const RING: readonly readonly [TrafficCardinalDirection, TrafficCardinalDirection][] = Object.freeze([
-  Object.freeze(['N', 'E']) as readonly ['N', 'E'],
-  Object.freeze(['E', 'S']) as readonly ['E', 'S'],
-  Object.freeze(['S', 'W']) as readonly ['S', 'W'],
-  Object.freeze(['W', 'N']) as readonly ['W', 'N'],
-]);
+const RING: readonly (readonly [TrafficCardinalDirection, TrafficCardinalDirection][]) =
+  Object.freeze([
+    Object.freeze(['N', 'E']) as readonly ['N', 'E'],
+    Object.freeze(['E', 'S']) as readonly ['E', 'S'],
+    Object.freeze(['S', 'W']) as readonly ['S', 'W'],
+    Object.freeze(['W', 'N']) as readonly ['W', 'N'],
+  ]);
 
 function key(x: number, z: number): string {
   return `${x},${z}`;
@@ -85,11 +114,7 @@ function lengthQ(first: TrafficGraphNode, second: TrafficGraphNode): number {
   return Math.max(1, Math.ceil(Math.sqrt(dx * dx + dy * dy + dz * dz)));
 }
 
-function walkEdge(
-  from: TrafficGraphNode,
-  to: TrafficGraphNode,
-  label: string,
-): TrafficGraphEdge {
+function walkEdge(from: TrafficGraphNode, to: TrafficGraphNode, label: string): TrafficGraphEdge {
   const distance = lengthQ(from, to);
   return Object.freeze({
     edgeId: `walk:${label}:${from.nodeId}->${to.nodeId}`,
@@ -132,11 +157,10 @@ export function derivePedestrianTrafficGraph(
     for (const direction of DIRECTIONS) {
       if ((cell.connectionMask & direction.bit) === 0) continue;
       const neighbor = byCell.get(key(cell.x + direction.dx, cell.z + direction.dz));
-      if (neighbor === undefined || (neighbor.connectionMask & direction.oppositeBit) === 0) continue;
+      if (neighbor === undefined || (neighbor.connectionMask & direction.oppositeBit) === 0)
+        continue;
       const from = nodeById.get(walkSideNodeId(cell.x, cell.z, direction.side))!;
-      const to = nodeById.get(
-        walkSideNodeId(neighbor.x, neighbor.z, direction.oppositeSide),
-      )!;
+      const to = nodeById.get(walkSideNodeId(neighbor.x, neighbor.z, direction.oppositeSide))!;
       edges.push(walkEdge(from, to, `link:${cell.x},${cell.z}`));
     }
   }

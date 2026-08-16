@@ -16,11 +16,13 @@ export interface TrafficCostNodeInput {
   readonly queueDelaySeconds: number;
 }
 
-export function deriveTrafficCostField(input: Readonly<{
-  trafficRevision: number;
-  edges: readonly TrafficCostEdgeInput[];
-  nodes?: readonly TrafficCostNodeInput[];
-}>): TrafficCostField {
+export function deriveTrafficCostField(
+  input: Readonly<{
+    trafficRevision: number;
+    edges: readonly TrafficCostEdgeInput[];
+    nodes?: readonly TrafficCostNodeInput[];
+  }>,
+): TrafficCostField {
   assertTrafficSafeInteger(input.trafficRevision);
   const edgeTravelSecondsById = new Map<string, number>();
   for (const edge of [...input.edges].sort((a, b) => compareTrafficId(a.edgeId, b.edgeId))) {
@@ -29,7 +31,9 @@ export function deriveTrafficCostField(input: Readonly<{
     edgeTravelSecondsById.set(edge.edgeId, edge.effectiveTravelSeconds);
   }
   const queueDelaySecondsByNodeId = new Map<string, number>();
-  for (const node of [...(input.nodes ?? [])].sort((a, b) => compareTrafficId(a.nodeId, b.nodeId))) {
+  for (const node of [...(input.nodes ?? [])].sort((a, b) =>
+    compareTrafficId(a.nodeId, b.nodeId),
+  )) {
     assertTrafficId(node.nodeId);
     assertTrafficSafeInteger(node.queueDelaySeconds);
     queueDelaySecondsByNodeId.set(node.nodeId, node.queueDelaySeconds);

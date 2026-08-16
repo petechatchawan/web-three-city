@@ -51,12 +51,16 @@ function authoritativeDestination(
   return trip.purpose === 'CommuteToWork' ? citizen.workBuildingId : citizen.homeBuildingId;
 }
 
-export function reconcileMobilityCitizens(input: Readonly<{
-  snapshot: MobilitySnapshotV1;
-  citizens: readonly PresentCitizenMobilityProjection[];
-}>): MobilityReconciliationResult {
+export function reconcileMobilityCitizens(
+  input: Readonly<{
+    snapshot: MobilitySnapshotV1;
+    citizens: readonly PresentCitizenMobilityProjection[];
+  }>,
+): MobilityReconciliationResult {
   const snapshot = createMobilitySnapshot(input.snapshot);
-  const projectionById = new Map(input.citizens.map((citizen) => [citizen.citizenId, citizen] as const));
+  const projectionById = new Map(
+    input.citizens.map((citizen) => [citizen.citizenId, citizen] as const),
+  );
   const tripById = new Map(snapshot.trips.map((trip) => [trip.tripId, trip] as const));
   const cancelledTripIds: string[] = [];
   const destinationRevalidationTripIds: string[] = [];
@@ -140,8 +144,7 @@ export function reconcileMobilityCitizens(input: Readonly<{
   destinationRevalidationTripIds.sort(compareMobilityId);
 
   const changed =
-    JSON.stringify(nextStates) !== JSON.stringify(snapshot.citizenStates) ||
-    cancelled.size > 0;
+    JSON.stringify(nextStates) !== JSON.stringify(snapshot.citizenStates) || cancelled.size > 0;
   const nextSnapshot = changed
     ? createMobilitySnapshot({
         ...snapshot,
@@ -158,12 +161,14 @@ export function reconcileMobilityCitizens(input: Readonly<{
   });
 }
 
-export function settleMobilityTrip(input: Readonly<{
-  snapshot: MobilitySnapshotV1;
-  tripId: string;
-  outcome: 'Arrived' | 'Failed' | 'Cancelled';
-  fallbackBuildingId?: string | null;
-}>): MobilitySnapshotV1 {
+export function settleMobilityTrip(
+  input: Readonly<{
+    snapshot: MobilitySnapshotV1;
+    tripId: string;
+    outcome: 'Arrived' | 'Failed' | 'Cancelled';
+    fallbackBuildingId?: string | null;
+  }>,
+): MobilitySnapshotV1 {
   const snapshot = createMobilitySnapshot(input.snapshot);
   const trip = snapshot.trips.find((entry) => entry.tripId === input.tripId);
   if (trip === undefined || trip.status !== 'Active') {
@@ -177,7 +182,7 @@ export function settleMobilityTrip(input: Readonly<{
   const arrived = input.outcome === 'Arrived';
   const stationaryBuildingId = arrived
     ? trip.destinationBuildingId
-    : input.fallbackBuildingId ?? trip.originBuildingId;
+    : (input.fallbackBuildingId ?? trip.originBuildingId);
   const nextActivity = arrived
     ? trip.purpose === 'CommuteToWork'
       ? ('Work' as const)

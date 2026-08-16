@@ -1,6 +1,10 @@
 import { BoxGeometry, Group, Mesh, MeshStandardMaterial, SphereGeometry } from 'three';
 import { pedestrianAppearanceForCitizen } from './pedestrian-appearance.js';
-import { headingRadians, sampleRouteEdgePosition, type TrafficWorldPointQ } from './route-geometry.js';
+import {
+  headingRadians,
+  sampleRouteEdgePosition,
+  type TrafficWorldPointQ,
+} from './route-geometry.js';
 
 export interface TrafficPedestrianVisualInput {
   readonly tripId: string;
@@ -36,7 +40,9 @@ export class TrafficPedestrianAgent {
     const appearance = pedestrianAppearanceForCitizen(input.citizenId);
     (this.#body.material as MeshStandardMaterial).color.setHex(appearance.clothingColor);
     (this.#head.material as MeshStandardMaterial).color.setHex(appearance.accentColor);
-    this.#body.scale.setScalar(appearance.bodyVariant === 0 ? 0.92 : appearance.bodyVariant === 1 ? 1 : 1.08);
+    this.#body.scale.setScalar(
+      appearance.bodyVariant === 0 ? 0.92 : appearance.bodyVariant === 1 ? 1 : 1.08,
+    );
     const position = sampleRouteEdgePosition(input.from, input.to, input.progressQ);
     this.object.position.copy(position);
     this.object.rotation.y = headingRadians(input.from, input.to);

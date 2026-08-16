@@ -27,9 +27,11 @@ async function trafficApiReady(page: import('@playwright/test').Page): Promise<v
 
 async function readTraffic(page: import('@playwright/test').Page): Promise<TrafficApiSnapshot> {
   return page.evaluate(() => {
-    const api = (window as Window & {
-      __WEB_THREE_CITY_TRAFFIC__?: { snapshot(): TrafficApiSnapshot };
-    }).__WEB_THREE_CITY_TRAFFIC__;
+    const api = (
+      window as Window & {
+        __WEB_THREE_CITY_TRAFFIC__?: { snapshot(): TrafficApiSnapshot };
+      }
+    ).__WEB_THREE_CITY_TRAFFIC__;
     if (api === undefined) throw new Error('traffic test API unavailable');
     return api.snapshot();
   });
@@ -56,7 +58,9 @@ test.describe('Citizen Mobility & Traffic Foundation v0.1', () => {
     await expect(page.locator('body')).not.toHaveCSS('overflow-x', 'scroll');
   });
 
-  test('registers Traffic as the single active information view and supports Thai copy', async ({ page }) => {
+  test('registers Traffic as the single active information view and supports Thai copy', async ({
+    page,
+  }) => {
     await page.getByRole('button', { name: 'City' }).click();
     const informationEntry = page.getByRole('button', { name: /Information Views/i });
     await expect(informationEntry).toBeVisible();
@@ -76,11 +80,15 @@ test.describe('Citizen Mobility & Traffic Foundation v0.1', () => {
     expect(overflow).toBeLessThanOrEqual(0);
   });
 
-  test('opening presentation surfaces does not mutate Mobility/Traffic authority', async ({ page }) => {
+  test('opening presentation surfaces does not mutate Mobility/Traffic authority', async ({
+    page,
+  }) => {
     await page.evaluate(() => {
-      const api = (window as Window & {
-        __WEB_THREE_CITY_TRAFFIC__?: { installReleaseFixture(): unknown };
-      }).__WEB_THREE_CITY_TRAFFIC__;
+      const api = (
+        window as Window & {
+          __WEB_THREE_CITY_TRAFFIC__?: { installReleaseFixture(): unknown };
+        }
+      ).__WEB_THREE_CITY_TRAFFIC__;
       if (api === undefined) throw new Error('traffic test API unavailable');
       api.installReleaseFixture();
     });

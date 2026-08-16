@@ -50,11 +50,13 @@ function replaceCitizenState(
   return result.sort((first, second) => compareMobilityId(first.citizenId, second.citizenId));
 }
 
-export function commitPlannedMobilityTrip(input: Readonly<{
-  snapshot: MobilitySnapshotV1;
-  request: MobilityTripPlanningRequest;
-  candidates: readonly MobilityModeCandidate[];
-}>): MobilitySnapshotV1 {
+export function commitPlannedMobilityTrip(
+  input: Readonly<{
+    snapshot: MobilitySnapshotV1;
+    request: MobilityTripPlanningRequest;
+    candidates: readonly MobilityModeCandidate[];
+  }>,
+): MobilitySnapshotV1 {
   const snapshot = createMobilitySnapshot(input.snapshot);
   if (input.request.tripId !== formatMobilityTripId(snapshot.nextTripSequence)) {
     throw new MobilityContractError('mobility:invalid-sequence');

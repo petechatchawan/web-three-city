@@ -20,14 +20,13 @@ export function reconcileRciForBuildingChange(
   }>,
 ): RciSnapshot {
   const housing = synchronizeDwellingInventory({ ...input, snapshot: input.rci }).proposedSnapshot;
-  const reconciled = synchronizeWorkplaceInventory({ ...input, snapshot: housing }).proposedSnapshot;
+  const reconciled = synchronizeWorkplaceInventory({
+    ...input,
+    snapshot: housing,
+  }).proposedSnapshot;
   const mobilityTraffic = recallMobilityTrafficState(input.rci);
   if (mobilityTraffic !== null) {
-    rememberMobilityTrafficState(
-      reconciled,
-      mobilityTraffic.mobility,
-      mobilityTraffic.traffic,
-    );
+    rememberMobilityTrafficState(reconciled, mobilityTraffic.mobility, mobilityTraffic.traffic);
   }
   return reconciled;
 }

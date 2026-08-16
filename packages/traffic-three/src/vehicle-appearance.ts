@@ -13,13 +13,7 @@ function hashStableText(text: string): number {
 }
 
 const BODY_COLORS = Object.freeze([
-  0x4e6e81,
-  0x7f493f,
-  0x4f6750,
-  0x76617a,
-  0xb7b7b2,
-  0x33363b,
-  0xb58a42,
+  0x4e6e81, 0x7f493f, 0x4f6750, 0x76617a, 0xb7b7b2, 0x33363b, 0xb58a42,
 ]);
 
 export function vehicleAppearanceForTrip(tripId: string, citizenId: string): VehicleAppearance {

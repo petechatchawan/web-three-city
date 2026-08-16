@@ -155,7 +155,12 @@ export class TrafficSpatialIndex<T extends TrafficSpatialAgent = TrafficSpatialA
       .map((agent) =>
         Object.freeze({
           agent,
-          distanceSquared: segmentDistanceSquared(query.centerX, query.centerZ, agent.from, agent.to),
+          distanceSquared: segmentDistanceSquared(
+            query.centerX,
+            query.centerZ,
+            agent.from,
+            agent.to,
+          ),
         }),
       )
       .filter((candidate) => candidate.distanceSquared <= radiusSquared)

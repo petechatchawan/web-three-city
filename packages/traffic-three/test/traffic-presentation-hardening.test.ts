@@ -99,8 +99,14 @@ describe('traffic-three production hardening', () => {
       agent: agent(1, 'Walk', 150),
       distanceSquared: 150 * 150,
     };
-    const frameOne = selectTrafficAgentsForMaterialization({ candidates: [candidate], frameIndex: 1 });
-    const frameThree = selectTrafficAgentsForMaterialization({ candidates: [candidate], frameIndex: 3 });
+    const frameOne = selectTrafficAgentsForMaterialization({
+      candidates: [candidate],
+      frameIndex: 1,
+    });
+    const frameThree = selectTrafficAgentsForMaterialization({
+      candidates: [candidate],
+      frameIndex: 3,
+    });
     expect(frameOne.selected).toHaveLength(1);
     expect(frameOne.selected[0]?.tier).toBe('Mid');
     expect(frameOne.selected[0]?.updateDue).toBe(false);
@@ -110,14 +116,28 @@ describe('traffic-three production hardening', () => {
   it('derives visual vehicle headway without changing authoritative trip progress', () => {
     const placements = deriveVehicleVisualPlacements(
       [
-        { tripId: 'front', edgeId: 'edge', progressQ: 900_000, edgeLengthMillimeters: 20_000, queued: false },
-        { tripId: 'rear', edgeId: 'edge', progressQ: 850_000, edgeLengthMillimeters: 20_000, queued: false },
+        {
+          tripId: 'front',
+          edgeId: 'edge',
+          progressQ: 900_000,
+          edgeLengthMillimeters: 20_000,
+          queued: false,
+        },
+        {
+          tripId: 'rear',
+          edgeId: 'edge',
+          progressQ: 850_000,
+          edgeLengthMillimeters: 20_000,
+          queued: false,
+        },
       ],
       4_500,
     );
     const front = placements.find((entry) => entry.tripId === 'front')!;
     const rear = placements.find((entry) => entry.tripId === 'rear')!;
-    expect(front.distanceAlongEdgeMillimeters - rear.distanceAlongEdgeMillimeters).toBeGreaterThanOrEqual(4_500);
+    expect(
+      front.distanceAlongEdgeMillimeters - rear.distanceAlongEdgeMillimeters,
+    ).toBeGreaterThanOrEqual(4_500);
     expect(rear.adjustedProgressQ).toBeLessThan(850_000);
   });
 });

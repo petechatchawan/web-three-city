@@ -60,12 +60,9 @@ export const GAME_TRAFFIC_PRESENTATION_POLICY: TrafficPresentationPolicy = Objec
 
 function cellCenter(cell: CellCoord): TrafficRuntimeCameraAnchor {
   return Object.freeze({
-    x:
-      (cell.x + 0.5) * WORLD_CONFIG.cellSize -
-      (WORLD_CONFIG.mapWidth * WORLD_CONFIG.cellSize) / 2,
+    x: (cell.x + 0.5) * WORLD_CONFIG.cellSize - (WORLD_CONFIG.mapWidth * WORLD_CONFIG.cellSize) / 2,
     z:
-      (cell.z + 0.5) * WORLD_CONFIG.cellSize -
-      (WORLD_CONFIG.mapHeight * WORLD_CONFIG.cellSize) / 2,
+      (cell.z + 0.5) * WORLD_CONFIG.cellSize - (WORLD_CONFIG.mapHeight * WORLD_CONFIG.cellSize) / 2,
   });
 }
 
@@ -95,7 +92,10 @@ function replayDuration(mode: 'Walk' | 'Drive', segmentCount: number): number {
   );
 }
 
-function replayAgentAt(replay: TrafficJourneyReplay, timestampMs: number): TrafficPresentationAgent | null {
+function replayAgentAt(
+  replay: TrafficJourneyReplay,
+  timestampMs: number,
+): TrafficPresentationAgent | null {
   if (replay.segments.length === 0) return null;
   const elapsed = Math.max(0, timestampMs - replay.startedAtMs);
   if (elapsed >= replay.durationMs) return null;
@@ -294,7 +294,11 @@ export class TrafficRuntimePresentation {
         const secondDistance =
           (second.position.x - center.x) ** 2 + (second.position.z - center.z) ** 2;
         if (firstDistance !== secondDistance) return firstDistance - secondDistance;
-        return first.agent.tripId < second.agent.tripId ? -1 : first.agent.tripId > second.agent.tripId ? 1 : 0;
+        return first.agent.tripId < second.agent.tripId
+          ? -1
+          : first.agent.tripId > second.agent.tripId
+            ? 1
+            : 0;
       });
     const selected = matches[0]?.agent;
     if (selected === undefined) return null;

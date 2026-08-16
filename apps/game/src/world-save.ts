@@ -182,7 +182,10 @@ function migratedTraffic(
   });
 }
 
-function trafficValidationGraph(world: DecodedWorldState, config: WorldConfig): TrafficGraph | null {
+function trafficValidationGraph(
+  world: DecodedWorldState,
+  config: WorldConfig,
+): TrafficGraph | null {
   const water = deriveWaterSnapshot(world.terrain, config);
   if (!water.ok) return null;
   const environment = createBuildingDevelopmentEnvironment(
@@ -200,9 +203,17 @@ function trafficValidationGraph(world: DecodedWorldState, config: WorldConfig): 
   );
   const walkBase = derivePedestrianTrafficGraph(roadSource);
   const driveBase = deriveVehicleTrafficGraph(roadSource);
-  const walk = Object.freeze({ ...walkBase, sourceBuildingRevision: buildingAccess.buildingRevision });
-  const drive = Object.freeze({ ...driveBase, sourceBuildingRevision: buildingAccess.buildingRevision });
-  const nodeMap = new Map([...walk.nodes, ...drive.nodes].map((node) => [node.nodeId, node] as const));
+  const walk = Object.freeze({
+    ...walkBase,
+    sourceBuildingRevision: buildingAccess.buildingRevision,
+  });
+  const drive = Object.freeze({
+    ...driveBase,
+    sourceBuildingRevision: buildingAccess.buildingRevision,
+  });
+  const nodeMap = new Map(
+    [...walk.nodes, ...drive.nodes].map((node) => [node.nodeId, node] as const),
+  );
   return Object.freeze({
     sourceRoadRevision: roadSource.roadRevision,
     sourceBuildingRevision: buildingAccess.buildingRevision,
@@ -254,7 +265,8 @@ export function decodeWorldSave(
     const upstreamInput = Object.freeze({ ...input, schemaVersion: 6 });
     const upstream = decodeWorldSave(upstreamInput, config);
     if (!upstream.ok) return upstream;
-    if (!('mobility' in input) || !('traffic' in input)) return err({ code: 'world-save:invalid-schema' });
+    if (!('mobility' in input) || !('traffic' in input))
+      return err({ code: 'world-save:invalid-schema' });
     const decodedMobility = decodeMobilitySaveV1(input.mobility);
     if (!decodedMobility.ok) return err({ code: 'world-save:invalid-mobility' });
     const graph = trafficValidationGraph(upstream.value, config);
@@ -323,7 +335,11 @@ export function decodeWorldSave(
   if (!isV6) {
     return ok(
       withMigratedMobilityTraffic(
-        Object.freeze({ ...base.value, rci: decodedRci.value, economy: migratedEconomy(base.value.simulation) }),
+        Object.freeze({
+          ...base.value,
+          rci: decodedRci.value,
+          economy: migratedEconomy(base.value.simulation),
+        }),
       ),
     );
   }

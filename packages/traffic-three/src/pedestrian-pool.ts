@@ -35,12 +35,14 @@ export class TrafficPedestrianPool {
       return existing;
     }
     const reused = this.#available.pop();
-    const agent = reused ?? (() => {
-      const created = new TrafficPedestrianAgent();
-      this.root.add(created.object);
-      this.#createdCount += 1;
-      return created;
-    })();
+    const agent =
+      reused ??
+      (() => {
+        const created = new TrafficPedestrianAgent();
+        this.root.add(created.object);
+        this.#createdCount += 1;
+        return created;
+      })();
     if (reused !== undefined) this.#reuseCount += 1;
     if (agent.tripId !== null) throw new Error('traffic-three:pedestrian-pool-active-reuse');
     agent.assign(input);

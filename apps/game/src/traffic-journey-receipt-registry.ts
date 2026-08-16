@@ -10,14 +10,12 @@ export function rememberTrafficJourneyReceipts(
   rci: RciSnapshot,
   receipts: readonly Readonly<Record<string, unknown>>[],
 ): void {
-  const departures = receipts
-    .filter(isTrafficJourneyDepartureReceipt)
-    .map((receipt) =>
-      Object.freeze({
-        ...receipt,
-        routeEdgeIds: Object.freeze([...receipt.routeEdgeIds]),
-      }),
-    );
+  const departures = receipts.filter(isTrafficJourneyDepartureReceipt).map((receipt) =>
+    Object.freeze({
+      ...receipt,
+      routeEdgeIds: Object.freeze([...receipt.routeEdgeIds]),
+    }),
+  );
   if (departures.length === 0) return;
   RECEIPTS_BY_POPULATION.set(rci.population, Object.freeze(departures));
 }

@@ -23,11 +23,13 @@ export interface TrafficProjection {
   readonly nextCostField: TrafficCostField;
 }
 
-export function createTrafficProjection(input: Readonly<{
-  snapshot: TrafficSnapshotV1;
-  graph: TrafficGraph;
-  flowPolicy?: TrafficFlowPolicyV1;
-}>): TrafficProjection {
+export function createTrafficProjection(
+  input: Readonly<{
+    snapshot: TrafficSnapshotV1;
+    graph: TrafficGraph;
+    flowPolicy?: TrafficFlowPolicyV1;
+  }>,
+): TrafficProjection {
   const edges = createTrafficEdgeProjections({
     graph: input.graph,
     trips: input.snapshot.activeTrips,

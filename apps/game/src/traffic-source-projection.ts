@@ -44,7 +44,10 @@ function connectionMaskAt(roads: RoadSnapshot, x: number, z: number): number {
   return mask;
 }
 
-function createRoadProjection(roads: RoadSnapshot, surfaceAt: SurfaceReader): RoadTrafficSourceProjection {
+function createRoadProjection(
+  roads: RoadSnapshot,
+  surfaceAt: SurfaceReader,
+): RoadTrafficSourceProjection {
   const cells: RoadTrafficSourceCell[] = [];
   for (let z = 0; z < roads.height; z += 1) {
     for (let x = 0; x < roads.width; x += 1) {
@@ -75,7 +78,9 @@ export function createRoadTrafficSourceProjection(
   roads: RoadSnapshot,
   terrain: TerrainSnapshot,
 ): RoadTrafficSourceProjection {
-  return createRoadProjection(roads, (cell) => terrainCellSurfaceProfile(terrain, cell, WORLD_CONFIG));
+  return createRoadProjection(roads, (cell) =>
+    terrainCellSurfaceProfile(terrain, cell, WORLD_CONFIG),
+  );
 }
 
 export function createRoadTrafficSourceProjectionFromEnvironment(
@@ -94,15 +99,21 @@ export function createTrafficGraphDirtyRegion(
     roadByKey.set(`${cell.x},${cell.z}`, Object.freeze({ x: cell.x, z: cell.z }));
   }
   return Object.freeze({
-    changedRoadCells: Object.freeze(
-      [...roadByKey.values()].sort((a, b) => a.z - b.z || a.x - b.x),
-    ),
+    changedRoadCells: Object.freeze([...roadByKey.values()].sort((a, b) => a.z - b.z || a.x - b.x)),
     changedBuildingIds: Object.freeze([...new Set(changedBuildingIds)].sort()),
   });
 }
 
-function trafficDirection(direction: 'north' | 'east' | 'south' | 'west'): TrafficCardinalDirection {
-  return direction === 'north' ? 'N' : direction === 'east' ? 'E' : direction === 'south' ? 'S' : 'W';
+function trafficDirection(
+  direction: 'north' | 'east' | 'south' | 'west',
+): TrafficCardinalDirection {
+  return direction === 'north'
+    ? 'N'
+    : direction === 'east'
+      ? 'E'
+      : direction === 'south'
+        ? 'S'
+        : 'W';
 }
 
 function entrancePoint(
@@ -115,8 +126,10 @@ function entrancePoint(
   const centerXQ = cell.x * CELL_SIZE_Q + CELL_SIZE_Q / 2;
   const centerZQ = cell.z * CELL_SIZE_Q + CELL_SIZE_Q / 2;
   if (direction === 'north') return Object.freeze({ xQ: centerXQ, yQ, zQ: cell.z * CELL_SIZE_Q });
-  if (direction === 'east') return Object.freeze({ xQ: (cell.x + 1) * CELL_SIZE_Q, yQ, zQ: centerZQ });
-  if (direction === 'south') return Object.freeze({ xQ: centerXQ, yQ, zQ: (cell.z + 1) * CELL_SIZE_Q });
+  if (direction === 'east')
+    return Object.freeze({ xQ: (cell.x + 1) * CELL_SIZE_Q, yQ, zQ: centerZQ });
+  if (direction === 'south')
+    return Object.freeze({ xQ: centerXQ, yQ, zQ: (cell.z + 1) * CELL_SIZE_Q });
   return Object.freeze({ xQ: cell.x * CELL_SIZE_Q, yQ, zQ: centerZQ });
 }
 
@@ -143,7 +156,11 @@ export function createBuildingTrafficAccessProjection(
     })
     .filter((value): value is NonNullable<typeof value> => value !== null)
     .sort((a, b) =>
-      a.buildingInstanceId < b.buildingInstanceId ? -1 : a.buildingInstanceId > b.buildingInstanceId ? 1 : 0,
+      a.buildingInstanceId < b.buildingInstanceId
+        ? -1
+        : a.buildingInstanceId > b.buildingInstanceId
+          ? 1
+          : 0,
     );
   return Object.freeze({
     buildingRevision: buildings.revision,

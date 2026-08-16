@@ -98,9 +98,7 @@ describe('MobilitySnapshotV1', () => {
 
     expect(decoded.ok).toBe(true);
     if (!decoded.ok) return;
-    expect(fingerprintMobilitySnapshot(decoded.value)).toBe(
-      fingerprintMobilitySnapshot(snapshot),
-    );
+    expect(fingerprintMobilitySnapshot(decoded.value)).toBe(fingerprintMobilitySnapshot(snapshot));
     expect(JSON.stringify(save)).not.toContain('routeEdge');
     expect(JSON.stringify(save)).not.toContain('Three');
   });

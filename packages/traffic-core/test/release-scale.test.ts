@@ -90,12 +90,12 @@ describe('Traffic release scale gate', () => {
     const firstProjection = createTrafficProjection({ snapshot: first.snapshot, graph });
     const secondProjection = createTrafficProjection({ snapshot: second.snapshot, graph });
     expect(firstProjection.edges).toEqual(secondProjection.edges);
-    expect([...firstProjection.nextCostField.edgeTravelSecondsById.entries()]).toEqual(
-      [...secondProjection.nextCostField.edgeTravelSecondsById.entries()],
-    );
-    expect([...firstProjection.nextCostField.queueDelaySecondsByNodeId.entries()]).toEqual(
-      [...secondProjection.nextCostField.queueDelaySecondsByNodeId.entries()],
-    );
+    expect([...firstProjection.nextCostField.edgeTravelSecondsById.entries()]).toEqual([
+      ...secondProjection.nextCostField.edgeTravelSecondsById.entries(),
+    ]);
+    expect([...firstProjection.nextCostField.queueDelaySecondsByNodeId.entries()]).toEqual([
+      ...secondProjection.nextCostField.queueDelaySecondsByNodeId.entries(),
+    ]);
   });
 
   it('keeps cached and uncached canonical route outputs equal', () => {

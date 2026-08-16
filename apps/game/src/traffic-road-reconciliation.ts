@@ -17,14 +17,16 @@ function withBuildingRevision(graph: TrafficGraph, buildingRevision: number): Tr
   return Object.freeze({ ...graph, sourceBuildingRevision: buildingRevision });
 }
 
-export function reconcileTrafficAfterRoadChange(input: Readonly<{
-  traffic: TrafficSnapshotV1;
-  mobility: MobilitySnapshotV1;
-  trafficSourceAfter: Readonly<{
-    roads: RoadTrafficSourceProjection;
-    buildingAccess: BuildingTrafficAccessProjection;
-  }>;
-}>): TrafficSnapshotV1 {
+export function reconcileTrafficAfterRoadChange(
+  input: Readonly<{
+    traffic: TrafficSnapshotV1;
+    mobility: MobilitySnapshotV1;
+    trafficSourceAfter: Readonly<{
+      roads: RoadTrafficSourceProjection;
+      buildingAccess: BuildingTrafficAccessProjection;
+    }>;
+  }>,
+): TrafficSnapshotV1 {
   const buildingRevision = input.trafficSourceAfter.buildingAccess.buildingRevision;
   const vehicleGraph = withBuildingRevision(
     deriveVehicleTrafficGraph(input.trafficSourceAfter.roads),
@@ -39,7 +41,9 @@ export function reconcileTrafficAfterRoadChange(input: Readonly<{
     vehicleGraph,
     pedestrianGraph,
   );
-  const accessByBuilding = new Map(access.map((entry) => [entry.buildingInstanceId, entry] as const));
+  const accessByBuilding = new Map(
+    access.map((entry) => [entry.buildingInstanceId, entry] as const),
+  );
   const previousProjectionGraph: TrafficGraph = Object.freeze({
     sourceRoadRevision: input.traffic.graphSourceRoadRevision,
     sourceBuildingRevision: input.traffic.graphSourceBuildingRevision,
@@ -54,7 +58,9 @@ export function reconcileTrafficAfterRoadChange(input: Readonly<{
     }),
     graph: previousProjectionGraph,
   }).nextCostField;
-  const mobilityTripById = new Map(input.mobility.trips.map((trip) => [trip.tripId, trip] as const));
+  const mobilityTripById = new Map(
+    input.mobility.trips.map((trip) => [trip.tripId, trip] as const),
+  );
 
   const nextTrips = input.traffic.activeTrips.map((trip) => {
     if (trip.status !== 'Active') return trip;

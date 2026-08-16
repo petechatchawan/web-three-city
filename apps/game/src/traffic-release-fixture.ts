@@ -23,11 +23,7 @@ import {
   synchronizeWorkplaceInventory,
   type RciSnapshot,
 } from '@web-three-city/rci-core';
-import {
-  BASIC_ROAD_CODE,
-  createRoadSnapshot,
-  type RoadSnapshot,
-} from '@web-three-city/road-core';
+import { BASIC_ROAD_CODE, createRoadSnapshot, type RoadSnapshot } from '@web-three-city/road-core';
 import { createSimulationSnapshot, type SimulationSnapshot } from '@web-three-city/simulation-core';
 import { createTerrainMap, type TerrainSnapshot } from '@web-three-city/terrain-core';
 import { createEmptyTrafficSnapshot, type TrafficSnapshotV1 } from '@web-three-city/traffic-core';
@@ -39,7 +35,10 @@ import {
   createZoneSnapshot,
   type ZoneSnapshot,
 } from '@web-three-city/zone-core';
-import { createCommittedWorldFromDomainState, type CommittedWorld } from './application/committed-world.js';
+import {
+  createCommittedWorldFromDomainState,
+  type CommittedWorld,
+} from './application/committed-world.js';
 import { createPresentCitizenMobilityProjection } from './mobility-source-projection.js';
 import { encodeWorldSaveV7, type WorldSaveV7 } from './world-save.js';
 
@@ -124,9 +123,7 @@ function createFixtureRoads(): Readonly<{
       },
       WORLD_CONFIG,
     ),
-    alternateRouteCells: Object.freeze(
-      alternate.sort((a, b) => a.z - b.z || a.x - b.x),
-    ),
+    alternateRouteCells: Object.freeze(alternate.sort((a, b) => a.z - b.z || a.x - b.x)),
   });
 }
 
@@ -212,7 +209,8 @@ function clusteredCitizenIds(count: number): readonly string[] {
     const citizenId = `citizen:${numericId}`;
     if (deterministicScheduleOffset(citizenId, 0) <= 18) selected.push(citizenId);
   }
-  if (selected.length !== count) throw new Error('traffic-release-fixture:insufficient-citizen-ids');
+  if (selected.length !== count)
+    throw new Error('traffic-release-fixture:insufficient-citizen-ids');
   return Object.freeze(selected);
 }
 
@@ -230,8 +228,7 @@ function fixtureCitizens(): readonly FixtureCitizen[] {
         householdId: `household:${index + 1}`,
         dwellingUnitId: `dwelling:${homeBuildingId}:0`,
         workplaceId: `workplace:${workBuildingId}`,
-        departureGameMinute:
-          420 + deterministicScheduleOffset(citizenId, 0),
+        departureGameMinute: 420 + deterministicScheduleOffset(citizenId, 0),
         expectedMode,
       });
     }),
@@ -256,7 +253,9 @@ function createFixtureRci(
     absoluteTick: simulation.absoluteTick,
     deterministicSeed: 20260816,
   });
-  const numericCitizenIds = citizens.map((citizen) => Number(citizen.citizenId.slice('citizen:'.length)));
+  const numericCitizenIds = citizens.map((citizen) =>
+    Number(citizen.citizenId.slice('citizen:'.length)),
+  );
   const base: RciSnapshot = {
     ...initial,
     revision: 1,
@@ -422,10 +421,14 @@ export function createTrafficReleaseFixture(): TrafficReleaseFixture {
     startAbsoluteTick: simulation.absoluteTick,
     citizenIds: Object.freeze(citizens.map((citizen) => citizen.citizenId)),
     walkCitizenIds: Object.freeze(
-      citizens.filter((citizen) => citizen.expectedMode === 'Walk').map((citizen) => citizen.citizenId),
+      citizens
+        .filter((citizen) => citizen.expectedMode === 'Walk')
+        .map((citizen) => citizen.citizenId),
     ),
     driveCitizenIds: Object.freeze(
-      citizens.filter((citizen) => citizen.expectedMode === 'Drive').map((citizen) => citizen.citizenId),
+      citizens
+        .filter((citizen) => citizen.expectedMode === 'Drive')
+        .map((citizen) => citizen.citizenId),
     ),
     departureGameMinutes,
     homeBuildingByCitizen,

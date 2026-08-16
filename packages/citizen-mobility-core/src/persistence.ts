@@ -35,11 +35,14 @@ const failureReasons = new Set(['Unreachable', 'OriginUnavailable', 'Destination
 function parseCitizenState(value: unknown): CitizenMobilityState | null {
   if (!isRecord(value)) return null;
   if (typeof value.citizenId !== 'string') return null;
-  if (typeof value.currentActivity !== 'string' || !activities.has(value.currentActivity)) return null;
-  if (value.stationaryBuildingId !== null && typeof value.stationaryBuildingId !== 'string') return null;
+  if (typeof value.currentActivity !== 'string' || !activities.has(value.currentActivity))
+    return null;
+  if (value.stationaryBuildingId !== null && typeof value.stationaryBuildingId !== 'string')
+    return null;
   if (value.activeTripId !== null && typeof value.activeTripId !== 'string') return null;
   if (!Number.isSafeInteger(value.scheduleCursorDay)) return null;
-  if (value.nextBoundaryGameMinute !== null && !Number.isSafeInteger(value.nextBoundaryGameMinute)) return null;
+  if (value.nextBoundaryGameMinute !== null && !Number.isSafeInteger(value.nextBoundaryGameMinute))
+    return null;
   return Object.freeze({
     citizenId: value.citizenId,
     currentActivity: value.currentActivity as CitizenMobilityState['currentActivity'],
@@ -54,11 +57,17 @@ function parseTrip(value: unknown): MobilityTrip | null {
   if (!isRecord(value)) return null;
   if (typeof value.tripId !== 'string' || typeof value.citizenId !== 'string') return null;
   if (typeof value.purpose !== 'string' || !purposes.has(value.purpose)) return null;
-  if (typeof value.originBuildingId !== 'string' || typeof value.destinationBuildingId !== 'string') return null;
-  if (value.mode !== null && (typeof value.mode !== 'string' || !modes.has(value.mode))) return null;
+  if (typeof value.originBuildingId !== 'string' || typeof value.destinationBuildingId !== 'string')
+    return null;
+  if (value.mode !== null && (typeof value.mode !== 'string' || !modes.has(value.mode)))
+    return null;
   if (!Number.isSafeInteger(value.departureGameMinute)) return null;
   if (typeof value.status !== 'string' || !statuses.has(value.status)) return null;
-  if (value.failureReason !== null && (typeof value.failureReason !== 'string' || !failureReasons.has(value.failureReason))) return null;
+  if (
+    value.failureReason !== null &&
+    (typeof value.failureReason !== 'string' || !failureReasons.has(value.failureReason))
+  )
+    return null;
   return Object.freeze({
     tripId: value.tripId,
     citizenId: value.citizenId,
@@ -80,13 +89,16 @@ export function encodeMobilitySaveV1(snapshot: MobilitySnapshotV1): MobilitySave
     policyVersion: MOBILITY_POLICY_VERSION,
     scheduleSeedVersion: MOBILITY_SCHEDULE_SEED_VERSION,
     nextTripSequence: canonical.nextTripSequence,
-    citizenStates: Object.freeze(canonical.citizenStates.map((state) => Object.freeze({ ...state }))),
+    citizenStates: Object.freeze(
+      canonical.citizenStates.map((state) => Object.freeze({ ...state })),
+    ),
     trips: Object.freeze(canonical.trips.map((trip) => Object.freeze({ ...trip }))),
   });
 }
 
 export function decodeMobilitySaveV1(input: unknown): MobilitySaveDecodeResult {
-  if (!isRecord(input)) return Object.freeze({ ok: false, error: Object.freeze({ code: 'mobility-save:invalid' }) });
+  if (!isRecord(input))
+    return Object.freeze({ ok: false, error: Object.freeze({ code: 'mobility-save:invalid' }) });
   if (
     input.schemaVersion !== MOBILITY_SCHEMA_VERSION ||
     input.policyVersion !== MOBILITY_POLICY_VERSION ||

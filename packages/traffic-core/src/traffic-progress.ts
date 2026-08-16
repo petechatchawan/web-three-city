@@ -38,10 +38,7 @@ function isServiceIntersection(graph: TrafficGraph, nodeId: string): boolean {
   return neighbors.size >= 3;
 }
 
-function releasedFromQueue(
-  trip: ActiveTransportTrip,
-  graph: TrafficGraph,
-): ActiveTransportTrip {
+function releasedFromQueue(trip: ActiveTransportTrip, graph: TrafficGraph): ActiveTransportTrip {
   if (trip.queuedMovement === null) return trip;
   const fromEdge = graph.edges.find((edge) => edge.edgeId === trip.queuedMovement!.fromEdgeId);
   if (fromEdge === undefined) throw new TrafficContractError('traffic:invalid-trip');
@@ -54,13 +51,15 @@ function releasedFromQueue(
   });
 }
 
-function advanceOneTrip(input: Readonly<{
-  trip: ActiveTransportTrip;
-  graph: TrafficGraph;
-  elapsedSeconds: number;
-  intervalStartGameSecond: number;
-  costField?: TrafficCostField;
-}>): Readonly<{
+function advanceOneTrip(
+  input: Readonly<{
+    trip: ActiveTransportTrip;
+    graph: TrafficGraph;
+    elapsedSeconds: number;
+    intervalStartGameSecond: number;
+    costField?: TrafficCostField;
+  }>,
+): Readonly<{
   trip: ActiveTransportTrip;
   arrived: boolean;
   newlyQueued: boolean;
@@ -86,9 +85,7 @@ function advanceOneTrip(input: Readonly<{
       Math.ceil((travelSeconds * remainingQ) / TRAFFIC_PROGRESS_MAX_Q),
     );
     if (elapsedRemaining < secondsToFinish) {
-      const progressAdded = Math.floor(
-        (elapsedRemaining * TRAFFIC_PROGRESS_MAX_Q) / travelSeconds,
-      );
+      const progressAdded = Math.floor((elapsedRemaining * TRAFFIC_PROGRESS_MAX_Q) / travelSeconds);
       trip = Object.freeze({
         ...trip,
         progressQ: Math.min(
@@ -118,7 +115,11 @@ function advanceOneTrip(input: Readonly<{
 
     const nextEdgeId = trip.routeEdgeIds[nextIndex]!;
     const nextEdge = edgeById.get(nextEdgeId);
-    if (nextEdge === undefined || nextEdge.fromNodeId !== edge.toNodeId || nextEdge.mode !== trip.mode) {
+    if (
+      nextEdge === undefined ||
+      nextEdge.fromNodeId !== edge.toNodeId ||
+      nextEdge.mode !== trip.mode
+    ) {
       throw new TrafficContractError('traffic:invalid-trip');
     }
 
@@ -146,13 +147,15 @@ function advanceOneTrip(input: Readonly<{
   return Object.freeze({ trip, arrived: false, newlyQueued: false });
 }
 
-export function advanceTrafficSnapshot(input: Readonly<{
-  snapshot: TrafficSnapshotV1;
-  graph: TrafficGraph;
-  elapsedSeconds: number;
-  intervalStartGameSecond: number;
-  costField?: TrafficCostField;
-}>): Readonly<{ snapshot: TrafficSnapshotV1; receipt: TrafficProgressReceipt }> {
+export function advanceTrafficSnapshot(
+  input: Readonly<{
+    snapshot: TrafficSnapshotV1;
+    graph: TrafficGraph;
+    elapsedSeconds: number;
+    intervalStartGameSecond: number;
+    costField?: TrafficCostField;
+  }>,
+): Readonly<{ snapshot: TrafficSnapshotV1; receipt: TrafficProgressReceipt }> {
   const snapshot = createTrafficSnapshot(input.snapshot);
   if (
     !Number.isSafeInteger(input.elapsedSeconds) ||
@@ -185,7 +188,9 @@ export function advanceTrafficSnapshot(input: Readonly<{
   const arrived: string[] = [];
   const newlyQueued: string[] = [];
   const nextTrips = snapshot.activeTrips.map((original) => {
-    const start = releasedSet.has(original.tripId) ? releasedFromQueue(original, input.graph) : original;
+    const start = releasedSet.has(original.tripId)
+      ? releasedFromQueue(original, input.graph)
+      : original;
     const advanced = advanceOneTrip({
       trip: start,
       graph: input.graph,

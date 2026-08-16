@@ -26,10 +26,42 @@ const graph: TrafficGraph = Object.freeze({
     { nodeId: 'S', xQ: 8_000, yQ: 0, zQ: 8_000 },
   ]),
   edges: Object.freeze([
-    { edgeId: 'ab', fromNodeId: 'A', toNodeId: 'B', mode: 'Drive', lengthQ: 8_000, freeFlowTravelSeconds: 10, capacityUnits: 2 },
-    { edgeId: 'bc', fromNodeId: 'B', toNodeId: 'C', mode: 'Drive', lengthQ: 8_000, freeFlowTravelSeconds: 10, capacityUnits: 2 },
-    { edgeId: 'nb', fromNodeId: 'N', toNodeId: 'B', mode: 'Drive', lengthQ: 8_000, freeFlowTravelSeconds: 10, capacityUnits: 2 },
-    { edgeId: 'bs', fromNodeId: 'B', toNodeId: 'S', mode: 'Drive', lengthQ: 8_000, freeFlowTravelSeconds: 10, capacityUnits: 2 },
+    {
+      edgeId: 'ab',
+      fromNodeId: 'A',
+      toNodeId: 'B',
+      mode: 'Drive',
+      lengthQ: 8_000,
+      freeFlowTravelSeconds: 10,
+      capacityUnits: 2,
+    },
+    {
+      edgeId: 'bc',
+      fromNodeId: 'B',
+      toNodeId: 'C',
+      mode: 'Drive',
+      lengthQ: 8_000,
+      freeFlowTravelSeconds: 10,
+      capacityUnits: 2,
+    },
+    {
+      edgeId: 'nb',
+      fromNodeId: 'N',
+      toNodeId: 'B',
+      mode: 'Drive',
+      lengthQ: 8_000,
+      freeFlowTravelSeconds: 10,
+      capacityUnits: 2,
+    },
+    {
+      edgeId: 'bs',
+      fromNodeId: 'B',
+      toNodeId: 'S',
+      mode: 'Drive',
+      lengthQ: 8_000,
+      freeFlowTravelSeconds: 10,
+      capacityUnits: 2,
+    },
   ]),
 });
 
@@ -124,8 +156,24 @@ describe('Traffic flow and persistence', () => {
       edges: Object.freeze([
         graph.edges.find((edge) => edge.edgeId === 'nb')!,
         graph.edges.find((edge) => edge.edgeId === 'bs')!,
-        { edgeId: 'bn', fromNodeId: 'B', toNodeId: 'N', mode: 'Drive', lengthQ: 8_000, freeFlowTravelSeconds: 10, capacityUnits: 2 },
-        { edgeId: 'nc', fromNodeId: 'N', toNodeId: 'C', mode: 'Drive', lengthQ: 12_000, freeFlowTravelSeconds: 15, capacityUnits: 2 },
+        {
+          edgeId: 'bn',
+          fromNodeId: 'B',
+          toNodeId: 'N',
+          mode: 'Drive',
+          lengthQ: 8_000,
+          freeFlowTravelSeconds: 10,
+          capacityUnits: 2,
+        },
+        {
+          edgeId: 'nc',
+          fromNodeId: 'N',
+          toNodeId: 'C',
+          mode: 'Drive',
+          lengthQ: 12_000,
+          freeFlowTravelSeconds: 15,
+          capacityUnits: 2,
+        },
       ]),
     });
     const current = Object.freeze({ ...active, lastStableNodeId: 'B' });

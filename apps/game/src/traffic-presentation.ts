@@ -29,7 +29,10 @@ function edgeLengthMillimeters(agent: TrafficPresentationAgent): number {
   return Math.max(1, Math.ceil(Math.sqrt(dx * dx + dy * dy + dz * dz)));
 }
 
-function compareAgentIdentity(first: TrafficPresentationAgent, second: TrafficPresentationAgent): number {
+function compareAgentIdentity(
+  first: TrafficPresentationAgent,
+  second: TrafficPresentationAgent,
+): number {
   return first.tripId < second.tripId ? -1 : first.tripId > second.tripId ? 1 : 0;
 }
 
@@ -42,7 +45,10 @@ export class TrafficPresentation {
   #debug: TrafficPresentationDebugSnapshot = EMPTY_TRAFFIC_PRESENTATION_DEBUG;
   #visibleAgents: readonly TrafficPresentationAgent[] = Object.freeze([]);
 
-  constructor(scene: Scene, policy: TrafficPresentationPolicy = FOUNDATION_TRAFFIC_PRESENTATION_POLICY) {
+  constructor(
+    scene: Scene,
+    policy: TrafficPresentationPolicy = FOUNDATION_TRAFFIC_PRESENTATION_POLICY,
+  ) {
     this.#policy = policy;
     scene.add(this.#pedestrians.root, this.#vehicles.root);
   }

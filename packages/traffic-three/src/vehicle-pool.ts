@@ -35,12 +35,14 @@ export class TrafficVehiclePool {
       return existing;
     }
     const reused = this.#available.pop();
-    const agent = reused ?? (() => {
-      const created = new TrafficVehicleAgent();
-      this.root.add(created.object);
-      this.#createdCount += 1;
-      return created;
-    })();
+    const agent =
+      reused ??
+      (() => {
+        const created = new TrafficVehicleAgent();
+        this.root.add(created.object);
+        this.#createdCount += 1;
+        return created;
+      })();
     if (reused !== undefined) this.#reuseCount += 1;
     agent.assign(input);
     this.#active.set(input.tripId, agent);

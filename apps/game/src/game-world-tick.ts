@@ -48,6 +48,21 @@ export interface GameWorldTickPlan {
   readonly invalidReason: string | null;
 }
 
+export function requiresMobilityTrafficSourceDerivation(
+  input: Readonly<{
+    citizenCount: number;
+    mobility: GameWorldState['mobility'];
+    traffic: GameWorldState['traffic'];
+  }>,
+): boolean {
+  return (
+    input.citizenCount > 0 ||
+    input.mobility.citizenStates.length > 0 ||
+    input.mobility.trips.length > 0 ||
+    input.traffic.activeTrips.length > 0
+  );
+}
+
 function emptyRciReceipt(state: GameWorldState): RciTickReceipt {
   return Object.freeze({
     beforeRevision: state.rci.revision,
@@ -170,20 +185,38 @@ export function planGameWorldTick(
       buildingCommit.buildings,
       buildingCommit.simulation.absoluteTick,
     );
+    const trafficSource = requiresMobilityTrafficSourceDerivation({
+      citizenCount: citizensAfter.length,
+      mobility: state.mobility,
+      traffic: state.traffic,
+    })
+      ? Object.freeze({
+          roads: createRoadTrafficSourceProjectionFromEnvironment(state.roads, input.environment),
+          buildingAccess: createBuildingTrafficAccessProjection(
+            buildingCommit.buildings,
+            state.roads,
+            input.environment,
+          ),
+        })
+      : Object.freeze({
+          roads: Object.freeze({
+            roadRevision: state.roads.revision,
+            width: input.config.mapWidth,
+            height: input.config.mapHeight,
+            cells: Object.freeze([]),
+          }),
+          buildingAccess: Object.freeze({
+            buildingRevision: buildingCommit.buildings.revision,
+            accesses: Object.freeze([]),
+          }),
+        });
     mobilityTraffic = planMobilityTrafficTick({
       mobilityBefore: state.mobility,
       trafficBefore: state.traffic,
       citizensAfter,
       simulationBefore: state.simulation,
       simulationAfter: buildingCommit.simulation,
-      trafficSource: {
-        roads: createRoadTrafficSourceProjectionFromEnvironment(state.roads, input.environment),
-        buildingAccess: createBuildingTrafficAccessProjection(
-          buildingCommit.buildings,
-          state.roads,
-          input.environment,
-        ),
-      },
+      trafficSource,
     });
   } catch (error) {
     return invalidTickPlan({

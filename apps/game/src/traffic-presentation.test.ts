@@ -52,6 +52,28 @@ function snapshot(): TrafficPresentationSnapshot {
   });
 }
 
+function withDriveDistance(
+  source: TrafficPresentationSnapshot,
+  trafficRevision: number,
+  routeDistanceMillimeters: number,
+): TrafficPresentationSnapshot {
+  return Object.freeze({
+    ...source,
+    trafficRevision,
+    agents: Object.freeze(
+      source.agents.map((agent) =>
+        agent.mode === 'Drive'
+          ? Object.freeze({
+              ...agent,
+              progressQ: Math.min(1_000_000, routeDistanceMillimeters * 125),
+              routeDistanceMillimeters,
+            })
+          : agent,
+      ),
+    ),
+  });
+}
+
 describe('TrafficPresentation real-agent contract', () => {
   it('materializes a real Walk trip and a real Drive trip into the shared Three.js scene', () => {
     const scene = new Scene();
@@ -79,18 +101,40 @@ describe('TrafficPresentation real-agent contract', () => {
     presentation.dispose();
   });
 
-  it('does not rerun heavy reconciliation on unchanged render frames', () => {
+  it('keeps reconciliation and route preparation off the stable RAF hot path', () => {
     const scene = new Scene();
     const presentation = new TrafficPresentation(scene);
     const committed = snapshot();
 
     presentation.update(committed, { x: 4, z: 4 }, 0, 1_000);
-    presentation.update(committed, { x: 4, z: 4 }, 1, 1_016);
-    presentation.update(committed, { x: 4, z: 4 }, 2, 1_032);
+    const warm = presentation.debugSnapshot();
+    expect(warm.reconciliationCount).toBe(1);
+    expect(warm.preparedRouteCount).toBe(2);
 
-    const debug = presentation.debugSnapshot() as unknown as Record<string, number>;
-    expect(debug.reconciliationCount).toBe(1);
-    expect(debug.frameSampleCount).toBe(3);
+    for (let frameIndex = 1; frameIndex <= 120; frameIndex += 1) {
+      presentation.update(committed, { x: 4, z: 4 }, frameIndex, 1_000 + frameIndex * 16);
+    }
+
+    const stable = presentation.debugSnapshot();
+    expect(stable.reconciliationCount).toBe(1);
+    expect(stable.frameSampleCount).toBe(121);
+    expect(stable.preparedRouteCount).toBe(warm.preparedRouteCount);
+
+    const target1x = withDriveDistance(committed, 8, 5_000);
+    const target2x = withDriveDistance(target1x, 9, 6_000);
+    const target4x = withDriveDistance(target2x, 10, 7_000);
+    presentation.update(target1x, { x: 4, z: 4 }, 121, 3_000);
+    presentation.update(target2x, { x: 4, z: 4 }, 122, 3_250);
+    presentation.update(target4x, { x: 4, z: 4 }, 123, 3_375);
+
+    const accelerated = presentation.debugSnapshot();
+    expect(accelerated.reconciliationCount).toBe(4);
+    expect(accelerated.frameSampleCount).toBe(124);
+    expect(accelerated.preparedRouteCount).toBe(warm.preparedRouteCount);
+    expect(accelerated.lastFrameTimestampMs).toBe(3_375);
+    expect(committed.trafficRevision).toBe(7);
+    expect(committed.agents[1]!.routeDistanceMillimeters).toBe(4_000);
+    expect(committed.agents[1]!.progressQ).toBe(500_000);
     presentation.dispose();
   });
 

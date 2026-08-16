@@ -22,7 +22,7 @@ Vercel Production — master Git integration
 - **Level 1 — Owning package.** Run the owning package `test` and `typecheck`; this is the default localized feedback loop.
 - **Level 2 — Affected consumers.** When a public/runtime/Save-facing contract can affect consumers, verify the packages selected by the static map in `AGENTS.md`.
 - **Level 3 — Repository/tooling finalization.** Run `pnpm verify` for root/workspace/tooling configuration changes and other Level 3 triggers.
-- **Level 4 — Browser/release/milestone closure.** Run `pnpm verify:full` when browser acceptance, release closure, milestone closure, or another explicit Level 4 trigger applies.
+- **Level 4 — Full Browser escalation.** Run `pnpm verify:full` only when release or milestone closure, shared browser infrastructure, or another explicit full-regression trigger requires the unfiltered Chromium authority.
 
 Canonical package loop:
 
@@ -33,16 +33,52 @@ pnpm --filter @web-three-city/<pkg> typecheck
 
 `pnpm verify` is a Level 3 finalization gate, not the default command after every small edit. Resolve Level 2 affected consumers from `AGENTS.md`, not agent memory.
 
+## Browser verification
+
+Browser-observable changes require targeted Playwright verification for the affected behavior before the pull request is ready. Prefer the smallest exact spec or ownership-tag subset that proves the changed contract:
+
+```bash
+pnpm exec playwright test browser-tests/<affected>.spec.ts
+pnpm exec playwright test --grep @traffic
+pnpm exec playwright test --grep @road
+pnpm exec playwright test --grep @rci
+pnpm exec playwright test --grep @smoke
+```
+
+Record the targeted command/spec and result in the pull request. Expand the subset when multiple browser domains or shared interaction paths are affected.
+
+**Full Browser is not the default gate for every PR.** Targeted browser verification is the normal browser-observable PR gate. Escalate to the unfiltered suite when release closure, milestone closure, or shared browser infrastructure makes the impact too broad to bound safely with targeted tests.
+
+Full Browser also remains available through the `full-ci` pull-request label and manual `workflow_dispatch`. A nightly scheduled CI run executes the same unfiltered regression authority on the default branch so broad regression coverage is retained without forcing every PR through the long suite.
+
+Targeted subsets are affected-behavior evidence; they must not be described as Full Browser or release-wide regression evidence.
+
 ## Pull request finalization
 
 Before a pull request is ready:
 
 - complete the targeted owner and affected-consumer checks required by the Verification Ladder;
+- when behavior is browser-observable, complete targeted Playwright verification for every affected browser path and record the evidence;
+- explicitly record whether Full Browser escalation is required and why;
 - synchronize required `docs/systems/<system>/README.md` living documentation in the same pull request;
 - run Level 3 and Level 4 only when their escalation triggers apply;
 - remove debug, generated, and temporary artifacts that are not intentional evidence.
 
+A browser-visible change does not automatically require Level 4. If the affected boundary is explicit and the targeted browser gate covers it, the PR can finalize without the unfiltered suite unless another release/milestone/shared-infrastructure trigger applies.
+
 For exact-head verification, commit the complete candidate first and verify that exact clean head. Final CI run IDs, artifact IDs, counts, and other post-run metadata may be recorded in the pull request body or comments without creating a metadata-only commit that would invalidate the verified SHA.
+
+## CI topology
+
+Lean CI is the mandatory repository verification owner for normal pull requests. It runs `pnpm check` and publishes the exact Game/Terrain Lab browser preview artifacts.
+
+Full Browser CI depends on Lean, consumes those exact artifacts, and runs only when:
+
+- the pull request has `full-ci`;
+- a maintainer uses `workflow_dispatch`; or
+- the nightly schedule executes.
+
+Full Browser CI does not rerun Lean-owned unit, typecheck, or build work.
 
 ## Vercel deployment policy
 
@@ -80,4 +116,4 @@ A Git tag may mark a release boundary on an accepted `master` commit. It does no
 
 ## Exact-head evidence
 
-When Level 4 applies, evidence must identify the exact candidate SHA and the actual required verification result. A tree change after successful exact-head verification creates a new candidate and requires the relevant verification again. Pull request body/comment metadata updates do not change the tree and are the preferred location for post-run CI identifiers.
+When Level 4 applies, evidence must identify the exact candidate SHA and the actual required Full Browser result. For a browser-observable PR that does not trigger Level 4, record the exact targeted Playwright evidence required by the owning change instead. A tree change after successful exact-head verification creates a new candidate and requires the relevant verification again. Pull request body/comment metadata updates do not change the tree and are the preferred location for post-run CI identifiers.

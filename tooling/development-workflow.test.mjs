@@ -209,6 +209,13 @@ test('development workflow reserves Full Browser for explicit escalation', async
   assert.match(workflow, /nightly/i);
 });
 
+test('Development Workflow living handoff records targeted browser CI', async () => {
+  const readme = await readRepoText('docs/systems/development-workflow/README.md');
+  assert.match(readme, /Targeted browser tags:\s*traffic building/i);
+  assert.match(readme, /targeted-browser CI job.*Lean preview artifact/is);
+  assert.match(readme, /Full Browser is not the default gate for every PR/i);
+});
+
 test('system registry reports implemented RCI and the Development Workflow system', async () => {
   const registry = await readRepoText('docs/systems/README.md');
   assert.match(

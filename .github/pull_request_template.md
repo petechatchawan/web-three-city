@@ -15,6 +15,7 @@ Apply `AGENTS.md` § Verification Escalation Rules directly; do not independentl
 - [ ] Full Browser escalation decision recorded (`required` / `not required`) with reason.
 - [ ] Final repository/CI evidence is recorded for the required level.
 
+Targeted browser tags:  
 Full Browser escalation: `required` / `not required`  
 Reason:
 

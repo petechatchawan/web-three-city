@@ -97,6 +97,29 @@ function settleTerminalTraffic(
   });
 }
 
+function emptyTickResult(
+  mobilityBefore: MobilitySnapshotV1,
+  trafficBefore: TrafficSnapshotV1,
+  roadRevision: number,
+  buildingRevision: number,
+): MobilityTrafficTickResult {
+  const traffic =
+    trafficBefore.graphSourceRoadRevision === roadRevision &&
+    trafficBefore.graphSourceBuildingRevision === buildingRevision
+      ? trafficBefore
+      : createTrafficSnapshot({
+          ...trafficBefore,
+          graphSourceRoadRevision: roadRevision,
+          graphSourceBuildingRevision: buildingRevision,
+        });
+  return Object.freeze({
+    mobility: mobilityBefore,
+    traffic,
+    mobilityReceipts: Object.freeze([]),
+    trafficReceipts: Object.freeze([]),
+  });
+}
+
 export function isTrafficJourneyDepartureReceipt(
   receipt: Readonly<Record<string, unknown>>,
 ): receipt is TrafficJourneyDepartureReceipt {
@@ -136,6 +159,19 @@ export function planMobilityTrafficTick(
       mobilityReceipts: Object.freeze([]),
       trafficReceipts: Object.freeze([]),
     });
+  }
+  if (
+    input.citizensAfter.length === 0 &&
+    input.mobilityBefore.citizenStates.length === 0 &&
+    input.mobilityBefore.trips.length === 0 &&
+    input.trafficBefore.activeTrips.length === 0
+  ) {
+    return emptyTickResult(
+      input.mobilityBefore,
+      input.trafficBefore,
+      input.trafficSource.roads.roadRevision,
+      input.trafficSource.buildingAccess.buildingRevision,
+    );
   }
 
   const buildingRevision = input.trafficSource.buildingAccess.buildingRevision;

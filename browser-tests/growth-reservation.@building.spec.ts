@@ -5,10 +5,7 @@ import {
   prepareBuildingFixtureWorld,
 } from './helpers/building-fixture.js';
 import { openBuildCategory, waitForCityUi } from './helpers/city-ui.js';
-import {
-  prepareDeterministicGrowthClock,
-  stepLogicalTicks,
-} from './helpers/growth-fixture.js';
+import { prepareDeterministicGrowthClock, stepLogicalTicks } from './helpers/growth-fixture.js';
 import { GAME_URL } from './helpers/interaction.js';
 
 test.describe.configure({ timeout: 60_000 });

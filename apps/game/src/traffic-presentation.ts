@@ -124,6 +124,7 @@ export class TrafficPresentation {
   #visibleAgents: readonly TrafficPresentationAgent[] = Object.freeze([]);
   #vehicleMotion = new Map<string, VehicleMotionState>();
   #vehicleArrivals = new Map<string, VehicleArrivalState>();
+  #activeVehicleIds: ReadonlySet<string> = new Set();
   #lastSnapshotTimestampMs: number | null = null;
 
   constructor(
@@ -190,6 +191,11 @@ export class TrafficPresentation {
     const snapshotChanged = this.#lastTrafficRevision !== snapshot.trafficRevision;
     if (this.#spatialIndex === null || this.#lastTrafficRevision !== snapshot.trafficRevision) {
       this.#spatialIndex = new TrafficSpatialIndex(snapshot.agents);
+    }
+    if (snapshotChanged) {
+      this.#activeVehicleIds = new Set(
+        snapshot.agents.filter((agent) => agent.mode === 'Drive').map((agent) => agent.tripId),
+      );
     }
     const query = this.#spatialIndex.query({
       centerX: camera.x,
@@ -290,7 +296,7 @@ export class TrafficPresentation {
     }
 
     this.#pedestrians.retainOnly(retainedPedestrians);
-    this.#updateVehicleArrivals(snapshot, selectedVehicleIds, retainedVehicles, timestampMs);
+    this.#updateVehicleArrivals(selectedVehicleIds, retainedVehicles, timestampMs);
     this.#vehicles.retainOnly(retainedVehicles);
     this.#visibleAgents = Object.freeze(visibleAgents.sort(compareAgentIdentity));
     this.#lastTrafficRevision = snapshot.trafficRevision;
@@ -322,6 +328,7 @@ export class TrafficPresentation {
     this.#lastTrafficRevision = -1;
     this.#vehicleMotion.clear();
     this.#vehicleArrivals.clear();
+    this.#activeVehicleIds = new Set();
     this.#lastSnapshotTimestampMs = null;
     this.#debug = EMPTY_TRAFFIC_PRESENTATION_DEBUG;
   }
@@ -339,6 +346,7 @@ export class TrafficPresentation {
     this.#visibleAgents = Object.freeze([]);
     this.#vehicleMotion.clear();
     this.#vehicleArrivals.clear();
+    this.#activeVehicleIds = new Set();
     this.#lastSnapshotTimestampMs = null;
   }
 
@@ -420,16 +428,12 @@ export class TrafficPresentation {
   }
 
   #updateVehicleArrivals(
-    snapshot: TrafficPresentationSnapshot,
     selectedVehicleIds: ReadonlySet<string>,
     retainedVehicles: Set<string>,
     timestampMs: number,
   ): void {
-    const activeVehicleIds = new Set(
-      snapshot.agents.filter((agent) => agent.mode === 'Drive').map((agent) => agent.tripId),
-    );
     for (const [tripId, motion] of this.#vehicleMotion) {
-      if (activeVehicleIds.has(tripId) || selectedVehicleIds.has(tripId)) continue;
+      if (this.#activeVehicleIds.has(tripId) || selectedVehicleIds.has(tripId)) continue;
       let arrival = this.#vehicleArrivals.get(tripId);
       if (arrival === undefined) {
         arrival = Object.freeze({

@@ -27,6 +27,7 @@ import {
   createTrafficReleaseFixture,
   type TrafficReleaseFixtureSummary,
 } from './traffic-release-fixture.js';
+import { createTrafficRecoveryReleaseFixture } from './traffic-recovery-release-fixture.js';
 import { takeTrafficJourneyReceipts } from './traffic-journey-receipt-registry.js';
 import { TrafficRuntimePresentation } from './traffic-runtime-presentation.js';
 import { mountCityUi } from './ui/city-ui-runtime.js';
@@ -45,6 +46,13 @@ interface GameTimeTestApi {
   readonly resetForTest: () => void;
 }
 
+interface TrafficRecoveryFixtureSummary {
+  readonly citizenId: string;
+  readonly tripId: string;
+  readonly routeEdgeIds: readonly string[];
+  readonly primaryRoadCutCell: Readonly<{ x: number; z: number }>;
+}
+
 interface TrafficTestApi {
   readonly snapshot: () => Readonly<{
     readonly worldRevision: number;
@@ -55,6 +63,7 @@ interface TrafficTestApi {
     readonly presentation: ReturnType<TrafficRuntimePresentation['debugSnapshot']> | null;
   }>;
   readonly installReleaseFixture: () => TrafficReleaseFixtureSummary;
+  readonly installRoadRecoveryFixture: () => TrafficRecoveryFixtureSummary;
   readonly saveWorld: () => void;
   readonly loadWorld: () => void;
   readonly setTrafficView: (active: boolean) => void;
@@ -170,6 +179,13 @@ function setInformationView(key: 'grid' | 'zoning' | 'traffic' | null): void {
   runtime.setInformationView(key);
 }
 
+function installWorldSaveFixture(payload: unknown): void {
+  localStorage.setItem(WORLD_SAVE_KEY, JSON.stringify(payload));
+  automaticGrowthEnabled = true;
+  setSimulationSpeed('paused');
+  runtime.loadWorld();
+}
+
 const cityUi = mountCityUi(root, {
   setSpeed: setSimulationSpeed,
   selectTool: (mode) => runtime.selectTool(mode),
@@ -243,12 +259,20 @@ timeWindow.__WEB_THREE_CITY_TRAFFIC__ = Object.freeze({
   },
   installReleaseFixture(): TrafficReleaseFixtureSummary {
     const fixture = createTrafficReleaseFixture();
-    localStorage.setItem(WORLD_SAVE_KEY, JSON.stringify(fixture.save));
-    automaticGrowthEnabled = true;
-    setSimulationSpeed('paused');
-    runtime.loadWorld();
+    installWorldSaveFixture(fixture.save);
     trafficRuntime?.setCameraAnchorFromCell({ x: 64, z: 64 });
     return fixture.summary;
+  },
+  installRoadRecoveryFixture(): TrafficRecoveryFixtureSummary {
+    const fixture = createTrafficRecoveryReleaseFixture();
+    installWorldSaveFixture(fixture.save);
+    trafficRuntime?.setCameraAnchorFromCell(fixture.primaryRoadCutCell);
+    return Object.freeze({
+      citizenId: fixture.citizenId,
+      tripId: fixture.tripId,
+      routeEdgeIds: fixture.routeEdgeIds,
+      primaryRoadCutCell: fixture.primaryRoadCutCell,
+    });
   },
   saveWorld(): void {
     runtime.saveWorld();

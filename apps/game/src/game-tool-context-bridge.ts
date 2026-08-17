@@ -169,7 +169,11 @@ export function toolLabel(mode: GameToolMode): string {
     case 'flatten':
       return 'Flatten';
     case 'road-build':
-      return 'Build Road';
+      return 'Local Street';
+    case 'road-build-collector':
+      return 'Collector Road';
+    case 'road-build-arterial':
+      return 'Arterial Road';
     case 'road-bulldoze':
       return 'Bulldoze Road';
     case 'zone-residential':

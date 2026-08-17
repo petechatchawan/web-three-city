@@ -10,7 +10,7 @@ import type { RoadToolMode } from './game-tool-mode.js';
 import { createReversibleCellTrace, type ReversibleCellTrace } from './reversible-cell-trace.js';
 
 export interface RoadInputState {
-  readonly mode: RoadToolMode | null;
+  readonly mode: 'road-build' | 'road-bulldoze' | null;
   readonly strokeActive: boolean;
   readonly previewValid: boolean | null;
   readonly previewCellCount: number;
@@ -49,6 +49,11 @@ interface RoadStrokeSession {
 
 function operationForMode(mode: RoadToolMode): 'build' | 'bulldoze' {
   return mode === 'road-bulldoze' ? 'bulldoze' : 'build';
+}
+
+function inputModeForMode(mode: RoadToolMode | null): RoadInputState['mode'] {
+  if (mode === null) return null;
+  return operationForMode(mode) === 'bulldoze' ? 'road-bulldoze' : 'road-build';
 }
 
 function definitionForMode(mode: RoadToolMode): RoadDefinitionId {
@@ -130,7 +135,7 @@ export function createRoadStrokeController(
     getState(): RoadInputState {
       const mode = options.getMode();
       return {
-        mode,
+        mode: inputModeForMode(mode),
         strokeActive: session !== null,
         previewValid: session?.plan?.valid ?? null,
         previewCellCount: session?.plan?.requestedCells.length ?? 0,

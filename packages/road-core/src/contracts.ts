@@ -13,9 +13,7 @@ export const ROAD_WEST = 1 << 3;
 
 export type RoadDefinitionId = 'basic-road' | 'collector-road' | 'arterial-road';
 export type OccupiedRoadDefinitionCode =
-  | typeof BASIC_ROAD_CODE
-  | typeof COLLECTOR_ROAD_CODE
-  | typeof ARTERIAL_ROAD_CODE;
+  typeof BASIC_ROAD_CODE | typeof COLLECTOR_ROAD_CODE | typeof ARTERIAL_ROAD_CODE;
 export type RoadDefinitionCode = typeof EMPTY_ROAD_CODE | OccupiedRoadDefinitionCode;
 export type RoadOperation = 'build' | 'bulldoze';
 export type RoadConnectionMask = number;

@@ -1,7 +1,7 @@
 import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
 import {
-  BASIC_ROAD_CODE,
   EMPTY_ROAD_CODE,
+  isRoadDefinitionCode,
   type RoadDefinitionCode,
   type RoadSnapshot,
 } from './contracts.js';
@@ -48,7 +48,7 @@ export function createRoadSnapshot(
 
   const codes = input.definitionCodes.slice();
   for (const code of codes) {
-    if (code !== EMPTY_ROAD_CODE && code !== BASIC_ROAD_CODE) {
+    if (!isRoadDefinitionCode(code)) {
       throw new RangeError('road-snapshot:unknown-definition-code');
     }
   }

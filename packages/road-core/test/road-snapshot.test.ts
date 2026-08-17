@@ -105,7 +105,7 @@ describe('road snapshot', () => {
     ).toThrow('road-snapshot:invalid-byte-length');
 
     const unknown = valid.slice();
-    unknown[0] = 2;
+    unknown[0] = 4;
     expect(() =>
       createRoadSnapshot(
         {

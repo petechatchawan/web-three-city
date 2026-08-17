@@ -114,7 +114,7 @@ describe('RoadSaveV1', () => {
     });
 
     const unknown = new Uint8Array(CELL_COUNT);
-    unknown[0] = 2;
+    unknown[0] = 4;
     const unknownSave: RoadSaveV1 = {
       schemaVersion: 1,
       width: WORLD_CONFIG.mapWidth,

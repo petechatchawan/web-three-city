@@ -1,7 +1,6 @@
 import { chunkForCell, type ChunkCoord } from '@web-three-city/terrain-core';
 import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
 import {
-  BASIC_ROAD_CODE,
   EMPTY_ROAD_CODE,
   RoadContractError,
   roadDefinitionForId,
@@ -104,7 +103,9 @@ function deriveMutation(
   for (const cell of affected) {
     const beforeMask = roadConnectionMaskAt(roads, cell, environment, config);
     const afterMask = roadConnectionMaskAt(proposed, cell, environment, config);
-    if (beforeMask !== afterMask) topologyChanged.push(cell);
+    const definitionChanged =
+      roadDefinitionCodeAt(roads, cell) !== roadDefinitionCodeAt(proposed, cell);
+    if (beforeMask !== afterMask || definitionChanged) topologyChanged.push(cell);
   }
 
   for (const cell of affected) {
@@ -160,6 +161,7 @@ export function planRoadMutation(
   config: WorldConfig,
 ): RoadMutationPlan {
   let invalidReason: RoadInvalidReason | null = null;
+  let requestedDefinitionCode = EMPTY_ROAD_CODE;
   try {
     createRoadSnapshot(
       {
@@ -170,7 +172,7 @@ export function planRoadMutation(
       },
       config,
     );
-    roadDefinitionForId(input.definitionId);
+    requestedDefinitionCode = roadDefinitionForId(input.definitionId).code;
   } catch {
     invalidReason = 'road:invalid-state';
   }
@@ -189,25 +191,28 @@ export function planRoadMutation(
   const proposedCodes = roads.definitionCodes;
   const added: CellCoord[] = [];
   const removed: CellCoord[] = [];
+  const changed: CellCoord[] = [];
 
   if (invalidReason === null) {
     for (const cell of requestedCells) {
       const index = cellKey(cell, config);
       const before = proposedCodes[index]!;
-      if (input.operation === 'build' && before === EMPTY_ROAD_CODE) {
-        proposedCodes[index] = BASIC_ROAD_CODE;
-        added.push(cell);
+      if (input.operation === 'build' && before !== requestedDefinitionCode) {
+        proposedCodes[index] = requestedDefinitionCode;
+        changed.push(cell);
+        if (before === EMPTY_ROAD_CODE) added.push(cell);
       } else if (input.operation === 'bulldoze' && before !== EMPTY_ROAD_CODE) {
         proposedCodes[index] = EMPTY_ROAD_CODE;
+        changed.push(cell);
         removed.push(cell);
       }
     }
-    if (added.length === 0 && removed.length === 0) invalidReason = 'road:no-change';
+    if (changed.length === 0) invalidReason = 'road:no-change';
   }
 
   const addedCells = sortCells(added);
   const removedCells = sortCells(removed);
-  const changedCells = sortCells([...addedCells, ...removedCells]);
+  const changedCells = sortCells(changed);
   let topologyChangedCells: readonly CellCoord[] = Object.freeze([]);
   if (invalidReason === null) {
     try {
@@ -281,22 +286,30 @@ export function commitRoadMutation(
     );
     const added: CellCoord[] = [];
     const removed: CellCoord[] = [];
+    const changed: CellCoord[] = [];
     for (let z = 0; z < config.mapHeight; z += 1) {
       for (let x = 0; x < config.mapWidth; x += 1) {
         const cell = { x, z };
         const before = roadDefinitionCodeAt(roads, cell);
         const after = roadDefinitionCodeAt(proposed, cell);
-        if (before === EMPTY_ROAD_CODE && after === BASIC_ROAD_CODE) added.push(cell);
-        if (before === BASIC_ROAD_CODE && after === EMPTY_ROAD_CODE) removed.push(cell);
+        if (before === after) continue;
+        changed.push(cell);
+        if (before === EMPTY_ROAD_CODE && after !== EMPTY_ROAD_CODE) added.push(cell);
+        if (before !== EMPTY_ROAD_CODE && after === EMPTY_ROAD_CODE) removed.push(cell);
       }
     }
     const addedCells = sortCells(added);
     const removedCells = sortCells(removed);
+    const changedCells = sortCells(changed);
     if (!sameCells(addedCells, plan.addedCells) || !sameCells(removedCells, plan.removedCells)) {
       throw new RoadContractError('road:invalid-proposed-state');
     }
 
-    const changedCells = sortCells([...addedCells, ...removedCells]);
+    const requestedKeys = new Set(plan.requestedCells.map((cell) => cellKey(cell, config)));
+    if (changedCells.some((cell) => !requestedKeys.has(cellKey(cell, config)))) {
+      throw new RoadContractError('road:invalid-proposed-state');
+    }
+
     const derived = deriveMutation(roads, proposed, changedCells, environment, config);
     if (
       derived.invalidReason !== null ||

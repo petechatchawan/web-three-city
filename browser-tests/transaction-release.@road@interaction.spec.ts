@@ -40,7 +40,7 @@ test('Road pointer capture released outside the map commits the latest valid pla
   await openBuildCategory(page, 'roads');
   await page.getByRole('button', { name: 'Build Road' }).click();
   await expect(page.getByTestId('build-picker')).toBeHidden();
-  await expect(page.locator('.city-tool-context-name')).toHaveText('Build Road');
+  await expect(page.locator('.city-tool-context-name')).toHaveText('Local Street');
   const before = await readEvidence(page);
 
   await page.mouse.move(point.x, point.y);
@@ -57,6 +57,6 @@ test('Road pointer capture released outside the map commits the latest valid pla
   expect(after.road.committedRoadRevision).toBe(before.road.committedRoadRevision + 1);
   expect(after.road.occupiedCellCount).toBe(before.road.occupiedCellCount + 1);
   await expect(page.getByTestId('tool-context-status')).toHaveText('Road built');
-  await expect(page.locator('.city-tool-context-name')).toHaveText('Build Road');
+  await expect(page.locator('.city-tool-context-name')).toHaveText('Local Street');
   await expect(page.getByTestId('nav-build')).toHaveAttribute('aria-pressed', 'false');
 });

@@ -34,16 +34,24 @@ export function quoteRoadMutationCost(
   plan: Readonly<{ valid: boolean; addedCellCount: number; removedCellCount: number }>,
   rules: EconomyRulesV1,
 ): ActionQuoteResult {
+  if (!plan.valid) return { ok: false, reason: 'invalid-plan' };
   if (plan.addedCellCount > 0 && plan.removedCellCount > 0)
     return { ok: false, reason: 'invalid-plan' };
-  return plan.addedCellCount > 0
-    ? quote(
-        plan.valid,
-        plan.addedCellCount,
-        rules.roadConstructionCostPerAddedCellMinor,
-        'roadConstruction',
-      )
-    : quote(plan.valid, plan.removedCellCount, rules.bulldozeCostPerRemovedCellMinor, 'bulldoze');
+  if (plan.addedCellCount > 0) {
+    return quote(
+      true,
+      plan.addedCellCount,
+      rules.roadConstructionCostPerAddedCellMinor,
+      'roadConstruction',
+    );
+  }
+  if (plan.removedCellCount > 0) {
+    return quote(true, plan.removedCellCount, rules.bulldozeCostPerRemovedCellMinor, 'bulldoze');
+  }
+  // A valid zero-occupancy-delta Road mutation is a definition replacement/upgrade.
+  // Economy v0.1 has no road-type upgrade pricing contract, so PR2 keeps it valid and
+  // zero-cost rather than inventing a price or rejecting the authoritative Road change.
+  return { ok: true, category: 'roadConstruction', totalMinor: 0 };
 }
 
 export function quoteTerraformCost(

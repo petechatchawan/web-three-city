@@ -66,7 +66,10 @@ describe('Road Lane Presentation v1', () => {
   });
 
   it('keeps carriageway surface width derived from the canonical Road definition', () => {
-    const local = buildRoadCellMesh(view(BASIC_ROAD_DEFINITION, ROAD_NORTH | ROAD_SOUTH), WORLD_CONFIG);
+    const local = buildRoadCellMesh(
+      view(BASIC_ROAD_DEFINITION, ROAD_NORTH | ROAD_SOUTH),
+      WORLD_CONFIG,
+    );
     const collector = buildRoadCellMesh(
       view(COLLECTOR_ROAD_DEFINITION, ROAD_NORTH | ROAD_SOUTH),
       WORLD_CONFIG,

@@ -141,41 +141,38 @@ describe('Road type replacement semantics', () => {
     });
   });
 
-  it(
-    'supports deterministic Collector→Arterial→Local replacement and rejects same-type build',
-    () => {
-      const cell = { x: 7, z: 8 };
-      const env = environment();
-      const collector = snapshotWith(COLLECTOR_ROAD_CODE, cell);
+  it('supports deterministic Collector→Arterial→Local replacement and rejects same-type build', () => {
+    const cell = { x: 7, z: 8 };
+    const env = environment();
+    const collector = snapshotWith(COLLECTOR_ROAD_CODE, cell);
 
-      const arterialPlan = planRoadMutation(
-        collector,
-        { operation: 'build', definitionId: 'arterial-road', cells: [cell] },
-        env,
-        WORLD_CONFIG,
-      );
-      expect(arterialPlan.valid).toBe(true);
-      const arterial = commitRoadMutation(collector, arterialPlan, env, WORLD_CONFIG).snapshot;
-      expect(roadDefinitionCodeAt(arterial, cell)).toBe(ARTERIAL_ROAD_CODE);
+    const arterialPlan = planRoadMutation(
+      collector,
+      { operation: 'build', definitionId: 'arterial-road', cells: [cell] },
+      env,
+      WORLD_CONFIG,
+    );
+    expect(arterialPlan.valid).toBe(true);
+    const arterial = commitRoadMutation(collector, arterialPlan, env, WORLD_CONFIG).snapshot;
+    expect(roadDefinitionCodeAt(arterial, cell)).toBe(ARTERIAL_ROAD_CODE);
 
-      const localPlan = planRoadMutation(
-        arterial,
+    const localPlan = planRoadMutation(
+      arterial,
+      { operation: 'build', definitionId: 'basic-road', cells: [cell] },
+      env,
+      WORLD_CONFIG,
+    );
+    expect(localPlan.valid).toBe(true);
+    const local = commitRoadMutation(arterial, localPlan, env, WORLD_CONFIG).snapshot;
+    expect(roadDefinitionCodeAt(local, cell)).toBe(BASIC_ROAD_CODE);
+
+    expect(
+      planRoadMutation(
+        local,
         { operation: 'build', definitionId: 'basic-road', cells: [cell] },
         env,
         WORLD_CONFIG,
-      );
-      expect(localPlan.valid).toBe(true);
-      const local = commitRoadMutation(arterial, localPlan, env, WORLD_CONFIG).snapshot;
-      expect(roadDefinitionCodeAt(local, cell)).toBe(BASIC_ROAD_CODE);
-
-      expect(
-        planRoadMutation(
-          local,
-          { operation: 'build', definitionId: 'basic-road', cells: [cell] },
-          env,
-          WORLD_CONFIG,
-        ),
-      ).toMatchObject({ valid: false, invalidReason: 'road:no-change' });
-    },
-  );
+      ),
+    ).toMatchObject({ valid: false, invalidReason: 'road:no-change' });
+  });
 });

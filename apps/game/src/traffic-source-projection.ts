@@ -4,7 +4,7 @@ import {
   type BuildingSnapshot,
 } from '@web-three-city/building-core';
 import {
-  BASIC_ROAD_CODE,
+  EMPTY_ROAD_CODE,
   ROAD_EAST,
   ROAD_NORTH,
   ROAD_SOUTH,
@@ -30,17 +30,21 @@ type SurfaceReader = (cell: Readonly<{ x: number; z: number }>) => Readonly<{
 }>;
 
 function roadCodeAt(roads: RoadSnapshot, x: number, z: number): number {
-  if (x < 0 || z < 0 || x >= roads.width || z >= roads.height) return 0;
-  return roads.definitionCodes[z * roads.width + x] ?? 0;
+  if (x < 0 || z < 0 || x >= roads.width || z >= roads.height) return EMPTY_ROAD_CODE;
+  return roads.definitionCodes[z * roads.width + x] ?? EMPTY_ROAD_CODE;
+}
+
+function roadOccupiedAtPosition(roads: RoadSnapshot, x: number, z: number): boolean {
+  return roadCodeAt(roads, x, z) !== EMPTY_ROAD_CODE;
 }
 
 function connectionMaskAt(roads: RoadSnapshot, x: number, z: number): number {
-  if (roadCodeAt(roads, x, z) !== BASIC_ROAD_CODE) return 0;
+  if (!roadOccupiedAtPosition(roads, x, z)) return 0;
   let mask = 0;
-  if (roadCodeAt(roads, x, z - 1) === BASIC_ROAD_CODE) mask |= ROAD_NORTH;
-  if (roadCodeAt(roads, x + 1, z) === BASIC_ROAD_CODE) mask |= ROAD_EAST;
-  if (roadCodeAt(roads, x, z + 1) === BASIC_ROAD_CODE) mask |= ROAD_SOUTH;
-  if (roadCodeAt(roads, x - 1, z) === BASIC_ROAD_CODE) mask |= ROAD_WEST;
+  if (roadOccupiedAtPosition(roads, x, z - 1)) mask |= ROAD_NORTH;
+  if (roadOccupiedAtPosition(roads, x + 1, z)) mask |= ROAD_EAST;
+  if (roadOccupiedAtPosition(roads, x, z + 1)) mask |= ROAD_SOUTH;
+  if (roadOccupiedAtPosition(roads, x - 1, z)) mask |= ROAD_WEST;
   return mask;
 }
 
@@ -52,7 +56,7 @@ function createRoadProjection(
   for (let z = 0; z < roads.height; z += 1) {
     for (let x = 0; x < roads.width; x += 1) {
       const definitionCode = roadCodeAt(roads, x, z);
-      if (definitionCode === 0) continue;
+      if (definitionCode === EMPTY_ROAD_CODE) continue;
       const surface = surfaceAt({ x, z });
       cells.push(
         Object.freeze({

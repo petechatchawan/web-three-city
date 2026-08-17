@@ -116,7 +116,7 @@ test('full Chromium project has no tag exclusion', async () => {
 
 test('full Chromium list retains the current browser inventory', async () => {
   const listed = await runPlaywrightList();
-  assert.equal(listed.testCount, 144);
+  assert.equal(listed.testCount, 145);
 });
 
 test('approved targeted Playwright grep commands remain valid', async () => {

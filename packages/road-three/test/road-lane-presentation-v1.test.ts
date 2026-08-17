@@ -94,8 +94,8 @@ describe('Road Lane Presentation v1', () => {
       WORLD_CONFIG,
     );
 
-    expect(northSouth.indexCount).toBeGreaterThan(0);
-    expect(eastWest.indexCount).toBeGreaterThan(0);
+    expect(northSouth.indices.length).toBeGreaterThan(0);
+    expect(eastWest.indices.length).toBeGreaterThan(0);
     expect(extentAlongX(northSouth.positions)).toBeLessThan(0.08);
   });
 
@@ -109,8 +109,8 @@ describe('Road Lane Presentation v1', () => {
       WORLD_CONFIG,
     );
 
-    expect(threeWay.indexCount).toBe(0);
-    expect(fourWay.indexCount).toBe(0);
+    expect(threeWay.indices.length).toBe(0);
+    expect(fourWay.indices.length).toBe(0);
   });
 
   it('combines carriageway and lane-marking geometry without changing the surface-only contract', () => {
@@ -118,7 +118,7 @@ describe('Road Lane Presentation v1', () => {
     const surface = buildRoadCellMesh(roadView, WORLD_CONFIG);
     const combined = buildRoadPresentationCellMesh(roadView, WORLD_CONFIG);
 
-    expect(combined.indexCount).toBeGreaterThan(surface.indexCount);
-    expect(surface.indexCount).toBe(buildRoadCellMesh(roadView, WORLD_CONFIG).indexCount);
+    expect(combined.indices.length).toBeGreaterThan(surface.indices.length);
+    expect(surface.indices.length).toBe(buildRoadCellMesh(roadView, WORLD_CONFIG).indices.length);
   });
 });

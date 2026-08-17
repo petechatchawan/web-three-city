@@ -24,7 +24,7 @@ import {
   type TerrainCellScreenPoint,
 } from './helpers/interaction.js';
 
-const SAVE_KEY = 'web-three-city:world-save:v6';
+const SAVE_KEY = 'web-three-city:world-save:v7';
 const TERRAIN = GAME_TERRAIN;
 const WATER = GAME_WATER;
 const ROAD_ENVIRONMENT = ROAD_PLACEMENT_ENVIRONMENT;
@@ -173,7 +173,7 @@ async function paint(
   await expect(page.getByTestId('tool-context-status')).toHaveText('Zone painted');
 }
 
-test('paints R/C/I at committed-Road depths 1–3 and round-trips WorldSaveV5', async ({ page }) => {
+test('paints R/C/I at committed-Road depths 1–3 and round-trips WorldSaveV7', async ({ page }) => {
   test.setTimeout(60_000);
   await openGame(page);
   const points = await locate(page, [
@@ -204,10 +204,12 @@ test('paints R/C/I at committed-Road depths 1–3 and round-trips WorldSaveV5', 
   const saved = await page.evaluate((key) => localStorage.getItem(key), SAVE_KEY);
   expect(JSON.parse(saved ?? '{}')).toMatchObject({
     kind: 'world-save',
-    schemaVersion: 6,
+    schemaVersion: 7,
     zones: { schemaVersion: 1 },
     buildings: { schemaVersion: 2, instances: [] },
     rci: { schemaVersion: 1 },
+    mobility: { schemaVersion: 1 },
+    traffic: { schemaVersion: 1 },
   });
 
   await openBuildCategory(page, 'zones');

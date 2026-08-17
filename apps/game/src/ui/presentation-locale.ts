@@ -23,6 +23,8 @@ export type UiCopyKey =
   | 'english'
   | 'thai'
   | 'inspect'
+  | 'citizen'
+  | 'vehicle'
   | 'expandInspect'
   | 'collapseInspect'
   | 'closeInspect'
@@ -41,6 +43,12 @@ export type UiCopyKey =
   | 'grid'
   | 'presentation'
   | 'quality'
+  | 'informationViewTraffic'
+  | 'deactivateView'
+  | 'trafficFree'
+  | 'trafficModerate'
+  | 'trafficHeavy'
+  | 'trafficCongested'
   | 'inspectFieldCell'
   | 'inspectFieldHeight'
   | 'inspectFieldWater'
@@ -50,7 +58,21 @@ export type UiCopyKey =
   | 'inspectFieldDevelopment'
   | 'inspectFieldRoadAccess'
   | 'inspectFieldConnected'
-  | 'inspectFieldRoadAdjacency';
+  | 'inspectFieldRoadAdjacency'
+  | 'inspectFieldCitizenId'
+  | 'inspectFieldHousehold'
+  | 'inspectFieldHome'
+  | 'inspectFieldWork'
+  | 'inspectFieldActivity'
+  | 'inspectFieldTripId'
+  | 'inspectFieldTripPurpose'
+  | 'inspectFieldTravelMode'
+  | 'inspectFieldDestination'
+  | 'inspectFieldOrigin'
+  | 'inspectFieldTravelState'
+  | 'inspectFieldEta'
+  | 'inspectFieldCurrentRoad'
+  | 'inspectFieldCongestion';
 
 type LocalizedCopy = readonly [english: string, thai: string];
 
@@ -77,6 +99,8 @@ const copy = {
   english: ['English', 'English'],
   thai: ['ไทย', 'ไทย'],
   inspect: ['Inspect', 'ตรวจสอบ'],
+  citizen: ['Citizen', 'ประชาชน'],
+  vehicle: ['Vehicle', 'รถยนต์'],
   expandInspect: ['Expand Inspect', 'ขยายข้อมูล'],
   collapseInspect: ['Collapse Inspect', 'ย่อข้อมูล'],
   closeInspect: ['Close Inspect', 'ปิดข้อมูล'],
@@ -95,6 +119,12 @@ const copy = {
   grid: ['Grid', 'กริด'],
   presentation: ['Presentation', 'การแสดงผล'],
   quality: ['Quality', 'คุณภาพ'],
+  informationViewTraffic: ['Traffic', 'การจราจร'],
+  deactivateView: ['Deactivate view', 'ปิดมุมมองข้อมูล'],
+  trafficFree: ['Free flow', 'คล่องตัว'],
+  trafficModerate: ['Moderate', 'ปานกลาง'],
+  trafficHeavy: ['Heavy', 'หนาแน่น'],
+  trafficCongested: ['Congested', 'ติดขัด'],
   inspectFieldCell: ['Cell', 'ช่อง'],
   inspectFieldHeight: ['Height', 'ความสูง'],
   inspectFieldWater: ['Water', 'น้ำ'],
@@ -105,6 +135,20 @@ const copy = {
   inspectFieldRoadAccess: ['Road access', 'การเข้าถึงถนน'],
   inspectFieldConnected: ['Connected', 'การเชื่อมต่อ'],
   inspectFieldRoadAdjacency: ['Road adjacency', 'ติดถนน'],
+  inspectFieldCitizenId: ['Citizen ID', 'รหัสประชาชน'],
+  inspectFieldHousehold: ['Household', 'ครัวเรือน'],
+  inspectFieldHome: ['Home', 'บ้าน'],
+  inspectFieldWork: ['Work', 'ที่ทำงาน'],
+  inspectFieldActivity: ['Activity', 'กิจกรรม'],
+  inspectFieldTripId: ['Trip ID', 'รหัสการเดินทาง'],
+  inspectFieldTripPurpose: ['Trip purpose', 'จุดประสงค์การเดินทาง'],
+  inspectFieldTravelMode: ['Travel mode', 'รูปแบบการเดินทาง'],
+  inspectFieldDestination: ['Destination', 'ปลายทาง'],
+  inspectFieldOrigin: ['Origin', 'ต้นทาง'],
+  inspectFieldTravelState: ['Travel state', 'สถานะการเดินทาง'],
+  inspectFieldEta: ['ETA', 'เวลาถึงโดยประมาณ'],
+  inspectFieldCurrentRoad: ['Current road', 'ถนนปัจจุบัน'],
+  inspectFieldCongestion: ['Congestion', 'ความหนาแน่นจราจร'],
 } as const satisfies Readonly<Record<UiCopyKey, LocalizedCopy>>;
 
 const localeIndex: Readonly<Record<UiLocale, 0 | 1>> = Object.freeze({ en: 0, th: 1 });
@@ -120,6 +164,25 @@ const inspectFieldKeys: Readonly<Record<string, UiCopyKey>> = Object.freeze({
   'Road access': 'inspectFieldRoadAccess',
   Connected: 'inspectFieldConnected',
   'Road adjacency': 'inspectFieldRoadAdjacency',
+  'Citizen ID': 'inspectFieldCitizenId',
+  Household: 'inspectFieldHousehold',
+  Home: 'inspectFieldHome',
+  Work: 'inspectFieldWork',
+  Activity: 'inspectFieldActivity',
+  'Trip ID': 'inspectFieldTripId',
+  'Trip purpose': 'inspectFieldTripPurpose',
+  'Travel mode': 'inspectFieldTravelMode',
+  Destination: 'inspectFieldDestination',
+  Origin: 'inspectFieldOrigin',
+  'Travel state': 'inspectFieldTravelState',
+  ETA: 'inspectFieldEta',
+  'Current road': 'inspectFieldCurrentRoad',
+  Congestion: 'inspectFieldCongestion',
+});
+
+const inspectTitleKeys: Readonly<Record<string, UiCopyKey>> = Object.freeze({
+  Citizen: 'citizen',
+  Vehicle: 'vehicle',
 });
 
 const STORAGE_KEY = 'web-three-city.ui-locale';
@@ -131,6 +194,11 @@ export function uiText(locale: UiLocale, key: UiCopyKey): string {
 export function localizeInspectFieldLabel(locale: UiLocale, label: string): string {
   const key = inspectFieldKeys[label];
   return key === undefined ? label : uiText(locale, key);
+}
+
+export function localizeInspectTitle(locale: UiLocale, title: string): string {
+  const key = inspectTitleKeys[title];
+  return key === undefined ? title : uiText(locale, key);
 }
 
 export function readStoredUiLocale(): UiLocale {

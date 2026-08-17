@@ -4,19 +4,30 @@ import {
   type BuildingSnapshot,
 } from '@web-three-city/building-core';
 import {
-  createRoadSnapshot,
-  type RoadPlacementEnvironment,
-  type RoadSnapshot,
-} from '@web-three-city/road-core';
-import type { RciSnapshot } from '@web-three-city/rci-core';
+  createEmptyMobilitySnapshot,
+  createMobilitySnapshot,
+  reconcileMobilityCitizens,
+  type MobilitySnapshotV1,
+} from '@web-three-city/citizen-mobility-core';
 import {
   cloneEconomySnapshot,
   FOUNDATION_ECONOMY_RULES,
   validateEconomySnapshot,
   type EconomySnapshotV1,
 } from '@web-three-city/economy-core';
+import type { RciSnapshot } from '@web-three-city/rci-core';
+import {
+  createRoadSnapshot,
+  type RoadPlacementEnvironment,
+  type RoadSnapshot,
+} from '@web-three-city/road-core';
 import { createSimulationSnapshot, type SimulationSnapshot } from '@web-three-city/simulation-core';
 import { createTerrainMap, type TerrainSnapshot } from '@web-three-city/terrain-core';
+import {
+  createEmptyTrafficSnapshot,
+  createTrafficSnapshot,
+  type TrafficSnapshotV1,
+} from '@web-three-city/traffic-core';
 import { deriveWaterSnapshot, type WaterSnapshot } from '@web-three-city/water-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import {
@@ -26,7 +37,17 @@ import {
 } from '@web-three-city/zone-core';
 import { createBuildingDevelopmentEnvironment } from '../building-development-environment.js';
 import { createBuildingWorldOccupancy } from '../building-world-occupancy.js';
+import { createPresentCitizenMobilityProjection } from '../mobility-source-projection.js';
+import {
+  recallMobilityTrafficState,
+  rememberMobilityTrafficState,
+} from '../mobility-traffic-state-registry.js';
 import { createRoadPlacementEnvironment } from '../road-placement-environment.js';
+import { reconcileTrafficAfterRoadChange } from '../traffic-road-reconciliation.js';
+import {
+  createBuildingTrafficAccessProjection,
+  createRoadTrafficSourceProjectionFromEnvironment,
+} from '../traffic-source-projection.js';
 import { createZonePlacementEnvironment } from '../zone-placement-environment.js';
 
 export interface CommittedWorld {
@@ -39,6 +60,8 @@ export interface CommittedWorld {
   readonly simulation: SimulationSnapshot;
   readonly rci: RciSnapshot;
   readonly economy: EconomySnapshotV1;
+  readonly mobility: MobilitySnapshotV1;
+  readonly traffic: TrafficSnapshotV1;
   readonly environments: Readonly<{
     readonly road: RoadPlacementEnvironment;
     readonly zone: ZonePlacementEnvironment;
@@ -46,26 +69,38 @@ export interface CommittedWorld {
   }>;
 }
 
-export type CommittedWorldInput = Readonly<{
-  revision: number;
-  terrain: TerrainSnapshot;
-  water: WaterSnapshot;
-  roads: RoadSnapshot;
-  zones: ZoneSnapshot;
-  buildings: BuildingSnapshot;
-  simulation: SimulationSnapshot;
-  rci: RciSnapshot;
-  economy: EconomySnapshotV1;
-  environments: CommittedWorld['environments'];
-}>;
+export type CommittedWorldInput = Omit<CommittedWorld, 'mobility' | 'traffic'> &
+  Readonly<{
+    mobility?: MobilitySnapshotV1;
+    traffic?: TrafficSnapshotV1;
+  }>;
+
+type CompleteCommittedWorldInput = Omit<CommittedWorld, never>;
 
 function assertApplicationRevision(revision: number): void {
   if (!Number.isSafeInteger(revision) || revision < 0)
     throw new RangeError('committed-world:invalid-revision');
 }
 
-function assertEnvironmentProvenance(input: CommittedWorldInput): void {
-  const { terrain, water, roads, zones, buildings, environments } = input;
+function completeCommittedMobilityTraffic(input: CommittedWorldInput): CompleteCommittedWorldInput {
+  const recalled = recallMobilityTrafficState(input.rci);
+  const mobility = input.mobility ?? recalled?.mobility ?? createEmptyMobilitySnapshot();
+  const recalledTraffic = recalled?.traffic;
+  const traffic =
+    input.traffic ??
+    (recalledTraffic !== undefined &&
+    recalledTraffic.graphSourceRoadRevision === input.roads.revision &&
+    recalledTraffic.graphSourceBuildingRevision === input.buildings.revision
+      ? recalledTraffic
+      : createEmptyTrafficSnapshot({
+          roadRevision: input.roads.revision,
+          buildingRevision: input.buildings.revision,
+        }));
+  return Object.freeze({ ...input, mobility, traffic });
+}
+
+function assertEnvironmentProvenance(input: CompleteCommittedWorldInput): void {
+  const { terrain, water, roads, zones, buildings, environments, traffic } = input;
   const coherent =
     water.sourceTerrainRevision === terrain.revision &&
     water.sourceTerrainSeed === terrain.seed &&
@@ -78,7 +113,9 @@ function assertEnvironmentProvenance(input: CommittedWorldInput): void {
     environments.building.terrainRevision === terrain.revision &&
     environments.building.waterSourceTerrainRevision === water.sourceTerrainRevision &&
     environments.building.roadRevision === roads.revision &&
-    environments.building.zoneRevision === zones.revision;
+    environments.building.zoneRevision === zones.revision &&
+    traffic.graphSourceRoadRevision === roads.revision &&
+    traffic.graphSourceBuildingRevision === buildings.revision;
   if (!coherent) throw new RangeError('committed-world:invalid-environment-provenance');
 }
 
@@ -102,47 +139,59 @@ function cloneWaterSnapshot(input: WaterSnapshot): WaterSnapshot {
 }
 
 function cloneForRead(world: CommittedWorld): CommittedWorld {
-  return createCommittedWorld(world);
+  const pendingMobilityTraffic = recallMobilityTrafficState(world.rci);
+  const clone = createCommittedWorld(world);
+  if (pendingMobilityTraffic !== null) {
+    rememberMobilityTrafficState(
+      world.rci,
+      pendingMobilityTraffic.mobility,
+      pendingMobilityTraffic.traffic,
+    );
+  }
+  return clone;
 }
 
 export function createCommittedWorld(input: CommittedWorldInput): CommittedWorld {
-  assertApplicationRevision(input.revision);
-  assertEnvironmentProvenance(input);
-  if (!validateEconomySnapshot(input.economy, FOUNDATION_ECONOMY_RULES)) {
+  const complete = completeCommittedMobilityTraffic(input);
+  assertApplicationRevision(complete.revision);
+  assertEnvironmentProvenance(complete);
+  if (!validateEconomySnapshot(complete.economy, FOUNDATION_ECONOMY_RULES)) {
     throw new RangeError('committed-world:invalid-economy');
   }
   const terrain = createTerrainMap({
     config: WORLD_CONFIG,
-    heightLevels: input.terrain.heightLevels,
-    seed: input.terrain.seed,
-    generatorVersion: input.terrain.generatorVersion,
-    generationAttempt: input.terrain.generationAttempt,
-    revision: input.terrain.revision,
+    heightLevels: complete.terrain.heightLevels,
+    seed: complete.terrain.seed,
+    generatorVersion: complete.terrain.generatorVersion,
+    generationAttempt: complete.terrain.generationAttempt,
+    revision: complete.terrain.revision,
   });
-  const water = cloneWaterSnapshot(input.water);
+  const water = cloneWaterSnapshot(complete.water);
   const roads = createRoadSnapshot(
     {
-      width: input.roads.width,
-      height: input.roads.height,
-      revision: input.roads.revision,
-      definitionCodes: input.roads.definitionCodes,
+      width: complete.roads.width,
+      height: complete.roads.height,
+      revision: complete.roads.revision,
+      definitionCodes: complete.roads.definitionCodes,
     },
     WORLD_CONFIG,
   );
   const zones = createZoneSnapshot(
     {
-      width: input.zones.width,
-      height: input.zones.height,
-      revision: input.zones.revision,
-      definitionCodes: input.zones.definitionCodes,
+      width: complete.zones.width,
+      height: complete.zones.height,
+      revision: complete.zones.revision,
+      definitionCodes: complete.zones.definitionCodes,
     },
     WORLD_CONFIG,
   );
   const buildings = createBuildingSnapshot(
-    { revision: input.buildings.revision, instances: input.buildings.instances },
+    { revision: complete.buildings.revision, instances: complete.buildings.instances },
     WORLD_CONFIG,
   );
-  const simulation = createSimulationSnapshot(input.simulation);
+  const simulation = createSimulationSnapshot(complete.simulation);
+  const mobility = createMobilitySnapshot(complete.mobility);
+  const traffic = createTrafficSnapshot(complete.traffic);
   const environments = Object.freeze({
     road: createRoadPlacementEnvironment(terrain, water, WORLD_CONFIG),
     zone: createZonePlacementEnvironment(
@@ -154,28 +203,35 @@ export function createCommittedWorld(input: CommittedWorldInput): CommittedWorld
     ),
     building: createBuildingDevelopmentEnvironment(terrain, water, roads, zones, WORLD_CONFIG),
   });
-  return Object.freeze({
-    revision: input.revision,
+  const world = Object.freeze({
+    revision: complete.revision,
     terrain,
     water,
     roads,
     zones,
     buildings,
     simulation,
-    rci: input.rci,
-    economy: cloneEconomySnapshot(input.economy),
+    rci: complete.rci,
+    economy: cloneEconomySnapshot(complete.economy),
+    mobility,
+    traffic,
     environments,
   });
+  rememberMobilityTrafficState(world.rci, world.mobility, world.traffic);
+  return world;
 }
 
 export class CommittedWorldStore {
   #world: CommittedWorld;
+
   constructor(initialWorld: CommittedWorldInput) {
     this.#world = createCommittedWorld(initialWorld);
   }
+
   snapshot(): CommittedWorld {
     return cloneForRead(this.#world);
   }
+
   replace(expectedRevision: number, next: CommittedWorldInput): CommittedWorld {
     if (expectedRevision !== this.#world.revision)
       throw new Error('committed-world:stale-revision');
@@ -195,7 +251,29 @@ export type CommittedDomainState = Readonly<{
   simulation: SimulationSnapshot;
   rci: RciSnapshot;
   economy: EconomySnapshotV1;
+  mobility?: MobilitySnapshotV1;
+  traffic?: TrafficSnapshotV1;
 }>;
+
+function requiresTrafficReconciliation(
+  traffic: TrafficSnapshotV1,
+  mobility: MobilitySnapshotV1,
+  roads: RoadSnapshot,
+  buildings: BuildingSnapshot,
+): boolean {
+  if (
+    traffic.graphSourceRoadRevision !== roads.revision ||
+    traffic.graphSourceBuildingRevision !== buildings.revision
+  ) {
+    return true;
+  }
+  const activeMobilityTripIds = new Set(
+    mobility.trips.filter((trip) => trip.status === 'Active').map((trip) => trip.tripId),
+  );
+  return traffic.activeTrips.some(
+    (trip) => trip.status === 'Active' && !activeMobilityTripIds.has(trip.tripId),
+  );
+}
 
 export function createCommittedWorldFromDomainState(input: CommittedDomainState): CommittedWorld {
   const waterResult = deriveWaterSnapshot(input.terrain, WORLD_CONFIG);
@@ -218,8 +296,48 @@ export function createCommittedWorldFromDomainState(input: CommittedDomainState)
       WORLD_CONFIG,
     ),
   });
+
+  const recalled = recallMobilityTrafficState(input.rci);
+  let mobility = input.mobility ?? recalled?.mobility ?? createEmptyMobilitySnapshot();
+  if (input.mobility === undefined) {
+    mobility = reconcileMobilityCitizens({
+      snapshot: mobility,
+      citizens: createPresentCitizenMobilityProjection(
+        input.rci,
+        input.buildings,
+        input.simulation.absoluteTick,
+      ),
+    }).snapshot;
+  }
+
+  let traffic =
+    input.traffic ??
+    recalled?.traffic ??
+    createEmptyTrafficSnapshot({
+      roadRevision: input.roads.revision,
+      buildingRevision: input.buildings.revision,
+    });
+
+  if (requiresTrafficReconciliation(traffic, mobility, input.roads, input.buildings)) {
+    traffic = reconcileTrafficAfterRoadChange({
+      traffic,
+      mobility,
+      trafficSourceAfter: Object.freeze({
+        roads: createRoadTrafficSourceProjectionFromEnvironment(input.roads, environments.building),
+        buildingAccess: createBuildingTrafficAccessProjection(
+          input.buildings,
+          input.roads,
+          environments.building,
+        ),
+      }),
+    });
+  }
+
+  rememberMobilityTrafficState(input.rci, mobility, traffic);
   return createCommittedWorld({
     ...input,
+    mobility,
+    traffic,
     water: waterResult.value,
     environments,
   });

@@ -1,16 +1,20 @@
 import { createEmptyBuildingSnapshot } from '@web-three-city/building-core';
-import { createInitialRciSnapshot } from '@web-three-city/rci-core';
-import { createInitialSimulationSnapshot } from '@web-three-city/simulation-core';
-import { WORLD_CONFIG } from '@web-three-city/world-core';
-import { createEmptyRoadSnapshot } from '@web-three-city/road-core';
 import {
   createInitialEconomySnapshot,
   FOUNDATION_ECONOMY_RULES,
 } from '@web-three-city/economy-core';
+import { createInitialRciSnapshot } from '@web-three-city/rci-core';
+import { createEmptyRoadSnapshot } from '@web-three-city/road-core';
+import { createInitialSimulationSnapshot } from '@web-three-city/simulation-core';
+import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { describe, expect, it } from 'vitest';
-import { GameWorldStateStore, gameWorldStateFromCommittedWorld } from './game-world-state.js';
+import {
+  GameWorldStateStore,
+  gameWorldStateFromCommittedWorld,
+  type GameWorldStateInput,
+} from './game-world-state.js';
 
-function initialState() {
+function initialState(): GameWorldStateInput {
   const simulation = createInitialSimulationSnapshot();
   return Object.freeze({
     revision: 0,
@@ -27,34 +31,27 @@ function initialState() {
 
 describe('GameWorldStateStore', () => {
   it('projects a committed world through the legacy compatibility shape', () => {
-    const legacy = initialState();
-    const committed = { ...legacy, revision: 4 } as Parameters<
+    const normalized = new GameWorldStateStore(initialState()).snapshot();
+    const committed = { ...normalized, revision: 4 } as unknown as Parameters<
       typeof gameWorldStateFromCommittedWorld
     >[0];
     expect(gameWorldStateFromCommittedWorld(committed)).toEqual({
+      ...normalized,
       revision: 4,
-      simulation: legacy.simulation,
-      buildings: legacy.buildings,
-      rci: legacy.rci,
-      roads: legacy.roads,
-      economy: legacy.economy,
     });
   });
 
-  it('publishes Simulation, Buildings, and RCI in one revision replacement', () => {
+  it('publishes Simulation, Buildings, RCI, Mobility, and Traffic in one revision replacement', () => {
     const store = new GameWorldStateStore(initialState());
     const before = store.snapshot();
     const next = Object.freeze({
+      ...before,
       revision: 1,
       simulation: Object.freeze({
         ...before.simulation,
         revision: 1,
         absoluteTick: before.simulation.absoluteTick + 1,
       }),
-      buildings: before.buildings,
-      rci: before.rci,
-      roads: before.roads,
-      economy: before.economy,
     });
     expect(store.replace(0, next)).toBe(next);
     expect(store.snapshot()).toBe(next);
@@ -90,5 +87,7 @@ describe('GameWorldStateStore', () => {
     expect(
       store.synchronizeExternal({ simulation, buildings: before.buildings, rci: before.rci }),
     ).toBe(synchronized);
+    expect(synchronized.mobility).toBe(before.mobility);
+    expect(synchronized.traffic).toBe(before.traffic);
   });
 });

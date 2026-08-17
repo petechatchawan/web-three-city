@@ -3,8 +3,8 @@ import {
   occupiedCellsForBuilding,
   resolveBuildingFrontage,
 } from '@web-three-city/building-core';
-import { roadCellPolicyInvalidReason, roadOccupiedAt } from '@web-three-city/road-core';
 import { createFoundationRciRegistries, validateRciSnapshot } from '@web-three-city/rci-core';
+import { roadCellPolicyInvalidReason, roadOccupiedAt } from '@web-three-city/road-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { zoneCellPolicyInvalidReason, zoneOccupiedAt } from '@web-three-city/zone-core';
 import { createZonePlacementEnvironment } from '../zone-placement-environment.js';
@@ -55,6 +55,28 @@ export interface WorldTransactionCoordinator {
 export interface WorldPresentationPort {
   synchronize(world: CommittedWorld): void;
   rebuildFromCommitted(world: CommittedWorld): void;
+}
+
+function validMobilityTraffic(world: CommittedWorld): boolean {
+  const mobilityByTrip = new Map(world.mobility.trips.map((trip) => [trip.tripId, trip] as const));
+  const trafficByTrip = new Map(
+    world.traffic.activeTrips.map((trip) => [trip.tripId, trip] as const),
+  );
+  for (const trip of world.traffic.activeTrips) {
+    const mobilityTrip = mobilityByTrip.get(trip.tripId);
+    if (
+      mobilityTrip === undefined ||
+      mobilityTrip.status !== 'Active' ||
+      mobilityTrip.citizenId !== trip.citizenId ||
+      mobilityTrip.mode !== trip.mode
+    ) {
+      return false;
+    }
+  }
+  for (const state of world.mobility.citizenStates) {
+    if (state.activeTripId !== null && !trafficByTrip.has(state.activeTripId)) return false;
+  }
+  return true;
 }
 
 function validCandidate(world: CommittedWorld): boolean {
@@ -119,12 +141,14 @@ function validCandidate(world: CommittedWorld): boolean {
     }
   }
 
-  return validateRciSnapshot(
-    world.rci,
-    world.buildings,
-    world.simulation,
-    createFoundationRciRegistries(),
-  ).valid;
+  return (
+    validateRciSnapshot(
+      world.rci,
+      world.buildings,
+      world.simulation,
+      createFoundationRciRegistries(),
+    ).valid && validMobilityTraffic(world)
+  );
 }
 
 function rejected(
@@ -156,9 +180,8 @@ export class DefaultWorldTransactionCoordinator implements WorldTransactionCoord
     const candidateFingerprint = fingerprintCommittedWorld(plan.nextWorld);
     if (plan.nextFingerprint !== candidateFingerprint)
       return rejected(current, 'world:stale-content');
-    if (plan.nextWorld.revision !== current.revision + 1) {
+    if (plan.nextWorld.revision !== current.revision + 1)
       return rejected(current, 'world:stale-content');
-    }
 
     let candidate: CommittedWorld;
     try {
@@ -214,6 +237,8 @@ export class DefaultWorldTransactionCoordinator implements WorldTransactionCoord
         simulation: world.simulation,
         rci: world.rci,
         economy: world.economy,
+        mobility: world.mobility,
+        traffic: world.traffic,
       });
     } catch {
       return rejected(current, 'world:invalid-candidate');

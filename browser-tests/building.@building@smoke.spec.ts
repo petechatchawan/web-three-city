@@ -10,7 +10,7 @@ import { GAME_URL, clickGameMenuAction, readEvidence } from './helpers/interacti
 
 test.describe.configure({ timeout: 60_000 });
 
-const SAVE_KEY = 'web-three-city:world-save:v6';
+const SAVE_KEY = 'web-three-city:world-save:v7';
 const EXPECTED_DEFINITION_IDS = Object.freeze([
   'commercial-cafe-1x1',
   'commercial-shop-1x1',
@@ -99,7 +99,7 @@ test('headless Growth fails closed before eligible Zones exist', async ({ page }
   await expect(page.getByTestId('subtool-tray')).toBeHidden();
 });
 
-test('grows deterministic R/C/I content and preserves authority across guards, Undo, and Save V5', async ({
+test('grows deterministic R/C/I content and preserves authority across guards, Undo, and Save V7', async ({
   page,
 }) => {
   await openGame(page);
@@ -123,7 +123,7 @@ test('grows deterministic R/C/I content and preserves authority across guards, U
   const parsedSave = await saveWorldFixture(page);
   expect(parsedSave).toMatchObject({
     kind: 'world-save',
-    schemaVersion: 6,
+    schemaVersion: 7,
     buildings: {
       kind: 'building-save',
       schemaVersion: 2,
@@ -133,6 +133,8 @@ test('grows deterministic R/C/I content and preserves authority across guards, U
         expect.objectContaining({ buildingDefinitionId: 'industrial-depot-1x1' }),
       ]),
     },
+    mobility: { schemaVersion: 1 },
+    traffic: { schemaVersion: 1 },
   });
   const commercialInstance = parsedSave.buildings?.instances?.find((instance) =>
     instance.buildingDefinitionId.startsWith('commercial-'),

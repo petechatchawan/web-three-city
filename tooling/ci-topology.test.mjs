@@ -57,6 +57,12 @@ function evaluateWorkflowCondition(condition, context) {
     return true;
   }
   if (
+    normalized.includes("github.event_name == 'schedule'") &&
+    context.event === 'schedule'
+  ) {
+    return true;
+  }
+  if (
     normalized.includes("github.event_name == 'pull_request'") &&
     normalized.includes("contains(github.event.pull_request.labels.*.name, 'full-ci')")
   ) {
@@ -98,6 +104,28 @@ test('workflow triggers include labeled pull requests and manual dispatch', asyn
   const workflow = await readRepoText('.github/workflows/ci.yml');
   assert.match(workflow, /types:\s*\[opened,\s*synchronize,\s*reopened,\s*labeled\]/);
   assert.match(workflow, /workflow_dispatch:/);
+});
+
+test('Full Browser remains opt-in for pull requests and runs as nightly regression', async () => {
+  const workflow = await readRepoText('.github/workflows/ci.yml');
+  const jobs = await readWorkflowJobs('.github/workflows/ci.yml');
+  assert.match(workflow, /schedule:\s*\n\s*- cron:\s*['"]0 18 \* \* \*['"]/);
+  assert.match(jobs.browser.if, /github\.event_name == 'schedule'/);
+  assert.equal(
+    evaluateWorkflowCondition(jobs.browser.if, {
+      event: 'pull_request',
+      action: 'synchronize',
+      labels: [],
+    }),
+    false,
+  );
+  assert.equal(
+    evaluateWorkflowCondition(jobs.browser.if, {
+      event: 'schedule',
+      labels: [],
+    }),
+    true,
+  );
 });
 
 test('CI dependency installs disable lifecycle scripts', async () => {
@@ -149,6 +177,29 @@ test('Browser job retains failure artifacts', async () => {
   assert.match(jobs.browser.text, /name:\s*browser-evidence/);
   assert.match(jobs.browser.text, /playwright-report/);
   assert.match(jobs.browser.text, /test-results/);
+});
+
+test('PR metadata can request whitelisted targeted browser ownership sets', async () => {
+  const jobs = await readWorkflowJobs('.github/workflows/ci.yml');
+  const browser = jobs.browser.text;
+  assert.match(browser, /Targeted browser tags:/);
+  assert.match(browser, /Resolve targeted browser tags/);
+  for (const tag of [
+    'smoke',
+    'terrain',
+    'water',
+    'road',
+    'zoning',
+    'building',
+    'rci',
+    'traffic',
+    'interaction',
+  ]) {
+    assert.match(browser, new RegExp(`['"]${tag}['"]`));
+  }
+  assert.match(browser, /playwright test --grep "\$GREP" --project=chromium/);
+  assert.match(browser, /Run full browser verification/);
+  assert.match(browser, /contains\(github\.event\.pull_request\.labels\.\*\.name, 'full-ci'\)/);
 });
 
 test('Full browser release command remains available', async () => {

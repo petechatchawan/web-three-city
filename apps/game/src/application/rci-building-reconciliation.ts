@@ -5,6 +5,10 @@ import {
   type RciDefinitionRegistries,
   type RciSnapshot,
 } from '@web-three-city/rci-core';
+import {
+  recallMobilityTrafficState,
+  rememberMobilityTrafficState,
+} from '../mobility-traffic-state-registry.js';
 
 export function reconcileRciForBuildingChange(
   input: Readonly<{
@@ -16,5 +20,13 @@ export function reconcileRciForBuildingChange(
   }>,
 ): RciSnapshot {
   const housing = synchronizeDwellingInventory({ ...input, snapshot: input.rci }).proposedSnapshot;
-  return synchronizeWorkplaceInventory({ ...input, snapshot: housing }).proposedSnapshot;
+  const reconciled = synchronizeWorkplaceInventory({
+    ...input,
+    snapshot: housing,
+  }).proposedSnapshot;
+  const mobilityTraffic = recallMobilityTrafficState(input.rci);
+  if (mobilityTraffic !== null) {
+    rememberMobilityTrafficState(reconciled, mobilityTraffic.mobility, mobilityTraffic.traffic);
+  }
+  return reconciled;
 }

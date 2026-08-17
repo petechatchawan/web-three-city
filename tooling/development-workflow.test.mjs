@@ -48,7 +48,7 @@ test('every Vitest workspace exposes watch mode and non-test workspaces do not g
       assert.equal(packageJson.scripts['test:watch'], 'vitest', path);
     }
   }
-  assert.equal(vitestWorkspaceCount, 18);
+  assert.equal(vitestWorkspaceCount, 21);
   const terrainLab = manifests.find(({ packageJson }) => packageJson.name === '@web-three-city/terrain-lab');
   assert.ok(terrainLab);
   assert.equal(terrainLab.packageJson.scripts?.test, undefined);
@@ -101,6 +101,15 @@ test('AGENTS defines actionable repository navigation and verification policy', 
   assert.match(agents, /exact-head/i);
   assert.match(agents, /pnpm verify.*not.*default|not.*default.*pnpm verify/is);
   assert.match(agents, /master.*always-releasable/is);
+});
+
+test('AGENTS requires targeted browser evidence without making Full Browser the default PR gate', async () => {
+  const agents = await readRepoText('AGENTS.md');
+  assert.match(agents, /browser-observable.*targeted.*Playwright/is);
+  assert.match(agents, /Full Browser.*not.*default.*every PR/is);
+  assert.match(agents, /release.*milestone.*shared browser infrastructure/is);
+  assert.match(agents, /full-ci/i);
+  assert.match(agents, /nightly/i);
 });
 
 test('AGENTS static Level 2 map contains every approved changed-owner row', async () => {
@@ -171,6 +180,14 @@ test('PR template delegates affected-consumer decisions to AGENTS and enforces s
   assert.match(template, /debug|temporary/i);
 });
 
+test('PR template separates targeted browser evidence from Full Browser escalation', async () => {
+  const template = await readRepoText('.github/pull_request_template.md');
+  assert.match(template, /Targeted browser verification/i);
+  assert.match(template, /Targeted browser tags:/i);
+  assert.match(template, /Full Browser escalation decision/i);
+  assert.match(template, /required.*not required/is);
+});
+
 test('development workflow documents master trunk and package-targeted iteration instead of develop integration', async () => {
   const workflow = await readRepoText('docs/development-workflow.md');
   assert.match(workflow, /master.*always-releasable.*trunk/is);
@@ -180,6 +197,23 @@ test('development workflow documents master trunk and package-targeted iteration
   assert.match(workflow, /pnpm --filter @web-three-city\/<pkg> test/);
   assert.doesNotMatch(workflow, /develop is the active integration branch/i);
   assert.doesNotMatch(workflow, /target `develop`/i);
+});
+
+test('development workflow reserves Full Browser for explicit escalation', async () => {
+  const workflow = await readRepoText('docs/development-workflow.md');
+  assert.match(workflow, /browser-observable.*targeted.*Playwright/is);
+  assert.match(workflow, /Targeted browser tags:\s*traffic building/i);
+  assert.match(workflow, /Browser CI.*targeted mode.*Lean artifact/is);
+  assert.match(workflow, /Full Browser.*not.*default.*every PR/is);
+  assert.match(workflow, /release.*milestone.*shared browser infrastructure/is);
+  assert.match(workflow, /nightly/i);
+});
+
+test('Development Workflow living handoff records targeted browser CI', async () => {
+  const readme = await readRepoText('docs/systems/development-workflow/README.md');
+  assert.match(readme, /Targeted browser tags:\s*traffic building/i);
+  assert.match(readme, /Browser CI targeted mode.*Lean preview artifact/is);
+  assert.match(readme, /Full Browser is not the default gate for every PR/i);
 });
 
 test('system registry reports implemented RCI and the Development Workflow system', async () => {

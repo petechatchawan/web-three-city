@@ -11,8 +11,13 @@ Apply `AGENTS.md` § Verification Escalation Rules directly; do not independentl
 - [ ] Targeted package tests passed.
 - [ ] Targeted package typecheck passed.
 - [ ] Affected consumer verification required by `AGENTS.md` § Verification Escalation Rules passed.
-- [ ] Relevant browser verification passed when the escalation rules require it.
+- [ ] Targeted browser verification passed for browser-observable affected behavior, or browser verification is not applicable.
+- [ ] Full Browser escalation decision recorded (`required` / `not required`) with reason.
 - [ ] Final repository/CI evidence is recorded for the required level.
+
+Targeted browser tags:  
+Full Browser escalation: `required` / `not required`  
+Reason:
 
 Commands/results:
 

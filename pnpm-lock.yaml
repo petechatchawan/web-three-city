@@ -65,6 +65,9 @@ importers:
       '@web-three-city/camera-input':
         specifier: workspace:*
         version: link:../../packages/camera-input
+      '@web-three-city/citizen-mobility-core':
+        specifier: workspace:*
+        version: link:../../packages/citizen-mobility-core
       '@web-three-city/economy-core':
         specifier: workspace:*
         version: link:../../packages/economy-core
@@ -89,6 +92,12 @@ importers:
       '@web-three-city/terrain-three':
         specifier: workspace:*
         version: link:../../packages/terrain-three
+      '@web-three-city/traffic-core':
+        specifier: workspace:*
+        version: link:../../packages/traffic-core
+      '@web-three-city/traffic-three':
+        specifier: workspace:*
+        version: link:../../packages/traffic-three
       '@web-three-city/water-core':
         specifier: workspace:*
         version: link:../../packages/water-core
@@ -192,6 +201,8 @@ importers:
         specifier: 0.185.0
         version: 0.185.0
 
+  packages/citizen-mobility-core: {}
+
   packages/economy-core: {}
 
   packages/rci-core:
@@ -272,6 +283,21 @@ importers:
       '@web-three-city/world-core':
         specifier: workspace:*
         version: link:../world-core
+      three:
+        specifier: 0.185.1
+        version: 0.185.1
+    devDependencies:
+      '@types/three':
+        specifier: 0.185.0
+        version: 0.185.0
+
+  packages/traffic-core: {}
+
+  packages/traffic-three:
+    dependencies:
+      '@web-three-city/traffic-core':
+        specifier: workspace:*
+        version: link:../traffic-core
       three:
         specifier: 0.185.1
         version: 0.185.1

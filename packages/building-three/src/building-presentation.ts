@@ -20,6 +20,7 @@ type BuildingPresentationReload = (snapshot: BuildingSnapshot, absoluteTick: num
 let defaultAbsoluteTick = 8;
 let latestSnapshot: BuildingSnapshot | null = null;
 let latestPresentationReload: BuildingPresentationReload | null = null;
+let latestScene: THREE.Scene | null = null;
 
 export function setBuildingPresentationAbsoluteTick(absoluteTick: number): void {
   if (!Number.isSafeInteger(absoluteTick) || absoluteTick < 0) {
@@ -30,6 +31,11 @@ export function setBuildingPresentationAbsoluteTick(absoluteTick: number): void 
 
 export function latestPresentedBuildingSnapshot(): BuildingSnapshot | null {
   return latestSnapshot;
+}
+
+/** Read-only composition seam for downstream presentation systems sharing the game scene. */
+export function latestBuildingPresentationScene(): THREE.Scene | null {
+  return latestScene;
 }
 
 export function reloadLatestBuildingPresentation(): void {
@@ -57,6 +63,7 @@ export class BuildingPresentation {
     this.#root.name = 'building-committed-root';
     scene.add(this.#root);
     latestPresentationReload = this.#reloadLatest;
+    latestScene = scene;
   }
 
   get root(): THREE.Group {
@@ -128,5 +135,6 @@ export class BuildingPresentation {
       latestPresentationReload = null;
       latestSnapshot = null;
     }
+    if (latestScene === this.#scene) latestScene = null;
   }
 }

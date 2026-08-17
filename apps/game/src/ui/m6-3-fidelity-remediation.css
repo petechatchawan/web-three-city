@@ -24,6 +24,40 @@
 /* Gameplay chrome must never intercept a modal/sheet interaction. */
 .city-ui .city-dialog-backdrop {
   z-index: 200;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Grid-item automatic minimum sizing must not let long management content expand the sheet
+   beyond the viewport. The body already owns vertical scrolling. */
+.city-ui .city-sheet {
+  box-sizing: border-box;
+  height: min(90dvh, 90vh);
+  min-height: 0;
+  max-height: min(90dvh, 90vh);
+  transform-origin: bottom center;
+  animation-name: city-sheet-contained-enter;
+}
+
+/* Keep the animated sheet's geometric bounds inside the viewport for the whole transition.
+   Translating the sheet by 100% made its Playwright/DOM bounds extend below the viewport even
+   though the backdrop clipped the pixels. */
+@keyframes city-sheet-contained-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.city-ui .city-sheet-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 /* Tool Context remains above contextual tools, but below modal management surfaces. */

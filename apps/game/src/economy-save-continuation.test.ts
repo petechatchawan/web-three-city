@@ -10,7 +10,7 @@ import { createApplicationFixture } from '../test/application-fixtures.js';
 import { createCommittedWorldFromDomainState } from './application/committed-world.js';
 import { fingerprintCommittedWorld } from './application/committed-world-fingerprint.js';
 import { planGameWorldTick } from './game-world-tick.js';
-import type { GameWorldState } from './game-world-state.js';
+import type { GameWorldState, GameWorldStateInput } from './game-world-state.js';
 import { decodeWorldSave, encodeWorldSaveV6 } from './world-save.js';
 
 describe('Economy save continuation determinism', () => {
@@ -21,7 +21,7 @@ describe('Economy save continuation determinism', () => {
       absoluteTick: 727,
       growthSequence: 0,
     });
-    const state: GameWorldState = Object.freeze({
+    const state: GameWorldStateInput = Object.freeze({
       revision: 0,
       simulation,
       buildings: base.buildings,
@@ -33,7 +33,7 @@ describe('Economy save continuation determinism', () => {
       ),
     });
     const registries = createFoundationRciRegistries();
-    const step = (current: GameWorldState) => {
+    const step = (current: GameWorldStateInput): GameWorldState => {
       const plan = planGameWorldTick({
         state: current,
         environment: base.environments.building,

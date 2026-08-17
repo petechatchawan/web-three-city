@@ -17,10 +17,12 @@ describe('SaveCoordinator', () => {
     const raw = storage.read(WORLD_SAVE_KEY);
     expect(raw).not.toBeNull();
     const parsed = JSON.parse(raw!);
-    expect(parsed.schemaVersion).toBe(6);
+    expect(parsed.schemaVersion).toBe(7);
     expect(parsed.buildings).toBeDefined();
     expect(parsed.rci).toBeDefined();
     expect(parsed.economy).toBeDefined();
+    expect(parsed.mobility).toBeDefined();
+    expect(parsed.traffic).toBeDefined();
 
     const empty = createApplicationFixture({ applicationRevision: 1 });
     expect(
@@ -41,6 +43,8 @@ describe('SaveCoordinator', () => {
       expect(loaded.world.rci).toEqual(original.rci);
       expect(loaded.world.simulation).toEqual(original.simulation);
       expect(loaded.world.economy).toEqual(original.economy);
+      expect(loaded.world.mobility).toEqual(original.mobility);
+      expect(loaded.world.traffic).toEqual(original.traffic);
     }
   });
 

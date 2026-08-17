@@ -1,8 +1,8 @@
 # World System
 
-**Status:** Implemented — final stacked verification pending  
+**Status:** Implemented — WorldSaveV7 Mobility/Traffic release candidate; owner visual acceptance pending<br>
 **Primary ownership:** `packages/world-core`, `apps/game/src/world-save.ts`, `game-world-state.ts`, and `game-world-tick.ts`  
-**Persistence:** versioned `world-save` envelope through `WorldSaveV5`
+**Persistence:** versioned `world-save` envelope through `WorldSaveV7`
 
 ## Purpose
 
@@ -12,18 +12,19 @@ Provide shared world configuration, coordinates, result contracts, cross-system 
 
 - Domain rules inside Terrain, Roads, Zones, Buildings, Simulation, or RCI.
 - Three.js presentation, tool state, pointer state, or undo history.
-- Citizen, housing, Employment, migration, or Demand policy.
+- Citizen identity, housing, Employment, migration, Demand, Mobility, or Traffic domain policy.
 
 ## Current Capabilities
 
 - Canonical map configuration and coordinate contracts.
 - Shared `Result` and contract-error patterns.
-- `WorldSaveV1` through `WorldSaveV5` decode and deterministic migration.
+- `WorldSaveV1` through `WorldSaveV7` decode and deterministic migration.
 - Cross-domain environment reconstruction after load.
 - Fail-closed validation of Roads, Zones, Buildings, Simulation, and RCI references.
-- `GameWorldStateStore` atomically owns the currently published Simulation, Building, and RCI snapshots.
-- `planGameWorldTick` stages Building Growth, Simulation advancement, RCI reconciliation, validation, and receipts before one world revision is published.
+- `GameWorldStateStore` atomically owns the currently published Simulation, Building, RCI, Economy, Mobility, and Traffic snapshots.
+- `planGameWorldTick` stages Building Growth, Simulation advancement, RCI reconciliation, Mobility/Traffic progression, validation, and receipts before one world revision is published.
 - Invalid or stale staged work leaves the committed world unchanged.
+- Mobility and Traffic snapshots are read observationally; presentation reads cannot overwrite newer committed state.
 
 ## Ownership and State
 
@@ -39,29 +40,32 @@ Each domain owns its snapshot. `apps/game` owns composition, migration order, at
 4. Plan RCI against the exact before/after Building and Simulation revisions.
 5. Validate the complete staged state.
 6. Replace the store once with the next world revision.
-7. Update Building presentation and RCI HUD from committed snapshots only.
+7. Update all presentation and HUD projections from committed snapshots only.
 
 ### Save/load
 
 1. Decode Terrain and derive Water.
-2. Decode Roads, Zones, Buildings, and Simulation in dependency order.
+2. Decode Roads, Zones, Buildings, Simulation, RCI, Economy, Mobility, and Traffic in dependency order.
 3. Rebuild placement environments and derived occupancy.
-4. Decode `RciSaveV1` for V5, or deterministically migrate V1–V4 from decoded Simulation and active Building inventory.
-5. Reject the complete load if any domain or cross-domain invariant fails.
-6. Replace the complete application world and synchronize the atomic state store.
+4. Decode `RciSaveV1`, Economy, Mobility, and Traffic, or deterministically migrate older saves from valid upstream authority.
+5. Validate Traffic graph provenance against Roads/Buildings and Mobility references against RCI Home/Employment authority.
+6. Reject the complete load if any domain or cross-domain invariant fails.
+7. Replace the complete application world and synchronize the atomic state store.
 
 ## Integrations
 
 ```mermaid
 flowchart LR
-  Terrain --> WorldSaveV5
-  Roads --> WorldSaveV5
-  Zoning --> WorldSaveV5
+  Terrain --> WorldSaveV7
+  Roads --> WorldSaveV7
+  Zoning --> WorldSaveV7
   Buildings --> GameWorldTick
   Simulation --> GameWorldTick
   RCI --> GameWorldTick
+  Mobility --> GameWorldTick
+  Traffic --> GameWorldTick
   GameWorldTick --> StateStore[GameWorldStateStore]
-  StateStore --> WorldSaveV5
+  StateStore --> WorldSaveV7
   StateStore --> Presentation
 ```
 
@@ -72,8 +76,10 @@ flowchart LR
 - `WorldSaveV3`: adds Buildings V1
 - `WorldSaveV4`: Buildings V2 + Simulation V1
 - `WorldSaveV5`: adds RCI V1
+- `WorldSaveV6`: upgrades Simulation and adds Economy V1
+- `WorldSaveV7`: adds Mobility V1 and Traffic V1
 
-Legacy migration preserves existing authority and derives empty RCI inventory from active Buildings without inventing Citizens, Households, occupancy, or Employment history.
+V1–V6 migration preserves existing authority, creates stationary Mobility state from current real RCI Citizens, and starts with no synthetic historical or catch-up Traffic trips.
 
 ## Invariants and Failure Behavior
 
@@ -91,7 +97,7 @@ A new persisted system extends the world envelope with an explicit schema versio
 
 ## Current Limitations
 
-The atomic store currently composes Simulation, Buildings, and RCI because those domains participate in background ticks. Terrain, Roads, Zones, and Water continue through their existing explicit world transactions and complete-world replacement boundary.
+The atomic store composes Simulation, Buildings, RCI, Economy, Mobility, and Traffic because those domains participate in background ticks. Terrain, Roads, Zones, and Water continue through their existing explicit world transactions and complete-world replacement boundary.
 
 ## Handoff Checklist
 
@@ -99,4 +105,4 @@ The atomic store currently composes Simulation, Buildings, and RCI because those
 - Save: `apps/game/src/world-save.ts`, `world-save-legacy.ts`
 - Atomic state: `apps/game/src/game-world-state.ts`
 - Tick orchestration: `apps/game/src/game-world-tick.ts`
-- Related systems: [Terrain](../terrain/README.md), [Water](../water/README.md), [Roads](../roads/README.md), [Zoning](../zoning/README.md), [Buildings](../buildings/README.md), [Simulation Time](../simulation-time/README.md), [RCI](../rci/README.md)
+- Related systems: [Terrain](../terrain/README.md), [Water](../water/README.md), [Roads](../roads/README.md), [Zoning](../zoning/README.md), [Buildings](../buildings/README.md), [Simulation Time](../simulation-time/README.md), [RCI](../rci/README.md), [Citizen Mobility](../citizen-mobility/README.md), [Traffic](../traffic/README.md)

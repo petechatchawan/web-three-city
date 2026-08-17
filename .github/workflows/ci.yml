@@ -6,6 +6,8 @@ on:
     paths-ignore:
       - 'docs/**'
       - '**/*.md'
+  schedule:
+    - cron: '0 18 * * *'
   workflow_dispatch:
 
 permissions:
@@ -41,12 +43,14 @@ jobs:
           if-no-files-found: error
 
   browser:
-    name: Full browser verification
+    name: Browser verification
     needs: lean
     if: >-
       github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'schedule' ||
       (github.event_name == 'pull_request' &&
-      contains(github.event.pull_request.labels.*.name, 'full-ci'))
+      (contains(github.event.pull_request.labels.*.name, 'full-ci') ||
+      contains(github.event.pull_request.body || '', 'Targeted browser tags:')))
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -69,8 +73,53 @@ jobs:
           test -d apps/game/dist
           test -d apps/terrain-lab/dist
           rm lean-builds.tar.gz
+      - name: Resolve targeted browser tags
+        id: targets
+        if: >-
+          github.event_name == 'pull_request' &&
+          !contains(github.event.pull_request.labels.*.name, 'full-ci') &&
+          contains(github.event.pull_request.body || '', 'Targeted browser tags:')
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const body = process.env.PR_BODY ?? '';
+          const match = body.match(/^Targeted browser tags:\s*(.+)$/im);
+          if (match === null) throw new Error('targeted-browser:missing-tags');
+          const allowed = new Set([
+            'smoke',
+            'terrain',
+            'water',
+            'road',
+            'zoning',
+            'building',
+            'rci',
+            'traffic',
+            'interaction',
+          ]);
+          const tags = [...new Set(match[1].split(/[\s,]+/).filter(Boolean))];
+          if (tags.length === 0 || tags.some((tag) => !allowed.has(tag))) {
+            throw new Error(`targeted-browser:invalid-tags:${tags.join(',')}`);
+          }
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `grep=${tags.map((tag) => `@${tag}`).join('|')}\n`);
+          NODE
       - run: ./node_modules/.bin/playwright install chromium
-      - run: pnpm test:browser:only
+      - name: Run targeted browser ownership sets
+        if: >-
+          github.event_name == 'pull_request' &&
+          !contains(github.event.pull_request.labels.*.name, 'full-ci') &&
+          contains(github.event.pull_request.body || '', 'Targeted browser tags:')
+        env:
+          GREP: ${{ steps.targets.outputs.grep }}
+        run: ./node_modules/.bin/playwright test --grep "$GREP" --project=chromium
+      - name: Run full browser verification
+        if: >-
+          github.event_name == 'workflow_dispatch' ||
+          github.event_name == 'schedule' ||
+          (github.event_name == 'pull_request' &&
+          contains(github.event.pull_request.labels.*.name, 'full-ci'))
+        run: pnpm test:browser:only
       - run: node tooling/verify-clean-worktree.mjs
       - uses: actions/upload-artifact@v4
         if: always()

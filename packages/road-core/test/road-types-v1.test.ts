@@ -41,7 +41,10 @@ function environment(): RoadPlacementEnvironment {
   });
 }
 
-function snapshotWith(code: number, cell: CellCoord = { x: 4, z: 4 }): RoadSnapshot {
+function snapshotWith(
+  code: number,
+  cell: CellCoord = { x: 4, z: 4 },
+): RoadSnapshot {
   const codes = new Uint8Array(CELL_COUNT);
   codes[cell.z * WORLD_CONFIG.mapWidth + cell.x] = code;
   return createRoadSnapshot(
@@ -80,7 +83,9 @@ describe('Road Definition Catalog v1', () => {
     expect(roadDefinitionForId('basic-road').code).toBe(BASIC_ROAD_CODE);
     expect(roadDefinitionForId('collector-road').code).toBe(COLLECTOR_ROAD_CODE);
     expect(roadDefinitionForId('arterial-road').code).toBe(ARTERIAL_ROAD_CODE);
-    expect(() => roadDefinitionForId('unknown-road' as never)).toThrow('road-definition:unknown-id');
+    expect(() => roadDefinitionForId('unknown-road' as never)).toThrow(
+      'road-definition:unknown-id',
+    );
   });
 
   it('keeps RoadSaveV1 byte-compatible while accepting codes 0 through 3', () => {
@@ -104,7 +109,9 @@ describe('Road Definition Catalog v1', () => {
     const decoded = decodeRoadSaveV1(encoded, WORLD_CONFIG);
     expect(decoded.ok).toBe(true);
     if (!decoded.ok) return;
-    expect(decoded.value.definitionCodes.slice(0, 4)).toEqual(new Uint8Array([0, 1, 2, 3]));
+    expect(decoded.value.definitionCodes.slice(0, 4)).toEqual(
+      new Uint8Array([0, 1, 2, 3]),
+    );
     expect(encodeRoadSaveV1(decoded.value)).toEqual(encoded);
   });
 });
@@ -151,7 +158,12 @@ describe('Road type replacement semantics', () => {
       WORLD_CONFIG,
     );
     expect(arterialPlan.valid).toBe(true);
-    const arterial = commitRoadMutation(collector, arterialPlan, env, WORLD_CONFIG).snapshot;
+    const arterial = commitRoadMutation(
+      collector,
+      arterialPlan,
+      env,
+      WORLD_CONFIG,
+    ).snapshot;
     expect(roadDefinitionCodeAt(arterial, cell)).toBe(ARTERIAL_ROAD_CODE);
 
     const localPlan = planRoadMutation(

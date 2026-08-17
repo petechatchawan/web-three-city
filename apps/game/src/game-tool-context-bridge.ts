@@ -1,12 +1,11 @@
-import type { GameToolMode } from './game-tool-mode.js';
+import type { GameToolMode, RoadToolMode, ZoneToolMode } from './game-tool-mode.js';
 import { bindGameToolEvents, type GameToolEventDetail } from './game-tool-events.js';
 import { messageForGameReason } from './game-reason-catalog.js';
-import type { ZoneToolMode } from './game-tool-mode.js';
 import type { UiAdapter } from './ui/foundation/lifecycle.js';
 import type { ContextualToolProjection } from './ui/shell/tool-context-sheet.js';
 
 export function roadPreviewStateLabel(
-  mode: 'road-build' | 'road-bulldoze' | null,
+  mode: RoadToolMode | null,
   previewValid: boolean | null,
 ): string {
   if (previewValid === null) return 'Tool ready';

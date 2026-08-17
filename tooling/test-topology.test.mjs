@@ -92,7 +92,7 @@ test('Game TypeScript includes browser-independent game tests', async () => {
 });
 
 test('Game test inventory matches Vitest discovery', async () => {
-  assert.equal(await readGameTestFileCount(), 83);
+  assert.equal(await readGameTestFileCount(), 84);
   assert.equal((await runVitestList()).length, 332);
 });
 

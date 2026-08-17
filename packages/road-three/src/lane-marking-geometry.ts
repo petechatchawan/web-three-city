@@ -97,10 +97,7 @@ function buildDividerRectangle(
   });
 }
 
-export function buildRoadLaneMarkingMesh(
-  view: RoadCellView,
-  config: WorldConfig,
-): RoadMeshData {
+export function buildRoadLaneMarkingMesh(view: RoadCellView, config: WorldConfig): RoadMeshData {
   const northSouth = ROAD_NORTH | ROAD_SOUTH;
   const eastWest = ROAD_EAST | ROAD_WEST;
   if (view.connections === northSouth) {

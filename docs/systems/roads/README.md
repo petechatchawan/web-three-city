@@ -1,42 +1,65 @@
 # Roads System
 
-**Status:** Implemented  
-**Last verified against:** `master@012a644391d13e7d47135a1c0e9e3394be667871`  
+**Status:** Road Type Authority v1 implemented; lane/presentation expansion follows in Road Lane & Vehicle Life Realism v1  
+**Last verified baseline:** `master@eaa15d2f72f957c1d31169de2adcf4946f99b70e` + PR #80 Road Type Authority verification  
 **Primary ownership:** `packages/road-core`, `packages/road-three`, `apps/game` tool integration  
 **Persistence:** `RoadSaveV1`
 
 ## Purpose
 
-Own authoritative Road occupancy, deterministic stroke mutation, cardinal connectivity, terrain/ramp validity, rendering input, and Road access consumed by Zoning and Building development.
+Own authoritative Road occupancy and Road definition identity, deterministic stroke mutation/replacement, cardinal connectivity, terrain/ramp validity, rendering input, and Road access consumed by Zoning and Building development.
 
 ## Does Not Own
 
 - Terrain or Water state.
-- Zoning rights, Building occupancy, traffic, pathfinding, capacity, or maintenance costs.
+- Zoning rights or Building occupancy.
+- Traffic routing, speed/capacity, lane movement, congestion, or vehicle ownership.
 - Population access or commute simulation.
+- Renderer meshes or lane-marking geometry as authority.
 
 ## Current Capabilities
 
-- Build and bulldoze `basic-road` cells.
-- Drag strokes with reversible tail erase during preview.
+- Canonical Road definition catalog with stable monotonic codes:
+  - `1` — `basic-road` / Local Street — width `0.72`
+  - `2` — `collector-road` / Collector Road — width `0.82`
+  - `3` — `arterial-road` / Arterial Road — width `0.92`
+- Build a Road on an empty cell.
+- Replace an occupied Road cell with a different Road definition as one Road transaction without changing occupancy.
+- Treat a same-definition build as `road:no-change`.
+- Bulldoze any occupied Road definition back to empty.
+- Drag strokes with reversible tail erase during preview for the existing game Road workflow.
 - Place on flat terrain and supported single-axis ramps.
-- Reject wet cells, invalid terrain, invalid ramp topology, and incoherent revisions.
-- Derive N/E/S/W connection masks and rebuild topology-changed neighbors.
-- Persist Road codes and reconstruct rendering after load.
-- Provide Road occupancy and access inputs to Zone and Building systems.
+- Reject wet cells, invalid terrain, invalid ramp topology, incoherent revisions, malformed snapshots, and unknown Road definition codes.
+- Derive N/E/S/W connection masks and rebuild cells whose connectivity or Road definition changed.
+- Persist definition bytes through the existing `RoadSaveV1` shape and reconstruct derived rendering after load.
+- Provide Road occupancy/access inputs to Zone and Building systems.
 - Participate in Terraform and Zone occupancy guards.
 
 ## Ownership and State
 
-`RoadSnapshot.definitionCodes` and Road revision are authoritative. Connection masks, cell views, meshes, preview geometry, and Road-access projections are derived.
+`RoadSnapshot.definitionCodes` and Road revision are authoritative. One byte-sized definition code exists per world cell. Road definition IDs/codes are catalog authority; connection masks, cell views, meshes, lane geometry, preview geometry, and Road-access projections are derived.
+
+Stable Road codes are compatibility contracts. A retired numeric Road code must never be reused for a different Road meaning.
+
+## Mutation Semantics
+
+```text
+empty + Road type     → create
+different Road type   → replace / upgrade
+same Road type        → no-change
+bulldoze              → empty
+```
+
+A replacement increments Road revision and marks the target as topology/presentation changed even when its cardinal connection mask is unchanged. Replacement does not count as an added or removed occupied Road cell.
 
 ## Main Workflow
 
-1. Input produces an ordered canonical cell stroke.
-2. The planner validates Terrain/Water revisions and each requested cell.
-3. It returns added, removed, topology-changed cells, dirty chunks, and proposed Road codes.
-4. Commit rechecks base revisions and proposed-state validity.
-5. Renderer and dependent environments rebuild from the committed snapshot.
+1. Input provides an ordered canonical cell stroke and selected `RoadDefinitionId`.
+2. The planner validates Road state, Terrain/Water revision coherence, cells, and the selected Road definition.
+3. It derives proposed definition bytes, added/removed occupancy, definition/connectivity changes, and dirty chunks.
+4. Commit rechecks base revisions and reconstructs the proposed state before mutation.
+5. Commit rejects changes outside the requested cells or derived topology that does not match the plan.
+6. Renderer and dependent environments rebuild from the committed snapshot.
 
 ## Integrations
 
@@ -47,34 +70,60 @@ flowchart LR
   Roads --> Zoning
   Roads --> Buildings
   Roads --> TerraformGuard[Terraform guard]
-  Roads --> Renderer
+  Roads --> RoadRenderer[Road presentation]
+  Roads --> TrafficProjection[Traffic source projection]
   Roads --> WorldSave
 ```
 
+Road definition identity is a Road concern. Traffic speed/capacity profiles and directed lane travel remain Traffic concerns and consume Road definitions through narrow derived projections.
+
 ## Persistence
 
-`RoadSaveV1` stores dimensions, revision, and definition codes. Connectivity and meshes are rebuilt. World-load validation checks every occupied Road cell against decoded Terrain and derived Water.
+`RoadSaveV1` remains schema version `1`. It stores dimensions, Road revision, and base64-encoded `Uint8Array` definition codes. Codes `0`, `1`, `2`, and `3` round-trip through the existing wire shape; legacy saves containing only `0/1` remain compatible. Connectivity, lane geometry, and meshes are never persisted and are rebuilt.
 
 ## Invariants and Failure Behavior
 
-- One Road definition code per cell.
+- Exactly one Road definition code per world cell.
+- Valid canonical codes are currently `0..3`; unknown codes fail closed.
+- `basic-road` remains canonical code `1` for compatibility.
 - Road snapshots match world dimensions.
 - Placement environments use coherent Terrain and Water revisions.
-- Connectivity is derived from cardinal neighboring Road cells.
+- Connectivity is derived from cardinal neighboring occupied Road cells.
+- A Road definition replacement marks the target changed even when occupancy/connectivity is unchanged.
 - Invalid or stale plans do not mutate state.
-- Topology changes include neighboring cells whose connection masks changed.
+- Road renderer/Traffic consumers cannot become Road authority.
 
-## Extension Points
+## Road Lane & Vehicle Life Realism v1
 
-The current contract can evolve toward multiple versioned Road definitions, capacity, speed, cost, upgrades, bridges, or traffic adapters. Those features must not make renderer meshes authoritative and should expose narrow network/access projections to consumers.
+The approved production program is specified in:
+
+- `specs/2026-08-17-road-lane-vehicle-life-realism-v1.md`
+- `tdd/2026-08-17-road-lane-vehicle-life-realism-v1.md`
+
+The implementation order is intentionally staged:
+
+```text
+PR1 Road Type Authority
+→ PR2 Lane Geometry + Road Presentation
+→ PR3 Lane-aware Traffic
+→ PR4 Vehicle Life Authority
+→ PR5 Mobility Assignment + WorldSaveV8
+→ PR6 Persistent Parking + Vehicle Presentation
+→ PR7 Release Verification
+```
 
 ## Current Limitations
 
-Only one basic Road definition exists. No intersections with lane semantics, bridges, tunnels, one-way Roads, traffic, transit, maintenance, or economic cost.
+Road Type Authority supports three canonical definitions in `road-core`, but the shipping Road Build UI/presentation remains on the existing basic-road workflow until PR2. Roads do not yet expose real directional lane centerlines or lane markings. There are still no one-way Roads, multi-cell four/six-lane avenues, bridges, tunnels, lane changing, traffic controls, transit, maintenance, or economic Road cost.
+
+A real four-lane avenue must use a future multi-cell Road-footprint design rather than compressing four lanes into the current single Road cell.
 
 ## Handoff Checklist
 
-- Start reading: `packages/road-core/src/contracts.ts`, mutation, connectivity, serialization, and policy files
+- Canonical authority: `packages/road-core/src/contracts.ts`
+- Snapshot validation: `packages/road-core/src/road-snapshot.ts`
+- Mutation/replacement: `packages/road-core/src/road-mutation.ts`
+- Persistence: `packages/road-core/src/serialization.ts`
 - Renderer: `packages/road-three`
-- Related systems: [Terrain](../terrain/README.md), [Water](../water/README.md), [Zoning](../zoning/README.md), [Buildings](../buildings/README.md)
-- Historical design: `docs/superpowers/specs/2026-07-29-road-network-foundation-v0-1-design.md`
+- Related systems: [Terrain](../terrain/README.md), [Water](../water/README.md), [Zoning](../zoning/README.md), [Buildings](../buildings/README.md), [Traffic](../traffic/README.md)
+- Historical foundation design: `docs/superpowers/specs/2026-07-29-road-network-foundation-v0-1-design.md`

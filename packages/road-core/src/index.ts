@@ -1,16 +1,22 @@
 export {
+  ARTERIAL_ROAD_CODE,
+  ARTERIAL_ROAD_DEFINITION,
   BASIC_ROAD_CODE,
   BASIC_ROAD_DEFINITION,
+  COLLECTOR_ROAD_CODE,
+  COLLECTOR_ROAD_DEFINITION,
   EMPTY_ROAD_CODE,
   ROAD_EAST,
   ROAD_NORTH,
   ROAD_SOUTH,
   ROAD_WEST,
   RoadContractError,
+  isRoadDefinitionCode,
   roadDefinitionForCode,
   roadDefinitionForId,
 } from './contracts.js';
 export type {
+  OccupiedRoadDefinitionCode,
   RoadCellView,
   RoadConnectionMask,
   RoadContractErrorCode,

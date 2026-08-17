@@ -152,7 +152,10 @@ export function mountSubToolTray(
       button.dataset.toolMode = mode;
       if (roadDefinitionId !== undefined) button.dataset.roadDefinition = roadDefinitionId;
       const label = uiText(locale, labelKey);
-      button.setAttribute('aria-label', mode === 'road-build' ? uiText(locale, 'buildRoad') : label);
+      button.setAttribute(
+        'aria-label',
+        mode === 'road-build' ? uiText(locale, 'buildRoad') : label,
+      );
       button.append(createCityIcon(toolIcons[mode]));
       const text = document.createElement('span');
       text.className = 'city-tool-label';

@@ -2,13 +2,13 @@ import {
   ARTERIAL_ROAD_CODE,
   COLLECTOR_ROAD_CODE,
   createEmptyRoadSnapshot,
-  type RoadDefinitionId,
   type RoadPlacementEnvironment,
 } from '@web-three-city/road-core';
 import type { TerrainCellSurfaceProfile } from '@web-three-city/terrain-core';
 import { WORLD_CONFIG, type CellCoord } from '@web-three-city/world-core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createRoadStrokeController } from './road-stroke-controller.js';
+import type { RoadToolMode } from './game-tool-mode.js';
 import { mountSubToolTray } from './ui/shell/subtool-tray.js';
 
 afterEach(() => document.body.replaceChildren());
@@ -33,12 +33,7 @@ function environment(): RoadPlacementEnvironment {
 
 describe('Road type selector v1', () => {
   it('renders Local, Collector, Arterial, and Bulldoze as compact Road actions', () => {
-    const onSelectTool = vi.fn();
-    const onRoadDefinition = vi.fn();
-    const picker = mountSubToolTray(document.body, {
-      onSelectTool,
-      onRoadDefinition,
-    });
+    const picker = mountSubToolTray(document.body, { onSelectTool: vi.fn() });
 
     picker.open('roads');
     expect(
@@ -56,38 +51,34 @@ describe('Road type selector v1', () => {
         picker.element.querySelectorAll<HTMLButtonElement>('[data-tool-mode]'),
         (button) => button.dataset.toolMode,
       ),
-    ).toEqual(['road-build', 'road-build', 'road-build', 'road-bulldoze']);
+    ).toEqual(['road-build', 'road-build-collector', 'road-build-arterial', 'road-bulldoze']);
   });
 
-  it('selects the Road definition before activating the shared road-build tool', () => {
-    const calls: string[] = [];
-    const picker = mountSubToolTray(document.body, {
-      onSelectTool: (mode) => calls.push(`tool:${mode}`),
-      onRoadDefinition: (definitionId) => calls.push(`definition:${definitionId}`),
-    });
+  it('emits the concrete Road build action and closes the picker', () => {
+    const onSelectTool = vi.fn();
+    const picker = mountSubToolTray(document.body, { onSelectTool });
 
     picker.open('roads');
     picker.element
       .querySelector<HTMLButtonElement>('[data-road-definition="collector-road"]')!
       .click();
 
-    expect(calls).toEqual(['definition:collector-road', 'tool:road-build']);
+    expect(onSelectTool).toHaveBeenCalledWith('road-build-collector');
     expect(picker.element.hidden).toBe(true);
   });
 
-  it('captures the selected Road definition at pointer-down for an immutable stroke', () => {
-    let definitionId: RoadDefinitionId = 'collector-road';
+  it('captures the selected Road build action at pointer-down for an immutable stroke', () => {
+    let mode: RoadToolMode = 'road-build-collector';
     const controller = createRoadStrokeController({
       config: WORLD_CONFIG,
-      getMode: () => 'road-build',
-      getDefinitionId: () => definitionId,
+      getMode: () => mode,
       getRoadSnapshot: () => createEmptyRoadSnapshot(WORLD_CONFIG),
       getEnvironment: environment,
       onPreview: () => undefined,
     });
 
     expect(controller.begin(1, { x: 6, z: 6 })).toBe(true);
-    definitionId = 'arterial-road';
+    mode = 'road-build-arterial';
     const collectorPlan = controller.end(1, { x: 6, z: 6 });
     expect(collectorPlan?.proposedDefinitionCodes[6 * WORLD_CONFIG.mapWidth + 6]).toBe(
       COLLECTOR_ROAD_CODE,

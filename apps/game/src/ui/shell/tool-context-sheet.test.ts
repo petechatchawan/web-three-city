@@ -41,7 +41,7 @@ describe('M6.4 compact contextual tool sheet', () => {
     sheet.update(projection());
     expect(sheet.element.hidden).toBe(false);
     expect(sheet.element.dataset.expanded).toBe('false');
-    expect(sheet.element.textContent).toContain('Build Road');
+    expect(sheet.element.textContent).toContain('Local Street');
     expect(sheet.element.textContent).toContain('Ready');
     expect(sheet.element.textContent).not.toContain('Point at the world to preview this tool');
     expect(toggle()).not.toBeNull();
@@ -115,7 +115,7 @@ describe('M6.4 compact contextual tool sheet', () => {
     expect(sheet.element.textContent).toContain('Road built');
     sheet.clearStatus();
     expect(sheet.element.textContent).not.toContain('Road built');
-    expect(sheet.element.textContent).toContain('Build Road');
+    expect(sheet.element.textContent).toContain('Local Street');
     expect(sheet.element.textContent).toContain('Ready');
   });
 

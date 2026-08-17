@@ -4,6 +4,7 @@ import {
   EMPTY_ROAD_CODE,
   RoadContractError,
   roadDefinitionForId,
+  type RoadDefinitionCode,
   type RoadInvalidReason,
   type RoadMutationPlan,
   type RoadMutationReceipt,
@@ -161,7 +162,7 @@ export function planRoadMutation(
   config: WorldConfig,
 ): RoadMutationPlan {
   let invalidReason: RoadInvalidReason | null = null;
-  let requestedDefinitionCode = EMPTY_ROAD_CODE;
+  let requestedDefinitionCode: RoadDefinitionCode = EMPTY_ROAD_CODE;
   try {
     createRoadSnapshot(
       {

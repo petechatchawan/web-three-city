@@ -7,7 +7,6 @@ import {
   BASIC_ROAD_CODE,
   COLLECTOR_ROAD_CODE,
   commitRoadMutation,
-  createEmptyRoadSnapshot,
   createRoadSnapshot,
   decodeRoadSaveV1,
   encodeRoadSaveV1,

@@ -1,10 +1,7 @@
 import type { WorldToolMode } from '@web-three-city/terrain-core';
 
 export type RoadToolMode =
-  | 'road-build'
-  | 'road-build-collector'
-  | 'road-build-arterial'
-  | 'road-bulldoze';
+  'road-build' | 'road-build-collector' | 'road-build-arterial' | 'road-bulldoze';
 export type ZoneToolMode =
   'zone-residential' | 'zone-commercial' | 'zone-industrial' | 'zone-remove';
 export type BuildingToolMode = 'building-bulldoze';

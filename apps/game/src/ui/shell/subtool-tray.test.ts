@@ -60,7 +60,7 @@ describe('M6.4 on-demand Build picker', () => {
     expect(picker.element.querySelector('[data-brush-size]')).toBeNull();
   });
 
-  it('retains every non-Navigate tool exactly once across build categories', () => {
+  it('retains every non-Navigate concrete tool exactly once across build categories', () => {
     const picker = mountSubToolTray(document.body, {
       onSelectTool: vi.fn(),
       onBrush: vi.fn(),
@@ -77,6 +77,8 @@ describe('M6.4 on-demand Build picker', () => {
       'lower',
       'flatten',
       'road-build',
+      'road-build-collector',
+      'road-build-arterial',
       'road-bulldoze',
       'zone-residential',
       'zone-commercial',

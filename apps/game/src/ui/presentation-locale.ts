@@ -12,6 +12,9 @@ export type UiCopyKey =
   | 'lower'
   | 'flatten'
   | 'buildRoad'
+  | 'localStreet'
+  | 'collectorRoad'
+  | 'arterialRoad'
   | 'bulldozeRoad'
   | 'residential'
   | 'commercial'
@@ -88,6 +91,9 @@ const copy = {
   lower: ['Lower', 'ลดพื้น'],
   flatten: ['Flatten', 'ปรับระดับ'],
   buildRoad: ['Build Road', 'สร้างถนน'],
+  localStreet: ['Local Street', 'ถนนท้องถิ่น'],
+  collectorRoad: ['Collector Road', 'ถนนสายรอง'],
+  arterialRoad: ['Arterial Road', 'ถนนสายหลัก'],
   bulldozeRoad: ['Bulldoze Road', 'รื้อถนน'],
   residential: ['Residential', 'ที่อยู่อาศัย'],
   commercial: ['Commercial', 'พาณิชย์'],

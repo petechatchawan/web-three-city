@@ -1,5 +1,6 @@
 import {
   planRoadMutation,
+  type RoadDefinitionId,
   type RoadMutationPlan,
   type RoadPlacementEnvironment,
   type RoadSnapshot,
@@ -39,6 +40,7 @@ export interface CreateRoadStrokeControllerOptions {
 interface RoadStrokeSession {
   readonly pointerId: number;
   readonly mode: RoadToolMode;
+  readonly definitionId: RoadDefinitionId;
   readonly roads: RoadSnapshot;
   readonly environment: RoadPlacementEnvironment;
   readonly trace: ReversibleCellTrace;
@@ -46,7 +48,19 @@ interface RoadStrokeSession {
 }
 
 function operationForMode(mode: RoadToolMode): 'build' | 'bulldoze' {
-  return mode === 'road-build' ? 'build' : 'bulldoze';
+  return mode === 'road-bulldoze' ? 'bulldoze' : 'build';
+}
+
+function definitionForMode(mode: RoadToolMode): RoadDefinitionId {
+  switch (mode) {
+    case 'road-build-collector':
+      return 'collector-road';
+    case 'road-build-arterial':
+      return 'arterial-road';
+    case 'road-build':
+    case 'road-bulldoze':
+      return 'basic-road';
+  }
 }
 
 export function createRoadStrokeController(
@@ -66,7 +80,7 @@ export function createRoadStrokeController(
       session.roads,
       {
         operation: operationForMode(session.mode),
-        definitionId: 'basic-road',
+        definitionId: session.definitionId,
         cells: session.trace.cells(),
       },
       session.environment,
@@ -87,6 +101,7 @@ export function createRoadStrokeController(
       session = {
         pointerId,
         mode,
+        definitionId: definitionForMode(mode),
         roads: options.getRoadSnapshot(),
         environment: options.getEnvironment(),
         trace: createReversibleCellTrace(cell),

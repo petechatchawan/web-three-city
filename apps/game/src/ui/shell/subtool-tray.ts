@@ -1,3 +1,4 @@
+import type { RoadDefinitionId } from '@web-three-city/road-core';
 import type { GameToolMode } from '../../game-tool-mode.js';
 import { createCityIcon, type CityIconName } from '../components/icon.js';
 import { uiText, type UiCopyKey, type UiLocale } from '../presentation-locale.js';
@@ -6,25 +7,28 @@ import { mountBrushSelector, type BrushSelector } from './brush-stepper.js';
 export type TrayCategory = 'terrain' | 'roads' | 'zones' | 'buildings';
 export const trayCategories: readonly TrayCategory[] = ['terrain', 'roads', 'zones', 'buildings'];
 
-const trayTools: Readonly<Record<TrayCategory, ReadonlyArray<readonly [UiCopyKey, GameToolMode]>>> =
-  {
-    terrain: [
-      ['raise', 'raise'],
-      ['lower', 'lower'],
-      ['flatten', 'flatten'],
-    ],
-    roads: [
-      ['buildRoad', 'road-build'],
-      ['bulldozeRoad', 'road-bulldoze'],
-    ],
-    zones: [
-      ['residential', 'zone-residential'],
-      ['commercial', 'zone-commercial'],
-      ['industrial', 'zone-industrial'],
-      ['removeZone', 'zone-remove'],
-    ],
-    buildings: [['bulldozeBuilding', 'building-bulldoze']],
-  };
+type TrayToolEntry = readonly [UiCopyKey, GameToolMode, RoadDefinitionId?];
+
+const trayTools: Readonly<Record<TrayCategory, readonly TrayToolEntry[]>> = {
+  terrain: [
+    ['raise', 'raise'],
+    ['lower', 'lower'],
+    ['flatten', 'flatten'],
+  ],
+  roads: [
+    ['localStreet', 'road-build', 'basic-road'],
+    ['collectorRoad', 'road-build-collector', 'collector-road'],
+    ['arterialRoad', 'road-build-arterial', 'arterial-road'],
+    ['bulldozeRoad', 'road-bulldoze'],
+  ],
+  zones: [
+    ['residential', 'zone-residential'],
+    ['commercial', 'zone-commercial'],
+    ['industrial', 'zone-industrial'],
+    ['removeZone', 'zone-remove'],
+  ],
+  buildings: [['bulldozeBuilding', 'building-bulldoze']],
+};
 
 const categoryIcons: Readonly<Record<TrayCategory, CityIconName>> = {
   terrain: 'terrain',
@@ -39,6 +43,8 @@ const toolIcons: Readonly<Record<GameToolMode, CityIconName>> = {
   lower: 'lower',
   flatten: 'flatten',
   'road-build': 'roads',
+  'road-build-collector': 'roads',
+  'road-build-arterial': 'roads',
   'road-bulldoze': 'remove',
   'zone-residential': 'residential',
   'zone-commercial': 'commercial',
@@ -62,9 +68,7 @@ export interface SubToolTrayCallbacks {
 
 export interface SubToolTray {
   readonly element: HTMLElement;
-  readonly categories: Readonly<
-    Record<TrayCategory, ReadonlyArray<readonly [UiCopyKey, GameToolMode]>>
-  >;
+  readonly categories: Readonly<Record<TrayCategory, readonly TrayToolEntry[]>>;
   open(category?: TrayCategory): void;
   close(): void;
   setLocale(locale: UiLocale): void;
@@ -139,13 +143,14 @@ export function mountSubToolTray(
     back.addEventListener('click', renderCategories);
     slot.append(back);
 
-    for (const [labelKey, mode] of trayTools[category]) {
+    for (const [labelKey, mode, roadDefinitionId] of trayTools[category]) {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'city-tool-pill';
       const semantic = semanticClass[mode];
       if (semantic !== undefined) button.classList.add(semantic);
       button.dataset.toolMode = mode;
+      if (roadDefinitionId !== undefined) button.dataset.roadDefinition = roadDefinitionId;
       const label = uiText(locale, labelKey);
       button.setAttribute('aria-label', label);
       button.append(createCityIcon(toolIcons[mode]));

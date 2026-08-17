@@ -1,6 +1,10 @@
 import type { WorldToolMode } from '@web-three-city/terrain-core';
 
-export type RoadToolMode = 'road-build' | 'road-bulldoze';
+export type RoadToolMode =
+  | 'road-build'
+  | 'road-build-collector'
+  | 'road-build-arterial'
+  | 'road-bulldoze';
 export type ZoneToolMode =
   'zone-residential' | 'zone-commercial' | 'zone-industrial' | 'zone-remove';
 export type BuildingToolMode = 'building-bulldoze';
@@ -13,6 +17,8 @@ export function isGameToolMode(mode: string): mode is GameToolMode {
     mode === 'lower' ||
     mode === 'flatten' ||
     mode === 'road-build' ||
+    mode === 'road-build-collector' ||
+    mode === 'road-build-arterial' ||
     mode === 'road-bulldoze' ||
     mode === 'zone-residential' ||
     mode === 'zone-commercial' ||
@@ -23,7 +29,12 @@ export function isGameToolMode(mode: string): mode is GameToolMode {
 }
 
 export function isRoadToolMode(mode: GameToolMode): mode is RoadToolMode {
-  return mode === 'road-build' || mode === 'road-bulldoze';
+  return (
+    mode === 'road-build' ||
+    mode === 'road-build-collector' ||
+    mode === 'road-build-arterial' ||
+    mode === 'road-bulldoze'
+  );
 }
 
 export function isZoneToolMode(mode: GameToolMode): mode is ZoneToolMode {

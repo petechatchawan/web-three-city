@@ -1,7 +1,8 @@
 # Roads System
 
 **Status:** Road Type Authority v1 and PR2 Lane Geometry + Road Presentation implemented; PR3 lane-aware Traffic remains pending  
-**Last verified baseline:** `master@eaa15d2f72f957c1d31169de2adcf4946f99b70e` + PR #80 Road Type Authority verification  
+**Base:** `master@ef5514a8c1c0a63d267ea0804de3d79f9617b56b` after PR1 Road Type Authority  
+**PR2 verification:** exact-head evidence is recorded on PR #81  
 **Primary ownership:** `packages/road-core`, `packages/road-three`, `apps/game` tool integration  
 **Persistence:** `RoadSaveV1`
 

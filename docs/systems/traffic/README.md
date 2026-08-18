@@ -1,6 +1,6 @@
 # Traffic System
 
-**Status:** Implemented — v0.1 release candidate; owner visual acceptance pending<br>
+**Status:** Traffic Foundation v0.1 implemented; Road PR2 compatibility bridge active; owner visual acceptance pending<br>
 **Milestone:** Citizen Mobility & Traffic Foundation v0.1  
 **Primary ownership:** `packages/traffic-core`, `packages/traffic-three`; atomic composition by `apps/game`<br>
 **Persistence:** `TrafficSaveV1` inside `WorldSaveV7`
@@ -45,7 +45,7 @@ Roads + Buildings + Simulation + Citizen Mobility
 
 - strict Road/Building source projection contracts;
 - immutable `TrafficSnapshotV1` + deterministic snapshot/graph fingerprints;
-- versioned `basic-road` speed/capacity/intersection/offset profile;
+- versioned foundation Traffic road profiles for Road definition codes `1/2/3`; during Road PR2 these three profiles intentionally share Local-compatible speed/capacity/intersection/offset semantics until PR3 differentiates them;
 - deterministic directed vehicle graph and offset pedestrian sidewalk graph;
 - frontage-only Building access mapping;
 - deterministic shortest-path routing with explicit total-cost/traversal/node/edge tie rules;
@@ -58,6 +58,7 @@ Roads + Buildings + Simulation + Citizen Mobility
 - fail-closed `TrafficSaveV1` codec that persists route/progress/queue authority, never graph/cache/render state;
 - no imports from RCI, Mobility, Road, Building, DOM, or Three.js.
 - `apps/game` atomic integration with real Mobility trips, Road/Building projections, Simulation time, and deterministic Road-change recovery;
+- Game Road source projection preserves canonical Road definition codes `1/2/3` and derives connectivity from non-empty Road occupancy across mixed Road types;
 - `WorldSaveV7` persistence and V1–V6 migration, preserving logical route/progress/queue state without synthetic trips;
 - `traffic-three` pooled pedestrian/vehicle materialization, spatial indexing, deterministic caps, and LOD where every materialized agent resolves to a real Citizen-linked trip;
 - Citizen/Vehicle Inspect projections and the localized Traffic Information View consume committed state without mutating Traffic authority.
@@ -67,6 +68,8 @@ Flow policy v1 keeps zero-load time equal to free-flow and adds monotonic delay 
 ## Current Limitations and Extension Points
 
 Public transit, parking, signals, freight, accidents, and ordinary congestion-triggered mid-trip rerouting remain deferred. Road topology/destination invalidation can recover or fail active trips deterministically; ordinary congestion does not reroute an active trip in v0.1.
+
+Road PR2 compatibility is deliberately narrow: Local / Collector / Arterial preserve distinct Road definition identity but currently use equivalent Traffic semantics. Differentiated free-flow speed, capacity, directed lane centerlines, and lane-aware routing belong to Road Lane & Vehicle Life Realism v1 PR3 and must not be inferred from PR2 presentation geometry.
 
 ## Performance Contract
 

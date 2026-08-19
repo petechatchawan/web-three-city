@@ -204,9 +204,15 @@ describe('TrafficPresentation real-agent contract', () => {
       ),
     });
     presentation.update(queued, { x: 4, z: 4 }, 2, 1_300);
-    const beforeBrake = debugVehicleMotion(presentation, 'drive-trip').visualSpeedMillimetersPerSecond;
+    const beforeBrake = debugVehicleMotion(
+      presentation,
+      'drive-trip',
+    ).visualSpeedMillimetersPerSecond;
     presentation.frame(1_400);
-    const afterBrake = debugVehicleMotion(presentation, 'drive-trip').visualSpeedMillimetersPerSecond;
+    const afterBrake = debugVehicleMotion(
+      presentation,
+      'drive-trip',
+    ).visualSpeedMillimetersPerSecond;
     expect(afterBrake).toBeLessThan(beforeBrake);
     presentation.dispose();
   });

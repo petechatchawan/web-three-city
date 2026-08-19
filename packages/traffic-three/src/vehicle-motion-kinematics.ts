@@ -164,7 +164,10 @@ export function advanceVehicleKinematics(
   }>,
 ): void {
   validateNonNegativeFinite(input.timestampMs);
-  if (!Number.isFinite(input.cellPresentationLengthMillimeters) || input.cellPresentationLengthMillimeters <= 0) {
+  if (
+    !Number.isFinite(input.cellPresentationLengthMillimeters) ||
+    input.cellPresentationLengthMillimeters <= 0
+  ) {
     throw new RangeError('traffic-three:invalid-vehicle-kinematics');
   }
   const policy = input.policy ?? FOUNDATION_VEHICLE_MOTION_PRESENTATION_POLICY;

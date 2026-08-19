@@ -103,8 +103,7 @@ function desiredSpeedFor(
   if (baseline <= 0) return 0;
   const catchupRange = Math.max(1, input.cellPresentationLengthMillimeters);
   const catchupProgress = Math.max(0, Math.min(1, lag / catchupRange));
-  const catchupMultiplier =
-    1 + (input.policy.maxCatchupSpeedMultiplier - 1) * catchupProgress;
+  const catchupMultiplier = 1 + (input.policy.maxCatchupSpeedMultiplier - 1) * catchupProgress;
   return (
     baseline *
     catchupMultiplier *

@@ -124,12 +124,10 @@ function segmentLengthMillimeters(
   from: TrafficPresentationPointQ,
   to: TrafficPresentationPointQ,
 ): number {
-  return Math.max(
-    1,
-    Math.ceil(
-      Math.sqrt((to.xQ - from.xQ) ** 2 + (to.yQ - from.yQ) ** 2 + (to.zQ - from.zQ) ** 2),
-    ),
-  );
+  const dx = to.xQ - from.xQ;
+  const dy = to.yQ - from.yQ;
+  const dz = to.zQ - from.zQ;
+  return Math.max(1, Math.ceil(Math.sqrt(dx * dx + dy * dy + dz * dz)));
 }
 
 function routeSegmentsForGraph(

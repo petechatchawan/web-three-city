@@ -92,8 +92,8 @@ test('Game TypeScript includes browser-independent game tests', async () => {
 });
 
 test('Game test inventory matches Vitest discovery', async () => {
-  assert.equal(await readGameTestFileCount(), 83);
-  assert.equal((await runVitestList()).length, 332);
+  assert.equal(await readGameTestFileCount(), 84);
+  assert.equal((await runVitestList()).length, 335);
 });
 
 test('every browser spec has approved ownership tags in its Playwright title path', async () => {
@@ -116,7 +116,7 @@ test('full Chromium project has no tag exclusion', async () => {
 
 test('full Chromium list retains the current browser inventory', async () => {
   const listed = await runPlaywrightList();
-  assert.equal(listed.testCount, 144);
+  assert.equal(listed.testCount, 145);
 });
 
 test('approved targeted Playwright grep commands remain valid', async () => {

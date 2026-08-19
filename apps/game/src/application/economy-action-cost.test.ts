@@ -32,6 +32,13 @@ describe('paid world-action Economy costs', () => {
       totalMinor: 30_000,
     });
     expect(
+      quoteRoadMutationCost({ valid: true, addedCellCount: 0, removedCellCount: 0 }, rules),
+    ).toEqual({
+      ok: true,
+      category: 'roadConstruction',
+      totalMinor: 0,
+    });
+    expect(
       quoteRoadMutationCost({ valid: false, addedCellCount: 9, removedCellCount: 0 }, rules),
     ).toEqual({
       ok: false,
@@ -74,6 +81,16 @@ describe('paid world-action Economy costs', () => {
         currentPeriod: { expenses: { terraformMinor: 2_500 } },
       },
       receipt: { category: 'terraform', totalMinor: 2_500 },
+    });
+    expect(
+      applyPaidActionCost(snapshot(), { category: 'roadConstruction', totalMinor: 0 }, rules),
+    ).toMatchObject({
+      ok: true,
+      snapshot: {
+        treasuryBalanceMinor: 10_000_000,
+        currentPeriod: { expenses: { roadConstructionMinor: 0 } },
+      },
+      receipt: { category: 'roadConstruction', totalMinor: 0 },
     });
   });
 

@@ -1,5 +1,6 @@
 import {
   planRoadMutation,
+  type RoadDefinitionId,
   type RoadMutationPlan,
   type RoadPlacementEnvironment,
   type RoadSnapshot,
@@ -9,7 +10,7 @@ import type { RoadToolMode } from './game-tool-mode.js';
 import { createReversibleCellTrace, type ReversibleCellTrace } from './reversible-cell-trace.js';
 
 export interface RoadInputState {
-  readonly mode: RoadToolMode | null;
+  readonly mode: 'road-build' | 'road-bulldoze' | null;
   readonly strokeActive: boolean;
   readonly previewValid: boolean | null;
   readonly previewCellCount: number;
@@ -39,6 +40,7 @@ export interface CreateRoadStrokeControllerOptions {
 interface RoadStrokeSession {
   readonly pointerId: number;
   readonly mode: RoadToolMode;
+  readonly definitionId: RoadDefinitionId;
   readonly roads: RoadSnapshot;
   readonly environment: RoadPlacementEnvironment;
   readonly trace: ReversibleCellTrace;
@@ -46,7 +48,24 @@ interface RoadStrokeSession {
 }
 
 function operationForMode(mode: RoadToolMode): 'build' | 'bulldoze' {
-  return mode === 'road-build' ? 'build' : 'bulldoze';
+  return mode === 'road-bulldoze' ? 'bulldoze' : 'build';
+}
+
+function inputModeForMode(mode: RoadToolMode | null): RoadInputState['mode'] {
+  if (mode === null) return null;
+  return operationForMode(mode) === 'bulldoze' ? 'road-bulldoze' : 'road-build';
+}
+
+function definitionForMode(mode: RoadToolMode): RoadDefinitionId {
+  switch (mode) {
+    case 'road-build-collector':
+      return 'collector-road';
+    case 'road-build-arterial':
+      return 'arterial-road';
+    case 'road-build':
+    case 'road-bulldoze':
+      return 'basic-road';
+  }
 }
 
 export function createRoadStrokeController(
@@ -66,7 +85,7 @@ export function createRoadStrokeController(
       session.roads,
       {
         operation: operationForMode(session.mode),
-        definitionId: 'basic-road',
+        definitionId: session.definitionId,
         cells: session.trace.cells(),
       },
       session.environment,
@@ -87,6 +106,7 @@ export function createRoadStrokeController(
       session = {
         pointerId,
         mode,
+        definitionId: definitionForMode(mode),
         roads: options.getRoadSnapshot(),
         environment: options.getEnvironment(),
         trace: createReversibleCellTrace(cell),
@@ -115,7 +135,7 @@ export function createRoadStrokeController(
     getState(): RoadInputState {
       const mode = options.getMode();
       return {
-        mode,
+        mode: inputModeForMode(mode),
         strokeActive: session !== null,
         previewValid: session?.plan?.valid ?? null,
         previewCellCount: session?.plan?.requestedCells.length ?? 0,

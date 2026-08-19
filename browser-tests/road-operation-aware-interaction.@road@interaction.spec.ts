@@ -66,7 +66,7 @@ test('Road operations expose distinct Preview and release outside Terrain commit
 
   await openBuildCategory(page, 'roads');
   await page.getByRole('button', { name: 'Build Road' }).click();
-  await expect(page.locator('.city-tool-context-name')).toHaveText('Build Road');
+  await expect(page.locator('.city-tool-context-name')).toHaveText('Local Street');
   await dispatchCanvasTouch(page, 'pointerdown', 1, points[0]!.x, points[0]!.y);
   await dispatchCanvasTouch(page, 'pointermove', 1, points.at(-1)!.x, points.at(-1)!.y);
   let evidence = await readEvidence(page);

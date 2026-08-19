@@ -1,5 +1,6 @@
 export { createCoreRoadPresentationSource } from './core-road-source.js';
 export { createRoadGeometry } from './geometry-adapter.js';
+export { buildRoadLaneMarkingMesh } from './lane-marking-geometry.js';
 export { createRoadMaterials } from './material-factory.js';
 export type { RoadMaterials } from './material-factory.js';
 export { RoadChunkPresentation } from './road-chunk-presentation.js';
@@ -9,4 +10,7 @@ export { buildRoadInvalidMarker } from './road-invalid-marker.js';
 export type { RoadInvalidMarkerData } from './road-invalid-marker.js';
 export { createRoadMeshData, emptyRoadMeshData } from './road-mesh-data.js';
 export type { RoadMeshData } from './road-mesh-data.js';
+export { buildRoadPresentationCellMesh } from './road-presentation-cell.js';
 export { RoadPreviewPresentation } from './road-preview-presentation.js';
+export { roadStyleProfileForDefinition } from './road-style-profile.js';
+export type { RoadStyleProfile } from './road-style-profile.js';

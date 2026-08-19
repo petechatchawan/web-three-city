@@ -214,7 +214,10 @@ export function deriveDirectedLanePath(
     }
     const current = laneSegments[index]!;
     const next = laneSegments[index + 1]!;
-    current.to = pointAlongHorizontalSegment(current, currentDirection.length - junctionHalfExtentQ);
+    current.to = pointAlongHorizontalSegment(
+      current,
+      currentDirection.length - junctionHalfExtentQ,
+    );
     next.from = pointAlongHorizontalSegment(next, junctionHalfExtentQ);
     const connector = createIntersectionLaneConnector({
       incoming: {

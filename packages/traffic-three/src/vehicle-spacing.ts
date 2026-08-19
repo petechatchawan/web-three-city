@@ -54,19 +54,113 @@ interface MutableRoutePlacement {
   materialized: boolean;
 }
 
-function compareInput(
-  first: VehicleVisualPlacementInput,
-  second: VehicleVisualPlacementInput,
-): number {
-  if (first.edgeId !== second.edgeId) return first.edgeId < second.edgeId ? -1 : 1;
-  if (first.progressQ !== second.progressQ) return second.progressQ - first.progressQ;
-  return first.tripId < second.tripId ? -1 : first.tripId > second.tripId ? 1 : 0;
+interface SpacingCoordinate {
+  readonly laneKey: string;
+  readonly longitudinalMillimeters: number;
+  readonly scaleMillimeters: number;
 }
+
+interface PreparedVisualPlacementInput {
+  readonly input: VehicleVisualPlacementInput;
+  readonly coordinate: SpacingCoordinate;
+}
+
+const RENDERED_ROAD_CELL_MILLIMETERS = 1_000;
+const DRIVE_EDGE_PATTERN = /^drive:(-?\d+),(-?\d+)->(-?\d+),(-?\d+)$/;
 
 function validateHeadway(value: number): void {
   if (!Number.isFinite(value) || value < 0) {
     throw new RangeError('traffic-three:invalid-headway');
   }
+}
+
+function validateVisualInput(input: VehicleVisualPlacementInput): void {
+  if (
+    !Number.isSafeInteger(input.progressQ) ||
+    input.progressQ < 0 ||
+    input.progressQ > TRAFFIC_PROGRESS_MAX_Q
+  ) {
+    throw new RangeError('traffic-three:invalid-progress');
+  }
+  if (!Number.isSafeInteger(input.edgeLengthMillimeters) || input.edgeLengthMillimeters <= 0) {
+    throw new RangeError('traffic-three:invalid-edge-length');
+  }
+}
+
+function spacingCoordinateFor(input: VehicleVisualPlacementInput): SpacingCoordinate {
+  const match = DRIVE_EDGE_PATTERN.exec(input.edgeId);
+  if (match === null) {
+    return Object.freeze({
+      laneKey: `edge:${input.edgeId}`,
+      longitudinalMillimeters: Math.floor(
+        (input.progressQ * input.edgeLengthMillimeters) / TRAFFIC_PROGRESS_MAX_Q,
+      ),
+      scaleMillimeters: input.edgeLengthMillimeters,
+    });
+  }
+
+  const fromX = Number(match[1]);
+  const fromZ = Number(match[2]);
+  const toX = Number(match[3]);
+  const toZ = Number(match[4]);
+  const dx = toX - fromX;
+  const dz = toZ - fromZ;
+  const localDistance =
+    (input.progressQ * RENDERED_ROAD_CELL_MILLIMETERS) / TRAFFIC_PROGRESS_MAX_Q;
+
+  if (dx === 1 && dz === 0) {
+    return Object.freeze({
+      laneKey: `drive:east:${fromZ}`,
+      longitudinalMillimeters: fromX * RENDERED_ROAD_CELL_MILLIMETERS + localDistance,
+      scaleMillimeters: RENDERED_ROAD_CELL_MILLIMETERS,
+    });
+  }
+  if (dx === -1 && dz === 0) {
+    return Object.freeze({
+      laneKey: `drive:west:${fromZ}`,
+      longitudinalMillimeters: -fromX * RENDERED_ROAD_CELL_MILLIMETERS + localDistance,
+      scaleMillimeters: RENDERED_ROAD_CELL_MILLIMETERS,
+    });
+  }
+  if (dx === 0 && dz === 1) {
+    return Object.freeze({
+      laneKey: `drive:south:${fromX}`,
+      longitudinalMillimeters: fromZ * RENDERED_ROAD_CELL_MILLIMETERS + localDistance,
+      scaleMillimeters: RENDERED_ROAD_CELL_MILLIMETERS,
+    });
+  }
+  if (dx === 0 && dz === -1) {
+    return Object.freeze({
+      laneKey: `drive:north:${fromX}`,
+      longitudinalMillimeters: -fromZ * RENDERED_ROAD_CELL_MILLIMETERS + localDistance,
+      scaleMillimeters: RENDERED_ROAD_CELL_MILLIMETERS,
+    });
+  }
+
+  return Object.freeze({
+    laneKey: `edge:${input.edgeId}`,
+    longitudinalMillimeters: Math.floor(
+      (input.progressQ * input.edgeLengthMillimeters) / TRAFFIC_PROGRESS_MAX_Q,
+    ),
+    scaleMillimeters: input.edgeLengthMillimeters,
+  });
+}
+
+function comparePreparedInput(
+  first: PreparedVisualPlacementInput,
+  second: PreparedVisualPlacementInput,
+): number {
+  if (first.coordinate.laneKey !== second.coordinate.laneKey) {
+    return first.coordinate.laneKey < second.coordinate.laneKey ? -1 : 1;
+  }
+  if (first.coordinate.longitudinalMillimeters !== second.coordinate.longitudinalMillimeters) {
+    return second.coordinate.longitudinalMillimeters - first.coordinate.longitudinalMillimeters;
+  }
+  return first.input.tripId < second.input.tripId
+    ? -1
+    : first.input.tripId > second.input.tripId
+      ? 1
+      : 0;
 }
 
 function routeLayoutFor(input: VehicleRouteHeadwayInput): RouteLayout {
@@ -148,45 +242,41 @@ export function deriveVehicleVisualPlacements(
   minimumHeadwayMillimeters: number,
 ): readonly VehicleVisualPlacement[] {
   validateHeadway(minimumHeadwayMillimeters);
-  const sorted = [...inputs].sort(compareInput);
-  const lastDistanceByEdge = new Map<string, number>();
+  const prepared = inputs.map((input) => {
+    validateVisualInput(input);
+    return Object.freeze({ input, coordinate: spacingCoordinateFor(input) });
+  });
+  prepared.sort(comparePreparedInput);
+  const lastDistanceByLane = new Map<string, number>();
   const placements: VehicleVisualPlacement[] = [];
 
-  for (const input of sorted) {
-    if (
-      !Number.isSafeInteger(input.progressQ) ||
-      input.progressQ < 0 ||
-      input.progressQ > TRAFFIC_PROGRESS_MAX_Q
-    ) {
-      throw new RangeError('traffic-three:invalid-progress');
-    }
-    if (!Number.isSafeInteger(input.edgeLengthMillimeters) || input.edgeLengthMillimeters <= 0) {
-      throw new RangeError('traffic-three:invalid-edge-length');
-    }
-    const authoritativeDistance = Math.floor(
-      (input.progressQ * input.edgeLengthMillimeters) / TRAFFIC_PROGRESS_MAX_Q,
-    );
-    const previousDistance = lastDistanceByEdge.get(input.edgeId);
-    const distance =
+  for (const { input, coordinate } of prepared) {
+    const previousDistance = lastDistanceByLane.get(coordinate.laneKey);
+    const adjustedLongitudinalDistance =
       previousDistance === undefined
-        ? authoritativeDistance
-        : Math.max(
-            0,
-            Math.min(authoritativeDistance, previousDistance - minimumHeadwayMillimeters),
+        ? coordinate.longitudinalMillimeters
+        : Math.min(
+            coordinate.longitudinalMillimeters,
+            previousDistance - minimumHeadwayMillimeters,
           );
-    lastDistanceByEdge.set(input.edgeId, distance);
+    lastDistanceByLane.set(coordinate.laneKey, adjustedLongitudinalDistance);
+    const longitudinalDelta = adjustedLongitudinalDistance - coordinate.longitudinalMillimeters;
+    const adjustedProgressQ = Math.min(
+      TRAFFIC_PROGRESS_MAX_Q,
+      Math.floor(
+        input.progressQ +
+          (longitudinalDelta * TRAFFIC_PROGRESS_MAX_Q) / coordinate.scaleMillimeters,
+      ),
+    );
+    const distance = Math.floor(
+      (adjustedProgressQ * input.edgeLengthMillimeters) / TRAFFIC_PROGRESS_MAX_Q,
+    );
     placements.push(
       Object.freeze({
         tripId: input.tripId,
         edgeId: input.edgeId,
         distanceAlongEdgeMillimeters: distance,
-        adjustedProgressQ: Math.min(
-          TRAFFIC_PROGRESS_MAX_Q,
-          Math.max(
-            0,
-            Math.floor((distance * TRAFFIC_PROGRESS_MAX_Q) / input.edgeLengthMillimeters),
-          ),
-        ),
+        adjustedProgressQ,
         queued: input.queued,
         lateralOffsetMillimeters: 0,
       }),

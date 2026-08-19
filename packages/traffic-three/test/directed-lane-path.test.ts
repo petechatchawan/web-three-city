@@ -127,7 +127,12 @@ describe('PR3 directed lane path', () => {
     expect(Math.atan2(endDx, endDz)).toBeCloseTo(0, 4);
 
     for (const segment of connector) {
-      for (const point of [segment.curve!.p0, segment.curve!.p1, segment.curve!.p2, segment.curve!.p3]) {
+      for (const point of [
+        segment.curve!.p0,
+        segment.curve!.p1,
+        segment.curve!.p2,
+        segment.curve!.p3,
+      ]) {
         expect(point.xQ).toBeGreaterThanOrEqual(5_500);
         expect(point.xQ).toBeLessThanOrEqual(10_500);
         expect(point.zQ).toBeGreaterThanOrEqual(-2_500);

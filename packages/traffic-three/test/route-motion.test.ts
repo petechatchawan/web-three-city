@@ -55,8 +55,7 @@ describe('traffic presentation route motion', () => {
     });
     const prepared = prepareTrafficRoute(lanePath.segments);
     const preparedSegments = Reflect.get(prepared, 'preparedSegments') as
-      | readonly PreparedSegmentView[]
-      | undefined;
+      readonly PreparedSegmentView[] | undefined;
 
     expect(preparedSegments).toBeDefined();
     expect(preparedSegments).toHaveLength(lanePath.segments.length);

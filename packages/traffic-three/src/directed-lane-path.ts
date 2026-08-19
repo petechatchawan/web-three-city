@@ -113,7 +113,7 @@ function segmentLengthMillimeters(from: TrafficWorldPointQ, to: TrafficWorldPoin
 
 function laneSegment(segment: MutableLaneSegment): DirectedLanePathSegment {
   return Object.freeze({
-    edgeId: `lane:${segment.sourceEdgeId}`,
+    edgeId: `lane:${segment.sourceEdgeId}:${segment.from.xQ},${segment.from.yQ},${segment.from.zQ}->${segment.to.xQ},${segment.to.yQ},${segment.to.zQ}`,
     sourceEdgeId: segment.sourceEdgeId,
     kind: 'lane' as const,
     from: segment.from,

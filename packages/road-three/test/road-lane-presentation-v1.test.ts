@@ -99,6 +99,23 @@ describe('Road Lane Presentation v1', () => {
     expect(extentAlongX(northSouth.positions)).toBeLessThan(0.08);
   });
 
+  it('draws center-divider geometry through every simple orthogonal Road corner', () => {
+    const corners = [
+      ROAD_NORTH | ROAD_EAST,
+      ROAD_EAST | ROAD_SOUTH,
+      ROAD_SOUTH | ROAD_WEST,
+      ROAD_WEST | ROAD_NORTH,
+    ];
+
+    for (const connections of corners) {
+      const marking = buildRoadLaneMarkingMesh(
+        view(BASIC_ROAD_DEFINITION, connections),
+        WORLD_CONFIG,
+      );
+      expect(marking.indices.length).toBeGreaterThan(0);
+    }
+  });
+
   it('suppresses center-divider geometry inside three-way and four-way junction cells', () => {
     const threeWay = buildRoadLaneMarkingMesh(
       view(BASIC_ROAD_DEFINITION, ROAD_NORTH | ROAD_EAST | ROAD_SOUTH),

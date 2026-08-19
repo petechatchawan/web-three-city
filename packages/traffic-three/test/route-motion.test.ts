@@ -72,7 +72,13 @@ describe('traffic presentation route motion', () => {
     expect(boundary).toBe(secondCurve.startDistanceMillimeters);
 
     const headings: number[] = [];
-    const distances = [boundary - 600, boundary - 300, boundary, boundary + 300, boundary + 600];
+    const distances = [
+      boundary - 600,
+      boundary - 300,
+      boundary,
+      boundary + 300,
+      boundary + 600,
+    ];
     for (const distance of distances) {
       const position = new Vector3();
       const sample = samplePreparedRouteInto(prepared, distance, position);

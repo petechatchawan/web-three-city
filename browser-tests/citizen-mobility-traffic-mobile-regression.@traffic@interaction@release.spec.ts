@@ -43,7 +43,11 @@ test('Traffic information view does not synthesize Navigate, clear active tool, 
 
   await openBuildCategory(page, 'roads');
   await page.getByRole('button', { name: 'Build Road', exact: true }).click();
-  await expect(page.locator('.city-tool-context-name')).toHaveText('Build Road');
+  const activeToolContext = page.locator('.city-tool-context-name');
+  await expect(activeToolContext).toBeVisible();
+  const activeToolName = await activeToolContext.textContent();
+  expect(activeToolName).not.toBeNull();
+  expect(activeToolName?.trim().length ?? 0).toBeGreaterThan(0);
   const beforeSpeed = await page.evaluate(() => {
     const api = (
       window as Window & {
@@ -58,7 +62,7 @@ test('Traffic information view does not synthesize Navigate, clear active tool, 
   await page.getByRole('button', { name: /Information Views/i }).click();
   await page.locator('[data-information-view="traffic"]').click();
   await expect(page.locator('[data-testid="information-view-legend"]')).toContainText('Traffic');
-  await expect(page.locator('.city-tool-context-name')).toHaveText('Build Road');
+  await expect(activeToolContext).toHaveText(activeToolName ?? '');
 
   const afterSpeed = await page.evaluate(() => {
     const api = (

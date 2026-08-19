@@ -57,14 +57,8 @@ function point(
   });
 }
 
-function segmentLengthMillimeters(
-  from: TrafficWorldPointQ,
-  to: TrafficWorldPointQ,
-): number {
-  return Math.max(
-    1,
-    Math.ceil(Math.hypot(to.xQ - from.xQ, to.yQ - from.yQ, to.zQ - from.zQ)),
-  );
+function segmentLengthMillimeters(from: TrafficWorldPointQ, to: TrafficWorldPointQ): number {
+  return Math.max(1, Math.ceil(Math.hypot(to.xQ - from.xQ, to.yQ - from.yQ, to.zQ - from.zQ)));
 }
 
 export function createIntersectionLaneConnector(

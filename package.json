@@ -17,7 +17,7 @@
     "typecheck:browser": "tsc -p tsconfig.browser-tests.json --noEmit",
     "lint": "eslint .",
     "format": "prettier --write \"**/*.{ts,js,yml,yaml}\"",
-    "format:check": "prettier --write packages/traffic-three/test/route-motion.test.ts && git diff -- packages/traffic-three/test/route-motion.test.ts && false",
+    "format:check": "prettier --check \"**/*.{ts,js,yml,yaml}\"",
     "provenance:check": "node tooling/check-provenance.mjs",
     "test": "pnpm -r --if-present test",
     "test:watch": "pnpm -r --if-present test:watch",

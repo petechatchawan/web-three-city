@@ -20,7 +20,9 @@ function driveSnapshot(trafficRevision: number, laneZQ: number): TrafficPresenta
         turn: null,
         routeSegments: Object.freeze([
           Object.freeze({
-            edgeId: 'drive-edge',
+            edgeId: `lane:drive-edge:${laneZQ}`,
+            sourceEdgeId: 'drive-edge',
+            kind: 'lane' as const,
             from: Object.freeze({ xQ: 0, yQ: 0, zQ: laneZQ }),
             to: Object.freeze({ xQ: 8_000, yQ: 0, zQ: laneZQ }),
             lengthMillimeters: 8_000,
@@ -33,7 +35,7 @@ function driveSnapshot(trafficRevision: number, laneZQ: number): TrafficPresenta
 }
 
 describe('PR3 Traffic presentation lane route reconciliation', () => {
-  it('re-prepares an active trip when lane geometry changes without changing trip identity', () => {
+  it('re-prepares an active canonical trip when derived lane path identity changes', () => {
     const scene = new Scene();
     const presentation = new TrafficPresentation(scene);
     const local = driveSnapshot(7, -180);
@@ -41,6 +43,11 @@ describe('PR3 Traffic presentation lane route reconciliation', () => {
     const before = presentation.debugSnapshot();
 
     const upgraded = driveSnapshot(8, -230);
+    expect(local.agents[0]!.routeSegments[0]!.sourceEdgeId).toBe('drive-edge');
+    expect(upgraded.agents[0]!.routeSegments[0]!.sourceEdgeId).toBe('drive-edge');
+    expect(local.agents[0]!.routeSegments[0]!.edgeId).not.toBe(
+      upgraded.agents[0]!.routeSegments[0]!.edgeId,
+    );
     presentation.update(upgraded, { x: 4, z: 0 }, 1, 1_000);
     const after = presentation.debugSnapshot();
 

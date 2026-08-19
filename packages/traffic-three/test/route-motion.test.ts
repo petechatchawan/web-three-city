@@ -1,6 +1,14 @@
+import { Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import * as trafficThree from '../src/index.js';
-import { headingRadians, sampleRoutePolyline, type TrafficRouteSegment } from '../src/index.js';
+import {
+  deriveDirectedLanePath,
+  headingRadians,
+  prepareTrafficRoute,
+  samplePreparedRouteInto,
+  sampleRoutePolyline,
+  type TrafficRouteSegment,
+} from '../src/index.js';
 
 const route: readonly TrafficRouteSegment[] = Object.freeze([
   Object.freeze({
@@ -31,6 +39,47 @@ describe('traffic presentation route motion', () => {
 
     expect(typeof prepare).toBe('function');
     expect(typeof sampleInto).toBe('function');
+  });
+
+  it('prepares cubic connector arc-length data and samples continuous tangent heading', () => {
+    const lanePath = deriveDirectedLanePath(route, {
+      laneOffsetsQ: [1_200, 1_200],
+      junctionHalfExtentQ: 2_500,
+      connectorSampleCount: 8,
+    });
+    const prepared = prepareTrafficRoute(lanePath.segments);
+    const preparedSegments = Reflect.get(prepared, 'preparedSegments') as
+      | readonly Readonly<{ curveLookup: unknown; startDistanceMillimeters: number; endDistanceMillimeters: number }>[]
+      | undefined;
+
+    expect(preparedSegments).toBeDefined();
+    expect(preparedSegments).toHaveLength(lanePath.segments.length);
+    const curveSegments = preparedSegments!.filter((segment) => segment.curveLookup !== null);
+    expect(curveSegments).toHaveLength(2);
+    for (const segment of curveSegments) {
+      expect(segment.endDistanceMillimeters).toBeGreaterThan(segment.startDistanceMillimeters);
+    }
+
+    const firstCurve = curveSegments[0]!;
+    const secondCurve = curveSegments[1]!;
+    const boundary = firstCurve.endDistanceMillimeters;
+    expect(boundary).toBe(secondCurve.startDistanceMillimeters);
+
+    const headings: number[] = [];
+    for (const distance of [boundary - 600, boundary - 300, boundary, boundary + 300, boundary + 600]) {
+      const position = new Vector3();
+      const sample = samplePreparedRouteInto(prepared, distance, position);
+      headings.push(sample.headingRadians);
+    }
+    for (let index = 1; index < headings.length; index += 1) {
+      expect(Math.abs(headings[index]! - headings[index - 1]!)).toBeLessThan(Math.PI / 4);
+    }
+
+    const preparedAgain = prepareTrafficRoute(lanePath.segments);
+    expect(preparedAgain.totalLengthMillimeters).toBe(prepared.totalLengthMillimeters);
+    expect(Array.from(preparedAgain.cumulativeEndMillimeters)).toEqual(
+      Array.from(prepared.cumulativeEndMillimeters),
+    );
   });
 
   it('keeps a vehicle visual bound to its trip while reusing the pool', async () => {

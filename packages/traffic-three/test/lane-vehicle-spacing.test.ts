@@ -37,7 +37,7 @@ describe('PR3 lane-owned vehicle spacing', () => {
     );
   });
 
-  it('retains headway across adjacent directed lane segments instead of resetting at an edge boundary', () => {
+  it('retains headway across adjacent lane segments and suppresses overflow instead of stacking at route start', () => {
     const deriveRoutePlacements = Reflect.get(
       vehicleSpacing,
       'deriveVehicleRouteHeadwayPlacements',
@@ -91,6 +91,12 @@ describe('PR3 lane-owned vehicle spacing', () => {
           routeDistanceMillimeters: 7_000,
           queued: false,
         },
+        {
+          tripId: 'overflow',
+          routeSegments: route,
+          routeDistanceMillimeters: 6_500,
+          queued: false,
+        },
       ],
       4_500,
     );
@@ -104,6 +110,10 @@ describe('PR3 lane-owned vehicle spacing', () => {
       adjustedRouteDistanceMillimeters: 4_500,
       materialized: true,
     });
-    expect(byTrip.get('tail')).toMatchObject({ materialized: false });
+    expect(byTrip.get('tail')).toMatchObject({
+      adjustedRouteDistanceMillimeters: 0,
+      materialized: true,
+    });
+    expect(byTrip.get('overflow')).toMatchObject({ materialized: false });
   });
 });

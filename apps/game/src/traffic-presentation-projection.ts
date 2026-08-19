@@ -1,3 +1,4 @@
+import { roadDefinitionForCode } from '@web-three-city/road-core';
 import {
   TRAFFIC_PROGRESS_MAX_Q,
   createTrafficProjection,
@@ -9,8 +10,12 @@ import {
   type TrafficGraph,
   type TrafficSnapshotV1,
 } from '@web-three-city/traffic-core';
+import {
+  deriveDirectedLanePath,
+  type DirectedLanePathEdgeSpan,
+  type TrafficRouteSegment,
+} from '@web-three-city/traffic-three';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
-import type { TrafficRouteSegment } from '@web-three-city/traffic-three';
 
 const TRAFFIC_Q_PER_METER = 1_000;
 const TRAFFIC_CELL_METERS = 8;
@@ -53,6 +58,13 @@ export interface TrafficPresentationSnapshot {
 
 export interface TrafficPresentationRouteSegment extends TrafficRouteSegment {
   readonly lengthMillimeters: number;
+  readonly sourceEdgeId?: string;
+  readonly kind?: 'lane' | 'connector';
+}
+
+interface TrafficPresentationRouteProjection {
+  readonly segments: readonly TrafficPresentationRouteSegment[];
+  readonly edgeSpans: readonly DirectedLanePathEdgeSpan[];
 }
 
 function withBuildingRevision(graph: TrafficGraph, revision: number): TrafficGraph {
@@ -108,6 +120,18 @@ function graphsFor(
   });
 }
 
+function segmentLengthMillimeters(
+  from: TrafficPresentationPointQ,
+  to: TrafficPresentationPointQ,
+): number {
+  return Math.max(
+    1,
+    Math.ceil(
+      Math.sqrt((to.xQ - from.xQ) ** 2 + (to.yQ - from.yQ) ** 2 + (to.zQ - from.zQ) ** 2),
+    ),
+  );
+}
+
 function routeSegmentsForGraph(
   nodeById: ReadonlyMap<string, Readonly<{ xQ: number; yQ: number; zQ: number }>>,
   edgeById: ReadonlyMap<
@@ -128,21 +152,126 @@ function routeSegmentsForGraph(
       return [
         Object.freeze({
           edgeId,
+          sourceEdgeId: edgeId,
           from: renderedFrom,
           to: renderedTo,
-          lengthMillimeters: Math.max(
-            1,
-            Math.ceil(
-              Math.sqrt(
-                (renderedTo.xQ - renderedFrom.xQ) ** 2 +
-                  (renderedTo.yQ - renderedFrom.yQ) ** 2 +
-                  (renderedTo.zQ - renderedFrom.zQ) ** 2,
-              ),
-            ),
-          ),
+          lengthMillimeters: segmentLengthMillimeters(renderedFrom, renderedTo),
         }),
       ];
     }),
+  );
+}
+
+function centerlineEdgeSpans(
+  segments: readonly TrafficPresentationRouteSegment[],
+): readonly DirectedLanePathEdgeSpan[] {
+  let distance = 0;
+  return Object.freeze(
+    segments.map((segment) => {
+      const startDistanceMillimeters = distance;
+      distance += segment.lengthMillimeters;
+      return Object.freeze({
+        sourceEdgeId: segment.sourceEdgeId ?? segment.edgeId,
+        startDistanceMillimeters,
+        endDistanceMillimeters: distance,
+      });
+    }),
+  );
+}
+
+function roadCellKey(x: number, z: number): string {
+  return `${x},${z}`;
+}
+
+function roadCellCoordForDriveNode(nodeId: string): Readonly<{ x: number; z: number }> {
+  const match = /^drive:(\d+),(\d+)$/.exec(nodeId);
+  if (match === null) throw new Error('traffic-presentation:invalid-drive-node');
+  return Object.freeze({ x: Number(match[1]), z: Number(match[2]) });
+}
+
+function driveLaneOffsetQ(
+  edge: Readonly<{ fromNodeId: string; toNodeId: string }>,
+  roads: RoadTrafficSourceProjection,
+): number {
+  const cells = new Map(roads.cells.map((cell) => [roadCellKey(cell.x, cell.z), cell] as const));
+  const fromCoord = roadCellCoordForDriveNode(edge.fromNodeId);
+  const toCoord = roadCellCoordForDriveNode(edge.toNodeId);
+  const fromCell = cells.get(roadCellKey(fromCoord.x, fromCoord.z));
+  const toCell = cells.get(roadCellKey(toCoord.x, toCoord.z));
+  if (fromCell === undefined || toCell === undefined) {
+    throw new Error('traffic-presentation:missing-drive-road-cell');
+  }
+  const fromRoad = roadDefinitionForCode(fromCell.definitionCode);
+  const toRoad = roadDefinitionForCode(toCell.definitionCode);
+  if (fromRoad === null || toRoad === null) {
+    throw new Error('traffic-presentation:empty-drive-road-cell');
+  }
+  return Math.round((Math.min(fromRoad.width, toRoad.width) * RENDER_Q_PER_UNIT) / 4);
+}
+
+function routeProjectionForGraph(
+  input: Readonly<{
+    roads: RoadTrafficSourceProjection;
+    graph: TrafficGraph;
+    mode: 'Walk' | 'Drive';
+    routeEdgeIds: readonly string[];
+  }>,
+): TrafficPresentationRouteProjection {
+  const nodeById = new Map(input.graph.nodes.map((node) => [node.nodeId, node] as const));
+  const edgeById = new Map(input.graph.edges.map((edge) => [edge.edgeId, edge] as const));
+  const centerline = routeSegmentsForGraph(nodeById, edgeById, input.routeEdgeIds);
+  if (input.mode === 'Walk' || centerline.length === 0) {
+    return Object.freeze({
+      segments: centerline,
+      edgeSpans: centerlineEdgeSpans(centerline),
+    });
+  }
+  const laneOffsetsQ = input.routeEdgeIds.map((edgeId) => {
+    const edge = edgeById.get(edgeId);
+    if (edge === undefined) throw new Error('traffic-presentation:missing-drive-edge');
+    return driveLaneOffsetQ(edge, input.roads);
+  });
+  const directed = deriveDirectedLanePath(centerline, { laneOffsetsQ });
+  return Object.freeze({
+    segments: Object.freeze(
+      directed.segments.map((segment) =>
+        Object.freeze({
+          edgeId: segment.edgeId,
+          sourceEdgeId: segment.sourceEdgeId,
+          kind: segment.kind,
+          from: segment.from,
+          to: segment.to,
+          lengthMillimeters: segment.lengthMillimeters,
+        }),
+      ),
+    ),
+    edgeSpans: directed.edgeSpans,
+  });
+}
+
+function sourceEdgeEndpoints(
+  route: TrafficPresentationRouteProjection,
+  sourceEdgeId: string,
+): Readonly<{ from: TrafficPresentationPointQ; to: TrafficPresentationPointQ }> | null {
+  const matching = route.segments.filter(
+    (segment) => (segment.sourceEdgeId ?? segment.edgeId) === sourceEdgeId,
+  );
+  const first = matching[0];
+  const last = matching.at(-1);
+  if (first === undefined || last === undefined) return null;
+  return Object.freeze({ from: first.from, to: last.to });
+}
+
+function routeDistanceForProgress(
+  route: TrafficPresentationRouteProjection,
+  sourceEdgeId: string,
+  progressQ: number,
+): number | null {
+  const span = route.edgeSpans.find((candidate) => candidate.sourceEdgeId === sourceEdgeId);
+  if (span === undefined) return null;
+  const spanLength = span.endDistanceMillimeters - span.startDistanceMillimeters;
+  return (
+    span.startDistanceMillimeters + Math.floor((progressQ * spanLength) / TRAFFIC_PROGRESS_MAX_Q)
   );
 }
 
@@ -156,9 +285,12 @@ export function createTrafficPresentationRouteSegments(
 ): readonly TrafficPresentationRouteSegment[] {
   const graphs = graphsFor(input);
   const graph = input.mode === 'Walk' ? graphs.walk : graphs.drive;
-  const nodeById = new Map(graph.nodes.map((node) => [node.nodeId, node] as const));
-  const edgeById = new Map(graph.edges.map((edge) => [edge.edgeId, edge] as const));
-  return routeSegmentsForGraph(nodeById, edgeById, input.routeEdgeIds);
+  return routeProjectionForGraph({
+    roads: input.roads,
+    graph,
+    mode: input.mode,
+    routeEdgeIds: input.routeEdgeIds,
+  }).segments;
 }
 
 export function createTrafficPresentationSnapshot(
@@ -169,94 +301,34 @@ export function createTrafficPresentationSnapshot(
   }>,
 ): TrafficPresentationSnapshot {
   const graphs = graphsFor(input);
-  const nodeById = new Map(graphs.combined.nodes.map((node) => [node.nodeId, node] as const));
-  const edgeById = new Map(graphs.combined.edges.map((edge) => [edge.edgeId, edge] as const));
-  const walkNodeById = new Map(graphs.walk.nodes.map((node) => [node.nodeId, node] as const));
-  const walkEdgeById = new Map(graphs.walk.edges.map((edge) => [edge.edgeId, edge] as const));
-  const driveNodeById = new Map(graphs.drive.nodes.map((node) => [node.nodeId, node] as const));
-  const driveEdgeById = new Map(graphs.drive.edges.map((edge) => [edge.edgeId, edge] as const));
   const logicalTripById = new Map(
     input.traffic.activeTrips.map((trip) => [trip.tripId, trip] as const),
   );
   const projection = createTrafficProjection({ snapshot: input.traffic, graph: graphs.combined });
   const agents = projection.agents.flatMap((agent) => {
-    const edge = edgeById.get(agent.routeEdgeId);
-    if (edge === undefined) return [];
-    const from = nodeById.get(edge.fromNodeId);
-    const to = nodeById.get(edge.toNodeId);
-    if (from === undefined || to === undefined) return [];
-    const renderedFrom = trafficPresentationPointForGraphNode(from);
-    const renderedTo = trafficPresentationPointForGraphNode(to);
     const logicalTrip = logicalTripById.get(agent.tripId);
-    const routeSegments =
-      logicalTrip === undefined
-        ? Object.freeze([
-            Object.freeze({
-              edgeId: agent.routeEdgeId,
-              from: renderedFrom,
-              to: renderedTo,
-              lengthMillimeters: Math.max(
-                1,
-                Math.ceil(
-                  Math.sqrt(
-                    (renderedTo.xQ - renderedFrom.xQ) ** 2 +
-                      (renderedTo.yQ - renderedFrom.yQ) ** 2 +
-                      (renderedTo.zQ - renderedFrom.zQ) ** 2,
-                  ),
-                ),
-              ),
-            }),
-          ])
-        : routeSegmentsForGraph(
-            agent.mode === 'Walk' ? walkNodeById : driveNodeById,
-            agent.mode === 'Walk' ? walkEdgeById : driveEdgeById,
-            logicalTrip.routeEdgeIds,
-          );
-    const currentRouteSegmentIndex = Math.max(
-      0,
-      routeSegments.findIndex((segment) => segment.edgeId === agent.routeEdgeId),
+    const routeEdgeIds = logicalTrip?.routeEdgeIds ?? Object.freeze([agent.routeEdgeId]);
+    const graph = agent.mode === 'Walk' ? graphs.walk : graphs.drive;
+    const route = routeProjectionForGraph({
+      roads: input.roads,
+      graph,
+      mode: agent.mode,
+      routeEdgeIds,
+    });
+    const endpoints = sourceEdgeEndpoints(route, agent.routeEdgeId);
+    const routeDistanceMillimeters = routeDistanceForProgress(
+      route,
+      agent.routeEdgeId,
+      agent.progressQ,
     );
-    let routeDistanceMillimeters = 0;
-    for (let index = 0; index < currentRouteSegmentIndex; index += 1) {
-      routeDistanceMillimeters += routeSegments[index]!.lengthMillimeters;
-    }
-    routeDistanceMillimeters += Math.floor(
-      (agent.progressQ * routeSegments[currentRouteSegmentIndex]!.lengthMillimeters) /
-        TRAFFIC_PROGRESS_MAX_Q,
-    );
-    let turn: TrafficPresentationTurn | null = null;
-    if (
-      agent.mode === 'Drive' &&
-      !agent.queued &&
-      agent.progressQ >= 850_000 &&
-      logicalTrip !== undefined
-    ) {
-      const nextEdgeId = logicalTrip.routeEdgeIds[logicalTrip.segmentIndex + 1];
-      const nextEdge = nextEdgeId === undefined ? undefined : edgeById.get(nextEdgeId);
-      const nextNode = nextEdge === undefined ? undefined : nodeById.get(nextEdge.toNodeId);
-      if (
-        nextEdge !== undefined &&
-        nextNode !== undefined &&
-        nextEdge.fromNodeId === edge.toNodeId
-      ) {
-        turn = Object.freeze({
-          previous: renderedFrom,
-          corner: renderedTo,
-          next: trafficPresentationPointForGraphNode(nextNode),
-          turnProgressQ: Math.min(
-            TRAFFIC_PROGRESS_MAX_Q,
-            Math.floor(((agent.progressQ - 850_000) * TRAFFIC_PROGRESS_MAX_Q) / 150_000),
-          ),
-        });
-      }
-    }
+    if (endpoints === null || routeDistanceMillimeters === null) return [];
     return [
       Object.freeze({
         ...agent,
-        from: renderedFrom,
-        to: renderedTo,
-        turn,
-        routeSegments,
+        from: endpoints.from,
+        to: endpoints.to,
+        turn: null,
+        routeSegments: route.segments,
         routeDistanceMillimeters,
       }),
     ];

@@ -1,6 +1,8 @@
+import type { TrafficCubicCurveQ } from './cubic-motion-curve.js';
 import {
   createIntersectionLaneConnector,
   type IntersectionLaneConnector,
+  type IntersectionLaneMovementKind,
   type IntersectionLaneTurn,
 } from './intersection-lane-connector.js';
 import type { TrafficRouteSegment, TrafficWorldPointQ } from './route-geometry.js';
@@ -13,6 +15,8 @@ export const FOUNDATION_TRAFFIC_HANDEDNESS: TrafficHandedness = 'left';
 export interface DirectedLanePathSegment extends TrafficRouteSegment {
   readonly sourceEdgeId: string;
   readonly kind: 'lane' | 'connector';
+  readonly movementKind: IntersectionLaneMovementKind;
+  readonly curve?: TrafficCubicCurveQ;
   readonly lengthMillimeters: number;
 }
 
@@ -117,6 +121,7 @@ function laneSegment(segment: MutableLaneSegment): DirectedLanePathSegment {
     edgeId: `lane:${segment.sourceEdgeId}:${segment.from.xQ},${segment.from.yQ},${segment.from.zQ}->${segment.to.xQ},${segment.to.yQ},${segment.to.zQ}`,
     sourceEdgeId: segment.sourceEdgeId,
     kind: 'lane' as const,
+    movementKind: 'straight' as const,
     from: segment.from,
     to: segment.to,
     lengthMillimeters: segmentLengthMillimeters(segment.from, segment.to),

@@ -9,11 +9,7 @@ import type { WorldConfig } from '@web-three-city/world-core';
 import { createRoadMeshData, emptyRoadMeshData, type RoadMeshData } from './road-mesh-data.js';
 import { roadStyleProfileForDefinition } from './road-style-profile.js';
 
-export type RoadCornerKind =
-  | 'north-east'
-  | 'east-south'
-  | 'south-west'
-  | 'west-north';
+export type RoadCornerKind = 'north-east' | 'east-south' | 'south-west' | 'west-north';
 
 interface PointXZ {
   readonly x: number;
@@ -39,12 +35,7 @@ function levelAt(view: RoadCellView, worldX: number, worldZ: number, config: Wor
   return nw * (1 - u) * (1 - v) + ne * u * (1 - v) + sw * (1 - u) * v + se * u * v;
 }
 
-function quadraticPoint(
-  p0: PointXZ,
-  p1: PointXZ,
-  p2: PointXZ,
-  t: number,
-): PointXZ {
+function quadraticPoint(p0: PointXZ, p1: PointXZ, p2: PointXZ, t: number): PointXZ {
   const inverse = 1 - t;
   return {
     x: inverse * inverse * p0.x + 2 * inverse * t * p1.x + t * t * p2.x,
@@ -52,12 +43,7 @@ function quadraticPoint(
   };
 }
 
-function quadraticTangent(
-  p0: PointXZ,
-  p1: PointXZ,
-  p2: PointXZ,
-  t: number,
-): PointXZ {
+function quadraticTangent(p0: PointXZ, p1: PointXZ, p2: PointXZ, t: number): PointXZ {
   return {
     x: 2 * (1 - t) * (p1.x - p0.x) + 2 * t * (p2.x - p1.x),
     z: 2 * (1 - t) * (p1.z - p0.z) + 2 * t * (p2.z - p1.z),

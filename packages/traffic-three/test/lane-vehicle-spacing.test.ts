@@ -25,6 +25,32 @@ describe('PR3 lane-owned vehicle spacing', () => {
     ]);
   });
 
+  it('preserves headway when same-direction cars straddle adjacent canonical Road edges', () => {
+    const placements = deriveVehicleVisualPlacements(
+      [
+        {
+          tripId: 'leader',
+          edgeId: 'drive:0,0->1,0',
+          progressQ: 100_000,
+          edgeLengthMillimeters: 1_000,
+          queued: false,
+        },
+        {
+          tripId: 'follower',
+          edgeId: 'drive:-1,0->0,0',
+          progressQ: 900_000,
+          edgeLengthMillimeters: 1_000,
+          queued: false,
+        },
+      ],
+      650,
+    );
+    const byTrip = new Map(placements.map((placement) => [placement.tripId, placement]));
+
+    expect(byTrip.get('leader')?.adjustedProgressQ).toBe(100_000);
+    expect(byTrip.get('follower')?.adjustedProgressQ).toBe(450_000);
+  });
+
   it('uses presentation-space headway that clears a vehicle without exceeding one rendered Road cell', () => {
     const vehicleLengthMillimeters =
       FOUNDATION_TRAFFIC_VISUAL_SCALE_POLICY.vehicleLengthWorldUnits * 1_000;

@@ -104,10 +104,7 @@ describe('PR3 directed lane path', () => {
     expect(path.turns).toEqual([{ junctionIndex: 0, turn: 'right' }]);
     const connector = path.segments.filter((segment) => segment.kind === 'connector');
     expect(connector).toHaveLength(2);
-    expect(connector.map((segment) => segment.movementKind)).toEqual([
-      'turn-right',
-      'turn-right',
-    ]);
+    expect(connector.map((segment) => segment.movementKind)).toEqual(['turn-right', 'turn-right']);
     expect(connector.every((segment) => segment.curve !== undefined)).toBe(true);
     expectContinuous(path.segments);
 

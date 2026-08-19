@@ -5,6 +5,7 @@ export type IntersectionLaneTurn = 'straight' | 'left' | 'right';
 export interface IntersectionLaneConnectorSegment extends TrafficRouteSegment {
   readonly sourceEdgeId: string;
   readonly kind: 'connector';
+  readonly lengthMillimeters: number;
 }
 
 export interface IntersectionLaneConnector {

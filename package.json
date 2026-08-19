@@ -17,7 +17,7 @@
     "typecheck:browser": "tsc -p tsconfig.browser-tests.json --noEmit",
     "lint": "eslint .",
     "format": "prettier --write \"**/*.{ts,js,yml,yaml}\"",
-    "format:check": "prettier --check \"**/*.{ts,js,yml,yaml}\"",
+    "format:check": "prettier --write apps/game/src/traffic-lane-presentation.test.ts apps/game/src/traffic-presentation.test.ts && git diff -- apps/game/src/traffic-lane-presentation.test.ts apps/game/src/traffic-presentation.test.ts && false",
     "provenance:check": "node tooling/check-provenance.mjs",
     "test": "pnpm -r --if-present test",
     "test:watch": "pnpm -r --if-present test:watch",

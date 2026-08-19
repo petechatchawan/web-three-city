@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import * as vehicleSpacing from '../src/vehicle-spacing.js';
-import { deriveVehicleVisualPlacements } from '../src/index.js';
+import {
+  FOUNDATION_TRAFFIC_PRESENTATION_POLICY,
+  FOUNDATION_TRAFFIC_VISUAL_SCALE_POLICY,
+  deriveVehicleVisualPlacements,
+} from '../src/index.js';
 
 describe('PR3 lane-owned vehicle spacing', () => {
   it('keeps same-direction vehicles on the derived lane centerline while retaining longitudinal headway', () => {
@@ -19,6 +23,18 @@ describe('PR3 lane-owned vehicle spacing', () => {
     expect(placements.map((placement) => placement.adjustedProgressQ)).toEqual([
       500_000, 375_000, 250_000,
     ]);
+  });
+
+  it('uses presentation-space headway that clears a vehicle without exceeding one rendered Road cell', () => {
+    const vehicleLengthMillimeters =
+      FOUNDATION_TRAFFIC_VISUAL_SCALE_POLICY.vehicleLengthWorldUnits * 1_000;
+
+    expect(FOUNDATION_TRAFFIC_PRESENTATION_POLICY.vehicleMinimumHeadwayMillimeters).toBeGreaterThan(
+      vehicleLengthMillimeters,
+    );
+    expect(FOUNDATION_TRAFFIC_PRESENTATION_POLICY.vehicleMinimumHeadwayMillimeters).toBeLessThan(
+      1_000,
+    );
   });
 
   it('retains headway across adjacent directed lane segments instead of resetting at an edge boundary', () => {
@@ -50,7 +66,11 @@ describe('PR3 lane-owned vehicle spacing', () => {
           queued: boolean;
         }>[],
         minimumHeadwayMillimeters: number,
-      ) => readonly Readonly<{ tripId: string; adjustedRouteDistanceMillimeters: number }>[]
+      ) => readonly Readonly<{
+        tripId: string;
+        adjustedRouteDistanceMillimeters: number;
+        materialized: boolean;
+      }>[]
     )(
       [
         {
@@ -74,12 +94,16 @@ describe('PR3 lane-owned vehicle spacing', () => {
       ],
       4_500,
     );
-    const byTrip = new Map(
-      placements.map((placement) => [placement.tripId, placement.adjustedRouteDistanceMillimeters]),
-    );
+    const byTrip = new Map(placements.map((placement) => [placement.tripId, placement]));
 
-    expect(byTrip.get('leader')).toBe(9_000);
-    expect(byTrip.get('middle')).toBe(4_500);
-    expect(byTrip.get('tail')).toBe(0);
+    expect(byTrip.get('leader')).toMatchObject({
+      adjustedRouteDistanceMillimeters: 9_000,
+      materialized: true,
+    });
+    expect(byTrip.get('middle')).toMatchObject({
+      adjustedRouteDistanceMillimeters: 4_500,
+      materialized: true,
+    });
+    expect(byTrip.get('tail')).toMatchObject({ materialized: false });
   });
 });

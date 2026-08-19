@@ -53,6 +53,43 @@ function findBuildableRoadCell(): Readonly<{ x: number; z: number }> {
   throw new Error('road-visual:no-buildable-cell');
 }
 
+function findBuildableRoadCornerCells(): readonly Readonly<{ x: number; z: number }>[] {
+  const roads = createEmptyRoadSnapshot(WORLD_CONFIG);
+  const centerX = Math.floor(WORLD_CONFIG.mapWidth / 2);
+  const centerZ = Math.floor(WORLD_CONFIG.mapHeight / 2);
+  const corners: Array<readonly Readonly<{ x: number; z: number }>[]> = [];
+  for (let z = 9; z < WORLD_CONFIG.mapHeight - 9; z += 1) {
+    for (let x = 9; x < WORLD_CONFIG.mapWidth - 9; x += 1) {
+      corners.push([
+        { x: x - 1, z },
+        { x, z },
+        { x, z: z + 1 },
+      ]);
+    }
+  }
+  corners.sort((first, second) => {
+    const firstCorner = first[1]!;
+    const secondCorner = second[1]!;
+    return (
+      (firstCorner.x - centerX) ** 2 +
+        (firstCorner.z - centerZ) ** 2 -
+        ((secondCorner.x - centerX) ** 2 + (secondCorner.z - centerZ) ** 2) ||
+      firstCorner.z - secondCorner.z ||
+      firstCorner.x - secondCorner.x
+    );
+  });
+  for (const cells of corners) {
+    const plan = planRoadMutation(
+      roads,
+      { operation: 'build', definitionId: 'basic-road', cells },
+      ROAD_PLACEMENT_ENVIRONMENT,
+      WORLD_CONFIG,
+    );
+    if (plan.valid) return cells;
+  }
+  throw new Error('road-visual:no-buildable-corner');
+}
+
 test('captures Road topology overview', async ({ page }, testInfo) => {
   await captureFixture(page, testInfo, 'road-four-way', 'road-topology-four-way.png');
 });
@@ -85,6 +122,13 @@ test('captures the canonical mobile Game Road Build context', async ({ page }, t
   await expect(page.getByTestId('build-picker')).toBeHidden();
   await expect(page.locator('.city-tool-context-name')).toHaveText('Local Street');
   await expect(page.getByTestId('nav-build')).toHaveAttribute('aria-pressed', 'false');
+
+  for (const cell of findBuildableRoadCornerCells()) {
+    const point = await locateTerrainCell(page, cell);
+    await page.mouse.click(point.x, point.y);
+    await expect(page.getByTestId('tool-context-status')).toHaveText('Road built');
+  }
+
   await page.screenshot({ path: testInfo.outputPath('road-game-mobile.png'), fullPage: true });
 });
 

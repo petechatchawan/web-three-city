@@ -62,7 +62,7 @@ describe('PR3 Game Traffic lane presentation', () => {
     expect(westbound[0]!.from.zQ - eastbound[0]!.from.zQ).toBe(360);
   });
 
-  it('changes lane geometry when a Road upgrades while preserving canonical edge identity', () => {
+  it('changes presentation lane geometry on Road upgrade while preserving canonical source edge identity', () => {
     const local = createTrafficPresentationRouteSegments({
       roads: twoCellRoad(1),
       buildingAccess: BUILDING_ACCESS,
@@ -76,7 +76,9 @@ describe('PR3 Game Traffic lane presentation', () => {
       routeEdgeIds: ['drive:1,1->2,1'],
     });
 
-    expect(local[0]!.edgeId).toBe(arterial[0]!.edgeId);
+    expect(local[0]!.sourceEdgeId).toBe('drive:1,1->2,1');
+    expect(arterial[0]!.sourceEdgeId).toBe('drive:1,1->2,1');
+    expect(local[0]!.edgeId).not.toBe(arterial[0]!.edgeId);
     expect(arterial[0]!.from.zQ).toBe(local[0]!.from.zQ - 50);
     expect(arterial[0]!.to.zQ).toBe(local[0]!.to.zQ - 50);
   });

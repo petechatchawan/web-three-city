@@ -7,6 +7,7 @@ import type { TrafficRouteSegment, TrafficWorldPointQ } from './route-geometry.j
 
 export type TrafficHandedness = 'left' | 'right';
 
+// Presentation handedness only; canonical Traffic routing remains edge-based.
 export const FOUNDATION_TRAFFIC_HANDEDNESS: TrafficHandedness = 'left';
 
 export interface DirectedLanePathSegment extends TrafficRouteSegment {

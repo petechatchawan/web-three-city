@@ -36,15 +36,29 @@ function roadSource(definitionCodes: readonly number[]): RoadTrafficSourceProjec
 }
 
 describe('Traffic Road definition compatibility', () => {
-  it('treats Local, Collector, and Arterial with foundation-equivalent Traffic semantics in PR2', () => {
+  it('keeps Local, Collector, and Arterial mutually connected while preserving PR3 semantics', () => {
     const mixedRoadTypes = roadSource([1, 2, 3]);
     const localEquivalent = roadSource([1, 1, 1]);
 
-    expect(deriveVehicleTrafficGraph(mixedRoadTypes)).toEqual(
-      deriveVehicleTrafficGraph(localEquivalent),
+    const mixedVehicle = deriveVehicleTrafficGraph(mixedRoadTypes);
+    const localVehicle = deriveVehicleTrafficGraph(localEquivalent);
+    expect(mixedVehicle.nodes.map((node) => node.nodeId)).toEqual(
+      localVehicle.nodes.map((node) => node.nodeId),
     );
-    expect(derivePedestrianTrafficGraph(mixedRoadTypes)).toEqual(
-      derivePedestrianTrafficGraph(localEquivalent),
+    expect(mixedVehicle.edges.map((edge) => edge.edgeId)).toEqual(
+      localVehicle.edges.map((edge) => edge.edgeId),
+    );
+    expect(
+      [...new Set(mixedVehicle.edges.map((edge) => edge.capacityUnits))].sort((a, b) => a - b),
+    ).toEqual([16, 24]);
+
+    const mixedPedestrian = derivePedestrianTrafficGraph(mixedRoadTypes);
+    const localPedestrian = derivePedestrianTrafficGraph(localEquivalent);
+    expect(mixedPedestrian.nodes.map((node) => node.nodeId)).toEqual(
+      localPedestrian.nodes.map((node) => node.nodeId),
+    );
+    expect(mixedPedestrian.edges.map((edge) => edge.edgeId)).toEqual(
+      localPedestrian.edges.map((edge) => edge.edgeId),
     );
   });
 });

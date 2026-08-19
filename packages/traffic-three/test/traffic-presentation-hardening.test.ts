@@ -141,7 +141,7 @@ describe('traffic-three production hardening', () => {
     expect(rear.adjustedProgressQ).toBeLessThan(850_000);
   });
 
-  it('assigns deterministic lateral lanes to same-tick same-route vehicles', () => {
+  it('keeps same-tick same-route vehicles on the derived lane centerline deterministically', () => {
     const inputs = ['a', 'b', 'c'].map((tripId) => ({
       tripId,
       edgeId: 'shared-edge',
@@ -153,9 +153,7 @@ describe('traffic-three production hardening', () => {
     const second = deriveVehicleVisualPlacements([...inputs].reverse(), 1_000);
 
     expect(first.map((placement) => placement.tripId)).toEqual(['a', 'b', 'c']);
-    expect(first.map((placement) => placement.lateralOffsetMillimeters)).toEqual([
-      0, 1_700, -1_700,
-    ]);
+    expect(first.map((placement) => placement.lateralOffsetMillimeters)).toEqual([0, 0, 0]);
     expect(second).toEqual(first);
   });
 });

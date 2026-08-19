@@ -1,6 +1,6 @@
 # Traffic System
 
-**Status:** Traffic Foundation v0.1 implemented; Road PR2 compatibility bridge active; owner visual acceptance pending<br>
+**Status:** Traffic Foundation v0.1 + Road PR3 Lane-aware Traffic implemented; PR3 release gate/owner visual acceptance pending<br>
 **Milestone:** Citizen Mobility & Traffic Foundation v0.1  
 **Primary ownership:** `packages/traffic-core`, `packages/traffic-three`; atomic composition by `apps/game`<br>
 **Persistence:** `TrafficSaveV1` inside `WorldSaveV7`
@@ -11,7 +11,7 @@ Own deterministic pedestrian/vehicle graph derivation, multimodal routing, logic
 
 The production goal is visual truth: a visible pedestrian is a real Citizen Walk trip and a visible car is a real Citizen Drive trip. Off-screen trips remain logical; renderer state never becomes canonical Traffic state.
 
-For vehicle presentation, canonical Traffic progress remains simulation authority. The renderer derives a presentation target from the existing route polyline, keeps a stable trip-to-pooled-vehicle mapping, interpolates transforms on render frames, and applies deterministic visual headway/lateral separation. Rendered position, heading, interpolation, arrival cleanup, and separation are presentation state only and must never mutate canonical trip progress, queue order, or save state.
+For vehicle presentation, canonical Traffic progress and edge-route identity remain simulation authority. The renderer derives a left-hand directional lane path from the committed route, keeps a stable trip-to-pooled-vehicle mapping, interpolates transforms on render frames, and applies deterministic longitudinal visual headway without inventing lateral spread. Lane centerline position, junction connector sampling, heading, interpolation, arrival cleanup, and materialization are presentation state only and must never mutate canonical trip progress, queue order, Road state, or save state.
 
 ## Does Not Own
 
@@ -34,6 +34,7 @@ Roads + Buildings + Simulation + Citizen Mobility
        queues + committed cost projection
                     ↓
              traffic-three
+   directed lane path + junction connector
      materialization + pooling + LOD
                     ↓
        real pedestrians / real cars
@@ -45,7 +46,10 @@ Roads + Buildings + Simulation + Citizen Mobility
 
 - strict Road/Building source projection contracts;
 - immutable `TrafficSnapshotV1` + deterministic snapshot/graph fingerprints;
-- versioned foundation Traffic road profiles for Road definition codes `1/2/3`; during Road PR2 these three profiles intentionally share Local-compatible speed/capacity/intersection/offset semantics until PR3 differentiates them;
+- versioned Traffic road profiles for Road definition codes `1/2/3` with PR3 differentiation:
+  - Local Street: `8_333 mm/s` free-flow, capacity `16`;
+  - Collector Road: `13_889 mm/s` free-flow, capacity `24`;
+  - Arterial Road: `19_444 mm/s` free-flow, capacity `32`;
 - deterministic directed vehicle graph and offset pedestrian sidewalk graph;
 - frontage-only Building access mapping;
 - deterministic shortest-path routing with explicit total-cost/traversal/node/edge tie rules;
@@ -56,20 +60,22 @@ Roads + Buildings + Simulation + Citizen Mobility
 - load/capacity/congestion/effective-travel-time projections and next lagged cost field;
 - topology/destination route recovery from a stable logical node;
 - fail-closed `TrafficSaveV1` codec that persists route/progress/queue authority, never graph/cache/render state;
-- no imports from RCI, Mobility, Road, Building, DOM, or Three.js.
+- no imports from RCI, Mobility, Road, Building, DOM, or Three.js;
 - `apps/game` atomic integration with real Mobility trips, Road/Building projections, Simulation time, and deterministic Road-change recovery;
 - Game Road source projection preserves canonical Road definition codes `1/2/3` and derives connectivity from non-empty Road occupancy across mixed Road types;
 - `WorldSaveV7` persistence and V1–V6 migration, preserving logical route/progress/queue state without synthetic trips;
-- `traffic-three` pooled pedestrian/vehicle materialization, spatial indexing, deterministic caps, and LOD where every materialized agent resolves to a real Citizen-linked trip;
+- `traffic-three` production left-hand `DirectedLanePath` derivation, deterministic straight/left/right junction connectors, pooled pedestrian/vehicle materialization, spatial indexing, deterministic caps, and LOD where every materialized agent resolves to a real Citizen-linked trip;
+- Game presentation maps canonical edge progress onto the derived lane path, so opposing Drive directions occupy opposite physical sides of the Road while canonical route/trip identity remains unchanged;
+- active trips re-prepare only their derived presentation route when Road width/type changes; canonical Mobility/Traffic identity is preserved;
 - Citizen/Vehicle Inspect projections and the localized Traffic Information View consume committed state without mutating Traffic authority.
 
 Flow policy v1 keeps zero-load time equal to free-flow and adds monotonic delay only when load exceeds edge capacity or queue wait exists. Ordinary congestion never reroutes an active trip; only topology/destination invalidation invokes recovery.
 
 ## Current Limitations and Extension Points
 
-Public transit, parking, signals, freight, accidents, and ordinary congestion-triggered mid-trip rerouting remain deferred. Road topology/destination invalidation can recover or fail active trips deterministically; ordinary congestion does not reroute an active trip in v0.1.
+The current lane-aware model is deliberately bounded to one directional travel lane each way on the existing single-cell two-way Road footprint. There is no lane changing/overtaking, one-way Road behavior, U-turn generation, multi-cell four/six-lane avenue footprint, signals, roundabouts, parking, vehicle ownership, transit, freight, accidents, or ordinary congestion-triggered mid-trip rerouting. Road topology/destination invalidation can still recover or fail active trips deterministically; ordinary congestion does not reroute an active trip in v0.1.
 
-Road PR2 compatibility is deliberately narrow: Local / Collector / Arterial preserve distinct Road definition identity but currently use equivalent Traffic semantics. Differentiated free-flow speed, capacity, directed lane centerlines, and lane-aware routing belong to Road Lane & Vehicle Life Realism v1 PR3 and must not be inferred from PR2 presentation geometry.
+Vehicle Life authority, persistent car ownership/parking, and concrete vehicle assignment remain PR4–PR6 work. The previously identified x4 world-tick/topology caching performance remediation is intentionally deferred from PR3 and should be handled as a separate performance change after the Traffic/Vehicle Life program unless release evidence requires earlier intervention.
 
 ## Performance Contract
 
@@ -84,10 +90,10 @@ Road PR2 compatibility is deliberately narrow: Local / Collector / Arterial pres
 - [Traffic TDD implementation plan](tdd/2026-08-15-traffic-foundation-v0-1.md)
 - [Traffic PR9 production hardening plan](tdd/2026-08-15-traffic-production-hardening-pr9.md)
 - [Cross-system execution index](../architecture-infrastructure/tdd/2026-08-15-citizen-mobility-traffic-foundation-v0-1-execution-index.md)
-- [PR11 release plan](../architecture-infrastructure/tdd/2026-08-15-citizen-mobility-traffic-release-pr11.md)
 - [World/Application integration plan](../world/tdd/2026-08-15-mobility-traffic-world-integration-v0-1.md)
 - [City UI integration plan](../city-ui/tdd/2026-08-15-citizen-traffic-inspect-information-view-v0-1.md)
 - [ADR-0001 — Logical real trips with materialized visual agents](adrs/0001-logical-real-trips-materialized-visual-agents.md)
 - [ADR-0002 — Derived transport graphs and lagged congestion costs](adrs/0002-derived-transport-graphs-and-lagged-costs.md)
+- [Road Lane & Vehicle Life Realism v1](../roads/specs/2026-08-17-road-lane-vehicle-life-realism-v1.md)
 
-Release verification covers deterministic 20,000-Citizen/5,000-trip fixtures, Save/Load continuation, Road recovery, presentation caps/LOD, and the targeted `@traffic|@building` browser ownership set. Owner-controlled manual visual acceptance remains the final gate for this release candidate.
+PR3 release verification covers differentiated Road profiles, left-hand directional lane derivation, junction connectors, canonical-trip-preserving Road upgrades, deterministic 5,000-trip Traffic scale, and the targeted `@road|@traffic` browser ownership set. Owner-controlled 414×896 lane-direction visual acceptance remains the final PR3 gate.

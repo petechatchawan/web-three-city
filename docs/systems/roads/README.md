@@ -1,8 +1,8 @@
 # Roads System
 
-**Status:** Road Type Authority v1 and PR2 Lane Geometry + Road Presentation implemented; PR3 lane-aware Traffic remains pending  
-**Base:** `master@ef5514a8c1c0a63d267ea0804de3d79f9617b56b` after PR1 Road Type Authority  
-**PR2 verification:** exact-head evidence is recorded on PR #81  
+**Status:** Road Type Authority v1, PR2 Road Presentation, and PR3 Lane-aware Traffic implemented; PR3 release gate/owner visual acceptance pending  
+**Base:** `master@b58fe261e2ae417a09f2393d44b099321cdc2e5c` after PR2 Lane Geometry + Road Presentation  
+**PR3 verification:** exact-head evidence is recorded on PR #82  
 **Primary ownership:** `packages/road-core`, `packages/road-three`, `apps/game` tool integration  
 **Persistence:** `RoadSaveV1`
 
@@ -39,11 +39,12 @@ Own authoritative Road occupancy and Road definition identity, deterministic str
 - Suppress center-divider geometry across junction interiors.
 - Expose Local Street / Collector Road / Arterial Road / Bulldoze through the compact Road Build workflow.
 - Preserve Road definition codes `1/2/3` into the Traffic source projection while deriving Traffic cardinal connectivity from any occupied Road type.
-- Provide temporary PR2 Traffic compatibility profiles for codes `1/2/3` with foundation-equivalent Local semantics so Road replacement remains Traffic-compatible before PR3 differentiates speed/capacity and lane routing.
+- Feed PR3 Traffic profiles where Local / Collector / Arterial have increasing free-flow speed and capacity while Road remains the authority for definition identity and carriageway width.
+- Support Traffic-derived left-hand directional lane paths whose visual offset follows the committed Road width without turning lane geometry into Road state.
 
 ## Ownership and State
 
-`RoadSnapshot.definitionCodes` and Road revision are authoritative. One byte-sized definition code exists per world cell. Road definition IDs/codes are catalog authority; connection masks, cell views, meshes, lane geometry, preview geometry, and Road-access projections are derived.
+`RoadSnapshot.definitionCodes` and Road revision are authoritative. One byte-sized definition code exists per world cell. Road definition IDs/codes are catalog authority; connection masks, cell views, meshes, lane geometry, preview geometry, Road-access projections, Traffic graphs, and Traffic lane paths are derived.
 
 Stable Road codes are compatibility contracts. A retired numeric Road code must never be reused for a different Road meaning.
 
@@ -78,14 +79,16 @@ flowchart LR
   Roads --> TerraformGuard[Terraform guard]
   Roads --> RoadRenderer[Road presentation]
   Roads --> TrafficProjection[Traffic source projection]
+  TrafficProjection --> TrafficCore[Traffic edge routing]
+  TrafficCore --> LanePath[Derived directional lane path]
   Roads --> WorldSave
 ```
 
-Road definition identity is a Road concern. The Game Traffic source projection preserves that identity and treats every non-empty Road definition as connected Road occupancy. `traffic-core` recognizes codes `1/2/3` during PR2, but all three intentionally use the same foundation Traffic semantics until PR3. Differentiated Traffic speed/capacity profiles, directed lane travel, and lane-aware routing remain Traffic concerns for PR3.
+Road definition identity remains a Road concern. The Game Traffic source projection preserves codes `1/2/3` and treats every non-empty Road definition as connected Road occupancy. `traffic-core` owns differentiated free-flow speed/capacity and keeps canonical routing edge-based. `traffic-three` derives production left-hand lane centerlines and deterministic straight/left/right junction connectors from that canonical route. Road width only supplies derived presentation geometry; Traffic lane state is not persisted back into Road.
 
 ## Persistence
 
-`RoadSaveV1` remains schema version `1`. It stores dimensions, Road revision, and base64-encoded `Uint8Array` definition codes. Codes `0`, `1`, `2`, and `3` round-trip through the existing wire shape; legacy saves containing only `0/1` remain compatible. Connectivity, lane geometry, and meshes are never persisted and are rebuilt.
+`RoadSaveV1` remains schema version `1`. It stores dimensions, Road revision, and base64-encoded `Uint8Array` definition codes. Codes `0`, `1`, `2`, and `3` round-trip through the existing wire shape; legacy saves containing only `0/1` remain compatible. Connectivity, lane geometry, Traffic lane paths, and meshes are never persisted and are rebuilt.
 
 ## Invariants and Failure Behavior
 
@@ -96,8 +99,8 @@ Road definition identity is a Road concern. The Game Traffic source projection p
 - Placement environments use coherent Terrain and Water revisions.
 - Connectivity is derived from cardinal neighboring occupied Road cells, regardless of whether the occupied neighbor is Local, Collector, or Arterial.
 - Traffic projection preserves Road definition identity; it does not collapse codes `2/3` back to Local code `1`.
-- PR2 Traffic profiles for Road codes `1/2/3` are intentionally equivalent; semantic differentiation belongs to PR3.
-- A Road definition replacement marks the target changed even when occupancy/connectivity is unchanged.
+- PR3 differentiates Traffic semantics without making Traffic profile values part of Road authority.
+- A Road definition replacement marks the target changed even when occupancy/connectivity is unchanged; active canonical Traffic trip identity remains stable while its derived lane presentation can be re-prepared.
 - Invalid or stale plans do not mutate state.
 - Road renderer/Traffic consumers cannot become Road authority.
 
@@ -120,11 +123,11 @@ PR1 Road Type Authority
 → PR7 Release Verification
 ```
 
-PR2 includes one bounded Traffic compatibility bridge required by Road replacement: `traffic-core` must accept codes `1/2/3`, and Game Traffic topology must connect all occupied Road types. This bridge deliberately does **not** implement the PR3 semantics: no differentiated Road speed/capacity, no directed lane centerlines, and no lane-aware routing.
+PR3 keeps canonical Traffic routing edge-based and derives only presentation lane geometry. Production handedness is left-hand traffic. Each current single-cell two-way Road exposes one directional travel lane per direction for presentation; opposing trips therefore occupy opposite physical sides of the carriageway. Straight, left, and right movement use deterministic junction connectors; immediate U-turn generation is not supported.
 
 ## Current Limitations
 
-Local / Collector / Arterial now have distinct Road presentation and are selectable through the shipping Build workflow, but Traffic still uses foundation-equivalent semantics for all three Road types until PR3. Roads do not yet expose Traffic-owned directional lane centerlines or lane-aware routing. There are still no one-way Roads, multi-cell four/six-lane avenues, bridges, tunnels, lane changing, traffic controls, transit, maintenance, or economic Road cost.
+Local / Collector / Arterial now have distinct Road presentation plus differentiated Traffic speed/capacity and lane-aware vehicle presentation. The current Road footprint is still one gameplay cell wide and supports one directional travel lane each way. There are still no one-way Roads, multi-cell four/six-lane avenues, bridges, tunnels, lane changing/overtaking, traffic controls, transit, maintenance, or economic Road cost. Vehicle ownership and persistent parking remain PR4+ work.
 
 A real four-lane avenue must use a future multi-cell Road-footprint design rather than compressing four lanes into the current single Road cell.
 
@@ -135,7 +138,10 @@ A real four-lane avenue must use a future multi-cell Road-footprint design rathe
 - Mutation/replacement: `packages/road-core/src/road-mutation.ts`
 - Persistence: `packages/road-core/src/serialization.ts`
 - Renderer: `packages/road-three`
-- Traffic compatibility profile boundary: `packages/traffic-core/src/road-profile.ts`
+- Traffic Road profiles: `packages/traffic-core/src/road-profile.ts`
 - Game Traffic occupancy projection: `apps/game/src/traffic-source-projection.ts`
+- Directional lane derivation: `packages/traffic-three/src/directed-lane-path.ts`
+- Junction connectors: `packages/traffic-three/src/intersection-lane-connector.ts`
+- Game lane presentation projection: `apps/game/src/traffic-presentation-projection.ts`
 - Related systems: [Terrain](../terrain/README.md), [Water](../water/README.md), [Zoning](../zoning/README.md), [Buildings](../buildings/README.md), [Traffic](../traffic/README.md)
 - Historical foundation design: `docs/superpowers/specs/2026-07-29-road-network-foundation-v0-1-design.md`

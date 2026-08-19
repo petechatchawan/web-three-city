@@ -45,9 +45,7 @@ export function createTrafficRoadProfiles(
   return Object.freeze(result);
 }
 
-const FOUNDATION_TRAFFIC_ROAD_SEMANTICS = Object.freeze({
-  freeFlowSpeedMillimetersPerSecond: 13_889,
-  edgeCapacityUnits: 24,
+const FOUNDATION_TRAFFIC_SHARED_SEMANTICS = Object.freeze({
   intersectionServiceUnitsPerSecondQ: 250_000,
   pedestrianOffsetMillimeters: 3_000,
   vehicleOffsetMillimeters: 1_200,
@@ -55,9 +53,24 @@ const FOUNDATION_TRAFFIC_ROAD_SEMANTICS = Object.freeze({
 
 export const FOUNDATION_TRAFFIC_ROAD_PROFILES: readonly TrafficRoadProfileV1[] =
   createTrafficRoadProfiles([
-    { ...FOUNDATION_TRAFFIC_ROAD_SEMANTICS, definitionCode: 1 },
-    { ...FOUNDATION_TRAFFIC_ROAD_SEMANTICS, definitionCode: 2 },
-    { ...FOUNDATION_TRAFFIC_ROAD_SEMANTICS, definitionCode: 3 },
+    {
+      ...FOUNDATION_TRAFFIC_SHARED_SEMANTICS,
+      definitionCode: 1,
+      freeFlowSpeedMillimetersPerSecond: 8_333,
+      edgeCapacityUnits: 16,
+    },
+    {
+      ...FOUNDATION_TRAFFIC_SHARED_SEMANTICS,
+      definitionCode: 2,
+      freeFlowSpeedMillimetersPerSecond: 13_889,
+      edgeCapacityUnits: 24,
+    },
+    {
+      ...FOUNDATION_TRAFFIC_SHARED_SEMANTICS,
+      definitionCode: 3,
+      freeFlowSpeedMillimetersPerSecond: 19_444,
+      edgeCapacityUnits: 32,
+    },
   ]);
 
 export function resolveTrafficRoadProfile(

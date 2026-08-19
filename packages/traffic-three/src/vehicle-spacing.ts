@@ -17,8 +17,6 @@ export interface VehicleVisualPlacement {
   readonly lateralOffsetMillimeters: number;
 }
 
-const LATERAL_OFFSETS_MILLIMETERS = Object.freeze([0, 1_700, -1_700, 2_600, -2_600]);
-
 function compareInput(
   first: VehicleVisualPlacementInput,
   second: VehicleVisualPlacementInput,
@@ -37,7 +35,6 @@ export function deriveVehicleVisualPlacements(
   }
   const sorted = [...inputs].sort(compareInput);
   const lastDistanceByEdge = new Map<string, number>();
-  const orderByEdge = new Map<string, number>();
   const placements: VehicleVisualPlacement[] = [];
 
   for (const input of sorted) {
@@ -63,8 +60,6 @@ export function deriveVehicleVisualPlacements(
             Math.min(authoritativeDistance, previousDistance - minimumHeadwayMillimeters),
           );
     lastDistanceByEdge.set(input.edgeId, distance);
-    const orderOnEdge = orderByEdge.get(input.edgeId) ?? 0;
-    orderByEdge.set(input.edgeId, orderOnEdge + 1);
     placements.push(
       Object.freeze({
         tripId: input.tripId,
@@ -78,8 +73,7 @@ export function deriveVehicleVisualPlacements(
           ),
         ),
         queued: input.queued,
-        lateralOffsetMillimeters:
-          LATERAL_OFFSETS_MILLIMETERS[orderOnEdge % LATERAL_OFFSETS_MILLIMETERS.length]!,
+        lateralOffsetMillimeters: 0,
       }),
     );
   }

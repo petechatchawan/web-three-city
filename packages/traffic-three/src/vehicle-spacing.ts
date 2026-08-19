@@ -105,8 +105,7 @@ function spacingCoordinateFor(input: VehicleVisualPlacementInput): SpacingCoordi
   const toZ = Number(match[4]);
   const dx = toX - fromX;
   const dz = toZ - fromZ;
-  const localDistance =
-    (input.progressQ * RENDERED_ROAD_CELL_MILLIMETERS) / TRAFFIC_PROGRESS_MAX_Q;
+  const localDistance = (input.progressQ * RENDERED_ROAD_CELL_MILLIMETERS) / TRAFFIC_PROGRESS_MAX_Q;
 
   if (dx === 1 && dz === 0) {
     return Object.freeze({

@@ -107,7 +107,10 @@ function pointAlongHorizontalSegment(
   });
 }
 
-function segmentLengthMillimeters(from: TrafficWorldPointQ, to: TrafficWorldPointQ): number {
+function segmentLengthMillimeters(
+  from: TrafficWorldPointQ,
+  to: TrafficWorldPointQ,
+): number {
   return Math.max(
     1,
     Math.ceil(Math.hypot(to.xQ - from.xQ, to.yQ - from.yQ, to.zQ - from.zQ)),
@@ -167,7 +170,11 @@ export function deriveDirectedLanePath(
   }>,
 ): DirectedLanePath {
   if (route.length === 0) {
-    return Object.freeze({ segments: Object.freeze([]), edgeSpans: Object.freeze([]), turns: Object.freeze([]) });
+    return Object.freeze({
+      segments: Object.freeze([]),
+      edgeSpans: Object.freeze([]),
+      turns: Object.freeze([]),
+    });
   }
   if (options.laneOffsetsQ.length !== route.length) {
     throw new RangeError('traffic-three:lane-offset-count-mismatch');
@@ -213,7 +220,10 @@ export function deriveDirectedLanePath(
     }
     const current = laneSegments[index]!;
     const next = laneSegments[index + 1]!;
-    current.to = pointAlongHorizontalSegment(current, currentDirection.length - junctionHalfExtentQ);
+    current.to = pointAlongHorizontalSegment(
+      current,
+      currentDirection.length - junctionHalfExtentQ,
+    );
     next.from = pointAlongHorizontalSegment(next, junctionHalfExtentQ);
     const connector = createIntersectionLaneConnector({
       incoming: {

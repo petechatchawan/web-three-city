@@ -3,6 +3,13 @@ import { describe, expect, it } from 'vitest';
 import { TrafficPresentation } from './traffic-presentation.js';
 import type { TrafficPresentationSnapshot } from './traffic-presentation-projection.js';
 
+interface VehicleMotionDebugView {
+  readonly visualDistanceMillimeters: number;
+  readonly visualSpeedMillimetersPerSecond: number;
+  readonly canonicalTargetDistanceMillimeters: number;
+  readonly baselineFollowerSpeedMillimetersPerSecond: number;
+}
+
 function snapshot(): TrafficPresentationSnapshot {
   return Object.freeze({
     trafficRevision: 7,
@@ -72,6 +79,15 @@ function withDriveDistance(
       ),
     ),
   });
+}
+
+function debugVehicleMotion(
+  presentation: TrafficPresentation,
+  tripId: string,
+): VehicleMotionDebugView {
+  const debug = Reflect.get(presentation, 'debugVehicleMotion') as unknown;
+  expect(typeof debug).toBe('function');
+  return (debug as (tripId: string) => VehicleMotionDebugView).call(presentation, tripId);
 }
 
 describe('TrafficPresentation real-agent contract', () => {
@@ -149,6 +165,49 @@ describe('TrafficPresentation real-agent contract', () => {
     expect(presentation.debugSnapshot().visibleVehicles).toBe(0);
     expect(committed.agents).toHaveLength(2);
     expect(committed.agents.map((agent) => agent.tripId)).toEqual(['walk-trip', 'drive-trip']);
+    presentation.dispose();
+  });
+
+  it('accelerates and brakes Drive visuals through the presentation kinematics follower', () => {
+    const scene = new Scene();
+    const presentation = new TrafficPresentation(scene);
+    const initial = snapshot();
+    presentation.update(initial, { x: 4, z: 4 }, 0, 0);
+
+    const next = withDriveDistance(initial, 8, 8_000);
+    presentation.update(next, { x: 4, z: 4 }, 1, 1_000);
+    presentation.frame(1_100);
+    const after100 = debugVehicleMotion(presentation, 'drive-trip');
+    presentation.frame(1_200);
+    const after200 = debugVehicleMotion(presentation, 'drive-trip');
+
+    expect(after100.visualDistanceMillimeters).toBeGreaterThan(4_000);
+    expect(after100.visualDistanceMillimeters).toBeLessThan(8_000);
+    expect(after100.visualSpeedMillimetersPerSecond).toBeGreaterThan(0);
+    expect(after100.visualSpeedMillimetersPerSecond).toBeLessThan(
+      after100.baselineFollowerSpeedMillimetersPerSecond,
+    );
+    expect(after200.visualSpeedMillimetersPerSecond).toBeGreaterThan(
+      after100.visualSpeedMillimetersPerSecond,
+    );
+    expect(after200.visualDistanceMillimeters).toBeLessThanOrEqual(
+      after200.canonicalTargetDistanceMillimeters,
+    );
+
+    const queued = Object.freeze({
+      ...next,
+      trafficRevision: 9,
+      agents: Object.freeze(
+        next.agents.map((agent) =>
+          agent.mode === 'Drive' ? Object.freeze({ ...agent, queued: true }) : agent,
+        ),
+      ),
+    });
+    presentation.update(queued, { x: 4, z: 4 }, 2, 1_300);
+    const beforeBrake = debugVehicleMotion(presentation, 'drive-trip').visualSpeedMillimetersPerSecond;
+    presentation.frame(1_400);
+    const afterBrake = debugVehicleMotion(presentation, 'drive-trip').visualSpeedMillimetersPerSecond;
+    expect(afterBrake).toBeLessThan(beforeBrake);
     presentation.dispose();
   });
 

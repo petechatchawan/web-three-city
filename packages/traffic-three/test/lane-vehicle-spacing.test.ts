@@ -15,6 +15,8 @@ describe('PR3 lane-owned vehicle spacing', () => {
     );
 
     expect(placements.map((placement) => placement.lateralOffsetMillimeters)).toEqual([0, 0, 0]);
-    expect(placements.map((placement) => placement.adjustedProgressQ)).toEqual([500_000, 375_000, 250_000]);
+    expect(placements.map((placement) => placement.adjustedProgressQ)).toEqual([
+      500_000, 375_000, 250_000,
+    ]);
   });
 });

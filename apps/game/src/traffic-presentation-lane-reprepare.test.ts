@@ -3,10 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { TrafficPresentation } from './traffic-presentation.js';
 import type { TrafficPresentationSnapshot } from './traffic-presentation-projection.js';
 
-function driveSnapshot(
-  trafficRevision: number,
-  laneZQ: number,
-): TrafficPresentationSnapshot {
+function driveSnapshot(trafficRevision: number, laneZQ: number): TrafficPresentationSnapshot {
   return Object.freeze({
     trafficRevision,
     edges: Object.freeze([]),

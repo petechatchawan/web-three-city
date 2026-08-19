@@ -115,10 +115,7 @@ describe('PR3 Game Traffic lane presentation', () => {
 
     const connectors = segments.filter((segment) => segment.kind === 'connector');
     expect(connectors).toHaveLength(2);
-    expect(connectors.map((segment) => segment.movementKind)).toEqual([
-      'turn-right',
-      'turn-right',
-    ]);
+    expect(connectors.map((segment) => segment.movementKind)).toEqual(['turn-right', 'turn-right']);
     expect(connectors.every((segment) => segment.curve !== undefined)).toBe(true);
   });
 

@@ -240,7 +240,7 @@ function routeProjectionForGraph(
           from: segment.from,
           to: segment.to,
           lengthMillimeters: segment.lengthMillimeters,
-          curve: segment.curve,
+          ...(segment.curve === undefined ? {} : { curve: segment.curve }),
           movementKind: segment.movementKind,
         }),
       ),

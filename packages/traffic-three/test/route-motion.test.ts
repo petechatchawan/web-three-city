@@ -10,6 +10,12 @@ import {
   type TrafficRouteSegment,
 } from '../src/index.js';
 
+interface PreparedSegmentView {
+  readonly curveLookup: unknown;
+  readonly startDistanceMillimeters: number;
+  readonly endDistanceMillimeters: number;
+}
+
 const route: readonly TrafficRouteSegment[] = Object.freeze([
   Object.freeze({
     edgeId: 'east',
@@ -49,7 +55,7 @@ describe('traffic presentation route motion', () => {
     });
     const prepared = prepareTrafficRoute(lanePath.segments);
     const preparedSegments = Reflect.get(prepared, 'preparedSegments') as
-      | readonly Readonly<{ curveLookup: unknown; startDistanceMillimeters: number; endDistanceMillimeters: number }>[]
+      | readonly PreparedSegmentView[]
       | undefined;
 
     expect(preparedSegments).toBeDefined();
@@ -66,7 +72,8 @@ describe('traffic presentation route motion', () => {
     expect(boundary).toBe(secondCurve.startDistanceMillimeters);
 
     const headings: number[] = [];
-    for (const distance of [boundary - 600, boundary - 300, boundary, boundary + 300, boundary + 600]) {
+    const distances = [boundary - 600, boundary - 300, boundary, boundary + 300, boundary + 600];
+    for (const distance of distances) {
       const position = new Vector3();
       const sample = samplePreparedRouteInto(prepared, distance, position);
       headings.push(sample.headingRadians);

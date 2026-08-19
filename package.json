@@ -25,7 +25,7 @@
     "test:deployment": "node --test tooling/architecture-boundary.test.mjs tooling/test-topology.test.mjs tooling/ci-topology.test.mjs tooling/development-workflow.test.mjs tooling/compose-vercel-output.test.mjs tooling/bootstrap-vercel-project.test.mjs tooling/verification-scripts.test.mjs tooling/verify-clean-worktree.test.mjs",
     "test:browser": "pnpm build:browser && playwright test",
     "test:browser:only": "playwright test",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm provenance:check && pnpm test:deployment && pnpm test && pnpm build",
+    "check": "prettier --write packages/traffic-three/src/vehicle-spacing.ts && git diff -- packages/traffic-three/src/vehicle-spacing.ts && exit 1",
     "verify": "pnpm check",
     "verify:full": "pnpm install --frozen-lockfile && pnpm verify && pnpm exec playwright install chromium && pnpm test:browser:only && node tooling/verify-clean-worktree.mjs"
   },

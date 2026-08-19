@@ -93,7 +93,7 @@ async function trafficSnapshot(page: import('@playwright/test').Page): Promise<T
 test.describe('Citizen commute browser acceptance', () => {
   test('morning commute uses real Citizens, deterministic Walk/Drive choice, and visible Three.js agents', async ({
     page,
-  }) => {
+  }, testInfo) => {
     const fixture = await installFixture(page);
     expect(fixture.startAbsoluteTick).toBe(6);
     await step(page, 2);
@@ -122,6 +122,11 @@ test.describe('Citizen commute browser acceptance', () => {
     expect(
       (state.presentation?.visiblePedestrians ?? 0) + (state.presentation?.visibleVehicles ?? 0),
     ).toBeLessThanOrEqual(500);
+
+    await page.screenshot({
+      path: testInfo.outputPath('traffic-motion-realism-mobile.png'),
+      fullPage: true,
+    });
   });
 
   test('evening commute returns the same real Citizens Home without creating synthetic citizens', async ({

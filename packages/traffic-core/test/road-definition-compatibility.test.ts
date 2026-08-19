@@ -48,10 +48,9 @@ describe('Traffic Road definition compatibility', () => {
     expect(mixedVehicle.edges.map((edge) => edge.edgeId)).toEqual(
       localVehicle.edges.map((edge) => edge.edgeId),
     );
-    expect([...new Set(mixedVehicle.edges.map((edge) => edge.capacityUnits))].sort((a, b) => a - b)).toEqual([
-      16,
-      24,
-    ]);
+    expect(
+      [...new Set(mixedVehicle.edges.map((edge) => edge.capacityUnits))].sort((a, b) => a - b),
+    ).toEqual([16, 24]);
 
     const mixedPedestrian = derivePedestrianTrafficGraph(mixedRoadTypes);
     const localPedestrian = derivePedestrianTrafficGraph(localEquivalent);

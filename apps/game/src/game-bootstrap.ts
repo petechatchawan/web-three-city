@@ -1022,6 +1022,7 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
         transactionCoordinator,
         plan,
         presentationSuppressedForTest ? noOpPresentation : undefined,
+        presentationSuppressedForTest,
       );
       return publication.status === 'committed'
         ? publication.world
@@ -1048,6 +1049,7 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
         transactionCoordinator,
         plan,
         presentationSuppressedForTest ? noOpPresentation : undefined,
+        presentationSuppressedForTest,
       );
       return publication.status === 'committed'
         ? publication.world

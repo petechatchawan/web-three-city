@@ -103,6 +103,7 @@ import { createBuildingWorldOccupancy } from './building-world-occupancy.js';
 import { createGameInput, type GameRenderViewport } from './game-input.js';
 import { dispatchGameTransactionState } from './game-tool-events.js';
 import { createRoadTrafficSourceProjectionFromEnvironment } from './traffic-source-projection.js';
+import { createTrafficGraphCache } from './traffic-graph-cache.js';
 import type { GameToolMode } from './game-tool-mode.js';
 import type { GameTerraformInvalidReason } from './terraform-occupancy-guard.js';
 import {
@@ -199,34 +200,40 @@ function rebuildSelection(
   if (selectedCell !== null) selection.setSelection(snapshot, selectedCell);
 }
 
+const trafficGraphCache = createTrafficGraphCache<TrafficGraph>();
+
 function combinedTrafficGraphForWorld(world: CommittedWorld): TrafficGraph {
-  const roads = createRoadTrafficSourceProjectionFromEnvironment(
-    world.roads,
-    world.environments.building,
-  );
-  const buildingRevision = world.buildings.revision;
-  const vehicle = Object.freeze({
-    ...deriveVehicleTrafficGraph(roads),
-    sourceBuildingRevision: buildingRevision,
-  });
-  const pedestrian = Object.freeze({
-    ...derivePedestrianTrafficGraph(roads),
-    sourceBuildingRevision: buildingRevision,
-  });
-  const nodes = new Map([...vehicle.nodes, ...pedestrian.nodes].map((node) => [node.nodeId, node]));
-  return Object.freeze({
-    sourceRoadRevision: world.roads.revision,
-    sourceBuildingRevision: buildingRevision,
-    nodes: Object.freeze(
-      [...nodes.values()].sort((first, second) =>
-        first.nodeId < second.nodeId ? -1 : first.nodeId > second.nodeId ? 1 : 0,
+  return trafficGraphCache.get(world.roads, world.environments.building, world.buildings, () => {
+    const roads = createRoadTrafficSourceProjectionFromEnvironment(
+      world.roads,
+      world.environments.building,
+    );
+    const buildingRevision = world.buildings.revision;
+    const vehicle = Object.freeze({
+      ...deriveVehicleTrafficGraph(roads),
+      sourceBuildingRevision: buildingRevision,
+    });
+    const pedestrian = Object.freeze({
+      ...derivePedestrianTrafficGraph(roads),
+      sourceBuildingRevision: buildingRevision,
+    });
+    const nodes = new Map(
+      [...vehicle.nodes, ...pedestrian.nodes].map((node) => [node.nodeId, node]),
+    );
+    return Object.freeze({
+      sourceRoadRevision: world.roads.revision,
+      sourceBuildingRevision: buildingRevision,
+      nodes: Object.freeze(
+        [...nodes.values()].sort((first, second) =>
+          first.nodeId < second.nodeId ? -1 : first.nodeId > second.nodeId ? 1 : 0,
+        ),
       ),
-    ),
-    edges: Object.freeze(
-      [...vehicle.edges, ...pedestrian.edges].sort((first, second) =>
-        first.edgeId < second.edgeId ? -1 : first.edgeId > second.edgeId ? 1 : 0,
+      edges: Object.freeze(
+        [...vehicle.edges, ...pedestrian.edges].sort((first, second) =>
+          first.edgeId < second.edgeId ? -1 : first.edgeId > second.edgeId ? 1 : 0,
+        ),
       ),
-    ),
+    });
   });
 }
 

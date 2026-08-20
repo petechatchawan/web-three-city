@@ -96,6 +96,8 @@ The V2 temporal, lifecycle, reservation, arbitration, persistence, Game atomic-p
 
 `traffic-core` owns transport cursor, Drive lifecycle, canonical headway, reservations, node classification, arbitration, recovery, and Traffic V2 persistence. `traffic-three` owns only derived geometry, materialization, pooling, and interpolation. `apps/game` owns minute-boundary and transport-quantum atomic publication plus `WorldSaveV8` composition. Journey Replay has been removed from the production movement path: only active authoritative Traffic trips may materialize.
 
+The Game transport path reuses the derived directed Traffic graph while immutable Road, Building, and Building-environment authority is unchanged. A graph is rebuilt when one of those static authorities changes; the cache is an ephemeral derived index and is never persisted or used as a second Traffic authority.
+
 ## Motion Realism Authority Rules
 
 PR3.1 is presentation-only. Its runtime state includes prepared curve geometry, visual route distance, visual speed, tangent heading, and bounded lag behind the latest committed Traffic target. These values are never saved and never feed canonical Traffic progression.
@@ -124,7 +126,7 @@ The current lane-aware model is deliberately bounded to one directional travel l
 
 PR3.1 smooths the visible follower but does not introduce microscopic car-following physics or make visual acceleration canonical. Traffic signals/stop controls and street-light props remain separate future systems. Vehicle Life authority, persistent car ownership/parking, and concrete vehicle assignment remain PR4–PR6 work.
 
-The previously identified x4 world-tick/topology caching performance remediation is intentionally deferred from the Traffic/Vehicle Life functional slices and should remain a separate performance change unless release evidence requires earlier intervention.
+The transport-quantum graph/topology cache is now part of the bounded performance path: repeated quanta reuse the immutable graph, while Road/Building/environment changes deterministically invalidate it. This does not alter canonical trip progression or reservation ordering.
 
 ## Performance Contract
 

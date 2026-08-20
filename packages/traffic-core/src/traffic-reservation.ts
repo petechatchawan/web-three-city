@@ -36,7 +36,7 @@ export function createTrafficReservationLedger(
   ownersByResource: ReadonlyMap<string, string> = new Map(),
 ): TrafficReservationLedger {
   const entries = [...ownersByResource.entries()].sort(([first], [second]) =>
-    first < second ? -1 : first > second ? 1 : 0,
+    first.localeCompare(second, 'en'),
   );
   return Object.freeze({ ownersByResource: new Map(entries) });
 }
@@ -85,7 +85,9 @@ export function acquireTrafficReservationBundle(
   ) {
     throw new RangeError('traffic:invalid-reservation-owner');
   }
-  const resourceIds = [...new Set(input.resourceIds)].sort();
+  const resourceIds = [...new Set(input.resourceIds)].sort((first, second) =>
+    first.localeCompare(second, 'en'),
+  );
   if (resourceIds.length === 0 || resourceIds.some((resourceId) => resourceId.length === 0)) {
     throw new RangeError('traffic:invalid-reservation-resource');
   }
@@ -121,7 +123,7 @@ export function createEntryReservationResourceIds(
     [
       createTrafficReservationResourceId('IngressFootprint', input.originBuildingId),
       createTrafficReservationResourceId('ReceivingAdmission', input.firstEdgeId),
-    ].sort(),
+    ].sort((first, second) => first.localeCompare(second, 'en')),
   );
 }
 
@@ -206,19 +208,15 @@ export function reconcileTrafficReservationsAfterRoadMutation(
   const cancelled = input.cancelledTripIds ?? new Set<string>();
   const activeTrips = input.snapshot.activeTrips.map((trip) => {
     const clearReservations = (nextTrip: ActiveTransportTripV2): ActiveTransportTripV2 => {
-      const {
-        entryReservationResourceIds: entryReservationResourceIds,
-        activeNodeTraversal: activeNodeTraversal,
-        ...rest
-      } = nextTrip;
-      void entryReservationResourceIds;
-      void activeNodeTraversal;
-      return Object.freeze({
-        ...rest,
+      const cleared: ActiveTransportTripV2 = {
+        ...nextTrip,
         entryReservationResourceIds: Object.freeze([]),
-        driveMovementPhase:
-          nextTrip.mode === 'Drive' && nextTrip.status === 'Active' ? 'Travelling' : null,
-      });
+        driveMovementPhase: (nextTrip.mode === 'Drive' && nextTrip.status === 'Active'
+          ? 'Travelling'
+          : null) as ActiveTransportTripV2['driveMovementPhase'],
+      };
+      Reflect.deleteProperty(cleared, 'activeNodeTraversal');
+      return Object.freeze(cleared);
     };
     if (cancelled.has(trip.tripId)) {
       return clearReservations(

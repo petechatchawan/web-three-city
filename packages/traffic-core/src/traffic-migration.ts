@@ -80,10 +80,9 @@ function requiredHeadwayProgressQ(edgeLengthMillimeters: number): number {
 }
 
 /** One-time V1 compatibility repair. Current-schema V2 loads must never call this. */
-function normalizeLegacyDriveOverlap(
+function collectLegacyDriveTripsByEdge(
   trips: readonly ActiveTransportTripV2[],
-  graph: TrafficGraph,
-): readonly ActiveTransportTripV2[] {
+): Map<string, ActiveTransportTripV2[]> {
   const byEdge = new Map<string, ActiveTransportTripV2[]>();
   for (const trip of trips) {
     if (
@@ -98,27 +97,44 @@ function normalizeLegacyDriveOverlap(
     bucket.push(trip);
     byEdge.set(edgeId, bucket);
   }
+  return byEdge;
+}
+
+function normalizeLegacyDriveBucket(
+  bucket: readonly ActiveTransportTripV2[],
+  edge: TrafficGraph['edges'][number],
+  graph: TrafficGraph,
+  normalizedByTripId: Map<string, ActiveTransportTripV2>,
+): void {
+  const headwayQ = requiredHeadwayProgressQ(edge.lengthQ);
+  let leaderProgressQ: number | undefined;
+  for (const trip of [...bucket].sort((first, second) =>
+    first.progressQ !== second.progressQ
+      ? second.progressQ - first.progressQ
+      : compareTrafficId(first.tripId, second.tripId),
+  )) {
+    const allowedProgressQ =
+      leaderProgressQ === undefined ? trip.progressQ : leaderProgressQ - headwayQ;
+    const normalized =
+      allowedProgressQ < 0
+        ? resetToWaitingForEntry(trip, graph)
+        : Object.freeze({ ...trip, progressQ: Math.min(trip.progressQ, allowedProgressQ) });
+    normalizedByTripId.set(trip.tripId, normalized);
+    if (allowedProgressQ >= 0) leaderProgressQ = normalized.progressQ;
+  }
+}
+
+function normalizeLegacyDriveOverlap(
+  trips: readonly ActiveTransportTripV2[],
+  graph: TrafficGraph,
+): readonly ActiveTransportTripV2[] {
+  const byEdge = collectLegacyDriveTripsByEdge(trips);
   const normalizedByTripId = new Map<string, ActiveTransportTripV2>();
   for (const [edgeId, bucket] of byEdge) {
     const edge = graph.edges.find((candidate) => candidate.edgeId === edgeId);
     if (edge === undefined || edge.mode !== 'Drive')
       throw new TrafficContractError('traffic:invalid-trip');
-    const headwayQ = requiredHeadwayProgressQ(edge.lengthQ);
-    let leaderProgressQ: number | undefined;
-    for (const trip of [...bucket].sort((first, second) =>
-      first.progressQ !== second.progressQ
-        ? second.progressQ - first.progressQ
-        : compareTrafficId(first.tripId, second.tripId),
-    )) {
-      const allowedProgressQ =
-        leaderProgressQ === undefined ? trip.progressQ : leaderProgressQ - headwayQ;
-      const normalized =
-        allowedProgressQ < 0
-          ? resetToWaitingForEntry(trip, graph)
-          : Object.freeze({ ...trip, progressQ: Math.min(trip.progressQ, allowedProgressQ) });
-      normalizedByTripId.set(trip.tripId, normalized);
-      if (allowedProgressQ >= 0) leaderProgressQ = normalized.progressQ;
-    }
+    normalizeLegacyDriveBucket(bucket, edge, graph, normalizedByTripId);
   }
   return Object.freeze(trips.map((trip) => normalizedByTripId.get(trip.tripId) ?? trip));
 }

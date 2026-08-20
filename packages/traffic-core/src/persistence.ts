@@ -1,7 +1,9 @@
 import {
   TRAFFIC_PROGRESS_MAX_Q,
+  type ActiveNodeTraversal,
   type ActiveTransportTrip,
   type ActiveTransportTripV2,
+  type DriveMovementPhase,
   type TrafficGraph,
 } from './contracts.js';
 import { TrafficContractError } from './errors.js';
@@ -106,58 +108,14 @@ function parseTrip(value: unknown): ActiveTransportTrip | null {
 
 function parseTripV2(value: unknown): ActiveTransportTripV2 | null {
   if (!isRecord(value)) return null;
-  const queuedMovement =
-    value.queuedMovement === null
-      ? null
-      : isRecord(value.queuedMovement) &&
-          typeof value.queuedMovement.fromEdgeId === 'string' &&
-          typeof value.queuedMovement.toEdgeId === 'string' &&
-          Number.isSafeInteger(value.queuedMovement.arrivedAtTransportSecond) &&
-          (value.queuedMovement.arrivedAtTransportSecond as number) >= 0
-        ? Object.freeze({
-            fromEdgeId: value.queuedMovement.fromEdgeId,
-            toEdgeId: value.queuedMovement.toEdgeId,
-            arrivedAtTransportSecond: value.queuedMovement.arrivedAtTransportSecond as number,
-          })
-        : undefined;
+  const queuedMovement = parseQueuedMovementV2(value.queuedMovement);
+  const traversal = parseActiveNodeTraversal(value.activeNodeTraversal);
+  const driveMovementPhase = parseDriveMovementPhase(value.driveMovementPhase);
   if (
     queuedMovement === undefined ||
-    !Array.isArray(value.entryReservationResourceIds) ||
-    !isRecord(value.activeNodeTraversal ?? {})
-  )
-    return null;
-  const traversal = value.activeNodeTraversal === undefined ? undefined : value.activeNodeTraversal;
-  if (
-    typeof value.tripId !== 'string' ||
-    typeof value.citizenId !== 'string' ||
-    (value.mode !== 'Walk' && value.mode !== 'Drive') ||
-    typeof value.originBuildingId !== 'string' ||
-    typeof value.destinationBuildingId !== 'string' ||
-    !Array.isArray(value.routeEdgeIds) ||
-    value.routeEdgeIds.some((edgeId) => typeof edgeId !== 'string') ||
-    !Number.isSafeInteger(value.routeGraphRevision) ||
-    !Number.isSafeInteger(value.segmentIndex) ||
-    !Number.isSafeInteger(value.progressQ) ||
-    typeof value.lastStableNodeId !== 'string' ||
-    !['Active', 'Arrived', 'Failed', 'Cancelled'].includes(String(value.status)) ||
-    (value.failureReason !== null && value.failureReason !== 'UnreachableDestination') ||
-    (value.driveMovementPhase !== null &&
-      !['WaitingForEntry', 'Entering', 'Travelling', 'Leaving'].includes(
-        String(value.driveMovementPhase),
-      )) ||
-    !Number.isSafeInteger(value.entryServiceCredit) ||
-    value.entryReservationResourceIds.some((id) => typeof id !== 'string') ||
-    (traversal !== undefined &&
-      (!isRecord(traversal) ||
-        typeof traversal.nodeId !== 'string' ||
-        (traversal.traversalClass !== 'Merge' && traversal.traversalClass !== 'ConflictJunction') ||
-        typeof traversal.incomingEdgeId !== 'string' ||
-        typeof traversal.outgoingEdgeId !== 'string' ||
-        (traversal.movementKind !== undefined &&
-          !['Straight', 'Left', 'Right'].includes(String(traversal.movementKind))) ||
-        !Array.isArray(traversal.reservedResourceIds) ||
-        traversal.reservedResourceIds.some((id) => typeof id !== 'string') ||
-        !Number.isSafeInteger(traversal.progressQ)))
+    traversal === null ||
+    driveMovementPhase === undefined ||
+    !validTripV2Fields(value)
   )
     return null;
   return Object.freeze({
@@ -166,7 +124,7 @@ function parseTripV2(value: unknown): ActiveTransportTripV2 | null {
     mode: value.mode,
     originBuildingId: value.originBuildingId,
     destinationBuildingId: value.destinationBuildingId,
-    routeEdgeIds: Object.freeze([...value.routeEdgeIds] as string[]),
+    routeEdgeIds: Object.freeze([...(value.routeEdgeIds as string[])]),
     routeGraphRevision: value.routeGraphRevision as number,
     segmentIndex: value.segmentIndex as number,
     progressQ: value.progressQ as number,
@@ -174,9 +132,11 @@ function parseTripV2(value: unknown): ActiveTransportTripV2 | null {
     queuedMovement,
     status: value.status as ActiveTransportTripV2['status'],
     failureReason: value.failureReason as ActiveTransportTripV2['failureReason'],
-    driveMovementPhase: value.driveMovementPhase as ActiveTransportTripV2['driveMovementPhase'],
+    driveMovementPhase,
     entryServiceCredit: value.entryServiceCredit as number,
-    entryReservationResourceIds: Object.freeze([...value.entryReservationResourceIds] as string[]),
+    entryReservationResourceIds: Object.freeze([
+      ...(value.entryReservationResourceIds as string[]),
+    ]),
     ...(traversal === undefined
       ? {}
       : {
@@ -193,6 +153,89 @@ function parseTripV2(value: unknown): ActiveTransportTripV2 | null {
           }),
         }),
   }) as unknown as ActiveTransportTripV2;
+}
+
+function parseQueuedMovementV2(
+  value: unknown,
+): ActiveTransportTripV2['queuedMovement'] | undefined {
+  if (value === null) return null;
+  if (!isRecord(value)) return undefined;
+  if (
+    typeof value.fromEdgeId !== 'string' ||
+    typeof value.toEdgeId !== 'string' ||
+    !Number.isSafeInteger(value.arrivedAtTransportSecond) ||
+    (value.arrivedAtTransportSecond as number) < 0
+  ) {
+    return undefined;
+  }
+  return Object.freeze({
+    fromEdgeId: value.fromEdgeId,
+    toEdgeId: value.toEdgeId,
+    arrivedAtTransportSecond: value.arrivedAtTransportSecond as number,
+  });
+}
+
+function parseDriveMovementPhase(value: unknown): DriveMovementPhase | null | undefined {
+  if (value === null) return null;
+  if (
+    value === 'WaitingForEntry' ||
+    value === 'Entering' ||
+    value === 'Travelling' ||
+    value === 'Leaving'
+  ) {
+    return value;
+  }
+  return undefined;
+}
+
+function parseActiveNodeTraversal(value: unknown): ActiveNodeTraversal | undefined | null {
+  if (value === undefined) return undefined;
+  if (!isRecord(value)) return null;
+  if (
+    typeof value.nodeId !== 'string' ||
+    (value.traversalClass !== 'Merge' && value.traversalClass !== 'ConflictJunction') ||
+    typeof value.incomingEdgeId !== 'string' ||
+    typeof value.outgoingEdgeId !== 'string' ||
+    (value.movementKind !== undefined &&
+      value.movementKind !== 'Straight' &&
+      value.movementKind !== 'Left' &&
+      value.movementKind !== 'Right') ||
+    !Array.isArray(value.reservedResourceIds) ||
+    value.reservedResourceIds.some((id) => typeof id !== 'string') ||
+    !Number.isSafeInteger(value.progressQ)
+  ) {
+    return null;
+  }
+  return Object.freeze({
+    nodeId: value.nodeId,
+    traversalClass: value.traversalClass,
+    incomingEdgeId: value.incomingEdgeId,
+    outgoingEdgeId: value.outgoingEdgeId,
+    ...(value.movementKind === undefined ? {} : { movementKind: value.movementKind }),
+    reservedResourceIds: Object.freeze([...(value.reservedResourceIds as string[])]),
+    progressQ: value.progressQ as number,
+  });
+}
+
+function validTripV2Fields(value: Record<string, unknown>): boolean {
+  return (
+    typeof value.tripId === 'string' &&
+    typeof value.citizenId === 'string' &&
+    (value.mode === 'Walk' || value.mode === 'Drive') &&
+    typeof value.originBuildingId === 'string' &&
+    typeof value.destinationBuildingId === 'string' &&
+    Array.isArray(value.routeEdgeIds) &&
+    value.routeEdgeIds.every((edgeId) => typeof edgeId === 'string') &&
+    Number.isSafeInteger(value.routeGraphRevision) &&
+    Number.isSafeInteger(value.segmentIndex) &&
+    Number.isSafeInteger(value.progressQ) &&
+    typeof value.lastStableNodeId === 'string' &&
+    ['Active', 'Arrived', 'Failed', 'Cancelled'].includes(String(value.status)) &&
+    (value.failureReason === null || value.failureReason === 'UnreachableDestination') &&
+    Number.isSafeInteger(value.entryServiceCredit) &&
+    Array.isArray(value.entryReservationResourceIds) &&
+    value.entryReservationResourceIds.every((id) => typeof id === 'string')
+  );
 }
 
 function validateAgainstGraph(snapshot: TrafficSnapshotV1, graph: TrafficGraph): void {

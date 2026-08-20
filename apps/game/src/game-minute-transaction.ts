@@ -24,6 +24,7 @@ import {
   deriveGameCalendarFromGameMinute,
   deriveMacroHourTransition,
   planSimulationMinute,
+  type MacroHourTransition,
 } from '@web-three-city/simulation-core';
 import { WORLD_CONFIG, type CellCoord } from '@web-three-city/world-core';
 import {
@@ -161,6 +162,123 @@ function invalidPlan(world: CommittedWorld, reason: string): GameMinuteTransacti
   });
 }
 
+type MacroHourConsumerPlan =
+  | Readonly<{ invalidReason: string }>
+  | Readonly<{
+      invalidReason: null;
+      buildings: CommittedWorld['buildings'];
+      rci: CommittedWorld['rci'];
+      simulation: CommittedWorld['simulation'];
+      growthSequence: number;
+      buildingReceipt: BuildingGrowthReceipt | null;
+      rciReceipt: RciTickReceipt | null;
+      rciDemandContributions: readonly RciDemandFactorContribution[];
+    }>;
+
+function planMacroHourConsumers(
+  input: Readonly<{
+    world: CommittedWorld;
+    registries: RciDefinitionRegistries;
+    simulation: CommittedWorld['simulation'];
+    simulationPlan: ReturnType<typeof planSimulationMinute>;
+    macroHourTransition: MacroHourTransition;
+    reservedCells?: readonly CellCoord[];
+    automaticGrowth?: boolean;
+  }>,
+): MacroHourConsumerPlan {
+  let buildings = input.world.buildings;
+  let rci = input.world.rci;
+  let growthSequence = input.world.simulation.growthSequence;
+  let buildingReceipt: BuildingGrowthReceipt | null = null;
+  let rciReceipt: RciTickReceipt | null = null;
+  let rciDemandContributions: readonly RciDemandFactorContribution[] = Object.freeze([]);
+
+  if (!input.macroHourTransition.crossed || input.automaticGrowth === false) {
+    return {
+      invalidReason: null,
+      buildings,
+      rci,
+      simulation: input.simulation,
+      growthSequence,
+      buildingReceipt,
+      rciReceipt,
+      rciDemandContributions,
+    };
+  }
+  const buildingPlan = planBuildingGrowthTick({
+    buildings: input.world.buildings,
+    simulation: input.world.simulation,
+    environment: input.world.environments.building,
+    config: WORLD_CONFIG,
+    macroHourTransition: input.macroHourTransition,
+    growthPolicy: createBuildingGrowthPolicy(input.world.rci),
+    ...(input.reservedCells === undefined ? {} : { reservedCells: input.reservedCells }),
+  });
+  if (!buildingPlan.valid) {
+    return { invalidReason: buildingPlan.invalidReason ?? 'building' };
+  }
+  growthSequence = buildingPlan.nextGrowthSequence;
+  const buildingCommit = commitBuildingGrowthTick({
+    buildings: input.world.buildings,
+    simulation: input.world.simulation,
+    environment: input.world.environments.building,
+    config: WORLD_CONFIG,
+    plan: buildingPlan,
+  });
+  buildings = buildingCommit.buildings;
+  buildingReceipt = buildingCommit.receipt;
+  const simulationAfterGrowth = commitSimulationMinute(
+    input.world.simulation,
+    input.simulationPlan,
+    growthSequence,
+  ).snapshot;
+
+  const taxPressure = createTaxPressureProjection(
+    input.world.economy.taxPolicy,
+    FOUNDATION_ECONOMY_RULES,
+  );
+  const rciPlan = planRciTick({
+    rci: input.world.rci,
+    simulationBefore: input.world.simulation,
+    simulationAfter: simulationAfterGrowth,
+    macroHourTransition: input.macroHourTransition,
+    buildingsBefore: input.world.buildings,
+    buildingsAfter: buildings,
+    registries: input.registries,
+    configuration: FOUNDATION_RCI_CONFIGURATION,
+    externalDemandFactors: (taxPressure.ok ? taxPressure.factors : [])
+      .filter((factor) => factor.pressureMilli !== 0)
+      .map((factor) => ({
+        id: factor.id,
+        channel: factor.channel,
+        weightMilli: factor.weightMilli,
+        evaluate: () => factor.pressureMilli,
+      })),
+  });
+  if (!rciPlan.valid) return { invalidReason: rciPlan.invalidReason ?? 'rci' };
+  const rciCommit = commitRciTick({
+    rci: input.world.rci,
+    simulationBefore: input.world.simulation,
+    simulationAfter: simulationAfterGrowth,
+    buildingsBefore: input.world.buildings,
+    buildingsAfter: buildings,
+    plan: rciPlan,
+  });
+  rci = rciCommit.snapshot;
+  rciReceipt = rciCommit.receipt;
+  rciDemandContributions = rciPlan.demandContributions;
+  return {
+    invalidReason: null,
+    buildings,
+    rci,
+    simulation: simulationAfterGrowth,
+    growthSequence,
+    buildingReceipt,
+    rciReceipt,
+    rciDemandContributions,
+  };
+}
+
 export function planGameMinuteTransaction(
   input: Readonly<{
     world: CommittedWorld;
@@ -178,79 +296,25 @@ export function planGameMinuteTransaction(
     simulationPlan.afterAbsoluteGameMinute,
   );
 
-  let buildings = world.buildings;
-  let rci = world.rci;
-  let growthSequence = world.simulation.growthSequence;
-  let buildingReceipt: BuildingGrowthReceipt | null = null;
-  let rciReceipt: RciTickReceipt | null = null;
-  let rciDemandContributions: readonly RciDemandFactorContribution[] = Object.freeze([]);
-
-  if (macroHourTransition.crossed && input.automaticGrowth !== false) {
-    const buildingPlan = planBuildingGrowthTick({
-      buildings: world.buildings,
-      simulation: world.simulation,
-      environment: world.environments.building,
-      config: WORLD_CONFIG,
-      macroHourTransition,
-      growthPolicy: createBuildingGrowthPolicy(world.rci),
-      ...(input.reservedCells === undefined ? {} : { reservedCells: input.reservedCells }),
-    });
-    if (!buildingPlan.valid) return invalidPlan(world, buildingPlan.invalidReason ?? 'building');
-    growthSequence = buildingPlan.nextGrowthSequence;
-    const buildingCommit = commitBuildingGrowthTick({
-      buildings: world.buildings,
-      simulation: world.simulation,
-      environment: world.environments.building,
-      config: WORLD_CONFIG,
-      plan: buildingPlan,
-    });
-    buildings = buildingCommit.buildings;
-    buildingReceipt = buildingCommit.receipt;
-  }
-
-  const simulation = commitSimulationMinute(
+  const simulationBase = commitSimulationMinute(
     world.simulation,
     simulationPlan,
-    growthSequence,
+    world.simulation.growthSequence,
   ).snapshot;
-
-  if (macroHourTransition.crossed && input.automaticGrowth !== false) {
-    const taxPressure = createTaxPressureProjection(
-      world.economy.taxPolicy,
-      FOUNDATION_ECONOMY_RULES,
-    );
-    const rciPlan = planRciTick({
-      rci: world.rci,
-      simulationBefore: world.simulation,
-      simulationAfter: simulation,
-      macroHourTransition,
-      buildingsBefore: world.buildings,
-      buildingsAfter: buildings,
-      registries: input.registries,
-      configuration: FOUNDATION_RCI_CONFIGURATION,
-      externalDemandFactors: (taxPressure.ok ? taxPressure.factors : [])
-        .filter((factor) => factor.pressureMilli !== 0)
-        .map((factor) => ({
-          id: factor.id,
-          channel: factor.channel,
-          weightMilli: factor.weightMilli,
-          evaluate: () => factor.pressureMilli,
-        })),
-    });
-    if (!rciPlan.valid) return invalidPlan(world, rciPlan.invalidReason ?? 'rci');
-    const rciCommit = commitRciTick({
-      rci: world.rci,
-      simulationBefore: world.simulation,
-      simulationAfter: simulation,
-      buildingsBefore: world.buildings,
-      buildingsAfter: buildings,
-      plan: rciPlan,
-    });
-    rci = rciCommit.snapshot;
-    rciReceipt = rciCommit.receipt;
-    rciDemandContributions = rciPlan.demandContributions;
+  const macroHourConsumers = planMacroHourConsumers({
+    world,
+    registries: input.registries,
+    simulation: simulationBase,
+    simulationPlan,
+    macroHourTransition,
+    ...(input.reservedCells === undefined ? {} : { reservedCells: input.reservedCells }),
+    ...(input.automaticGrowth === undefined ? {} : { automaticGrowth: input.automaticGrowth }),
+  });
+  if (macroHourConsumers.invalidReason !== null) {
+    return invalidPlan(world, macroHourConsumers.invalidReason);
   }
-
+  const { buildings, rci, simulation, buildingReceipt, rciReceipt, rciDemandContributions } =
+    macroHourConsumers;
   try {
     const citizens = createPresentCitizenMobilityProjection(
       rci,

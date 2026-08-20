@@ -6,7 +6,7 @@ import {
   TrafficVehiclePool,
   advanceVehicleKinematics,
   createVehicleKinematicsState,
-  deriveVehicleVisualPlacements,
+  deriveVehicleRouteHeadwayPlacements,
   prepareTrafficRoute,
   samplePreparedRouteInto,
   sampleRouteEdgePosition,
@@ -249,12 +249,11 @@ export class TrafficPresentation {
       policy: this.#policy,
     });
     const vehicleSelections = selection.selected.filter(({ agent }) => agent.mode === 'Drive');
-    const vehiclePlacements = deriveVehicleVisualPlacements(
+    const vehiclePlacements = deriveVehicleRouteHeadwayPlacements(
       vehicleSelections.map(({ agent }) => ({
         tripId: agent.tripId,
-        edgeId: agent.routeEdgeId,
-        progressQ: agent.progressQ,
-        edgeLengthMillimeters: edgeLengthMillimeters(agent),
+        routeSegments: routeForAgent(agent),
+        routeDistanceMillimeters: agent.routeDistanceMillimeters,
         queued: agent.queued,
       })),
       this.#policy.vehicleMinimumHeadwayMillimeters,
@@ -315,26 +314,21 @@ export class TrafficPresentation {
         continue;
       }
 
+      const placement = vehiclePlacementByTrip.get(agent.tripId);
+      if (placement?.materialized === false) continue;
       selectedVehicleIds.add(agent.tripId);
       retainedVehicles.add(agent.tripId);
       this.#vehicleArrivals.delete(agent.tripId);
-      const placement = vehiclePlacementByTrip.get(agent.tripId);
-      const adjustedProgressQ = placement?.adjustedProgressQ ?? agent.progressQ;
-      const edgeLength = edgeLengthMillimeters(agent);
-      const adjustedDistance = Math.max(
-        0,
-        agent.routeDistanceMillimeters +
-          Math.floor(((adjustedProgressQ - agent.progressQ) * edgeLength) / 1_000_000),
-      );
-      const visualAgent = Object.freeze({ ...agent, progressQ: adjustedProgressQ });
-      visibleAgents.push(visualAgent);
+      const adjustedDistance =
+        placement?.adjustedRouteDistanceMillimeters ?? agent.routeDistanceMillimeters;
+      visibleAgents.push(agent);
       let visual = this.#vehicles.get(agent.tripId);
       if (visual === undefined) {
         visual = this.#vehicles.acquire({
           tripId: agent.tripId,
           citizenId: agent.citizenId,
           routeEdgeId: agent.routeEdgeId,
-          progressQ: adjustedProgressQ,
+          progressQ: agent.progressQ,
           queued: agent.queued,
           from: agent.from,
           to: agent.to,

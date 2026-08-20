@@ -36,6 +36,18 @@ export interface VehicleRouteHeadwayPlacement {
   readonly materialized: boolean;
 }
 
+export interface VehicleRouteVisualHeadwayInput {
+  readonly tripId: string;
+  readonly routeSegments: readonly VehicleRouteHeadwaySegment[];
+  readonly visualDistanceMillimeters: number;
+}
+
+export interface VehicleRouteVisualHeadwayConstraint {
+  readonly tripId: string;
+  readonly leaderTripId: string | null;
+  readonly maximumVisualDistanceMillimeters: number | null;
+}
+
 interface RouteSegmentSpan {
   readonly edgeId: string;
   readonly startDistanceMillimeters: number;
@@ -246,6 +258,25 @@ function authoritativeLeaderAtTie(
   return leader.input.tripId < follower.input.tripId;
 }
 
+function routePlacementForVisualHeadway(input: VehicleRouteVisualHeadwayInput): MutableRoutePlacement {
+  const routeInput: VehicleRouteHeadwayInput = Object.freeze({
+    tripId: input.tripId,
+    routeSegments: input.routeSegments,
+    routeDistanceMillimeters: input.visualDistanceMillimeters,
+    queued: false,
+  });
+  const layout = routeLayoutFor(routeInput);
+  return {
+    input: routeInput,
+    layout,
+    adjustedRouteDistanceMillimeters: Math.max(
+      0,
+      Math.min(layout.totalLengthMillimeters, input.visualDistanceMillimeters),
+    ),
+    materialized: true,
+  };
+}
+
 export function deriveVehicleVisualPlacements(
   inputs: readonly VehicleVisualPlacementInput[],
   minimumHeadwayMillimeters: number,
@@ -357,5 +388,48 @@ export function deriveVehicleRouteHeadwayPlacements(
         materialized: state.materialized,
       }),
     ),
+  );
+}
+
+export function deriveVehicleRouteVisualHeadwayConstraints(
+  inputs: readonly VehicleRouteVisualHeadwayInput[],
+  minimumHeadwayMillimeters: number,
+): readonly VehicleRouteVisualHeadwayConstraint[] {
+  validateHeadway(minimumHeadwayMillimeters);
+  const states = inputs.map(routePlacementForVisualHeadway);
+
+  return Object.freeze(
+    states.map((follower) => {
+      let leaderTripId: string | null = null;
+      let nearestLeaderDistance: number | null = null;
+
+      for (const leader of states) {
+        if (leader === follower) continue;
+        const mappedLeaderDistance = mappedDistanceOnFollowerRoute(follower, leader);
+        if (mappedLeaderDistance === null) continue;
+        const gap = mappedLeaderDistance - follower.adjustedRouteDistanceMillimeters;
+        if (gap < 0) continue;
+        if (gap === 0 && !authoritativeLeaderAtTie(leader, follower)) continue;
+        if (
+          nearestLeaderDistance === null ||
+          mappedLeaderDistance < nearestLeaderDistance ||
+          (mappedLeaderDistance === nearestLeaderDistance &&
+            leaderTripId !== null &&
+            leader.input.tripId < leaderTripId)
+        ) {
+          leaderTripId = leader.input.tripId;
+          nearestLeaderDistance = mappedLeaderDistance;
+        }
+      }
+
+      return Object.freeze({
+        tripId: follower.input.tripId,
+        leaderTripId,
+        maximumVisualDistanceMillimeters:
+          nearestLeaderDistance === null
+            ? null
+            : Math.max(0, nearestLeaderDistance - minimumHeadwayMillimeters),
+      });
+    }),
   );
 }

@@ -228,10 +228,9 @@ function advanceOneQuantum(
       });
     }
   }
-  const edgeById = new Map(graph.edges.map((edge) => [edge.edgeId, edge] as const));
   const edgeId = trip.routeEdgeIds[trip.segmentIndex];
   if (edgeId === undefined) throw new TrafficContractError('traffic:invalid-trip');
-  const edge = edgeById.get(edgeId);
+  const edge = metadata.edgeById.get(edgeId);
   if (edge === undefined || edge.mode !== trip.mode) {
     throw new TrafficContractError('traffic:invalid-trip');
   }
@@ -310,7 +309,7 @@ function advanceOneQuantum(
   }
 
   const nextEdgeId = trip.routeEdgeIds[nextIndex]!;
-  const nextEdge = edgeById.get(nextEdgeId);
+  const nextEdge = metadata.edgeById.get(nextEdgeId);
   if (
     nextEdge === undefined ||
     nextEdge.fromNodeId !== edge.toNodeId ||

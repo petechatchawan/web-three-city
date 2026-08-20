@@ -1,82 +1,88 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { readdir, readFile, stat } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
+import test from 'node:test';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
-import test from 'node:test';
 
 const execFileAsync = promisify(execFile);
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const approvedDomainTag = /@(terrain|water|road|zoning|building|rci|traffic|interaction)/;
-const approvedTag =
-  /@(smoke|terrain|water|road|zoning|building|rci|traffic|interaction|visual|performance|release)/;
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const approvedDomainTag = /@(terrain|road|zone|building|traffic|ui|persistence|bootstrap)\b/;
+const approvedTag = /@(terrain|road|zone|building|traffic|ui|persistence|bootstrap|full-browser)\b/;
 
-async function exists(file) {
-  try {
-    await stat(file);
-    return true;
-  } catch {
-    return false;
-  }
+async function readRepoText(relativePath) {
+  return readFile(path.join(root, relativePath), 'utf8');
 }
 
-async function walk(dir) {
-  if (!(await exists(dir))) return [];
+async function collectFiles(relativeDir, predicate) {
+  const absoluteDir = path.join(root, relativeDir);
+  const entries = await readdir(absoluteDir, { withFileTypes: true });
   const files = [];
-  for (const entry of await readdir(dir, { withFileTypes: true })) {
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) files.push(...(await walk(full)));
-    else files.push(full);
+  for (const entry of entries) {
+    const relativePath = path.join(relativeDir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...(await collectFiles(relativePath, predicate)));
+    } else if (predicate(relativePath)) {
+      files.push(relativePath.replaceAll(path.sep, '/'));
+    }
   }
-  return files;
+  return files.sort();
 }
 
-const readRepoText = (file) => readFile(path.join(repoRoot, file), 'utf8');
+async function browserSpecFiles() {
+  return collectFiles('tests/browser', (file) => file.endsWith('.spec.ts'));
+}
 
 async function readGameTestFileCount() {
-  const files = (
-    await Promise.all([
-      walk(path.join(repoRoot, 'apps/game/src')),
-      walk(path.join(repoRoot, 'apps/game/test')),
-    ])
-  )
-    .flat()
-    .filter((file) => file.endsWith('.test.ts'));
-  return files.length;
+  const sourceTests = await collectFiles('apps/game/src', (file) => file.endsWith('.test.ts'));
+  const fixtureTests = await collectFiles('apps/game/test', (file) => file.endsWith('.test.ts'));
+  return sourceTests.length + fixtureTests.length;
+}
+
+async function runPlaywrightList(args = []) {
+  const { stdout } = await execFileAsync(
+    process.execPath,
+    [
+      path.join(root, 'node_modules', '@playwright', 'test', 'cli.js'),
+      'test',
+      '--list',
+      '--project=chromium',
+      ...args,
+    ],
+    { cwd: root, maxBuffer: 16 * 1024 * 1024 },
+  );
+  return stdout;
 }
 
 async function runVitestList() {
   const { stdout } = await execFileAsync(
-    'pnpm',
-    ['--filter', '@web-three-city/game', 'exec', 'vitest', 'list', '--json'],
-    { cwd: repoRoot, maxBuffer: 8 * 1024 * 1024 },
+    path.join(root, 'node_modules', '.bin', process.platform === 'win32' ? 'vitest.cmd' : 'vitest'),
+    ['list', '--config', 'apps/game/vitest.config.ts'],
+    { cwd: root, maxBuffer: 16 * 1024 * 1024 },
   );
-  // pnpm may prefix the JSON with engine/registry warnings on stdout; parse
-  // the first JSON array instead of requiring clean output.
-  const jsonStart = stdout.indexOf('[');
-  if (jsonStart === -1) throw new Error(`vitest-list:missing-json\n${stdout.slice(0, 200)}`);
-  const listed = JSON.parse(stdout.slice(jsonStart));
-  if (!Array.isArray(listed)) throw new Error('vitest-list:expected-array');
-  return listed;
+  return stdout
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
 }
 
-async function browserSpecFiles() {
-  return (await readdir(path.join(repoRoot, 'browser-tests'), { withFileTypes: true }))
-    .filter((entry) => entry.isFile() && entry.name.endsWith('.spec.ts'))
-    .map((entry) => entry.name)
-    .sort();
+function playwrightTestCount(output) {
+  const match = /Total:\s+(\d+) tests? in \d+ files?/u.exec(output);
+  assert.ok(match, `unable to parse Playwright test count from:\n${output}`);
+  return Number(match[1]);
 }
 
-async function runPlaywrightList(extraArgs = []) {
-  const { stdout, stderr } = await execFileAsync(
-    'pnpm',
-    ['exec', 'playwright', 'test', '--list', '--project=chromium', ...extraArgs],
-    { cwd: repoRoot, maxBuffer: 8 * 1024 * 1024 },
-  );
-  const output = `${stdout}\n${stderr}`;
-  const match = output.match(/Total:\s+(\d+)\s+tests?/);
-  if (match === null) throw new Error(`playwright-list:missing-total\n${output}`);
+function playwrightListedCount(output) {
+  return output
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter((line) => /^\[chromium\]\s+›/u.test(line)).length;
+}
+
+function targetedCount(output) {
+  const match = /Total:\s+(\d+) tests? in \d+ files?/u.exec(output);
+  assert.ok(match, `unable to parse targeted Playwright test count from:\n${output}`);
   return { testCount: Number(match[1]), output };
 }
 
@@ -93,7 +99,7 @@ test('Game TypeScript includes browser-independent game tests', async () => {
 
 test('Game test inventory matches Vitest discovery', async () => {
   assert.equal(await readGameTestFileCount(), 86);
-  assert.equal((await runVitestList()).length, 340);
+  assert.equal((await runVitestList()).length, 341);
 });
 
 test('every browser spec has approved ownership tags in its Playwright title path', async () => {
@@ -109,19 +115,56 @@ test('full Chromium project has no tag exclusion', async () => {
   const config = await readRepoText('playwright.config.ts');
   const chromiumStart = config.indexOf("name: 'chromium'");
   assert.notEqual(chromiumStart, -1);
-  const chromium = config.slice(chromiumStart);
-  assert.doesNotMatch(chromium, /grep\s*:/);
-  assert.doesNotMatch(chromium, /grepInvert\s*:/);
+  const nextProject = config.indexOf("name: '", chromiumStart + 10);
+  const chromiumBlock = config.slice(chromiumStart, nextProject === -1 ? undefined : nextProject);
+  assert.doesNotMatch(chromiumBlock, /grepInvert/u);
 });
 
 test('full Chromium list retains the current browser inventory', async () => {
-  const listed = await runPlaywrightList();
-  assert.equal(listed.testCount, 145);
+  const output = await runPlaywrightList();
+  assert.equal(playwrightTestCount(output), 149);
+  assert.equal(playwrightListedCount(output), 149);
 });
 
 test('approved targeted Playwright grep commands remain valid', async () => {
-  for (const tag of ['@smoke', '@rci', '@release']) {
-    const listed = await runPlaywrightList(['--grep', tag]);
-    assert.ok(listed.testCount > 0, `${tag} must select at least one browser test`);
+  for (const tag of ['@terrain', '@road', '@zone', '@building', '@traffic', '@ui', '@persistence', '@bootstrap']) {
+    const result = targetedCount(await runPlaywrightList(['--grep', tag]));
+    assert.ok(result.testCount > 0, `${tag} must select at least one Chromium browser test`);
   }
+});
+
+test('repository exposes the fast verification command', async () => {
+  const packageJson = JSON.parse(await readRepoText('package.json'));
+  assert.equal(packageJson.scripts.verify, 'pnpm check');
+});
+
+test('repository exposes the full release verification command', async () => {
+  const packageJson = JSON.parse(await readRepoText('package.json'));
+  assert.equal(
+    packageJson.scripts['verify:full'],
+    'pnpm install --frozen-lockfile && pnpm verify && pnpm exec playwright install chromium && pnpm test:browser:only && node tooling/verify-clean-worktree.mjs',
+  );
+});
+
+test('deployment tests cover verification command contracts and clean-worktree behavior', async () => {
+  const packageJson = JSON.parse(await readRepoText('package.json'));
+  assert.match(packageJson.scripts['test:deployment'], /verification-scripts\.test\.mjs/u);
+  assert.match(packageJson.scripts['test:deployment'], /verify-clean-worktree\.test\.mjs/u);
+});
+
+test('ESLint excludes generated browser evidence', async () => {
+  const config = await readRepoText('eslint.config.mjs');
+  assert.match(config, /test-results/u);
+  assert.match(config, /playwright-report/u);
+});
+
+test('Playwright serializes CI browser workers while retaining local parallelism', async () => {
+  const config = await readRepoText('playwright.config.ts');
+  assert.match(config, /workers:\s*process\.env\.CI\s*\?\s*1\s*:\s*undefined/u);
+});
+
+test('architecture contracts run before recursive package tests', async () => {
+  const packageJson = JSON.parse(await readRepoText('package.json'));
+  assert.match(packageJson.scripts.test, /pnpm -r --if-present test/u);
+  assert.match(packageJson.scripts.check, /pnpm test:deployment && pnpm test/u);
 });

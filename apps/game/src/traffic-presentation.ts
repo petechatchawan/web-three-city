@@ -79,7 +79,7 @@ interface PedestrianFrameBinding {
 }
 
 interface VehicleArrivalState {
-  readonly expiresAtMs: number;
+  reachedAtMs: number | null;
   readonly visual: TrafficVehicleAgent;
   readonly motion: VehicleMotionState;
 }
@@ -93,7 +93,8 @@ export interface TrafficVehicleMotionDebugView {
 
 const MOTION_MIN_DURATION_MS = 80;
 const MOTION_MAX_DURATION_MS = 1_000;
-const ARRIVAL_PRESENTATION_DURATION_MS = 180;
+const ARRIVAL_TARGET_DURATION_MS = 180;
+const ARRIVAL_SETTLE_DURATION_MS = 100;
 const CELL_PRESENTATION_LENGTH_MILLIMETERS = 8_000;
 
 function edgeLengthMillimeters(agent: TrafficPresentationAgent): number {
@@ -375,11 +376,11 @@ export class TrafficPresentation {
           setVehicleKinematicsTarget(
             motion.kinematics,
             motion.preparedRoute.totalLengthMillimeters,
-            ARRIVAL_PRESENTATION_DURATION_MS / 1_000,
+            ARRIVAL_TARGET_DURATION_MS / 1_000,
           );
         }
         motion.queued = false;
-        arrival = { expiresAtMs: timestampMs + ARRIVAL_PRESENTATION_DURATION_MS, visual, motion };
+        arrival = { reachedAtMs: null, visual, motion };
         this.#vehicleArrivals.set(tripId, arrival);
       }
       retainedVehicles.add(tripId);
@@ -433,18 +434,28 @@ export class TrafficPresentation {
       binding.visual.setVisualState(binding.queued, isTurningMovement(movementKind));
     }
     for (const [tripId, arrival] of this.#vehicleArrivals) {
-      if (timestampMs >= arrival.expiresAtMs) {
-        this.#vehicleArrivals.delete(tripId);
-        this.#vehicleMotion.delete(tripId);
-        this.#vehicles.release(tripId);
-        continue;
-      }
       this.#sampleVehicleMotion(arrival.motion, timestampMs, false);
       arrival.visual.setTransform(arrival.motion.position, arrival.motion.sample.headingRadians);
       const movementKind =
         arrival.motion.preparedRoute.preparedSegments[arrival.motion.sample.segmentIndex]?.source
           .movementKind;
       arrival.visual.setVisualState(false, isTurningMovement(movementKind));
+
+      const routeEndMillimeters = arrival.motion.preparedRoute.totalLengthMillimeters;
+      const reachedRouteEnd =
+        arrival.motion.kinematics.visualDistanceMillimeters >= routeEndMillimeters;
+      if (!reachedRouteEnd) {
+        arrival.reachedAtMs = null;
+        continue;
+      }
+      if (arrival.reachedAtMs === null) {
+        arrival.reachedAtMs = timestampMs;
+        continue;
+      }
+      if (timestampMs - arrival.reachedAtMs < ARRIVAL_SETTLE_DURATION_MS) continue;
+      this.#vehicleArrivals.delete(tripId);
+      this.#vehicleMotion.delete(tripId);
+      this.#vehicles.release(tripId);
     }
     this.#frameSampleCount += 1;
     this.#lastFrameTimestampMs = timestampMs;

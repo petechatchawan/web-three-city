@@ -86,66 +86,106 @@ function validMobilityTraffic(world: CommittedWorld): boolean {
   return true;
 }
 
-function validCandidate(world: CommittedWorld): boolean {
-  for (let z = 0; z < WORLD_CONFIG.mapHeight; z += 1) {
-    for (let x = 0; x < WORLD_CONFIG.mapWidth; x += 1) {
-      const cell = { x, z };
-      if (
-        roadOccupiedAt(world.roads, cell) &&
-        roadCellPolicyInvalidReason(world.roads, cell, world.environments.road, WORLD_CONFIG) !==
-          null
-      ) {
-        return false;
-      }
-    }
-  }
-
-  const emptyOccupancy = Object.freeze({ revision: 0, isBlocked: () => false });
-  const zoneEnvironment = createZonePlacementEnvironment(
-    world.terrain,
-    world.water,
-    world.roads,
-    emptyOccupancy,
-    WORLD_CONFIG,
+function sameStaticAuthority(first: CommittedWorld, second: CommittedWorld): boolean {
+  return (
+    first.terrain === second.terrain &&
+    first.water === second.water &&
+    first.roads === second.roads &&
+    first.zones === second.zones &&
+    first.buildings === second.buildings &&
+    first.environments === second.environments
   );
-  for (let z = 0; z < WORLD_CONFIG.mapHeight; z += 1) {
-    for (let x = 0; x < WORLD_CONFIG.mapWidth; x += 1) {
-      const cell = { x, z };
-      if (
-        zoneOccupiedAt(world.zones, cell) &&
-        zoneCellPolicyInvalidReason(world.zones, cell, zoneEnvironment, WORLD_CONFIG) !== null
-      ) {
-        return false;
+}
+
+export class StaticWorldValidationCache {
+  #validatedWorld: CommittedWorld | null = null;
+
+  shouldValidate(world: CommittedWorld): boolean {
+    return this.#validatedWorld === null || !sameStaticAuthority(this.#validatedWorld, world);
+  }
+
+  markValidated(world: CommittedWorld): void {
+    this.#validatedWorld = world;
+  }
+}
+
+function validBuildingInstance(
+  world: CommittedWorld,
+  instance: CommittedWorld['buildings']['instances'][number],
+  validateStaticAuthority: boolean,
+): boolean {
+  if (
+    instance.lifecycle === 'construction' &&
+    instance.constructionCompletesAtTick <= world.simulation.absoluteGameMinute
+  ) {
+    return false;
+  }
+  if (!validateStaticAuthority) return true;
+
+  const definition = buildingDefinitionForId(instance.buildingDefinitionId);
+  const cells = occupiedCellsForBuilding(instance);
+  const firstCell = cells[0];
+  const zoneId =
+    firstCell === undefined ? null : world.environments.building.zoneDefinitionIdAt(firstCell);
+  return !(
+    zoneId === null ||
+    !definition.compatibleZoneDefinitionIds.includes(zoneId) ||
+    cells.some(
+      (cell) =>
+        world.environments.building.zoneDefinitionIdAt(cell) !== zoneId ||
+        !world.environments.building.isDry(cell) ||
+        world.environments.building.surfaceAt(cell).shape !== 'flat' ||
+        world.environments.building.isRoadOccupied(cell),
+    ) ||
+    resolveBuildingFrontage(instance, world.environments.building) === null
+  );
+}
+
+function validCandidate(
+  world: CommittedWorld,
+  options: Readonly<{ validateStaticAuthority: boolean }>,
+): boolean {
+  if (options.validateStaticAuthority) {
+    for (let z = 0; z < WORLD_CONFIG.mapHeight; z += 1) {
+      for (let x = 0; x < WORLD_CONFIG.mapWidth; x += 1) {
+        const cell = { x, z };
+        if (
+          roadOccupiedAt(world.roads, cell) &&
+          roadCellPolicyInvalidReason(world.roads, cell, world.environments.road, WORLD_CONFIG) !==
+            null
+        ) {
+          return false;
+        }
+      }
+    }
+
+    const emptyOccupancy = Object.freeze({ revision: 0, isBlocked: () => false });
+    const zoneEnvironment = createZonePlacementEnvironment(
+      world.terrain,
+      world.water,
+      world.roads,
+      emptyOccupancy,
+      WORLD_CONFIG,
+    );
+    for (let z = 0; z < WORLD_CONFIG.mapHeight; z += 1) {
+      for (let x = 0; x < WORLD_CONFIG.mapWidth; x += 1) {
+        const cell = { x, z };
+        if (
+          zoneOccupiedAt(world.zones, cell) &&
+          zoneCellPolicyInvalidReason(world.zones, cell, zoneEnvironment, WORLD_CONFIG) !== null
+        ) {
+          return false;
+        }
       }
     }
   }
 
-  for (const instance of world.buildings.instances) {
-    if (
-      instance.lifecycle === 'construction' &&
-      instance.constructionCompletesAtTick <= world.simulation.absoluteGameMinute
-    ) {
-      return false;
-    }
-    const definition = buildingDefinitionForId(instance.buildingDefinitionId);
-    const cells = occupiedCellsForBuilding(instance);
-    const firstCell = cells[0];
-    const zoneId =
-      firstCell === undefined ? null : world.environments.building.zoneDefinitionIdAt(firstCell);
-    if (
-      zoneId === null ||
-      !definition.compatibleZoneDefinitionIds.includes(zoneId) ||
-      cells.some(
-        (cell) =>
-          world.environments.building.zoneDefinitionIdAt(cell) !== zoneId ||
-          !world.environments.building.isDry(cell) ||
-          world.environments.building.surfaceAt(cell).shape !== 'flat' ||
-          world.environments.building.isRoadOccupied(cell),
-      ) ||
-      resolveBuildingFrontage(instance, world.environments.building) === null
-    ) {
-      return false;
-    }
+  if (
+    world.buildings.instances.some(
+      (instance) => !validBuildingInstance(world, instance, options.validateStaticAuthority),
+    )
+  ) {
+    return false;
   }
 
   return (
@@ -168,6 +208,7 @@ function rejected(
 export class DefaultWorldTransactionCoordinator implements WorldTransactionCoordinator {
   readonly #worldStore: CommittedWorldStore;
   readonly #presentation: WorldPresentationPort | null;
+  readonly #staticValidationCache = new StaticWorldValidationCache();
 
   constructor(input: { worldStore: CommittedWorldStore; presentation?: WorldPresentationPort }) {
     this.#worldStore = input.worldStore;
@@ -210,8 +251,11 @@ export class DefaultWorldTransactionCoordinator implements WorldTransactionCoord
       candidate = createCommittedWorld(plan.nextWorld, { reuseStaticFrom: current });
       if (memoizedFingerprintCommittedWorld(candidate) !== plan.nextFingerprint)
         return rejected(readCurrent(), 'world:stale-content');
-      if (!validCandidate(candidate)) return rejected(readCurrent(), 'world:invalid-candidate');
+      const validateStaticAuthority = this.#staticValidationCache.shouldValidate(candidate);
+      if (!validCandidate(candidate, { validateStaticAuthority }))
+        return rejected(readCurrent(), 'world:invalid-candidate');
       this.#worldStore.replacePrepared(current.revision, candidate);
+      this.#staticValidationCache.markValidated(candidate);
     } catch {
       return rejected(readCurrent(), 'world:invalid-candidate');
     }

@@ -20,9 +20,23 @@ import { describe, expect, it } from 'vitest';
 import { createApplicationFixture } from '../../test/application-fixtures.js';
 import { CommittedWorldStore, createCommittedWorldFromDomainState } from './committed-world.js';
 import { fingerprintCommittedWorld } from './committed-world-fingerprint.js';
-import { DefaultWorldTransactionCoordinator } from './world-transaction-coordinator.js';
+import {
+  DefaultWorldTransactionCoordinator,
+  StaticWorldValidationCache,
+} from './world-transaction-coordinator.js';
 
 describe('WorldTransactionCoordinator', () => {
+  it('reuses static validation only for the same immutable authority references', () => {
+    const initial = createApplicationFixture();
+    const changedStaticWorld = createApplicationFixture({ applicationRevision: 1 });
+    const cache = new StaticWorldValidationCache();
+
+    expect(cache.shouldValidate(initial)).toBe(true);
+    cache.markValidated(initial);
+    expect(cache.shouldValidate(initial)).toBe(false);
+    expect(cache.shouldValidate(changedStaticWorld)).toBe(true);
+  });
+
   it('rejects stale content without changing committed authority', () => {
     const initial = createApplicationFixture();
     const store = new CommittedWorldStore(initial);

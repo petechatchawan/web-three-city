@@ -2,8 +2,16 @@ export type SimulationSpeed = 'paused' | 'normal' | 'fast' | 'faster';
 
 export interface SimulationSnapshot {
   readonly revision: number;
-  readonly absoluteTick: number;
+  readonly absoluteGameMinute: number;
   readonly growthSequence: number;
+}
+
+export interface MacroHourTransition {
+  readonly beforeAbsoluteGameMinute: number;
+  readonly afterAbsoluteGameMinute: number;
+  readonly beforeMacroHourIndex: number;
+  readonly afterMacroHourIndex: number;
+  readonly crossed: boolean;
 }
 
 export interface GameCalendar {
@@ -13,19 +21,19 @@ export interface GameCalendar {
   readonly hour: number;
 }
 
-export interface SimulationTickPlan {
+export interface SimulationMinutePlan {
   readonly baseRevision: number;
-  readonly beforeAbsoluteTick: number;
-  readonly afterAbsoluteTick: number;
+  readonly beforeAbsoluteGameMinute: number;
+  readonly afterAbsoluteGameMinute: number;
   readonly valid: boolean;
-  readonly invalidReason: 'simulation:invalid-state' | 'simulation:tick-overflow' | null;
+  readonly invalidReason: 'simulation:invalid-state' | 'simulation:minute-overflow' | null;
 }
 
-export interface SimulationTickReceipt {
+export interface SimulationMinuteReceipt {
   readonly beforeRevision: number;
   readonly afterRevision: number;
-  readonly beforeAbsoluteTick: number;
-  readonly afterAbsoluteTick: number;
+  readonly beforeAbsoluteGameMinute: number;
+  readonly afterAbsoluteGameMinute: number;
 }
 
 export type SimulationContractErrorCode = 'simulation:invalid-plan' | 'simulation:stale-plan';

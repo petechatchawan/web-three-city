@@ -1,5 +1,5 @@
 import { createBuildingSnapshot, type ActiveBuildingInstance } from '@web-three-city/building-core';
-import type { SimulationSnapshot } from '@web-three-city/simulation-core';
+import { deriveMacroHourIndex, type SimulationSnapshot } from '@web-three-city/simulation-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { describe, expect, it } from 'vitest';
 import {
@@ -13,12 +13,12 @@ import {
 
 const before: SimulationSnapshot = Object.freeze({
   revision: 0,
-  absoluteTick: 32,
+  absoluteGameMinute: 32 * 60,
   growthSequence: 0,
 });
 const after: SimulationSnapshot = Object.freeze({
   revision: 1,
-  absoluteTick: 33,
+  absoluteGameMinute: 33 * 60,
   growthSequence: 0,
 });
 
@@ -45,7 +45,9 @@ describe('RCI exact Building after-state fence', () => {
       { revision: 1, instances: [active(3)] },
       WORLD_CONFIG,
     );
-    const rci = createInitialRciSnapshot({ absoluteTick: before.absoluteTick });
+    const rci = createInitialRciSnapshot({
+      absoluteTick: deriveMacroHourIndex(before.absoluteGameMinute),
+    });
     const registries = createFoundationRciRegistries();
     const plan = planRciTick({
       rci,
@@ -80,7 +82,9 @@ describe('RCI exact Building after-state fence', () => {
       { revision: 2, instances: [active(2)] },
       WORLD_CONFIG,
     );
-    const rci = createInitialRciSnapshot({ absoluteTick: before.absoluteTick });
+    const rci = createInitialRciSnapshot({
+      absoluteTick: deriveMacroHourIndex(before.absoluteGameMinute),
+    });
     const registries = createFoundationRciRegistries();
     const plan = planRciTick({
       rci,

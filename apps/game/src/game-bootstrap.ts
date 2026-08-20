@@ -14,6 +14,12 @@ import {
 } from '@web-three-city/economy-core';
 import { createFoundationRciRegistries, createInitialRciSnapshot } from '@web-three-city/rci-core';
 import {
+  derivePedestrianTrafficGraph,
+  deriveVehicleTrafficGraph,
+  type TrafficGraph,
+} from '@web-three-city/traffic-core';
+import {
+  deriveMacroHourIndex,
   createInitialSimulationSnapshot,
   createSimulationSnapshot,
   type SimulationSnapshot,
@@ -95,6 +101,7 @@ import {
 import { createBuildingWorldOccupancy } from './building-world-occupancy.js';
 import { createGameInput, type GameRenderViewport } from './game-input.js';
 import { dispatchGameTransactionState } from './game-tool-events.js';
+import { createRoadTrafficSourceProjectionFromEnvironment } from './traffic-source-projection.js';
 import type { GameToolMode } from './game-tool-mode.js';
 import type { GameTerraformInvalidReason } from './terraform-occupancy-guard.js';
 import {
@@ -110,6 +117,14 @@ import { guardTerraformPlanWithOccupancy } from './terraform-occupancy-guard.js'
 import { guardZonePlanWithBuildings, type GameZoneInvalidReason } from './zone-building-guard.js';
 import { executeGameWorldTick } from './game-world-tick.js';
 import { GameWorldStateStore } from './game-world-state.js';
+import {
+  commitGameMinuteTransaction,
+  planGameMinuteTransaction,
+} from './game-minute-transaction.js';
+import {
+  commitTrafficTransportTransaction,
+  planTrafficTransportTransaction,
+} from './traffic-transport-transaction.js';
 import { type EconomyPolicyUiResult, type EconomyTaxPolicy } from './economy-budget-hud.js';
 import type { GameBootstrapHost, GameViewportLayout, QualityLevel } from './game-ui.js';
 
@@ -138,6 +153,8 @@ export interface GameRuntime {
   subscribeCommittedWorld(subscriber: CommittedWorldSubscriber): () => void;
   subscribeWorldSelection(subscriber: WorldSelectionSubscriber): () => void;
   advanceLogicalTick(input: Readonly<{ automaticGrowth: boolean }>): CommittedWorld;
+  advanceGameMinute(input?: Readonly<{ automaticGrowth?: boolean }>): CommittedWorld;
+  advanceTransportQuantum(): CommittedWorld;
   resetSimulationForTest(): CommittedWorld;
   savePayload(): ReturnType<SaveCoordinator['savePayload']>;
   runBackgroundGrowthTick(simulation?: SimulationSnapshot): SimulationSnapshot;
@@ -175,6 +192,37 @@ function rebuildSelection(
 ): void {
   selection.clear();
   if (selectedCell !== null) selection.setSelection(snapshot, selectedCell);
+}
+
+function combinedTrafficGraphForWorld(world: CommittedWorld): TrafficGraph {
+  const roads = createRoadTrafficSourceProjectionFromEnvironment(
+    world.roads,
+    world.environments.building,
+  );
+  const buildingRevision = world.buildings.revision;
+  const vehicle = Object.freeze({
+    ...deriveVehicleTrafficGraph(roads),
+    sourceBuildingRevision: buildingRevision,
+  });
+  const pedestrian = Object.freeze({
+    ...derivePedestrianTrafficGraph(roads),
+    sourceBuildingRevision: buildingRevision,
+  });
+  const nodes = new Map([...vehicle.nodes, ...pedestrian.nodes].map((node) => [node.nodeId, node]));
+  return Object.freeze({
+    sourceRoadRevision: world.roads.revision,
+    sourceBuildingRevision: buildingRevision,
+    nodes: Object.freeze(
+      [...nodes.values()].sort((first, second) =>
+        first.nodeId < second.nodeId ? -1 : first.nodeId > second.nodeId ? 1 : 0,
+      ),
+    ),
+    edges: Object.freeze(
+      [...vehicle.edges, ...pedestrian.edges].sort((first, second) =>
+        first.edgeId < second.edgeId ? -1 : first.edgeId > second.edgeId ? 1 : 0,
+      ),
+    ),
+  });
 }
 
 type WaterBuildMetrics = Pick<
@@ -348,9 +396,15 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
     zones: createEmptyZoneSnapshot(WORLD_CONFIG),
     buildings: createEmptyBuildingSnapshot(WORLD_CONFIG),
     simulation: initialSimulation,
-    rci: createInitialRciSnapshot({ absoluteTick: initialSimulation.absoluteTick }),
+    rci: createInitialRciSnapshot({
+      absoluteTick: deriveMacroHourIndex(initialSimulation.absoluteGameMinute),
+    }),
     economy: createInitialEconomySnapshot(
-      { year: 1, month: 1, latestDailySettlementTick: initialSimulation.absoluteTick },
+      {
+        year: 1,
+        month: 1,
+        latestDailySettlementTick: deriveMacroHourIndex(initialSimulation.absoluteGameMinute),
+      },
       FOUNDATION_ECONOMY_RULES,
     ),
   });
@@ -371,6 +425,8 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
         return () => selectionSubscribers.delete(subscriber);
       },
       advanceLogicalTick: () => unavailableWorld.snapshot(),
+      advanceGameMinute: () => unavailableWorld.snapshot(),
+      advanceTransportQuantum: () => unavailableWorld.snapshot(),
       resetSimulationForTest: () => unavailableWorld.snapshot(),
       savePayload(): never {
         throw new Error('game:runtime-unavailable');
@@ -862,7 +918,7 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
         buildingsBefore: current.buildings,
         buildingsAfter: committed.snapshot,
         registries: rciRegistries,
-        evaluationTick: current.simulation.absoluteTick,
+        evaluationTick: deriveMacroHourIndex(current.simulation.absoluteGameMinute),
       });
       const publication = publishCommittedDomain(
         { buildings: committed.snapshot, rci: reconciledRci, economy: payment.snapshot },
@@ -930,7 +986,7 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
     const current = transactionCoordinator.snapshot();
     const next = createSimulationSnapshot({
       revision: current.simulation.revision + 1,
-      absoluteTick: current.simulation.absoluteTick + 1,
+      absoluteGameMinute: current.simulation.absoluteGameMinute + 1,
       growthSequence: current.simulation.growthSequence,
     });
     const publication = publishCommittedDomain({ simulation: next }, noOpPresentation);
@@ -943,6 +999,45 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
     if (input.automaticGrowth) runBackgroundGrowthTick();
     else runSimulationOnlyTick();
     return transactionCoordinator.snapshot();
+  };
+
+  const advanceGameMinute = (
+    input: Readonly<{ automaticGrowth?: boolean }> = {},
+  ): CommittedWorld => {
+    const current = transactionCoordinator.snapshot();
+    try {
+      const plan = planGameMinuteTransaction({
+        world: current,
+        registries: rciRegistries,
+        reservedCells: inputRef.current?.getBackgroundGrowthReservations() ?? Object.freeze([]),
+        ...(input.automaticGrowth === undefined ? {} : { automaticGrowth: input.automaticGrowth }),
+      });
+      if (!plan.valid) return current;
+      const publication = commitGameMinuteTransaction(transactionCoordinator, plan);
+      return publication.status === 'committed' ? publication.world : current;
+    } catch {
+      return current;
+    }
+  };
+
+  const advanceTransportQuantum = (): CommittedWorld => {
+    const current = transactionCoordinator.snapshot();
+    const traffic = current.traffic as unknown as {
+      readonly schemaVersion: number;
+    };
+    if (traffic.schemaVersion !== 2) return current;
+    try {
+      const plan = planTrafficTransportTransaction({
+        world: current,
+        mobility: current.mobility,
+        traffic: current.traffic as never,
+        graph: combinedTrafficGraphForWorld(current),
+      });
+      const publication = commitTrafficTransportTransaction(transactionCoordinator, plan);
+      return publication.status === 'committed' ? publication.world : current;
+    } catch {
+      return current;
+    }
   };
 
   const resetSimulationForTest = (): CommittedWorld => {
@@ -1290,6 +1385,8 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
     subscribeCommittedWorld,
     subscribeWorldSelection,
     advanceLogicalTick,
+    advanceGameMinute,
+    advanceTransportQuantum,
     resetSimulationForTest,
     savePayload: () => saveCoordinator.savePayload(),
     runBackgroundGrowthTick,

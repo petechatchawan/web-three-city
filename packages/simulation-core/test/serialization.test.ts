@@ -3,22 +3,22 @@ import {
   createSimulationSnapshot,
   decodeSimulationSaveV1,
   decodeSimulationSaveV2,
-  encodeSimulationSaveV1,
-  encodeSimulationSaveV2,
+  decodeSimulationSaveV3,
+  encodeSimulationSaveV3,
 } from '../src/index.js';
 
 describe('SimulationSaveV1', () => {
-  it('round trips authoritative tick and growth sequence', () => {
-    const snapshot = createSimulationSnapshot({
-      revision: 7,
+  it('decodes legacy ticks as macro-hour-aligned game minutes', () => {
+    const decoded = decodeSimulationSaveV1({
+      kind: 'simulation-save',
+      schemaVersion: 1,
       absoluteTick: 99,
       growthSequence: 4,
     });
-    const decoded = decodeSimulationSaveV1(encodeSimulationSaveV1(snapshot));
-    expect(decoded.ok).toBe(true);
-    if (decoded.ok) {
-      expect(decoded.value).toEqual({ revision: 0, absoluteTick: 99, growthSequence: 4 });
-    }
+    expect(decoded).toEqual({
+      ok: true,
+      value: { revision: 0, absoluteGameMinute: 5940, growthSequence: 4 },
+    });
   });
 
   it('fails closed for malformed authority', () => {
@@ -34,14 +34,18 @@ describe('SimulationSaveV1', () => {
 });
 
 describe('SimulationSaveV2', () => {
-  it('round trips the authoritative revision for deterministic continuation', () => {
-    const snapshot = createSimulationSnapshot({
+  it('decodes legacy ticks as macro-hour-aligned game minutes', () => {
+    const decoded = decodeSimulationSaveV2({
+      kind: 'simulation-save',
+      schemaVersion: 2,
       revision: 7,
       absoluteTick: 99,
       growthSequence: 4,
     });
-    const decoded = decodeSimulationSaveV2(encodeSimulationSaveV2(snapshot));
-    expect(decoded).toEqual({ ok: true, value: snapshot });
+    expect(decoded).toEqual({
+      ok: true,
+      value: { revision: 7, absoluteGameMinute: 5940, growthSequence: 4 },
+    });
   });
 
   it('fails closed for malformed revisions', () => {
@@ -54,5 +58,19 @@ describe('SimulationSaveV2', () => {
         growthSequence: 4,
       }).ok,
     ).toBe(false);
+  });
+});
+
+describe('SimulationSaveV3', () => {
+  it('round trips the minute-resolution canonical snapshot', () => {
+    const snapshot = createSimulationSnapshot({
+      revision: 7,
+      absoluteGameMinute: 5941,
+      growthSequence: 4,
+    });
+    expect(decodeSimulationSaveV3(encodeSimulationSaveV3(snapshot))).toEqual({
+      ok: true,
+      value: snapshot,
+    });
   });
 });

@@ -1,59 +1,59 @@
 import {
   SimulationContractError,
+  type SimulationMinutePlan,
+  type SimulationMinuteReceipt,
   type SimulationSnapshot,
-  type SimulationTickPlan,
-  type SimulationTickReceipt,
 } from './contracts.js';
 import { createSimulationSnapshot } from './simulation-snapshot.js';
 
-export function planSimulationTick(snapshot: SimulationSnapshot): SimulationTickPlan {
+export function planSimulationMinute(snapshot: SimulationSnapshot): SimulationMinutePlan {
   try {
     const validated = createSimulationSnapshot(snapshot);
-    if (validated.absoluteTick === Number.MAX_SAFE_INTEGER) {
+    if (validated.absoluteGameMinute === Number.MAX_SAFE_INTEGER) {
       return Object.freeze({
         baseRevision: validated.revision,
-        beforeAbsoluteTick: validated.absoluteTick,
-        afterAbsoluteTick: validated.absoluteTick,
+        beforeAbsoluteGameMinute: validated.absoluteGameMinute,
+        afterAbsoluteGameMinute: validated.absoluteGameMinute,
         valid: false,
-        invalidReason: 'simulation:tick-overflow',
+        invalidReason: 'simulation:minute-overflow',
       });
     }
     return Object.freeze({
       baseRevision: validated.revision,
-      beforeAbsoluteTick: validated.absoluteTick,
-      afterAbsoluteTick: validated.absoluteTick + 1,
+      beforeAbsoluteGameMinute: validated.absoluteGameMinute,
+      afterAbsoluteGameMinute: validated.absoluteGameMinute + 1,
       valid: true,
       invalidReason: null,
     });
   } catch {
     return Object.freeze({
       baseRevision: snapshot.revision,
-      beforeAbsoluteTick: snapshot.absoluteTick,
-      afterAbsoluteTick: snapshot.absoluteTick,
+      beforeAbsoluteGameMinute: snapshot.absoluteGameMinute,
+      afterAbsoluteGameMinute: snapshot.absoluteGameMinute,
       valid: false,
       invalidReason: 'simulation:invalid-state',
     });
   }
 }
 
-export function commitSimulationTick(
+export function commitSimulationMinute(
   snapshot: SimulationSnapshot,
-  plan: SimulationTickPlan,
+  plan: SimulationMinutePlan,
   nextGrowthSequence: number = snapshot.growthSequence,
-): { readonly snapshot: SimulationSnapshot; readonly receipt: SimulationTickReceipt } {
+): { readonly snapshot: SimulationSnapshot; readonly receipt: SimulationMinuteReceipt } {
   if (!plan.valid || plan.invalidReason !== null) {
     throw new SimulationContractError('simulation:invalid-plan');
   }
   const validated = createSimulationSnapshot(snapshot);
   if (
     validated.revision !== plan.baseRevision ||
-    validated.absoluteTick !== plan.beforeAbsoluteTick
+    validated.absoluteGameMinute !== plan.beforeAbsoluteGameMinute
   ) {
     throw new SimulationContractError('simulation:stale-plan');
   }
   const next = createSimulationSnapshot({
     revision: validated.revision + 1,
-    absoluteTick: plan.afterAbsoluteTick,
+    absoluteGameMinute: plan.afterAbsoluteGameMinute,
     growthSequence: nextGrowthSequence,
   });
   return Object.freeze({
@@ -61,8 +61,8 @@ export function commitSimulationTick(
     receipt: Object.freeze({
       beforeRevision: validated.revision,
       afterRevision: next.revision,
-      beforeAbsoluteTick: validated.absoluteTick,
-      afterAbsoluteTick: next.absoluteTick,
+      beforeAbsoluteGameMinute: validated.absoluteGameMinute,
+      afterAbsoluteGameMinute: next.absoluteGameMinute,
     }),
   });
 }

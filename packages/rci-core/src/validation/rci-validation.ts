@@ -1,5 +1,5 @@
 import type { BuildingSnapshot } from '@web-three-city/building-core';
-import type { SimulationSnapshot } from '@web-three-city/simulation-core';
+import { deriveMacroHourIndex, type SimulationSnapshot } from '@web-three-city/simulation-core';
 import type { RciContractErrorCode } from '../contracts/errors.js';
 import { compareStableId } from '../contracts/ids.js';
 import type { RciDefinitionRegistries } from '../definitions/contracts.js';
@@ -145,7 +145,7 @@ export function validateRciSnapshot(
     revisions.some((revision) => !nonNegativeSafe(revision)) ||
     !nonNegativeSafe(snapshot.deterministicSeed) ||
     !nonNegativeSafe(simulation.revision) ||
-    !nonNegativeSafe(simulation.absoluteTick) ||
+    !nonNegativeSafe(simulation.absoluteGameMinute) ||
     !nonNegativeSafe(buildings.revision)
   ) {
     addIssue(issues, 'rci:invalid-state');
@@ -208,17 +208,17 @@ export function validateRciSnapshot(
   for (const citizen of snapshot.population.citizens) {
     if (
       !Number.isSafeInteger(citizen.bornAtTick) ||
-      citizen.bornAtTick > simulation.absoluteTick ||
+      citizen.bornAtTick > deriveMacroHourIndex(simulation.absoluteGameMinute) ||
       !nonNegativeSafe(citizen.movedIntoCityAtTick) ||
-      citizen.movedIntoCityAtTick > simulation.absoluteTick ||
+      citizen.movedIntoCityAtTick > deriveMacroHourIndex(simulation.absoluteGameMinute) ||
       (citizen.movedOutOfCityAtTick !== null &&
         (!nonNegativeSafe(citizen.movedOutOfCityAtTick) ||
           citizen.movedOutOfCityAtTick < citizen.movedIntoCityAtTick ||
-          citizen.movedOutOfCityAtTick > simulation.absoluteTick)) ||
+          citizen.movedOutOfCityAtTick > deriveMacroHourIndex(simulation.absoluteGameMinute))) ||
       (citizen.diedAtTick !== null &&
         (!nonNegativeSafe(citizen.diedAtTick) ||
           citizen.diedAtTick < citizen.bornAtTick ||
-          citizen.diedAtTick > simulation.absoluteTick))
+          citizen.diedAtTick > deriveMacroHourIndex(simulation.absoluteGameMinute)))
     ) {
       addIssue(issues, 'rci:invalid-state', citizen.citizenId);
     }
@@ -442,9 +442,10 @@ export function validateRciSnapshot(
       (value) => !Number.isSafeInteger(value) || value < -100_000 || value > 100_000,
     ) ||
     !nonNegativeSafe(snapshot.demand.demand.evaluatedAtTick) ||
-    snapshot.demand.demand.evaluatedAtTick > simulation.absoluteTick ||
+    snapshot.demand.demand.evaluatedAtTick > deriveMacroHourIndex(simulation.absoluteGameMinute) ||
     !nonNegativeSafe(snapshot.demand.growthGates.evaluatedAtTick) ||
-    snapshot.demand.growthGates.evaluatedAtTick > simulation.absoluteTick
+    snapshot.demand.growthGates.evaluatedAtTick >
+      deriveMacroHourIndex(simulation.absoluteGameMinute)
   ) {
     addIssue(issues, 'rci:invalid-demand');
   }

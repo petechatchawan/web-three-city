@@ -12,14 +12,16 @@ describe('GameRuntime committed-world authority', () => {
     );
     expect(mainSource).toMatch(/runtime\.snapshot\(\)/);
     expect(mainSource).toMatch(/runtime\.subscribeCommittedWorld/);
-    expect(mainSource).toMatch(/runtime\.advanceLogicalTick/);
+    expect(mainSource).toMatch(/runtime\.advanceGameMinute/);
+    expect(mainSource).toMatch(/runtime\.advanceTransportQuantum/);
     expect(mainSource).toMatch(/runtime\.savePayload\(\)/);
   });
 
   it('exposes one committed-world read and tick command surface', () => {
     expect(bootstrapSource).toMatch(/snapshot\(\): CommittedWorld/);
     expect(bootstrapSource).toMatch(/subscribeCommittedWorld/);
-    expect(bootstrapSource).toMatch(/advanceLogicalTick/);
+    expect(bootstrapSource).toMatch(/advanceGameMinute/);
+    expect(bootstrapSource).toMatch(/advanceTransportQuantum/);
     expect(bootstrapSource).toMatch(/savePayload/);
   });
 });

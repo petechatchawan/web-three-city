@@ -1,8 +1,11 @@
 import {
-  commitSimulationTick,
+  commitSimulationMinute,
   createSimulationSnapshot,
+  deriveMacroHourTransition,
   isDevelopmentEvaluationTick,
-  planSimulationTick,
+  isMacroHourTransition,
+  planSimulationMinute,
+  type MacroHourTransition,
   type SimulationSnapshot,
 } from '@web-three-city/simulation-core';
 import { chunkForCell, type ChunkCoord } from '@web-three-city/terrain-core';
@@ -59,8 +62,19 @@ function invalidPlan(
     baseWaterSourceTerrainRevision: environment.waterSourceTerrainRevision,
     baseRoadRevision: environment.roadRevision,
     baseZoneRevision: environment.zoneRevision,
-    beforeAbsoluteTick: simulation.absoluteTick,
-    afterAbsoluteTick: simulation.absoluteTick,
+    beforeAbsoluteTick: deriveMacroHourTransition(
+      simulation.absoluteGameMinute,
+      simulation.absoluteGameMinute,
+    ).beforeMacroHourIndex,
+    afterAbsoluteTick: deriveMacroHourTransition(
+      simulation.absoluteGameMinute,
+      simulation.absoluteGameMinute,
+    ).afterMacroHourIndex,
+    macroHourTransition: deriveMacroHourTransition(
+      simulation.absoluteGameMinute,
+      simulation.absoluteGameMinute,
+    ),
+    simulationAdvanceOwnedByBuilding: false,
     proposedInstances: Object.freeze([]),
     startedInstanceIds: Object.freeze([]),
     completedInstanceIds: Object.freeze([]),
@@ -76,6 +90,7 @@ export function planBuildingGrowthTick(input: {
   readonly simulation: SimulationSnapshot;
   readonly environment: BuildingDevelopmentEnvironment;
   readonly config: WorldConfig;
+  readonly macroHourTransition?: MacroHourTransition;
   readonly reservedCells?: readonly CellCoord[];
   readonly growthPolicy?: BuildingGrowthPolicy;
 }): BuildingGrowthPlan {
@@ -109,31 +124,46 @@ export function planBuildingGrowthTick(input: {
       'building-growth:invalid-environment',
     );
   }
-  const tickPlan = planSimulationTick(simulation);
+  const tickPlan = planSimulationMinute(simulation);
   if (!tickPlan.valid) {
     return invalidPlan(buildings, simulation, input.environment, 'building-growth:tick-overflow');
   }
 
-  const afterAbsoluteTick = tickPlan.afterAbsoluteTick;
+  const simulationAdvanceOwnedByBuilding = input.macroHourTransition === undefined;
+  const macroHourTransition =
+    input.macroHourTransition ??
+    deriveMacroHourTransition(simulation.absoluteGameMinute, tickPlan.afterAbsoluteGameMinute);
+  if (!isMacroHourTransition(macroHourTransition)) {
+    return invalidPlan(
+      buildings,
+      simulation,
+      input.environment,
+      'building-growth:invalid-simulation-state',
+    );
+  }
+
+  const afterAbsoluteTick = macroHourTransition.afterMacroHourIndex;
   const completedIds: string[] = [];
   const dirty: ChunkCoord[] = [];
-  const proposed: AuthoritativeBuildingInstance[] = buildings.instances.map((instance) => {
-    const authoritative = normalizeBuildingInstance(instance);
-    if (
-      authoritative.lifecycle === 'construction' &&
-      authoritative.constructionCompletesAtTick <= afterAbsoluteTick
-    ) {
-      completedIds.push(authoritative.instanceId);
-      for (const cell of occupiedCellsForBuilding(authoritative))
-        dirty.push(chunkForCell(cell, input.config));
-      return activateCompletedBuilding(authoritative, afterAbsoluteTick);
-    }
-    return authoritative;
-  });
+  const proposed: AuthoritativeBuildingInstance[] = !macroHourTransition.crossed
+    ? buildings.instances.map(normalizeBuildingInstance)
+    : buildings.instances.map((instance) => {
+        const authoritative = normalizeBuildingInstance(instance);
+        if (
+          authoritative.lifecycle === 'construction' &&
+          authoritative.constructionCompletesAtTick <= afterAbsoluteTick
+        ) {
+          completedIds.push(authoritative.instanceId);
+          for (const cell of occupiedCellsForBuilding(authoritative))
+            dirty.push(chunkForCell(cell, input.config));
+          return activateCompletedBuilding(authoritative, afterAbsoluteTick);
+        }
+        return authoritative;
+      });
 
   const startedIds: string[] = [];
   let nextGrowthSequence = simulation.growthSequence;
-  if (isDevelopmentEvaluationTick(afterAbsoluteTick)) {
+  if (macroHourTransition.crossed && isDevelopmentEvaluationTick(afterAbsoluteTick)) {
     const intermediate = createBuildingSnapshot(
       { revision: buildings.revision, instances: proposed },
       input.config,
@@ -174,8 +204,10 @@ export function planBuildingGrowthTick(input: {
     baseWaterSourceTerrainRevision: input.environment.waterSourceTerrainRevision,
     baseRoadRevision: input.environment.roadRevision,
     baseZoneRevision: input.environment.zoneRevision,
-    beforeAbsoluteTick: simulation.absoluteTick,
+    beforeAbsoluteTick: macroHourTransition.beforeMacroHourIndex,
     afterAbsoluteTick,
+    macroHourTransition,
+    simulationAdvanceOwnedByBuilding,
     proposedInstances: Object.freeze(proposed.map(normalizeBuildingInstance)),
     startedInstanceIds: frozenStrings(startedIds),
     completedInstanceIds: frozenStrings(completedIds),
@@ -204,7 +236,11 @@ export function commitBuildingGrowthTick(input: {
     throw new BuildingContractError('building:stale-building-plan');
   if (
     input.simulation.revision !== plan.baseSimulationRevision ||
-    input.simulation.absoluteTick !== plan.beforeAbsoluteTick
+    (plan.simulationAdvanceOwnedByBuilding &&
+      deriveMacroHourTransition(
+        input.simulation.absoluteGameMinute,
+        input.simulation.absoluteGameMinute,
+      ).beforeMacroHourIndex !== plan.beforeAbsoluteTick)
   ) {
     throw new BuildingContractError('building-growth:stale-simulation-plan');
   }
@@ -216,15 +252,20 @@ export function commitBuildingGrowthTick(input: {
     throw new BuildingContractError('building:stale-road-plan');
   if (input.environment.zoneRevision !== plan.baseZoneRevision)
     throw new BuildingContractError('building:stale-zone-plan');
-  const tickPlan = planSimulationTick(input.simulation);
-  if (!tickPlan.valid || tickPlan.afterAbsoluteTick !== plan.afterAbsoluteTick) {
+  const tickPlan = planSimulationMinute(input.simulation);
+  if (
+    plan.simulationAdvanceOwnedByBuilding &&
+    (!tickPlan.valid ||
+      deriveMacroHourTransition(
+        input.simulation.absoluteGameMinute,
+        tickPlan.afterAbsoluteGameMinute,
+      ).afterMacroHourIndex !== plan.afterAbsoluteTick)
+  ) {
     throw new BuildingContractError('building-growth:stale-simulation-plan');
   }
-  const simulationCommit = commitSimulationTick(
-    input.simulation,
-    tickPlan,
-    plan.nextGrowthSequence,
-  );
+  const simulationCommit = plan.simulationAdvanceOwnedByBuilding
+    ? commitSimulationMinute(input.simulation, tickPlan, plan.nextGrowthSequence)
+    : { snapshot: input.simulation };
   const changed = plan.startedInstanceIds.length > 0 || plan.completedInstanceIds.length > 0;
   const buildings = changed
     ? createBuildingSnapshot(
@@ -240,8 +281,8 @@ export function commitBuildingGrowthTick(input: {
       afterBuildingRevision: buildings.revision,
       beforeSimulationRevision: input.simulation.revision,
       afterSimulationRevision: simulationCommit.snapshot.revision,
-      beforeAbsoluteTick: input.simulation.absoluteTick,
-      afterAbsoluteTick: simulationCommit.snapshot.absoluteTick,
+      beforeAbsoluteTick: plan.beforeAbsoluteTick,
+      afterAbsoluteTick: plan.afterAbsoluteTick,
       startedInstanceIds: plan.startedInstanceIds,
       completedInstanceIds: plan.completedInstanceIds,
       dirtyChunks: plan.dirtyChunks,

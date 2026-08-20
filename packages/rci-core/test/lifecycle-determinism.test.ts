@@ -65,12 +65,12 @@ function advance(
 ): Readonly<{ snapshot: RciSnapshot; receipt: RciTickReceipt; events: readonly string[] }> {
   const simulationBefore: SimulationSnapshot = Object.freeze({
     revision: simulationRevision,
-    absoluteTick: beforeTick,
+    absoluteGameMinute: beforeTick * 60,
     growthSequence: 0,
   });
   const simulationAfter: SimulationSnapshot = Object.freeze({
     revision: simulationRevision + 1,
-    absoluteTick: beforeTick + 1,
+    absoluteGameMinute: (beforeTick + 1) * 60,
     growthSequence: 0,
   });
   const plan = planRciTick({
@@ -107,7 +107,7 @@ describe('population lifecycle save/load determinism', () => {
     const encoded = encodeRciSaveV1(firstResumed.snapshot);
     const decoded = decodeRciSaveV1(encoded, {
       buildings,
-      simulation: { revision: 5, absoluteTick: 32, growthSequence: 0 },
+      simulation: { revision: 5, absoluteGameMinute: 32 * 60, growthSequence: 0 },
       registries,
     });
     if (!decoded.ok) throw new Error(decoded.error.code);

@@ -20,7 +20,10 @@ import {
   type RciTickReceipt,
 } from '@web-three-city/rci-core';
 import { occupiedRoadCellCount } from '@web-three-city/road-core';
-import { deriveGameCalendar } from '@web-three-city/simulation-core';
+import {
+  deriveGameCalendarFromGameMinute,
+  deriveMacroHourTransition,
+} from '@web-three-city/simulation-core';
 import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
 import {
   createGameWorldState,
@@ -30,7 +33,6 @@ import {
 } from './game-world-state.js';
 import { createPresentCitizenMobilityProjection } from './mobility-source-projection.js';
 import { planMobilityTrafficTick } from './mobility-traffic-tick.js';
-import { rememberTrafficJourneyReceipts } from './traffic-journey-receipt-registry.js';
 import {
   createBuildingTrafficAccessProjection,
   createRoadTrafficSourceProjectionFromEnvironment,
@@ -67,8 +69,8 @@ function emptyRciReceipt(state: GameWorldState): RciTickReceipt {
   return Object.freeze({
     beforeRevision: state.rci.revision,
     afterRevision: state.rci.revision,
-    beforeAbsoluteTick: state.simulation.absoluteTick,
-    afterAbsoluteTick: state.simulation.absoluteTick,
+    beforeAbsoluteTick: state.simulation.absoluteGameMinute,
+    afterAbsoluteTick: state.simulation.absoluteGameMinute,
     emittedEventCount: 0,
   });
 }
@@ -125,8 +127,8 @@ export function planGameWorldTick(
         afterBuildingRevision: state.buildings.revision,
         beforeSimulationRevision: state.simulation.revision,
         afterSimulationRevision: state.simulation.revision,
-        beforeAbsoluteTick: state.simulation.absoluteTick,
-        afterAbsoluteTick: state.simulation.absoluteTick,
+        beforeAbsoluteTick: state.simulation.absoluteGameMinute,
+        afterAbsoluteTick: state.simulation.absoluteGameMinute,
         startedInstanceIds: Object.freeze([]),
         completedInstanceIds: Object.freeze([]),
         dirtyChunks: Object.freeze([]),
@@ -143,10 +145,15 @@ export function planGameWorldTick(
     config: input.config,
     plan: buildingPlan,
   });
+  const macroHourTransition = deriveMacroHourTransition(
+    state.simulation.absoluteGameMinute,
+    buildingCommit.simulation.absoluteGameMinute,
+  );
   const rciPlan = planRciTick({
     rci: state.rci,
     simulationBefore: state.simulation,
     simulationAfter: buildingCommit.simulation,
+    macroHourTransition,
     buildingsBefore: state.buildings,
     buildingsAfter: buildingCommit.buildings,
     registries: input.registries,
@@ -183,7 +190,7 @@ export function planGameWorldTick(
     const citizensAfter = createPresentCitizenMobilityProjection(
       rciCommit.snapshot,
       buildingCommit.buildings,
-      buildingCommit.simulation.absoluteTick,
+      buildingCommit.simulation.absoluteGameMinute,
     );
     const trafficSource = requiresMobilityTrafficSourceDerivation({
       citizenCount: citizensAfter.length,
@@ -231,14 +238,17 @@ export function planGameWorldTick(
   const rciProjection = createRciProjection(
     rciCommit.snapshot,
     input.registries,
-    buildingCommit.simulation.absoluteTick,
+    buildingCommit.simulation.absoluteGameMinute,
   );
   const settlement = settleScheduledEconomy(
     state.economy,
     {
-      beforeTick: state.simulation.absoluteTick,
-      afterTick: buildingCommit.simulation.absoluteTick,
-      calendar: deriveGameCalendar(buildingCommit.simulation.absoluteTick),
+      beforeTick: macroHourTransition.beforeMacroHourIndex,
+      afterTick: macroHourTransition.crossed
+        ? macroHourTransition.afterMacroHourIndex
+        : macroHourTransition.beforeMacroHourIndex + 1,
+      macroHourTransition,
+      calendar: deriveGameCalendarFromGameMinute(buildingCommit.simulation.absoluteGameMinute),
       taxableActivity: {
         occupiedResidentialDwellings: rciProjection.housing.occupiedDwellingCount,
         occupiedCommercialPositions:
@@ -315,7 +325,6 @@ export function executeGameWorldTick(
     ...(input.reservedCells === undefined ? {} : { reservedCells: input.reservedCells }),
   });
   const state = commitGameWorldTick(input.store, plan);
-  rememberTrafficJourneyReceipts(state.rci, plan.trafficReceipts);
   return Object.freeze({
     state,
     buildingReceipt: plan.buildingReceipt,

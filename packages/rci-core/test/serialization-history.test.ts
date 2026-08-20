@@ -1,5 +1,5 @@
 import type { BuildingSnapshot } from '@web-three-city/building-core';
-import type { SimulationSnapshot } from '@web-three-city/simulation-core';
+import { deriveMacroHourIndex, type SimulationSnapshot } from '@web-three-city/simulation-core';
 import { describe, expect, it } from 'vitest';
 import {
   createFoundationRciRegistries,
@@ -12,13 +12,15 @@ import {
 const buildings: BuildingSnapshot = Object.freeze({ revision: 0, instances: Object.freeze([]) });
 const simulation: SimulationSnapshot = Object.freeze({
   revision: 7,
-  absoluteTick: 100,
+  absoluteGameMinute: 100 * 60,
   growthSequence: 0,
 });
 const registries = createFoundationRciRegistries();
 
 function historicalSnapshot() {
-  const initial = createInitialRciSnapshot({ absoluteTick: simulation.absoluteTick });
+  const initial = createInitialRciSnapshot({
+    absoluteTick: deriveMacroHourIndex(simulation.absoluteGameMinute),
+  });
   return createRciSnapshot(
     {
       ...initial,

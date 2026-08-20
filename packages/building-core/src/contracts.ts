@@ -1,4 +1,4 @@
-import type { SimulationSnapshot } from '@web-three-city/simulation-core';
+import type { MacroHourTransition, SimulationSnapshot } from '@web-three-city/simulation-core';
 import type { ChunkCoord, TerrainCellSurfaceProfile } from '@web-three-city/terrain-core';
 import type { CellCoord } from '@web-three-city/world-core';
 import type {
@@ -154,6 +154,8 @@ export interface BuildingGrowthPlan {
   readonly baseZoneRevision: number;
   readonly beforeAbsoluteTick: number;
   readonly afterAbsoluteTick: number;
+  readonly macroHourTransition: MacroHourTransition;
+  readonly simulationAdvanceOwnedByBuilding: boolean;
   readonly proposedInstances: readonly BuildingInstance[];
   readonly startedInstanceIds: readonly string[];
   readonly completedInstanceIds: readonly string[];

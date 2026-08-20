@@ -150,7 +150,7 @@ export function buildRoadCornerLaneMarkingMesh(
 
     if (step === CORNER_STEPS) continue;
     const row = step * 2;
-    indices.push(row, row + 2, row + 3, row, row + 3, row + 1);
+    indices.push(row, row + 3, row + 2, row, row + 1, row + 3);
   }
 
   return createRoadMeshData({

@@ -37,6 +37,7 @@ Own authoritative Road occupancy and Road definition identity, deterministic str
 - Participate in Terraform and Zone occupancy guards.
 - Derive data-driven Local / Collector / Arterial Road presentation with definition-specific carriageway widths and semantic center-divider geometry.
 - Draw deterministic terrain-conforming curved center-divider geometry through simple N+E / E+S / S+W / W+N 90-degree Road corners.
+- Keep curved center-divider triangles consistently upward-facing and render divider color as semantic white so corner markings do not darken from reversed face winding.
 - Keep T-junction and four-way interiors intentionally unmarked until later Traffic Control semantics exist.
 - Expose Local Street / Collector Road / Arterial Road / Bulldoze through the compact Road Build workflow.
 - Preserve Road definition codes `1/2/3` into the Traffic source projection while deriving Traffic cardinal connectivity from any occupied Road type.
@@ -104,6 +105,7 @@ Road definition identity remains a Road concern. The Game Traffic source project
 - Traffic differentiation never makes Traffic profile values part of Road authority.
 - A Road definition replacement marks the target changed even when occupancy/connectivity is unchanged; active canonical Traffic trip identity remains stable while its derived lane/motion presentation can be re-prepared.
 - Curved corner markings are presentation-only and derive from exact two-bit orthogonal Road connectivity plus the Road style profile.
+- Curved center-divider mesh triangles must have upward geometric winding consistent with their `+Y` normals, and the semantic divider color is white for straight and curved segments.
 - T/four-way junction interiors remain unmarked in PR3.1; decorative lines must not imply nonexistent priority/signal semantics.
 - Invalid or stale plans do not mutate state.
 - Road renderer/Traffic consumers cannot become Road authority.
@@ -132,7 +134,7 @@ PR1 Road Type Authority
 
 PR3 keeps canonical Traffic routing edge-based and derives only presentation lane geometry. Production handedness is left-hand traffic. Each current single-cell two-way Road exposes one directional travel lane per direction for presentation; opposing trips therefore occupy opposite physical sides of the carriageway.
 
-PR3.1 preserves that authority boundary while replacing visibly angular turn slices with prepared cubic motion geometry, tangent-aligned heading, and presentation-only acceleration/deceleration/turn-speed smoothing. Road corner markings now follow simple 90-degree bends; T/four-way interiors remain intentionally clear.
+PR3.1 preserves that authority boundary while replacing visibly angular turn slices with prepared cubic motion geometry, tangent-aligned heading, and presentation-only acceleration/deceleration/turn-speed smoothing. Road corner markings follow simple 90-degree bends with upward-facing white divider geometry; T/four-way interiors remain intentionally clear.
 
 ## Current Limitations
 

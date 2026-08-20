@@ -75,8 +75,7 @@ describe('TrafficPresentation dynamic visual headway', () => {
   it('keeps rendered vehicle bodies separated when the leader slows for a turn', () => {
     const scene = new Scene();
     const presentation = new TrafficPresentation(scene);
-    const minimumHeadway =
-      FOUNDATION_TRAFFIC_PRESENTATION_POLICY.vehicleMinimumHeadwayMillimeters;
+    const minimumHeadway = FOUNDATION_TRAFFIC_PRESENTATION_POLICY.vehicleMinimumHeadwayMillimeters;
     const maximumVehicleBodyLength =
       FOUNDATION_TRAFFIC_VISUAL_SCALE_POLICY.vehicleLengthWorldUnits *
       (1 + FOUNDATION_TRAFFIC_VISUAL_SCALE_POLICY.appearanceScaleVariation) *

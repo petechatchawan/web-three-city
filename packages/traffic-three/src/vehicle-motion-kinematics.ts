@@ -159,6 +159,7 @@ export function advanceVehicleKinematics(
     queued: boolean;
     preparedRoute: PreparedTrafficRoute;
     cellPresentationLengthMillimeters: number;
+    maximumVisualDistanceMillimeters?: number;
     policy?: VehicleMotionPresentationPolicy;
   }>,
 ): void {
@@ -168,6 +169,9 @@ export function advanceVehicleKinematics(
     input.cellPresentationLengthMillimeters <= 0
   ) {
     throw new RangeError('traffic-three:invalid-vehicle-kinematics');
+  }
+  if (input.maximumVisualDistanceMillimeters !== undefined) {
+    validateNonNegativeFinite(input.maximumVisualDistanceMillimeters);
   }
   const policy = input.policy ?? FOUNDATION_VEHICLE_MOTION_PRESENTATION_POLICY;
   validatePolicy(policy);
@@ -193,12 +197,17 @@ export function advanceVehicleKinematics(
 
   const integratedDistance =
     state.visualDistanceMillimeters + ((previousSpeed + nextSpeed) / 2) * deltaSeconds;
-  const targetDistance = Math.min(
+  const hardTargetDistance = Math.min(
     input.preparedRoute.totalLengthMillimeters,
     state.canonicalTargetDistanceMillimeters,
   );
+  const visualHeadwayTarget = Math.min(
+    hardTargetDistance,
+    input.maximumVisualDistanceMillimeters ?? Number.POSITIVE_INFINITY,
+  );
+  const targetDistance = Math.max(state.visualDistanceMillimeters, visualHeadwayTarget);
   state.visualDistanceMillimeters = Math.max(0, Math.min(targetDistance, integratedDistance));
-  if (state.visualDistanceMillimeters >= targetDistance) nextSpeed = 0;
+  if (state.visualDistanceMillimeters >= hardTargetDistance) nextSpeed = 0;
   state.visualSpeedMillimetersPerSecond = nextSpeed;
   state.lastFrameTimestampMs = input.timestampMs;
 }

@@ -345,42 +345,6 @@ export function deriveVehicleRouteHeadwayPlacements(
     };
   });
 
-  for (let pass = 0; pass < Math.max(1, states.length); pass += 1) {
-    let changed = false;
-    for (const follower of states) {
-      if (!follower.materialized) continue;
-      let nextDistance = follower.adjustedRouteDistanceMillimeters;
-      let materialized = true;
-
-      for (const leader of states) {
-        if (leader === follower || !leader.materialized) continue;
-        const mappedLeaderDistance = mappedDistanceOnFollowerRoute(follower, leader);
-        if (mappedLeaderDistance === null) continue;
-        const gap = mappedLeaderDistance - follower.adjustedRouteDistanceMillimeters;
-        if (gap < 0 || gap >= minimumHeadwayMillimeters) continue;
-        if (gap === 0 && !authoritativeLeaderAtTie(leader, follower)) continue;
-
-        const allowedDistance = mappedLeaderDistance - minimumHeadwayMillimeters;
-        if (allowedDistance < 0) {
-          materialized = false;
-          break;
-        }
-        nextDistance = Math.min(nextDistance, allowedDistance);
-      }
-
-      if (!materialized) {
-        follower.materialized = false;
-        changed = true;
-        continue;
-      }
-      if (nextDistance < follower.adjustedRouteDistanceMillimeters) {
-        follower.adjustedRouteDistanceMillimeters = nextDistance;
-        changed = true;
-      }
-    }
-    if (!changed) break;
-  }
-
   return Object.freeze(
     states.map((state) =>
       Object.freeze({

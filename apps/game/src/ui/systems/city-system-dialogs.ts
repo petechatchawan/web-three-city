@@ -68,7 +68,11 @@ export function createCitySystemDialogs(
 
   const renderOverview = (body: HTMLElement): void => {
     const world = ports.getWorld();
-    const rci = createRciHudModel(world.rci, ports.rciRegistries, world.simulation.absoluteTick);
+    const rci = createRciHudModel(
+      world.rci,
+      ports.rciRegistries,
+      world.simulation.absoluteGameMinute,
+    );
     const economy = createEconomyViewProjection(world.economy);
     const time = createGameTimePresentation(world.simulation, world.buildings);
 
@@ -247,7 +251,11 @@ export function createCitySystemDialogs(
 
   const renderPopulation = (body: HTMLElement): void => {
     const world = ports.getWorld();
-    const model = createRciHudModel(world.rci, ports.rciRegistries, world.simulation.absoluteTick);
+    const model = createRciHudModel(
+      world.rci,
+      ports.rciRegistries,
+      world.simulation.absoluteGameMinute,
+    );
     const card = document.createElement('section');
     card.className = 'city-card city-detail-card';
     metric(card, 'Population', model.population);
@@ -286,7 +294,7 @@ export function createCitySystemDialogs(
       'Calendar',
       createGameTimePresentation(world.simulation, world.buildings).calendarLabel,
     );
-    metric(card, 'Tick', world.simulation.absoluteTick);
+    metric(card, 'Tick', world.simulation.absoluteGameMinute);
     body.append(card);
   };
 

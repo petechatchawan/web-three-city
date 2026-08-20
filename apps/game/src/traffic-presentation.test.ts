@@ -112,6 +112,84 @@ function cornerBoundarySnapshot(): TrafficPresentationSnapshot {
   });
 }
 
+function canonicalSafeTwoCarSnapshot(trafficRevision: number): TrafficPresentationSnapshot {
+  const route = Object.freeze([
+    Object.freeze({
+      edgeId: 'drive:0,0->1,0',
+      from: Object.freeze({ xQ: 0, yQ: 0, zQ: 0 }),
+      to: Object.freeze({ xQ: 8_000, yQ: 0, zQ: 0 }),
+      lengthMillimeters: 8_000,
+    }),
+  ]);
+  return Object.freeze({
+    trafficRevision,
+    edges: Object.freeze([]),
+    agents: Object.freeze([
+      Object.freeze({
+        tripId: 'leader',
+        citizenId: 'citizen-leader',
+        mode: 'Drive' as const,
+        routeEdgeId: 'drive:0,0->1,0',
+        progressQ: 62_500,
+        queued: false,
+        from: route[0]!.from,
+        to: route[0]!.to,
+        turn: null,
+        routeSegments: route,
+        routeDistanceMillimeters: 500,
+      }),
+      Object.freeze({
+        tripId: 'follower',
+        citizenId: 'citizen-follower',
+        mode: 'Drive' as const,
+        routeEdgeId: 'drive:0,0->1,0',
+        progressQ: 0,
+        queued: false,
+        from: route[0]!.from,
+        to: route[0]!.to,
+        turn: null,
+        routeSegments: route,
+        routeDistanceMillimeters: 0,
+      }),
+    ]),
+  });
+}
+
+function phaseSnapshot(
+  phase: 'WaitingForEntry' | 'Entering' | 'Travelling' | 'Leaving',
+  trafficRevision: number,
+): TrafficPresentationSnapshot {
+  const routeDistanceMillimeters = phase === 'Leaving' ? 8_000 : 0;
+  return Object.freeze({
+    trafficRevision,
+    edges: Object.freeze([]),
+    agents: Object.freeze([
+      Object.freeze({
+        tripId: 'phase-trip',
+        citizenId: 'phase-citizen',
+        mode: 'Drive' as const,
+        routeEdgeId: 'drive:phase',
+        progressQ: phase === 'Leaving' ? 1_000_000 : 0,
+        queued: phase === 'WaitingForEntry',
+        from: Object.freeze({ xQ: 0, yQ: 0, zQ: 0 }),
+        to: Object.freeze({ xQ: 8_000, yQ: 0, zQ: 0 }),
+        turn: null,
+        routeSegments: Object.freeze([
+          Object.freeze({
+            edgeId: 'drive:phase',
+            from: Object.freeze({ xQ: 0, yQ: 0, zQ: 0 }),
+            to: Object.freeze({ xQ: 8_000, yQ: 0, zQ: 0 }),
+            lengthMillimeters: 8_000,
+          }),
+        ]),
+        routeDistanceMillimeters,
+        driveMovementPhase: phase,
+        reservationResourceIds: Object.freeze(['receiving:drive:phase']),
+      }),
+    ]),
+  }) as unknown as TrafficPresentationSnapshot;
+}
+
 function withDriveDistance(
   source: TrafficPresentationSnapshot,
   trafficRevision: number,
@@ -190,6 +268,48 @@ describe('TrafficPresentation real-agent contract', () => {
       vehicleLengthMillimeters,
     );
     expect(actualSeparationMillimeters).toBeGreaterThanOrEqual(vehicleLengthMillimeters);
+    presentation.dispose();
+  });
+
+  it('materializes both canonical-safe cars without using visual spacing as capacity authority', () => {
+    const scene = new Scene();
+    const presentation = new TrafficPresentation(scene);
+    const committed = canonicalSafeTwoCarSnapshot(20);
+
+    presentation.update(committed, { x: 0, z: 0 }, 0, 0);
+
+    expect(presentation.debugSnapshot().visibleVehicles).toBe(2);
+    expect(presentation.visibleAgents().map((agent) => agent.tripId)).toEqual([
+      'follower',
+      'leader',
+    ]);
+    expect(committed.agents.map((agent) => agent.routeDistanceMillimeters)).toEqual([500, 0]);
+    presentation.dispose();
+  });
+
+  it('projects every active Drive lifecycle phase under the same authoritative trip identity', () => {
+    const scene = new Scene();
+    const presentation = new TrafficPresentation(scene);
+    const phases = ['WaitingForEntry', 'Entering', 'Travelling', 'Leaving'] as const;
+
+    for (const [index, phase] of phases.entries()) {
+      presentation.update(phaseSnapshot(phase, 30 + index), { x: 0, z: 0 }, index, index * 1_000);
+      const debug = presentation.debugSnapshot() as unknown as Readonly<{
+        canonicalActiveDrives: readonly Readonly<{
+          tripId: string;
+          driveMovementPhase: string;
+          reservationResourceIds: readonly string[];
+        }>[];
+      }>;
+      expect(presentation.visibleAgents().map((agent) => agent.tripId)).toEqual(['phase-trip']);
+      expect(debug.canonicalActiveDrives).toEqual([
+        {
+          tripId: 'phase-trip',
+          driveMovementPhase: phase,
+          reservationResourceIds: ['receiving:drive:phase'],
+        },
+      ]);
+    }
     presentation.dispose();
   });
 
@@ -321,35 +441,18 @@ describe('TrafficPresentation real-agent contract', () => {
     presentation.dispose();
   });
 
-  it('finishes the visual route before dematerializing a logically completed vehicle', () => {
+  it('releases a Leaving vehicle at terminal publication without a synthetic presentation tail', () => {
     const scene = new Scene();
     const presentation = new TrafficPresentation(scene);
-    const initial = snapshot();
+    const initial = phaseSnapshot('Leaving', 40);
     presentation.update(initial, { x: 4, z: 4 }, 0, 0);
 
     const arrived = Object.freeze({
       ...initial,
-      trafficRevision: 8,
-      agents: Object.freeze([initial.agents[0]!]),
+      trafficRevision: 41,
+      agents: Object.freeze([]),
     });
     presentation.update(arrived, { x: 4, z: 4 }, 1, 1_000);
-    expect(presentation.debugSnapshot().visibleVehicles).toBe(1);
-
-    presentation.update(arrived, { x: 4, z: 4 }, 2, 1_200);
-    expect(presentation.debugSnapshot().visibleVehicles).toBe(1);
-    const stillTravelling = debugVehicleMotion(presentation, 'drive-trip');
-    expect(stillTravelling.visualDistanceMillimeters).toBeLessThan(
-      stillTravelling.canonicalTargetDistanceMillimeters,
-    );
-
-    presentation.update(arrived, { x: 4, z: 4 }, 3, 2_000);
-    expect(presentation.debugSnapshot().visibleVehicles).toBe(1);
-    const atDestination = debugVehicleMotion(presentation, 'drive-trip');
-    expect(atDestination.visualDistanceMillimeters).toBe(
-      atDestination.canonicalTargetDistanceMillimeters,
-    );
-
-    presentation.update(arrived, { x: 4, z: 4 }, 4, 2_100);
     expect(presentation.debugSnapshot().visibleVehicles).toBe(0);
     presentation.dispose();
   });

@@ -63,7 +63,7 @@ describe('PR3 lane-owned vehicle spacing', () => {
     );
   });
 
-  it('retains headway across adjacent lane segments and suppresses overflow instead of stacking at route start', () => {
+  it('keeps every canonical-safe car materialized when presentation headway is stricter than the input gap', () => {
     const deriveRoutePlacements = Reflect.get(
       vehicleSpacing,
       'deriveVehicleRouteHeadwayPlacements',
@@ -133,13 +133,16 @@ describe('PR3 lane-owned vehicle spacing', () => {
       materialized: true,
     });
     expect(byTrip.get('middle')).toMatchObject({
-      adjustedRouteDistanceMillimeters: 4_500,
+      adjustedRouteDistanceMillimeters: 7_500,
       materialized: true,
     });
     expect(byTrip.get('tail')).toMatchObject({
-      adjustedRouteDistanceMillimeters: 0,
+      adjustedRouteDistanceMillimeters: 7_000,
       materialized: true,
     });
-    expect(byTrip.get('overflow')).toMatchObject({ materialized: false });
+    expect(byTrip.get('overflow')).toMatchObject({
+      adjustedRouteDistanceMillimeters: 6_500,
+      materialized: true,
+    });
   });
 });

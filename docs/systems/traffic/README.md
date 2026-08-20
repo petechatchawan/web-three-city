@@ -11,7 +11,7 @@ Own deterministic pedestrian/vehicle graph derivation, multimodal routing, logic
 
 The production goal is visual truth: a visible pedestrian is a real Citizen Walk trip and a visible car is a real Citizen Drive trip. Off-screen trips remain logical; renderer state never becomes canonical Traffic state.
 
-For vehicle presentation, canonical Traffic progress and edge-route identity remain simulation authority. The renderer derives a left-hand directional lane path from the committed route, prepares deterministic line/cubic motion segments and arc-length lookup data outside RAF, and keeps a stable trip-to-pooled-vehicle mapping. Drive transforms follow a presentation-only acceleration/deceleration and turn-speed follower that is bounded behind canonical progress; heading comes from the prepared path tangent. Deterministic longitudinal visual headway remains lane-owned and no lateral spread is invented. None of this presentation state mutates canonical trip progress, queue order, Road state, or save state.
+For vehicle presentation, canonical Traffic progress and edge-route identity remain simulation authority. The renderer derives a left-hand directional lane path from the committed route, prepares deterministic line/cubic motion segments and arc-length lookup data outside RAF, and keeps a stable trip-to-pooled-vehicle mapping. Drive transforms follow a presentation-only acceleration/deceleration and turn-speed follower that is bounded behind canonical progress; heading comes from the prepared path tangent. Deterministic longitudinal visual headway is route-aware across adjacent lane/connector boundaries; overflow vehicles that cannot fit the visual headway are deterministically de-materialized instead of being stacked at one position. When a canonical Drive trip completes before its visual follower reaches the destination, the renderer finishes the prepared route first, then applies only a short endpoint settle before releasing the pooled vehicle. Logical tick advancement therefore cannot by itself make an in-flight visual car disappear. None of this presentation state mutates canonical trip progress, queue order, Road state, or save state.
 
 ## Does Not Own
 
@@ -78,6 +78,8 @@ Roads + Buildings + Simulation + Citizen Mobility
 - presentation-only vehicle kinematics with progressive acceleration/deceleration, canonical queue braking, bounded catch-up, and turn-speed reduction before/through turns;
 - frame-rate-tolerant elapsed-time motion covered at 30/60/120 FPS schedules;
 - Game presentation mapping of canonical edge progress onto the derived lane path so opposing Drive directions occupy opposite physical sides of the Road while canonical route/trip identity remains unchanged;
+- route-aware visual headway across neighboring Road edges and turn connectors, with deterministic overflow de-materialization instead of overlapping vehicle bodies;
+- arrival continuity that keeps a logically completed Drive trip's pooled vehicle alive until its visual follower reaches the prepared route endpoint, then releases only after a short settle;
 - active-trip route re-preparation when Road width/type or lane geometry changes, preserving canonical Mobility/Traffic trip identity;
 - short-trip journey replay using the same prepared curve-aware position/tangent sampler so replay turns do not regress to angular geometry;
 - pooled pedestrian/vehicle materialization, spatial indexing, deterministic caps, and LOD where every materialized agent resolves to a real Citizen-linked trip;
@@ -96,6 +98,8 @@ visualDistance <= canonicalTargetDistance
 ```
 
 Canonical `queued` forces the presentation desired speed toward zero without allowing momentum to cross the committed target. Releasing the queue resumes the same acceleration policy. Road Local/Collector/Arterial canonical Traffic speed/capacity values remain unchanged by PR3.1.
+
+Visual headway is also presentation-only. It may delay or de-materialize a rendered car to prevent overlap, but it may not reorder, delay, or mutate the canonical Traffic trip. Likewise, canonical trip completion ends logical Traffic authority immediately while an already materialized vehicle may finish its remaining visual route; that bounded presentation tail is never persisted and cannot re-enter simulation state.
 
 ## Current Limitations and Extension Points
 
@@ -127,4 +131,4 @@ The previously identified x4 world-tick/topology caching performance remediation
 - [Motion & Junction Realism v1](../roads/specs/2026-08-19-motion-junction-realism-v1.md)
 - [Motion & Junction Realism v1 TDD plan](../roads/tdd/2026-08-19-motion-junction-realism-v1.md)
 
-PR3.1 release verification covers cubic turn continuity, curve-aware route sampling, presentation acceleration/deceleration/turn-speed behavior, 30/60/120 FPS tolerance, simple curved Road markings, canonical-trip-preserving Road upgrades, targeted `@road|@traffic` browser ownership, clean worktree, Sonar, and owner-controlled 414×896 visual acceptance. Exact run/artifact IDs are recorded on PR #83 rather than this living document.
+PR3.1 release verification covers cubic turn continuity, curve-aware route sampling, presentation acceleration/deceleration/turn-speed behavior, route-aware anti-overlap headway, visual completion before arrival de-materialization, 30/60/120 FPS tolerance, simple curved Road markings, canonical-trip-preserving Road upgrades, targeted `@road|@traffic` browser ownership, clean worktree, Sonar, and owner-controlled 414×896 visual acceptance. Exact run/artifact IDs are recorded on PR #83 rather than this living document.

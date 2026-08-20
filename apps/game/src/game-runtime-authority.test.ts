@@ -30,5 +30,8 @@ describe('GameRuntime committed-world authority', () => {
     expect(mainSource).toMatch(/runtime\.rebuildPresentationForTest\(\)/);
     expect(bootstrapSource).toMatch(/setPresentationSuppressed/);
     expect(bootstrapSource).toMatch(/rebuildPresentationForTest/);
+    expect(bootstrapSource).toMatch(/staticPresentationNeedsRebuild/);
+    expect(mainSource).toMatch(/runtime\.snapshotForTest\(\)/);
+    expect(bootstrapSource).toMatch(/snapshotForTest\(\): CommittedWorld/);
   });
 });

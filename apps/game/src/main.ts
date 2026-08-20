@@ -195,7 +195,7 @@ function stepMinutesForTest(count: number): boolean {
     runtime.rebuildPresentationForTest();
     suppressPresentationSync = false;
   }
-  synchronizeCommittedWorld(runtime.snapshot(), 'publication');
+  synchronizeCommittedWorld(runtime.snapshotForTest(), 'publication');
   return true;
 }
 
@@ -259,7 +259,7 @@ refreshConstructionPhaseIfNeeded(initialWorld);
 const timeWindow = window as GameTimeWindow;
 timeWindow.__WEB_THREE_CITY_TIME__ = Object.freeze({
   snapshot: () => {
-    const world = runtime.snapshot();
+    const world = runtime.snapshotForTest();
     return Object.freeze({
       revision: world.revision,
       simulation: world.simulation,
@@ -278,7 +278,7 @@ timeWindow.__WEB_THREE_CITY_TIME__ = Object.freeze({
 });
 timeWindow.__WEB_THREE_CITY_TRAFFIC__ = Object.freeze({
   snapshot: () => {
-    const world = runtime.snapshot();
+    const world = runtime.snapshotForTest();
     return Object.freeze({
       worldRevision: world.revision,
       absoluteGameMinute: world.simulation.absoluteGameMinute,

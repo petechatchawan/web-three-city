@@ -85,6 +85,7 @@ import { fingerprintCommittedWorld } from './application/committed-world-fingerp
 import { executeEconomyTaxPolicyCommand } from './application/economy-tax-policy-command.js';
 import { PresentationCoordinator } from './application/presentation-coordinator.js';
 import { reconcileRciForBuildingChange } from './application/rci-building-reconciliation.js';
+import { staticPresentationNeedsRebuild } from './application/static-presentation-refresh.js';
 import { SaveCoordinator } from './application/save-coordinator.js';
 import {
   applyPaidActionCost,
@@ -150,6 +151,8 @@ export type InformationViewKey = 'grid' | 'zoning' | null;
 
 export interface GameRuntime {
   snapshot(): CommittedWorld;
+  /** Read-only test seam; callers must not retain or mutate the internal world. */
+  snapshotForTest(): CommittedWorld;
   subscribeCommittedWorld(subscriber: CommittedWorldSubscriber): () => void;
   subscribeWorldSelection(subscriber: WorldSelectionSubscriber): () => void;
   advanceLogicalTick(input: Readonly<{ automaticGrowth: boolean }>): CommittedWorld;
@@ -418,6 +421,7 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
     const selectionSubscribers = new Set<WorldSelectionSubscriber>();
     return {
       snapshot: () => unavailableWorld.snapshot(),
+      snapshotForTest: () => unavailableWorld.snapshot(),
       subscribeCommittedWorld(subscriber: CommittedWorldSubscriber): () => void {
         subscribers.add(subscriber);
         return () => subscribers.delete(subscriber);
@@ -575,6 +579,8 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
   zonePresentation.loadAll(zonesSnapshot);
   buildingPresentation.load(buildingsSnapshot);
 
+  let lastPresentedStaticWorld = initialWorld;
+
   const grid = new TerrainGridPresentation(scene, WORLD_CONFIG);
   grid.setVisible(false);
   grid.load(snapshot);
@@ -621,6 +627,7 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
     zoneEnvironment = world.environments.zone;
     buildingsSnapshot = world.buildings;
     buildingEnvironment = world.environments.building;
+    lastPresentedStaticWorld = world;
     notifyCommittedWorld(world, reason);
   };
 
@@ -1077,7 +1084,10 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
 
   const rebuildPresentationForTest = (): CommittedWorld => {
     const world = transactionCoordinator.snapshot();
-    completeWorldPresentation.synchronize(world);
+    if (staticPresentationNeedsRebuild(lastPresentedStaticWorld, world)) {
+      completeWorldPresentation.synchronize(world);
+      lastPresentedStaticWorld = world;
+    }
     return world;
   };
 
@@ -1411,6 +1421,7 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
   window.addEventListener('pagehide', dispose, { once: true });
   return {
     snapshot: () => transactionCoordinator.snapshot(),
+    snapshotForTest: () => transactionCoordinator.snapshotForTransaction(),
     subscribeCommittedWorld,
     subscribeWorldSelection,
     advanceLogicalTick,

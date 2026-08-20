@@ -6,7 +6,6 @@ import {
   TrafficVehiclePool,
   advanceVehicleKinematics,
   createVehicleKinematicsState,
-  deriveVehicleRouteHeadwayPlacements,
   deriveVehicleRouteVisualHeadwayConstraints,
   prepareTrafficRoute,
   samplePreparedRouteInto,
@@ -94,7 +93,6 @@ export interface TrafficVehicleMotionDebugView {
 
 const MOTION_MIN_DURATION_MS = 80;
 const MOTION_MAX_DURATION_MS = 1_000;
-const ARRIVAL_TARGET_DURATION_MS = 180;
 const ARRIVAL_SETTLE_DURATION_MS = 100;
 const CELL_PRESENTATION_LENGTH_MILLIMETERS = 8_000;
 
@@ -251,17 +249,16 @@ export class TrafficPresentation {
       policy: this.#policy,
     });
     const vehicleSelections = selection.selected.filter(({ agent }) => agent.mode === 'Drive');
-    const vehiclePlacements = deriveVehicleRouteHeadwayPlacements(
+    const vehicleVisualConstraints = deriveVehicleRouteVisualHeadwayConstraints(
       vehicleSelections.map(({ agent }) => ({
         tripId: agent.tripId,
         routeSegments: routeForAgent(agent),
-        routeDistanceMillimeters: agent.routeDistanceMillimeters,
-        queued: agent.queued,
+        visualDistanceMillimeters: agent.routeDistanceMillimeters,
       })),
       this.#policy.vehicleMinimumHeadwayMillimeters,
     );
     const vehiclePlacementByTrip = new Map(
-      vehiclePlacements.map((placement) => [placement.tripId, placement] as const),
+      vehicleVisualConstraints.map((constraint) => [constraint.tripId, constraint] as const),
     );
     const retainedPedestrians = new Set<string>();
     const retainedVehicles = new Set<string>();
@@ -317,12 +314,11 @@ export class TrafficPresentation {
       }
 
       const placement = vehiclePlacementByTrip.get(agent.tripId);
-      if (placement?.materialized === false) continue;
       selectedVehicleIds.add(agent.tripId);
       retainedVehicles.add(agent.tripId);
       this.#vehicleArrivals.delete(agent.tripId);
       const adjustedDistance =
-        placement?.adjustedRouteDistanceMillimeters ?? agent.routeDistanceMillimeters;
+        placement?.maximumVisualDistanceMillimeters ?? agent.routeDistanceMillimeters;
       visibleAgents.push(agent);
       let visual = this.#vehicles.get(agent.tripId);
       if (visual === undefined) {
@@ -354,7 +350,7 @@ export class TrafficPresentation {
       this.#pedestrians.release(tripId);
     }
 
-    for (const [tripId, motion] of this.#vehicleMotion) {
+    for (const tripId of this.#vehicleMotion.keys()) {
       if (selectedVehicleIds.has(tripId)) continue;
       if (activeTripIds.has(tripId)) {
         this.#vehicleArrivals.delete(tripId);
@@ -362,29 +358,9 @@ export class TrafficPresentation {
         this.#vehicles.release(tripId);
         continue;
       }
-      const visual = this.#vehicles.get(tripId);
-      if (visual === undefined) {
-        this.#vehicleMotion.delete(tripId);
-        continue;
-      }
-      let arrival = this.#vehicleArrivals.get(tripId);
-      if (arrival === undefined) {
-        this.#sampleVehicleMotion(motion, timestampMs, motion.queued);
-        if (
-          motion.kinematics.canonicalTargetDistanceMillimeters <
-          motion.preparedRoute.totalLengthMillimeters
-        ) {
-          setVehicleKinematicsTarget(
-            motion.kinematics,
-            motion.preparedRoute.totalLengthMillimeters,
-            ARRIVAL_TARGET_DURATION_MS / 1_000,
-          );
-        }
-        motion.queued = false;
-        arrival = { reachedAtMs: null, visual, motion };
-        this.#vehicleArrivals.set(tripId, arrival);
-      }
-      retainedVehicles.add(tripId);
+      this.#vehicleArrivals.delete(tripId);
+      this.#vehicleMotion.delete(tripId);
+      this.#vehicles.release(tripId);
     }
 
     this.#pedestrians.retainOnly(retainedPedestrians);
@@ -403,6 +379,7 @@ export class TrafficPresentation {
       spatialCandidates: query.metrics.candidateTripCount,
       visiblePedestrians: this.#pedestrians.activeCount,
       visibleVehicles: this.#vehicles.activeCount,
+      materializedTripIds: Object.freeze(this.#visibleAgents.map((agent) => agent.tripId)),
       nearAgents: selection.nearCount,
       midAgents: selection.midCount,
       poolReuseCount: this.#pedestrians.reuseCount + this.#vehicles.reuseCount,
@@ -410,13 +387,21 @@ export class TrafficPresentation {
       totalSpatialBuckets: query.metrics.bucketCount,
       nearUpdateCount: selection.nearUpdateCount,
       midUpdateCount: selection.midUpdateCount,
-      journeyReplayCount: 0,
-      journeyReplayPedestrians: 0,
-      journeyReplayVehicles: 0,
       reconciliationCount: this.#reconciliationCount,
       frameSampleCount: this.#frameSampleCount,
       preparedRouteCount: this.#preparedRouteCount,
       lastFrameTimestampMs: this.#lastFrameTimestampMs,
+      canonicalActiveDrives: Object.freeze(
+        snapshot.agents
+          .filter((agent) => agent.mode === 'Drive')
+          .map((agent) =>
+            Object.freeze({
+              tripId: agent.tripId,
+              driveMovementPhase: agent.driveMovementPhase ?? 'Travelling',
+              reservationResourceIds: Object.freeze([...(agent.reservationResourceIds ?? [])]),
+            }),
+          ),
+      ),
     });
   }
 

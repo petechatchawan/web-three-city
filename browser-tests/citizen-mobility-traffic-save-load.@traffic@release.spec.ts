@@ -1,12 +1,23 @@
 import { expect, test } from '@playwright/test';
 
-const SAVE_KEY = 'web-three-city:world-save:v7';
+const SAVE_KEY = 'web-three-city:world-save:v8';
 
 type Snapshot = {
-  absoluteTick: number;
+  absoluteGameMinute: number;
   citizenIds: string[];
-  mobility: unknown;
-  traffic: unknown;
+  mobility: { trips: Array<{ tripId: string }> };
+  traffic: {
+    timeCursor: unknown;
+    activeTrips: Array<{
+      tripId: string;
+      driveMovementPhase: string | null;
+      queuedResourceIds: string[];
+      reservedResourceIds: string[];
+    }>;
+    queuedResourceSummaries: unknown[];
+    reservedResourceSummaries: unknown[];
+  };
+  presentation: { materializedTripIds: string[]; replayCount?: number } | null;
 };
 
 async function bootFixture(page: import('@playwright/test').Page): Promise<void> {
@@ -33,16 +44,16 @@ async function bootFixture(page: import('@playwright/test').Page): Promise<void>
 }
 
 async function step(page: import('@playwright/test').Page, count: number): Promise<void> {
-  for (let index = 0; index < count; index += 1) {
-    expect(
-      await page.evaluate(() => {
-        const api = (window as Window & { __WEB_THREE_CITY_TIME__?: { step(): boolean } })
-          .__WEB_THREE_CITY_TIME__;
-        if (api === undefined) throw new Error('time test API unavailable');
-        return api.step();
-      }),
-    ).toBe(true);
-  }
+  const advanced = await page.evaluate((steps) => {
+    const api = (window as Window & { __WEB_THREE_CITY_TIME__?: { step(): boolean } })
+      .__WEB_THREE_CITY_TIME__;
+    if (api === undefined) throw new Error('time test API unavailable');
+    for (let index = 0; index < steps; index += 1) {
+      if (!api.step()) return false;
+    }
+    return true;
+  }, count);
+  expect(advanced).toBe(true);
 }
 
 async function snapshot(page: import('@playwright/test').Page): Promise<Snapshot> {
@@ -57,13 +68,14 @@ async function snapshot(page: import('@playwright/test').Page): Promise<Snapshot
   });
 }
 
-test('WorldSaveV7 restores Mobility/Traffic authority and continues deterministic commute', async ({
+test('WorldSaveV8 restores calendar, cursor, lifecycle, and reservation authority exactly', async ({
   page,
 }) => {
   await bootFixture(page);
-  await step(page, 2);
+  await step(page, 1);
   const beforeSave = await snapshot(page);
-  expect(beforeSave.absoluteTick).toBe(8);
+  expect(beforeSave.absoluteGameMinute).toBeGreaterThan(540);
+  expect(beforeSave.presentation?.replayCount ?? 0).toBe(0);
 
   await page.evaluate(() => {
     const api = (
@@ -78,13 +90,13 @@ test('WorldSaveV7 restores Mobility/Traffic authority and continues deterministi
   expect(persisted).not.toBeNull();
   expect(JSON.parse(persisted ?? '{}')).toMatchObject({
     kind: 'world-save',
-    schemaVersion: 7,
-    mobility: { schemaVersion: 1 },
-    traffic: { schemaVersion: 1 },
+    schemaVersion: 8,
+    mobility: { schemaVersion: 2 },
+    traffic: { schemaVersion: 2 },
   });
 
   await step(page, 3);
-  expect((await snapshot(page)).absoluteTick).toBe(11);
+  expect((await snapshot(page)).absoluteGameMinute).toBeGreaterThan(beforeSave.absoluteGameMinute);
   await page.evaluate(() => {
     const api = (
       window as Window & {
@@ -95,19 +107,20 @@ test('WorldSaveV7 restores Mobility/Traffic authority and continues deterministi
     api.loadWorld();
   });
   const restored = await snapshot(page);
-  expect(restored.absoluteTick).toBe(beforeSave.absoluteTick);
+  expect(restored.absoluteGameMinute).toBe(beforeSave.absoluteGameMinute);
   expect(restored.citizenIds).toEqual(beforeSave.citizenIds);
   expect(restored.mobility).toEqual(beforeSave.mobility);
   expect(restored.traffic).toEqual(beforeSave.traffic);
+  const restoredActiveTripIds = new Set(restored.traffic.activeTrips.map((trip) => trip.tripId));
+  expect(
+    restored.presentation?.materializedTripIds.every((tripId) => restoredActiveTripIds.has(tripId)),
+  ).toBe(true);
+  expect(restored.presentation?.replayCount ?? 0).toBe(0);
 
-  await step(page, 9);
+  await step(page, 1);
   const finished = await snapshot(page);
-  expect(finished.absoluteTick).toBe(17);
-  const mobility = finished.mobility as {
-    trips: Array<{ status: string }>;
-    citizenStates: Array<{ currentActivity: string }>;
-  };
-  expect(mobility.trips).toHaveLength(finished.citizenIds.length * 2);
-  expect(mobility.trips.every((trip) => trip.status === 'Arrived')).toBe(true);
-  expect(mobility.citizenStates.every((citizen) => citizen.currentActivity === 'Home')).toBe(true);
+  expect(finished.absoluteGameMinute).toBeGreaterThan(restored.absoluteGameMinute);
+  expect(finished.traffic.timeCursor).not.toEqual(restored.traffic.timeCursor);
+  const mobilityTripIds = new Set(finished.mobility.trips.map((trip) => trip.tripId));
+  expect(finished.traffic.activeTrips.every((trip) => mobilityTripIds.has(trip.tripId))).toBe(true);
 });

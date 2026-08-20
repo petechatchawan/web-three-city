@@ -24,7 +24,7 @@ import {
   type TerrainCellScreenPoint,
 } from './helpers/interaction.js';
 
-const WORLD_SAVE_KEY = 'web-three-city:world-save:v7';
+const WORLD_SAVE_KEY = 'web-three-city:world-save:v8';
 const LEGACY_SAVE_KEY = 'web-three-city:terrain-save:v1';
 const BASE_TERRAIN = (() => {
   const result = generateCoastalTerrain({ seed: GAME_SEED, config: WORLD_CONFIG });

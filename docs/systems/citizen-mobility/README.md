@@ -1,9 +1,9 @@
 # Citizen Mobility System
 
-**Status:** Implemented — v0.1 release candidate; owner visual acceptance pending<br>
+**Status:** Implemented — V2 schedule/save authority and Game atomic integration are complete; release/owner verification remains open<br>
 **Milestone:** Citizen Mobility & Traffic Foundation v0.1  
 **Primary ownership:** `packages/citizen-mobility-core`; atomic composition by `apps/game`<br>
-**Persistence:** `MobilitySaveV1` inside `WorldSaveV7`
+**Persistence:** `MobilitySaveV2` inside `WorldSaveV8`; V1 migration remains supported
 
 ## Purpose
 
@@ -42,9 +42,9 @@ The package has no dependency on `rci-core`, `building-core`, `road-core`, `traf
 
 - immutable `MobilitySnapshotV1` + deterministic fingerprinting;
 - typed activity/trip/mode/failure contracts and strict referential validation;
-- fail-closed `MobilitySaveV1` codec;
-- versioned 07:00–09:00 deterministic work-start distribution with 9-hour work duration;
-- integer `GameMinute` due-boundary collection with stable ordering;
+- fail-closed `MobilitySaveV2` codec plus explicit `MobilitySaveV1 -> V2` migration;
+- `SchedulePolicyV2`: versioned deterministic 07:00–09:00 work-start distribution, bounded daily jitter, and 9-hour work duration;
+- integer `GameMinute` due-boundary collection with stable ordering and desired-activity catch-up;
 - latest-authority Home↔Work planning requests with tentative deterministic trip IDs;
 - deterministic generalized-cost mode choice, exact tie → Walk;
 - committed Active/Failed trip creation without storing Traffic route/progress;
@@ -52,7 +52,8 @@ The package has no dependency on `rci-core`, `building-core`, `road-core`, `traf
 - trip settlement back to Home/Work/Idle state.
 - `apps/game` projection of real RCI Citizens, Home, and Employment facts; no synthetic Citizen identity is created;
 - atomic Mobility + Traffic tick composition, including deterministic active-trip reconciliation after Road changes;
-- `WorldSaveV7` persistence and V1–V6 migration, with active Mobility/Traffic continuation and no synthetic historical trips.
+- one-active-trip-per-Citizen enforcement: later due boundaries update desired activity and catch up after settlement rather than producing duplicate trips;
+- `WorldSaveV8` persistence with explicit V7 Mobility migration, active Mobility/Traffic continuation, and no synthetic historical trips.
 
 Source entry points:
 
@@ -67,7 +68,7 @@ Source entry points:
 
 ## Current Limitations and Extension Points
 
-Public transit, parking, private-car ownership, non-commute destination policy, and broader Citizen AI remain deferred. Traffic owns route topology, progression, queues, congestion, and recovery; `apps/game` remains the only composition boundary. Presentation and UI consume committed projections and cannot create or mutate Mobility authority.
+Public transit, parking, private-car ownership, non-commute destination policy, and broader Citizen AI remain deferred. Schedule choice does not consume live congestion or Traffic queue state; Traffic owns route topology, progression, queues, physical admission, and recovery. `apps/game` remains the only composition boundary. Presentation and UI consume committed projections and cannot create or mutate Mobility authority.
 
 ## Planning Documents
 
@@ -75,6 +76,7 @@ Public transit, parking, private-car ownership, non-commute destination policy, 
 - [Citizen Mobility TDD implementation plan](tdd/2026-08-15-citizen-mobility-foundation-v0-1.md)
 - [Cross-system execution index](../architecture-infrastructure/tdd/2026-08-15-citizen-mobility-traffic-foundation-v0-1-execution-index.md)
 - [ADR-0001 — Existing RCI Citizen remains identity authority](adrs/0001-existing-rci-citizen-remains-identity-authority.md)
+- [ADR-0002 — Deterministic routine schedule V2 without congestion feedback](adrs/0002-deterministic-routine-schedule-v2.md)
 - Related: [RCI](../rci/README.md), [Buildings](../buildings/README.md), [Simulation Time](../simulation-time/README.md), [Traffic](../traffic/README.md)
 
-Release verification covers deterministic commute lifecycle, Save/Load continuation, Road recovery, scale fixtures, and the targeted `@traffic|@building` browser ownership set. Owner-controlled manual visual acceptance remains the final gate for this release candidate.
+Focused Mobility V2 persistence/schedule tests, Game integration, and typechecks are recorded in the Task reports. Exact-head release verification and owner-controlled 414×896 visual acceptance remain final gates; no synthetic Citizen or replay authority is used by the runtime path.

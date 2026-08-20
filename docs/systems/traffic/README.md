@@ -1,9 +1,9 @@
 # Traffic System
 
-**Status:** Traffic Foundation v0.1 + PR3 Lane-aware Traffic + PR3.1 Motion & Junction Realism implemented; PR3.1 release/owner visual gate pending<br>
+**Status:** Implemented — V2 temporal/physical core, Game transactions, and Road-reconciliation slices are complete; exact-head release/owner verification remains open<br>
 **Milestone:** Citizen Mobility & Traffic Foundation v0.1  
 **Primary ownership:** `packages/traffic-core`, `packages/traffic-three`; atomic composition by `apps/game`<br>
-**Persistence:** `TrafficSaveV1` inside `WorldSaveV7`
+**Persistence:** `TrafficSaveV2` inside `WorldSaveV8`; V1/V7 migration remains supported
 
 ## Purpose
 
@@ -11,7 +11,7 @@ Own deterministic pedestrian/vehicle graph derivation, multimodal routing, logic
 
 The production goal is visual truth: a visible pedestrian is a real Citizen Walk trip and a visible car is a real Citizen Drive trip. Off-screen trips remain logical; renderer state never becomes canonical Traffic state.
 
-For vehicle presentation, canonical Traffic progress and edge-route identity remain simulation authority. The renderer derives a left-hand directional lane path from the committed route, prepares deterministic line/cubic motion segments and arc-length lookup data outside RAF, and keeps a stable trip-to-pooled-vehicle mapping. Drive transforms follow a presentation-only acceleration/deceleration and turn-speed follower that is bounded behind canonical progress; heading comes from the prepared path tangent. Deterministic longitudinal visual headway has two presentation layers: reconcile-time route-aware target spacing across adjacent lane/connector boundaries, plus a per-frame visual leader governor derived from the actual kinematics distance of materialized vehicles. The per-frame governor includes both active Drive visuals and bounded arrival-tail visuals, so an accelerating follower cannot overlap a leader that is braking for a turn or finishing its visual route after logical trip completion. Overflow vehicles that cannot fit the visual headway are deterministically de-materialized instead of being stacked at one position. When a canonical Drive trip completes before its visual follower reaches the destination, the renderer finishes the prepared route first, then applies only a short endpoint settle before releasing the pooled vehicle. Logical tick advancement therefore cannot by itself make an in-flight visual car disappear. None of this presentation state mutates canonical trip progress, queue order, Road state, or save state.
+For vehicle presentation, canonical Traffic progress, ordering, entry admission, and reservation state are simulation authority. The renderer derives a left-hand directional lane path from committed active trips, prepares deterministic line/cubic motion segments and arc-length lookup data outside RAF, and keeps a stable trip-to-pooled-vehicle mapping. It may smooth transforms behind canonical safe targets, but it cannot create capacity, own spacing, replay completed trips, or keep a renderer-owned arrival tail authoritative.
 
 ## Does Not Own
 
@@ -46,7 +46,7 @@ Roads + Buildings + Simulation + Citizen Mobility
 `packages/traffic-core` now provides:
 
 - strict Road/Building source projection contracts;
-- immutable `TrafficSnapshotV1` + deterministic snapshot/graph fingerprints;
+- immutable V1 compatibility and V2 `TrafficSnapshot` contracts with deterministic snapshot/graph fingerprints;
 - versioned Traffic road profiles for Road definition codes `1/2/3` with PR3 differentiation:
   - Local Street: `8_333 mm/s` free-flow, capacity `16`;
   - Collector Road: `13_889 mm/s` free-flow, capacity `24`;
@@ -57,14 +57,18 @@ Roads + Buildings + Simulation + Citizen Mobility
 - previous-committed `TrafficCostField` input for Drive candidate costs;
 - disposable revision-keyed route cache;
 - fixed-point `progressQ` trip progression with logical `lastStableNodeId`;
-- deterministic unsignalized intersection queue service;
+- V2-only authoritative Drive lifecycle phases: `WaitingForEntry`, `Entering`, `Travelling`, and `Leaving`, separate from terminal trip status; a transport quantum crosses at most one lifecycle boundary, and final-road completion enters `Leaving` before a later terminal arrival;
+- subordinate `TrafficTimeCursor` (`4` transport quanta per GameMinute) with versioned pacing, rather than a second calendar;
+- indexed canonical lane occupancy/headway caps and physical vehicle-envelope facts; the PR3.1 `650 mm` visual headway is not canonical Traffic capacity;
+- all-or-nothing ingress/receiving/merge/conflict reservation bundles with owner-checked physical-clearance release and no timeout;
+- derived Drive node classification (`SimpleContinuation`, `Diverge`, `Merge`, `ConflictJunction`) and deterministic compatible-bundle arbitration;
 - load/capacity/congestion/effective-travel-time projections and next lagged cost field;
 - topology/destination route recovery from a stable logical node;
-- fail-closed `TrafficSaveV1` codec that persists route/progress/queue authority, never graph/cache/render state;
+- fail-closed `TrafficSaveV2` codec and explicit V1 -> V2 migration that persist cursor, route/progress, Drive phase, and reservation/traversal facts, never graph/cache/render state;
 - no imports from RCI, Mobility, Road, Building, DOM, or Three.js;
 - `apps/game` atomic integration with real Mobility trips, Road/Building projections, Simulation time, and deterministic Road-change recovery;
 - Game Road source projection preserves canonical Road definition codes `1/2/3` and derives connectivity from non-empty Road occupancy across mixed Road types;
-- `WorldSaveV7` persistence and V1–V6 migration, preserving logical route/progress/queue state without synthetic trips.
+- `WorldSaveV8` composition and V7 migration, preserving V2 cursor/route/progress/phase/reservation state without synthetic trips.
 
 ## Implemented Traffic Presentation
 
@@ -78,16 +82,19 @@ Roads + Buildings + Simulation + Citizen Mobility
 - presentation-only vehicle kinematics with progressive acceleration/deceleration, canonical queue braking, bounded catch-up, and turn-speed reduction before/through turns;
 - frame-rate-tolerant elapsed-time motion covered at 30/60/120 FPS schedules;
 - Game presentation mapping of canonical edge progress onto the derived lane path so opposing Drive directions occupy opposite physical sides of the Road while canonical route/trip identity remains unchanged;
-- reconcile-time route-aware target headway across neighboring Road edges and turn connectors, with deterministic overflow de-materialization instead of overlapping vehicle bodies;
-- per-frame visual headway constraints derived from the actual kinematics distance of active and arrival-tail vehicles, preventing a faster follower from entering the rendered body envelope of a leader that is decelerating or turning;
-- current foundation visual headway of `650 mm`, exceeding the maximum current deterministic vehicle body length of approximately `525 mm`;
-- arrival continuity that keeps a logically completed Drive trip's pooled vehicle alive until its visual follower reaches the prepared route endpoint, then releases only after a short settle;
-- active-trip route re-preparation when Road width/type or lane geometry changes, preserving canonical Mobility/Traffic trip identity;
-- short-trip journey replay using the same prepared curve-aware position/tangent sampler so replay turns do not regress to angular geometry;
+- presentation-only interpolation/visual safety clamps behind canonical ordered traffic state; these are not a capacity or reservation authority;
+  - active-trip route re-preparation when Road width/type or lane geometry changes, preserving canonical Mobility/Traffic trip identity, with deterministic reservation-safe Road mutation reconciliation;
+- only active authoritative Traffic trips materialize; completed-trip receipts cannot recreate movement;
 - pooled pedestrian/vehicle materialization, spatial indexing, deterministic caps, and LOD where every materialized agent resolves to a real Citizen-linked trip;
 - Citizen/Vehicle Inspect projections and the localized Traffic Information View consuming committed state without mutating Traffic authority.
 
 Flow policy v1 keeps zero-load time equal to free-flow and adds monotonic delay only when load exceeds edge capacity or queue wait exists. Ordinary congestion never reroutes an active trip; only topology/destination invalidation invokes recovery.
+
+## vNext Integration Status and Handoff
+
+The V2 temporal, lifecycle, reservation, arbitration, persistence, Game atomic-publication, and Road-mutation recovery slices have focused GREEN evidence. This is not release closure: exact-head CI/Sonar, targeted Chromium, and owner-controlled 414×896 visual acceptance remain external gates. The source specification is implemented locally; its release status is recorded in the PR evidence rather than inferred from package tests alone.
+
+`traffic-core` owns transport cursor, Drive lifecycle, canonical headway, reservations, node classification, arbitration, recovery, and Traffic V2 persistence. `traffic-three` owns only derived geometry, materialization, pooling, and interpolation. `apps/game` owns minute-boundary and transport-quantum atomic publication plus `WorldSaveV8` composition. Journey Replay has been removed from the production movement path: only active authoritative Traffic trips may materialize.
 
 ## Motion Realism Authority Rules
 

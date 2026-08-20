@@ -321,7 +321,7 @@ describe('TrafficPresentation real-agent contract', () => {
     presentation.dispose();
   });
 
-  it('keeps a completed vehicle visible for a bounded route-end presentation', () => {
+  it('finishes the visual route before dematerializing a logically completed vehicle', () => {
     const scene = new Scene();
     const presentation = new TrafficPresentation(scene);
     const initial = snapshot();
@@ -336,6 +336,20 @@ describe('TrafficPresentation real-agent contract', () => {
     expect(presentation.debugSnapshot().visibleVehicles).toBe(1);
 
     presentation.update(arrived, { x: 4, z: 4 }, 2, 1_200);
+    expect(presentation.debugSnapshot().visibleVehicles).toBe(1);
+    const stillTravelling = debugVehicleMotion(presentation, 'drive-trip');
+    expect(stillTravelling.visualDistanceMillimeters).toBeLessThan(
+      stillTravelling.canonicalTargetDistanceMillimeters,
+    );
+
+    presentation.update(arrived, { x: 4, z: 4 }, 3, 2_000);
+    expect(presentation.debugSnapshot().visibleVehicles).toBe(1);
+    const atDestination = debugVehicleMotion(presentation, 'drive-trip');
+    expect(atDestination.visualDistanceMillimeters).toBe(
+      atDestination.canonicalTargetDistanceMillimeters,
+    );
+
+    presentation.update(arrived, { x: 4, z: 4 }, 4, 2_100);
     expect(presentation.debugSnapshot().visibleVehicles).toBe(0);
     presentation.dispose();
   });

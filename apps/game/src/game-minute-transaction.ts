@@ -306,20 +306,23 @@ export function planGameMinuteTransaction(
         )
       : { ok: true as const, snapshot: world.economy };
     if (!settlement.ok) return invalidPlan(world, `economy:${settlement.reason}`);
-    const nextWorld = createCommittedWorld({
-      ...world,
-      revision: world.revision + 1,
-      simulation,
-      buildings,
-      rci,
-      economy: settlement.snapshot,
-      mobility: mobilityTraffic.mobility,
-      traffic: trafficV2AtMinute({
-        before: world.traffic as unknown as TrafficSnapshotV1 | TrafficSnapshotV2,
-        after: mobilityTraffic.traffic,
-        sourceGameMinute: simulation.absoluteGameMinute,
-      }) as unknown as typeof world.traffic,
-    });
+    const nextWorld = createCommittedWorld(
+      {
+        ...world,
+        revision: world.revision + 1,
+        simulation,
+        buildings,
+        rci,
+        economy: settlement.snapshot,
+        mobility: mobilityTraffic.mobility,
+        traffic: trafficV2AtMinute({
+          before: world.traffic as unknown as TrafficSnapshotV1 | TrafficSnapshotV2,
+          after: mobilityTraffic.traffic,
+          sourceGameMinute: simulation.absoluteGameMinute,
+        }) as unknown as typeof world.traffic,
+      },
+      { ...(buildings === world.buildings ? { reuseStaticFrom: world } : {}) },
+    );
     return Object.freeze({
       valid: true,
       invalidReason: null,

@@ -44,6 +44,21 @@ describe('Game minute transaction', () => {
     ).toBe(8 * 60 + 2);
   });
 
+  it('reuses immutable static authority for a minute without static changes', () => {
+    const before = worldAtMinute(8 * 60 + 1);
+    const plan = planGameMinuteTransaction({
+      world: before,
+      registries: createFoundationRciRegistries(),
+    });
+
+    expect(plan.valid).toBe(true);
+    expect(plan.nextWorld.terrain).toBe(before.terrain);
+    expect(plan.nextWorld.water).toBe(before.water);
+    expect(plan.nextWorld.roads).toBe(before.roads);
+    expect(plan.nextWorld.zones).toBe(before.zones);
+    expect(plan.nextWorld.environments).toBe(before.environments);
+  });
+
   it('runs macro consumers once when 08:59 advances to 09:00', () => {
     const coordinator = new DefaultWorldTransactionCoordinator({
       worldStore: new CommittedWorldStore(worldAtMinute(8 * 60 + 59)),

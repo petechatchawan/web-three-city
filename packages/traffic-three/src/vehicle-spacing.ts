@@ -236,6 +236,16 @@ function mappedDistanceOnFollowerRoute(
   return nearestAhead;
 }
 
+function authoritativeLeaderAtTie(
+  leader: MutableRoutePlacement,
+  follower: MutableRoutePlacement,
+): boolean {
+  if (leader.input.routeDistanceMillimeters !== follower.input.routeDistanceMillimeters) {
+    return leader.input.routeDistanceMillimeters > follower.input.routeDistanceMillimeters;
+  }
+  return leader.input.tripId < follower.input.tripId;
+}
+
 export function deriveVehicleVisualPlacements(
   inputs: readonly VehicleVisualPlacementInput[],
   minimumHeadwayMillimeters: number,
@@ -315,7 +325,7 @@ export function deriveVehicleRouteHeadwayPlacements(
         if (mappedLeaderDistance === null) continue;
         const gap = mappedLeaderDistance - follower.adjustedRouteDistanceMillimeters;
         if (gap < 0 || gap >= minimumHeadwayMillimeters) continue;
-        if (gap === 0 && leader.input.tripId > follower.input.tripId) continue;
+        if (gap === 0 && !authoritativeLeaderAtTie(leader, follower)) continue;
 
         const allowedDistance = mappedLeaderDistance - minimumHeadwayMillimeters;
         if (allowedDistance < 0) {

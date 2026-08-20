@@ -9,6 +9,7 @@ import {
 import type { CommittedWorld } from './application/committed-world.js';
 import { fingerprintCommittedWorld } from './application/committed-world-fingerprint.js';
 import type {
+  WorldPresentationPort,
   WorldPublicationResult,
   WorldTransactionCoordinator,
 } from './application/world-transaction-coordinator.js';
@@ -87,11 +88,13 @@ export function planTrafficTransportTransaction(
 export function commitTrafficTransportTransaction(
   coordinator: WorldTransactionCoordinator,
   plan: TrafficTransportTransactionPlan,
+  presentation?: WorldPresentationPort,
 ): WorldPublicationResult {
   return coordinator.publish({
     baseRevision: plan.baseWorldRevision,
     baseFingerprint: plan.baseFingerprint,
     nextWorld: plan.nextWorld,
     nextFingerprint: plan.nextFingerprint,
+    ...(presentation === undefined ? {} : { presentation }),
   });
 }

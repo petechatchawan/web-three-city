@@ -185,11 +185,14 @@ function stepMinutesForTest(count: number): boolean {
   if (!Number.isSafeInteger(count) || count < 0) return false;
   if (simulationRuntime.getState().speed !== 'paused') return false;
   suppressPresentationSync = true;
+  runtime.setPresentationSuppressed(true);
   try {
     for (let index = 0; index < count; index += 1) {
       if (!simulationRuntime.step(advanceRuntimeEvent)) return false;
     }
   } finally {
+    runtime.setPresentationSuppressed(false);
+    runtime.rebuildPresentationForTest();
     suppressPresentationSync = false;
   }
   synchronizeCommittedWorld(runtime.snapshot(), 'publication');

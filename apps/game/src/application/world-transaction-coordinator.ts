@@ -48,6 +48,8 @@ export type WorldPublicationResult =
 
 export interface WorldTransactionCoordinator {
   snapshot(): CommittedWorld;
+  /** Internal transaction read; only authority-owned planning code may consume it. */
+  snapshotForTransaction(): CommittedWorld;
   publish(plan: WorldPublication): WorldPublicationResult;
   replaceFromDecodedWorld(world: DecodedWorldState): WorldPublicationResult;
 }
@@ -171,32 +173,38 @@ export class DefaultWorldTransactionCoordinator implements WorldTransactionCoord
     return this.#worldStore.snapshot();
   }
 
+  snapshotForTransaction(): CommittedWorld {
+    return this.#worldStore.committedForTransaction();
+  }
+
   publish(plan: WorldPublication): WorldPublicationResult {
-    const current = this.#worldStore.snapshot();
+    const current = this.#worldStore.committedForTransaction();
     const currentFingerprint = fingerprintCommittedWorld(current);
-    if (plan.baseRevision !== current.revision) return rejected(current, 'world:stale-revision');
+    if (plan.baseRevision !== current.revision)
+      return rejected(this.#worldStore.snapshot(), 'world:stale-revision');
     if (plan.baseFingerprint !== currentFingerprint)
-      return rejected(current, 'world:stale-content');
+      return rejected(this.#worldStore.snapshot(), 'world:stale-content');
     const candidateFingerprint = fingerprintCommittedWorld(plan.nextWorld);
     if (plan.nextFingerprint !== candidateFingerprint)
-      return rejected(current, 'world:stale-content');
+      return rejected(this.#worldStore.snapshot(), 'world:stale-content');
     if (plan.nextWorld.revision !== current.revision + 1)
-      return rejected(current, 'world:stale-content');
+      return rejected(this.#worldStore.snapshot(), 'world:stale-content');
 
     let candidate: CommittedWorld;
     try {
-      candidate = createCommittedWorld(plan.nextWorld);
-      if (!validCandidate(candidate)) return rejected(current, 'world:invalid-candidate');
-      candidate = this.#worldStore.replace(current.revision, candidate);
+      candidate = createCommittedWorld(plan.nextWorld, { reuseStaticFrom: current });
+      if (!validCandidate(candidate))
+        return rejected(this.#worldStore.snapshot(), 'world:invalid-candidate');
+      this.#worldStore.replacePrepared(current.revision, candidate);
     } catch {
-      return rejected(current, 'world:invalid-candidate');
+      return rejected(this.#worldStore.snapshot(), 'world:invalid-candidate');
     }
 
     const presentation = plan.presentation ?? this.#presentation;
     if (presentation === null) {
       return Object.freeze({
         status: 'committed' as const,
-        world: candidate,
+        world: this.#worldStore.snapshot(),
         presentation: Object.freeze({ status: 'synchronized' as const }),
       });
     }
@@ -204,7 +212,7 @@ export class DefaultWorldTransactionCoordinator implements WorldTransactionCoord
       presentation.synchronize(candidate);
       return Object.freeze({
         status: 'committed' as const,
-        world: candidate,
+        world: this.#worldStore.snapshot(),
         presentation: Object.freeze({ status: 'synchronized' as const }),
       });
     } catch {
@@ -215,7 +223,7 @@ export class DefaultWorldTransactionCoordinator implements WorldTransactionCoord
       }
       return Object.freeze({
         status: 'committed' as const,
-        world: candidate,
+        world: this.#worldStore.snapshot(),
         presentation: Object.freeze({
           status: 'degraded' as const,
           recoveryRequired: true as const,

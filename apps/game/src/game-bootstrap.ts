@@ -155,6 +155,8 @@ export interface GameRuntime {
   advanceLogicalTick(input: Readonly<{ automaticGrowth: boolean }>): CommittedWorld;
   advanceGameMinute(input?: Readonly<{ automaticGrowth?: boolean }>): CommittedWorld;
   advanceTransportQuantum(): CommittedWorld;
+  setPresentationSuppressed(suppressed: boolean): void;
+  rebuildPresentationForTest(): CommittedWorld;
   resetSimulationForTest(): CommittedWorld;
   savePayload(): ReturnType<SaveCoordinator['savePayload']>;
   runBackgroundGrowthTick(simulation?: SimulationSnapshot): SimulationSnapshot;
@@ -427,6 +429,8 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
       advanceLogicalTick: () => unavailableWorld.snapshot(),
       advanceGameMinute: () => unavailableWorld.snapshot(),
       advanceTransportQuantum: () => unavailableWorld.snapshot(),
+      setPresentationSuppressed: () => undefined,
+      rebuildPresentationForTest: () => unavailableWorld.snapshot(),
       resetSimulationForTest: () => unavailableWorld.snapshot(),
       savePayload(): never {
         throw new Error('game:runtime-unavailable');
@@ -651,6 +655,7 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
     synchronize: (world: CommittedWorld) => void,
   ): WorldPresentationPort => presentationCoordinator.incrementalPort(synchronize);
   const noOpPresentation = presentationCoordinator.noOpPort();
+  let presentationSuppressedForTest = false;
   const transactionCoordinator = new DefaultWorldTransactionCoordinator({
     worldStore: committedWorldStore,
     presentation: completeWorldPresentation,
@@ -1004,7 +1009,7 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
   const advanceGameMinute = (
     input: Readonly<{ automaticGrowth?: boolean }> = {},
   ): CommittedWorld => {
-    const current = transactionCoordinator.snapshot();
+    const current = transactionCoordinator.snapshotForTransaction();
     try {
       const plan = planGameMinuteTransaction({
         world: current,
@@ -1012,20 +1017,26 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
         reservedCells: inputRef.current?.getBackgroundGrowthReservations() ?? Object.freeze([]),
         ...(input.automaticGrowth === undefined ? {} : { automaticGrowth: input.automaticGrowth }),
       });
-      if (!plan.valid) return current;
-      const publication = commitGameMinuteTransaction(transactionCoordinator, plan);
-      return publication.status === 'committed' ? publication.world : current;
+      if (!plan.valid) return transactionCoordinator.snapshot();
+      const publication = commitGameMinuteTransaction(
+        transactionCoordinator,
+        plan,
+        presentationSuppressedForTest ? noOpPresentation : undefined,
+      );
+      return publication.status === 'committed'
+        ? publication.world
+        : transactionCoordinator.snapshot();
     } catch {
-      return current;
+      return transactionCoordinator.snapshot();
     }
   };
 
   const advanceTransportQuantum = (): CommittedWorld => {
-    const current = transactionCoordinator.snapshot();
+    const current = transactionCoordinator.snapshotForTransaction();
     const traffic = current.traffic as unknown as {
       readonly schemaVersion: number;
     };
-    if (traffic.schemaVersion !== 2) return current;
+    if (traffic.schemaVersion !== 2) return transactionCoordinator.snapshot();
     try {
       const plan = planTrafficTransportTransaction({
         world: current,
@@ -1033,10 +1044,16 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
         traffic: current.traffic as never,
         graph: combinedTrafficGraphForWorld(current),
       });
-      const publication = commitTrafficTransportTransaction(transactionCoordinator, plan);
-      return publication.status === 'committed' ? publication.world : current;
+      const publication = commitTrafficTransportTransaction(
+        transactionCoordinator,
+        plan,
+        presentationSuppressedForTest ? noOpPresentation : undefined,
+      );
+      return publication.status === 'committed'
+        ? publication.world
+        : transactionCoordinator.snapshot();
     } catch {
-      return current;
+      return transactionCoordinator.snapshot();
     }
   };
 
@@ -1050,6 +1067,16 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
       return publication.result.world;
     }
     return transactionCoordinator.snapshot();
+  };
+
+  const setPresentationSuppressed = (suppressed: boolean): void => {
+    presentationSuppressedForTest = suppressed;
+  };
+
+  const rebuildPresentationForTest = (): CommittedWorld => {
+    const world = transactionCoordinator.snapshot();
+    completeWorldPresentation.synchronize(world);
+    return world;
   };
 
   const subscribeCommittedWorld = (subscriber: CommittedWorldSubscriber): (() => void) => {
@@ -1387,6 +1414,8 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
     advanceLogicalTick,
     advanceGameMinute,
     advanceTransportQuantum,
+    setPresentationSuppressed,
+    rebuildPresentationForTest,
     resetSimulationForTest,
     savePayload: () => saveCoordinator.savePayload(),
     runBackgroundGrowthTick,

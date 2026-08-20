@@ -42,6 +42,7 @@ import {
 import { createCommittedWorld, type CommittedWorld } from './application/committed-world.js';
 import { fingerprintCommittedWorld } from './application/committed-world-fingerprint.js';
 import type {
+  WorldPresentationPort,
   WorldPublicationResult,
   WorldTransactionCoordinator,
 } from './application/world-transaction-coordinator.js';
@@ -340,6 +341,7 @@ export function planGameMinuteTransaction(
 export function commitGameMinuteTransaction(
   coordinator: WorldTransactionCoordinator,
   plan: GameMinuteTransactionPlan,
+  presentation?: WorldPresentationPort,
 ): WorldPublicationResult {
   if (!plan.valid || plan.invalidReason !== null) {
     throw new Error('game-minute-transaction:invalid-plan');
@@ -349,6 +351,7 @@ export function commitGameMinuteTransaction(
     baseFingerprint: plan.baseFingerprint,
     nextWorld: plan.nextWorld,
     nextFingerprint: plan.nextFingerprint,
+    ...(presentation === undefined ? {} : { presentation }),
   });
 }
 

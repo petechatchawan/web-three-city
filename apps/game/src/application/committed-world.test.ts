@@ -6,7 +6,10 @@ import {
 } from '@web-three-city/economy-core';
 import { createInitialRciSnapshot } from '@web-three-city/rci-core';
 import { createEmptyRoadSnapshot, type RoadSnapshot } from '@web-three-city/road-core';
-import { createInitialSimulationSnapshot } from '@web-three-city/simulation-core';
+import {
+  createInitialSimulationSnapshot,
+  createSimulationSnapshot,
+} from '@web-three-city/simulation-core';
 import { createTerrainMap } from '@web-three-city/terrain-core';
 import { createEmptyTrafficSnapshot } from '@web-three-city/traffic-core';
 import { deriveWaterSnapshot } from '@web-three-city/water-core';
@@ -209,5 +212,29 @@ describe('CommittedWorldStore', () => {
     expect(fingerprintCommittedWorld(first)).toBe(fingerprintCommittedWorld(second));
     second.terrain.heightLevels[0] = (second.terrain.heightLevels[0] ?? 0) + 1;
     expect(fingerprintCommittedWorld(second)).not.toBe(fingerprintCommittedWorld(first));
+  });
+
+  it('reuses static authority only when a transport publication carries the same snapshots', () => {
+    const initial = createCommittedWorld(sourceWorld(0));
+    const next = createCommittedWorld(
+      {
+        ...initial,
+        revision: 1,
+        simulation: createSimulationSnapshot({
+          ...initial.simulation,
+          revision: initial.simulation.revision + 1,
+          absoluteGameMinute: initial.simulation.absoluteGameMinute + 1,
+        }),
+      },
+      { reuseStaticFrom: initial },
+    );
+
+    expect(next.terrain).toBe(initial.terrain);
+    expect(next.water).toBe(initial.water);
+    expect(next.roads).toBe(initial.roads);
+    expect(next.zones).toBe(initial.zones);
+    expect(next.buildings).toBe(initial.buildings);
+    expect(next.environments).toBe(initial.environments);
+    expect(next.simulation).not.toBe(initial.simulation);
   });
 });

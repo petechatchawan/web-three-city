@@ -24,4 +24,11 @@ describe('GameRuntime committed-world authority', () => {
     expect(bootstrapSource).toMatch(/advanceTransportQuantum/);
     expect(bootstrapSource).toMatch(/savePayload/);
   });
+
+  it('batches deterministic test-time steps behind one presentation rebuild', () => {
+    expect(mainSource).toMatch(/runtime\.setPresentationSuppressed\(true\)/);
+    expect(mainSource).toMatch(/runtime\.rebuildPresentationForTest\(\)/);
+    expect(bootstrapSource).toMatch(/setPresentationSuppressed/);
+    expect(bootstrapSource).toMatch(/rebuildPresentationForTest/);
+  });
 });

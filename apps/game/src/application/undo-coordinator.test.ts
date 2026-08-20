@@ -40,6 +40,7 @@ describe('UndoCoordinator', () => {
     const before = createApplicationFixture({ withCommercialBuilding: true });
     const transactionCoordinator = {
       snapshot: () => before,
+      snapshotForTransaction: () => before,
       publish: () => ({
         status: 'rejected' as const,
         world: before,

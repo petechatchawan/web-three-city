@@ -258,7 +258,9 @@ function authoritativeLeaderAtTie(
   return leader.input.tripId < follower.input.tripId;
 }
 
-function routePlacementForVisualHeadway(input: VehicleRouteVisualHeadwayInput): MutableRoutePlacement {
+function routePlacementForVisualHeadway(
+  input: VehicleRouteVisualHeadwayInput,
+): MutableRoutePlacement {
   const routeInput: VehicleRouteHeadwayInput = Object.freeze({
     tripId: input.tripId,
     routeSegments: input.routeSegments,

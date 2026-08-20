@@ -24,6 +24,7 @@ import {
   type RoadTrafficSourceProjection,
   type TrafficGraph,
   type TrafficSnapshotV1,
+  type TrafficSnapshotV2,
 } from '@web-three-city/traffic-core';
 
 export interface TrafficJourneyDepartureReceipt extends Readonly<Record<string, unknown>> {
@@ -63,6 +64,39 @@ function combinedGraph(walk: TrafficGraph, drive: TrafficGraph): TrafficGraph {
         a.edgeId < b.edgeId ? -1 : a.edgeId > b.edgeId ? 1 : 0,
       ),
     ),
+  });
+}
+
+function trafficV1View(traffic: TrafficSnapshotV1 | TrafficSnapshotV2): TrafficSnapshotV1 {
+  if (traffic.schemaVersion === 1) return createTrafficSnapshot(traffic);
+  return createTrafficSnapshot({
+    schemaVersion: 1,
+    revision: traffic.revision,
+    policyVersion: traffic.policyVersion,
+    graphSourceRoadRevision: traffic.graphSourceRoadRevision,
+    graphSourceBuildingRevision: traffic.graphSourceBuildingRevision,
+    activeTrips: traffic.activeTrips.map((trip) => ({
+      tripId: trip.tripId,
+      citizenId: trip.citizenId,
+      mode: trip.mode,
+      originBuildingId: trip.originBuildingId,
+      destinationBuildingId: trip.destinationBuildingId,
+      routeEdgeIds: trip.routeEdgeIds,
+      routeGraphRevision: trip.routeGraphRevision,
+      segmentIndex: trip.segmentIndex,
+      progressQ: trip.progressQ,
+      lastStableNodeId: trip.lastStableNodeId,
+      queuedMovement:
+        trip.queuedMovement === null
+          ? null
+          : {
+              fromEdgeId: trip.queuedMovement.fromEdgeId,
+              toEdgeId: trip.queuedMovement.toEdgeId,
+              arrivedAtGameSecond: Math.floor(trip.queuedMovement.arrivedAtTransportSecond / 4),
+            },
+      status: trip.status,
+      failureReason: trip.failureReason,
+    })),
   });
 }
 
@@ -143,19 +177,23 @@ export function planMobilityTrafficTick(
     citizensAfter: readonly PresentCitizenMobilityProjection[];
     simulationBefore: SimulationSnapshot;
     simulationAfter: SimulationSnapshot;
+    advanceTraffic?: boolean;
     trafficSource: Readonly<{
       roads: RoadTrafficSourceProjection;
       buildingAccess: BuildingTrafficAccessProjection;
     }>;
   }>,
 ): MobilityTrafficTickResult {
-  if (input.simulationAfter.absoluteTick < input.simulationBefore.absoluteTick) {
+  const trafficBefore = trafficV1View(
+    input.trafficBefore as unknown as TrafficSnapshotV1 | TrafficSnapshotV2,
+  );
+  if (input.simulationAfter.absoluteGameMinute < input.simulationBefore.absoluteGameMinute) {
     throw new RangeError('mobility-traffic-tick:time-regressed');
   }
-  if (input.simulationAfter.absoluteTick === input.simulationBefore.absoluteTick) {
+  if (input.simulationAfter.absoluteGameMinute === input.simulationBefore.absoluteGameMinute) {
     return Object.freeze({
       mobility: input.mobilityBefore,
-      traffic: input.trafficBefore,
+      traffic: trafficBefore,
       mobilityReceipts: Object.freeze([]),
       trafficReceipts: Object.freeze([]),
     });
@@ -164,11 +202,11 @@ export function planMobilityTrafficTick(
     input.citizensAfter.length === 0 &&
     input.mobilityBefore.citizenStates.length === 0 &&
     input.mobilityBefore.trips.length === 0 &&
-    input.trafficBefore.activeTrips.length === 0
+    trafficBefore.activeTrips.length === 0
   ) {
     return emptyTickResult(
       input.mobilityBefore,
-      input.trafficBefore,
+      trafficBefore,
       input.trafficSource.roads.roadRevision,
       input.trafficSource.buildingAccess.buildingRevision,
     );
@@ -194,7 +232,7 @@ export function planMobilityTrafficTick(
   );
 
   const rebasedTrafficBefore = createTrafficSnapshot({
-    ...input.trafficBefore,
+    ...trafficBefore,
     graphSourceRoadRevision: input.trafficSource.roads.roadRevision,
     graphSourceBuildingRevision: buildingRevision,
   });
@@ -218,13 +256,39 @@ export function planMobilityTrafficTick(
 
   const mobilityReceipts: Readonly<Record<string, unknown>>[] = [];
   const trafficReceipts: Readonly<Record<string, unknown>>[] = [];
-  const fromMinute = input.simulationBefore.absoluteTick * 60;
-  const toMinute = input.simulationAfter.absoluteTick * 60;
-  const boundaries = collectDueMobilityBoundaries({
+  const fromMinute = input.simulationBefore.absoluteGameMinute;
+  const toMinute = input.simulationAfter.absoluteGameMinute;
+  const scheduledBoundaries = collectDueMobilityBoundaries({
     citizens: input.citizensAfter,
     fromGameMinuteExclusive: fromMinute,
     toGameMinuteInclusive: toMinute,
   });
+  // A loaded world can begin after one or more schedule boundaries. When the
+  // normal interval has no boundary, inspect the current day's schedule from
+  // its start and let the one-active-trip checks select only the current
+  // desired activity. This is catch-up, not historical trip replay: each
+  // citizen can still produce at most one request in this transaction.
+  const boundaries =
+    scheduledBoundaries.length > 0
+      ? scheduledBoundaries
+      : (() => {
+          const latestDesiredBoundaryByCitizen = new Map<
+            string,
+            (typeof scheduledBoundaries)[number]
+          >();
+          for (const boundary of collectDueMobilityBoundaries({
+            citizens: input.citizensAfter,
+            fromGameMinuteExclusive: -1,
+            toGameMinuteInclusive: toMinute,
+          })) {
+            latestDesiredBoundaryByCitizen.set(boundary.citizenId, boundary);
+          }
+          return Object.freeze(
+            [...latestDesiredBoundaryByCitizen.values()]
+              .sort((first, second) => first.citizenId.localeCompare(second.citizenId))
+              .map((boundary) => Object.freeze({ ...boundary, atGameMinute: toMinute })),
+          );
+        })();
   const grouped = new Map<number, typeof boundaries>();
   for (const boundary of boundaries) {
     grouped.set(
@@ -236,6 +300,7 @@ export function planMobilityTrafficTick(
   let currentGameSecond = fromMinute * 60;
   const targetGameSecond = toMinute * 60;
   const progressUntil = (nextGameSecond: number): void => {
+    if (input.advanceTraffic === false) return;
     const elapsedSeconds = nextGameSecond - currentGameSecond;
     if (elapsedSeconds <= 0) return;
     const progressed = advanceTrafficSnapshot({

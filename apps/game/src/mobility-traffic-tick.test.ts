@@ -10,8 +10,8 @@ import { planMobilityTrafficTick } from './mobility-traffic-tick.js';
 const E = 1 << 1;
 const W = 1 << 3;
 
-function simulation(absoluteTick: number): SimulationSnapshot {
-  return { absoluteTick } as unknown as SimulationSnapshot;
+function simulation(absoluteGameMinute: number): SimulationSnapshot {
+  return { absoluteGameMinute } as unknown as SimulationSnapshot;
 }
 
 function citizenDepartingAt(minuteOfDay: number): string {
@@ -79,8 +79,8 @@ describe('planMobilityTrafficTick', () => {
       citizensAfter: [
         { citizenId, homeBuildingId: 'home-1', workBuildingId: 'work-1', present: true },
       ],
-      simulationBefore: simulation(7),
-      simulationAfter: simulation(8),
+      simulationBefore: simulation(7 * 60),
+      simulationAfter: simulation(8 * 60),
       trafficSource: { roads, buildingAccess },
     });
 
@@ -99,6 +99,30 @@ describe('planMobilityTrafficTick', () => {
     });
   });
 
+  it('catches up a missed schedule boundary at the current minute without replaying history', () => {
+    const citizenId = citizenDepartingAt(8 * 60);
+    const result = planMobilityTrafficTick({
+      mobilityBefore: createEmptyMobilitySnapshot(),
+      trafficBefore: createEmptyTrafficSnapshot({ roadRevision: 1, buildingRevision: 1 }),
+      citizensAfter: [
+        { citizenId, homeBuildingId: 'home-1', workBuildingId: 'work-1', present: true },
+      ],
+      simulationBefore: simulation(9 * 60),
+      simulationAfter: simulation(9 * 60 + 1),
+      advanceTraffic: false,
+      trafficSource: { roads, buildingAccess },
+    });
+
+    expect(result.mobility.trips).toHaveLength(1);
+    expect(result.mobility.trips[0]).toMatchObject({
+      citizenId,
+      purpose: 'CommuteToWork',
+      departureGameMinute: 9 * 60 + 1,
+      status: 'Active',
+    });
+    expect(result.traffic.activeTrips).toHaveLength(1);
+  });
+
   it('settles the same real trip without creating a duplicate Citizen authority', () => {
     const citizenId = citizenDepartingAt(8 * 60);
     const first = planMobilityTrafficTick({
@@ -107,8 +131,8 @@ describe('planMobilityTrafficTick', () => {
       citizensAfter: [
         { citizenId, homeBuildingId: 'home-1', workBuildingId: 'work-1', present: true },
       ],
-      simulationBefore: simulation(7),
-      simulationAfter: simulation(8),
+      simulationBefore: simulation(7 * 60),
+      simulationAfter: simulation(8 * 60),
       trafficSource: { roads, buildingAccess },
     });
     const second = planMobilityTrafficTick({
@@ -117,8 +141,8 @@ describe('planMobilityTrafficTick', () => {
       citizensAfter: [
         { citizenId, homeBuildingId: 'home-1', workBuildingId: 'work-1', present: true },
       ],
-      simulationBefore: simulation(8),
-      simulationAfter: simulation(9),
+      simulationBefore: simulation(8 * 60),
+      simulationAfter: simulation(9 * 60),
       trafficSource: { roads, buildingAccess },
     });
 
@@ -142,8 +166,8 @@ describe('planMobilityTrafficTick', () => {
       mobilityBefore: createEmptyMobilitySnapshot(),
       trafficBefore: createEmptyTrafficSnapshot({ roadRevision: 1, buildingRevision: 1 }),
       citizensAfter: Object.freeze([]),
-      simulationBefore: simulation(8),
-      simulationAfter: simulation(9),
+      simulationBefore: simulation(8 * 60),
+      simulationAfter: simulation(9 * 60),
       trafficSource: {
         roads: untouchedRoads,
         buildingAccess: Object.freeze({ buildingRevision: 9, accesses: Object.freeze([]) }),

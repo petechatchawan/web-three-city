@@ -10,15 +10,15 @@ import {
   createRoadTrafficSourceProjectionFromEnvironment,
 } from './traffic-source-projection.js';
 import { createTrafficReleaseFixture } from './traffic-release-fixture.js';
-import { decodeWorldSave, encodeWorldSaveV7 } from './world-save.js';
+import { decodeWorldSave, encodeWorldSaveV8 } from './world-save.js';
 
 function simulationAt(
   base: ReturnType<typeof createTrafficReleaseFixture>['world']['simulation'],
   absoluteTick: number,
 ) {
   return createSimulationSnapshot({
-    revision: base.revision + Math.max(1, absoluteTick - base.absoluteTick),
-    absoluteTick,
+    revision: base.revision + Math.max(1, absoluteTick - base.absoluteGameMinute),
+    absoluteGameMinute: absoluteTick,
     growthSequence: base.growthSequence,
   });
 }
@@ -31,46 +31,60 @@ function progress(
   afterTick: number,
 ) {
   const world = fixture.world;
-  return planMobilityTrafficTick({
-    mobilityBefore: mobility,
-    trafficBefore: traffic,
-    citizensAfter: createPresentCitizenMobilityProjection(world.rci, world.buildings, afterTick),
-    simulationBefore: simulationAt(world.simulation, beforeTick),
-    simulationAfter: simulationAt(world.simulation, afterTick),
-    trafficSource: {
-      roads: createRoadTrafficSourceProjectionFromEnvironment(
-        world.roads,
-        world.environments.building,
-      ),
-      buildingAccess: createBuildingTrafficAccessProjection(
-        world.buildings,
-        world.roads,
-        world.environments.building,
-      ),
-    },
-  });
+  let currentMobility = mobility;
+  let currentTraffic = traffic;
+  let previousMinute = beforeTick;
+  const checkpoints =
+    beforeTick === fixture.summary.startAbsoluteGameMinute
+      ? [beforeTick + 1, afterTick]
+      : [afterTick];
+  for (const nextMinute of checkpoints) {
+    if (nextMinute <= previousMinute) continue;
+    const result = planMobilityTrafficTick({
+      mobilityBefore: currentMobility,
+      trafficBefore: currentTraffic,
+      citizensAfter: createPresentCitizenMobilityProjection(world.rci, world.buildings, nextMinute),
+      simulationBefore: simulationAt(world.simulation, previousMinute),
+      simulationAfter: simulationAt(world.simulation, nextMinute),
+      trafficSource: {
+        roads: createRoadTrafficSourceProjectionFromEnvironment(
+          world.roads,
+          world.environments.building,
+        ),
+        buildingAccess: createBuildingTrafficAccessProjection(
+          world.buildings,
+          world.roads,
+          world.environments.building,
+        ),
+      },
+    });
+    currentMobility = result.mobility;
+    currentTraffic = result.traffic;
+    previousMinute = nextMinute;
+  }
+  return { mobility: currentMobility, traffic: currentTraffic };
 }
 
-describe('Mobility/Traffic WorldSaveV7 continuation', () => {
+describe('Mobility/Traffic WorldSaveV8 continuation', () => {
   it('matches continuous morning+return commute after a midday save/decode boundary', () => {
     const fixture = createTrafficReleaseFixture();
     const continuous = progress(
       fixture,
       fixture.world.mobility,
       fixture.world.traffic,
-      fixture.summary.startAbsoluteTick,
-      17,
+      fixture.summary.startAbsoluteGameMinute,
+      19 * 60,
     );
 
     const beforeSave = progress(
       fixture,
       fixture.world.mobility,
       fixture.world.traffic,
-      fixture.summary.startAbsoluteTick,
-      12,
+      fixture.summary.startAbsoluteGameMinute,
+      12 * 60,
     );
-    const middaySimulation = simulationAt(fixture.world.simulation, 12);
-    const encoded = encodeWorldSaveV7(
+    const middaySimulation = simulationAt(fixture.world.simulation, 12 * 60);
+    const encoded = encodeWorldSaveV8(
       fixture.world.terrain,
       fixture.world.roads,
       fixture.world.zones,
@@ -85,28 +99,13 @@ describe('Mobility/Traffic WorldSaveV7 continuation', () => {
     expect(decoded.ok).toBe(true);
     if (!decoded.ok) return;
 
-    const resumed = planMobilityTrafficTick({
-      mobilityBefore: decoded.value.mobility,
-      trafficBefore: decoded.value.traffic,
-      citizensAfter: createPresentCitizenMobilityProjection(
-        decoded.value.rci,
-        decoded.value.buildings,
-        17,
-      ),
-      simulationBefore: decoded.value.simulation,
-      simulationAfter: simulationAt(fixture.world.simulation, 17),
-      trafficSource: {
-        roads: createRoadTrafficSourceProjectionFromEnvironment(
-          fixture.world.roads,
-          fixture.world.environments.building,
-        ),
-        buildingAccess: createBuildingTrafficAccessProjection(
-          fixture.world.buildings,
-          fixture.world.roads,
-          fixture.world.environments.building,
-        ),
-      },
-    });
+    const resumed = progress(
+      fixture,
+      decoded.value.mobility,
+      decoded.value.traffic,
+      12 * 60,
+      19 * 60,
+    );
 
     expect(fingerprintMobilitySnapshot(resumed.mobility)).toBe(
       fingerprintMobilitySnapshot(continuous.mobility),

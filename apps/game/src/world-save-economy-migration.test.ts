@@ -1,6 +1,9 @@
 import { FOUNDATION_ECONOMY_RULES } from '@web-three-city/economy-core';
 import { createInitialRciSnapshot } from '@web-three-city/rci-core';
-import { createSimulationSnapshot, deriveGameCalendar } from '@web-three-city/simulation-core';
+import {
+  createSimulationSnapshot,
+  deriveGameCalendarFromGameMinute,
+} from '@web-three-city/simulation-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { describe, expect, it } from 'vitest';
 import { createApplicationFixture } from '../test/application-fixtures.js';
@@ -41,7 +44,7 @@ describe('WorldSave V1-V5 Economy migration', () => {
     const decoded = decodeWorldSave(save, WORLD_CONFIG);
     expect(decoded.ok).toBe(true);
     if (!decoded.ok) return;
-    const calendar = deriveGameCalendar(decoded.value.simulation.absoluteTick);
+    const calendar = deriveGameCalendarFromGameMinute(decoded.value.simulation.absoluteGameMinute);
     expect(decoded.value.economy).toMatchObject({
       revision: 0,
       rulesVersion: FOUNDATION_ECONOMY_RULES.rulesVersion,
@@ -77,7 +80,7 @@ describe('WorldSave V1-V5 Economy migration', () => {
   ])('tick %i migrates with latest eligible boundary %i', (tick, marker) => {
     const simulation = createSimulationSnapshot({
       revision: tick,
-      absoluteTick: tick,
+      absoluteGameMinute: tick * 60,
       growthSequence: 0,
     });
     const save = encodeWorldSaveV5(

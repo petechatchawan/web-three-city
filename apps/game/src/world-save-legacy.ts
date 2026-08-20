@@ -339,7 +339,7 @@ export function decodeWorldSave(
     const initial = createInitialSimulationSnapshot();
     simulation = createSimulationSnapshot({
       revision: initial.revision,
-      absoluteTick: initial.absoluteTick,
+      absoluteGameMinute: initial.absoluteGameMinute,
       growthSequence: buildings.instances.length,
     });
   }
@@ -347,7 +347,7 @@ export function decodeWorldSave(
   for (const instance of buildings.instances) {
     if (
       instance.lifecycle === 'construction' &&
-      instance.constructionCompletesAtTick <= simulation.absoluteTick
+      instance.constructionCompletesAtTick <= simulation.absoluteGameMinute
     ) {
       return err({
         code: 'world-save:invalid-building-lifecycle',

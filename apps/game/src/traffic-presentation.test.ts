@@ -1,4 +1,7 @@
-import { FOUNDATION_TRAFFIC_PRESENTATION_POLICY } from '@web-three-city/traffic-three';
+import {
+  FOUNDATION_TRAFFIC_PRESENTATION_POLICY,
+  FOUNDATION_TRAFFIC_VISUAL_SCALE_POLICY,
+} from '@web-three-city/traffic-three';
 import { Scene } from 'three';
 import { describe, expect, it } from 'vitest';
 import { TrafficPresentation } from './traffic-presentation.js';
@@ -60,18 +63,18 @@ function snapshot(): TrafficPresentationSnapshot {
   });
 }
 
-function crossEdgeSnapshot(): TrafficPresentationSnapshot {
+function cornerBoundarySnapshot(): TrafficPresentationSnapshot {
   const first = Object.freeze({
     edgeId: 'drive:0,0->1,0',
     from: Object.freeze({ xQ: 0, yQ: 0, zQ: 0 }),
-    to: Object.freeze({ xQ: 8_000, yQ: 0, zQ: 0 }),
-    lengthMillimeters: 8_000,
+    to: Object.freeze({ xQ: 1_000, yQ: 0, zQ: 0 }),
+    lengthMillimeters: 1_000,
   });
   const second = Object.freeze({
-    edgeId: 'drive:1,0->2,0',
-    from: Object.freeze({ xQ: 8_000, yQ: 0, zQ: 0 }),
-    to: Object.freeze({ xQ: 16_000, yQ: 0, zQ: 0 }),
-    lengthMillimeters: 8_000,
+    edgeId: 'drive:1,0->1,1',
+    from: Object.freeze({ xQ: 1_000, yQ: 0, zQ: 0 }),
+    to: Object.freeze({ xQ: 1_000, yQ: 0, zQ: 1_000 }),
+    lengthMillimeters: 1_000,
   });
   const route = Object.freeze([first, second]);
 
@@ -84,26 +87,26 @@ function crossEdgeSnapshot(): TrafficPresentationSnapshot {
         citizenId: 'citizen-leader',
         mode: 'Drive' as const,
         routeEdgeId: second.edgeId,
-        progressQ: 12_500,
+        progressQ: 50_000,
         queued: false,
         from: second.from,
         to: second.to,
         turn: null,
         routeSegments: route,
-        routeDistanceMillimeters: 8_100,
+        routeDistanceMillimeters: 1_050,
       }),
       Object.freeze({
         tripId: 'follower',
         citizenId: 'citizen-follower',
         mode: 'Drive' as const,
         routeEdgeId: first.edgeId,
-        progressQ: 987_500,
+        progressQ: 950_000,
         queued: false,
         from: first.from,
         to: first.to,
         turn: null,
         routeSegments: route,
-        routeDistanceMillimeters: 7_900,
+        routeDistanceMillimeters: 950,
       }),
     ]),
   });
@@ -167,10 +170,10 @@ describe('TrafficPresentation real-agent contract', () => {
     presentation.dispose();
   });
 
-  it('keeps minimum visual headway when cars straddle adjacent canonical Road edges', () => {
+  it('keeps vehicle bodies separated when cars straddle a Road turn boundary', () => {
     const scene = new Scene();
     const presentation = new TrafficPresentation(scene);
-    presentation.update(crossEdgeSnapshot(), { x: 8, z: 0 }, 0, 0);
+    presentation.update(cornerBoundarySnapshot(), { x: 1, z: 0 }, 0, 0);
 
     const root = scene.getObjectByName('traffic-vehicle-root')!;
     const leader = root.children.find((child) => child.userData.tripId === 'leader');
@@ -178,10 +181,15 @@ describe('TrafficPresentation real-agent contract', () => {
     expect(leader).toBeTruthy();
     expect(follower).toBeTruthy();
 
-    const actualHeadwayMillimeters = (leader!.position.x - follower!.position.x) * 1_000;
-    expect(actualHeadwayMillimeters).toBeGreaterThanOrEqual(
-      FOUNDATION_TRAFFIC_PRESENTATION_POLICY.vehicleMinimumHeadwayMillimeters,
+    const dx = leader!.position.x - follower!.position.x;
+    const dz = leader!.position.z - follower!.position.z;
+    const actualSeparationMillimeters = Math.hypot(dx, dz) * 1_000;
+    const vehicleLengthMillimeters =
+      FOUNDATION_TRAFFIC_VISUAL_SCALE_POLICY.vehicleLengthWorldUnits * 1_000;
+    expect(FOUNDATION_TRAFFIC_PRESENTATION_POLICY.vehicleMinimumHeadwayMillimeters).toBeGreaterThan(
+      vehicleLengthMillimeters,
     );
+    expect(actualSeparationMillimeters).toBeGreaterThanOrEqual(vehicleLengthMillimeters);
     presentation.dispose();
   });
 

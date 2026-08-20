@@ -7,6 +7,7 @@ import {
   advanceVehicleKinematics,
   createVehicleKinematicsState,
   deriveVehicleRouteHeadwayPlacements,
+  deriveVehicleRouteVisualHeadwayConstraints,
   prepareTrafficRoute,
   samplePreparedRouteInto,
   sampleRouteEdgePosition,
@@ -425,8 +426,35 @@ export class TrafficPresentation {
       binding.visual.setTransform(binding.motion.position, binding.motion.currentHeadingRadians);
       binding.visual.setVisualState(binding.queued);
     }
+
+    const visualHeadwayConstraints = deriveVehicleRouteVisualHeadwayConstraints(
+      [
+        ...this.#frameVehicles.map((binding) => ({
+          tripId: binding.tripId,
+          routeSegments: binding.motion.routeSegments,
+          visualDistanceMillimeters: binding.motion.kinematics.visualDistanceMillimeters,
+        })),
+        ...[...this.#vehicleArrivals.entries()].map(([tripId, arrival]) => ({
+          tripId,
+          routeSegments: arrival.motion.routeSegments,
+          visualDistanceMillimeters: arrival.motion.kinematics.visualDistanceMillimeters,
+        })),
+      ],
+      this.#policy.vehicleMinimumHeadwayMillimeters,
+    );
+    const visualHeadwayByTrip = new Map(
+      visualHeadwayConstraints.map((constraint) => [constraint.tripId, constraint] as const),
+    );
+
     for (const binding of this.#frameVehicles) {
-      this.#sampleVehicleMotion(binding.motion, timestampMs, binding.queued);
+      const maximumVisualDistanceMillimeters =
+        visualHeadwayByTrip.get(binding.tripId)?.maximumVisualDistanceMillimeters ?? undefined;
+      this.#sampleVehicleMotion(
+        binding.motion,
+        timestampMs,
+        binding.queued,
+        maximumVisualDistanceMillimeters,
+      );
       binding.visual.setTransform(binding.motion.position, binding.motion.sample.headingRadians);
       const movementKind =
         binding.motion.preparedRoute.preparedSegments[binding.motion.sample.segmentIndex]?.source
@@ -434,7 +462,14 @@ export class TrafficPresentation {
       binding.visual.setVisualState(binding.queued, isTurningMovement(movementKind));
     }
     for (const [tripId, arrival] of this.#vehicleArrivals) {
-      this.#sampleVehicleMotion(arrival.motion, timestampMs, false);
+      const maximumVisualDistanceMillimeters =
+        visualHeadwayByTrip.get(tripId)?.maximumVisualDistanceMillimeters ?? undefined;
+      this.#sampleVehicleMotion(
+        arrival.motion,
+        timestampMs,
+        false,
+        maximumVisualDistanceMillimeters,
+      );
       arrival.visual.setTransform(arrival.motion.position, arrival.motion.sample.headingRadians);
       const movementKind =
         arrival.motion.preparedRoute.preparedSegments[arrival.motion.sample.segmentIndex]?.source
@@ -610,12 +645,20 @@ export class TrafficPresentation {
     };
   }
 
-  #sampleVehicleMotion(motion: VehicleMotionState, timestampMs: number, queued: boolean): void {
+  #sampleVehicleMotion(
+    motion: VehicleMotionState,
+    timestampMs: number,
+    queued: boolean,
+    maximumVisualDistanceMillimeters?: number,
+  ): void {
     advanceVehicleKinematics(motion.kinematics, {
       timestampMs,
       queued,
       preparedRoute: motion.preparedRoute,
       cellPresentationLengthMillimeters: CELL_PRESENTATION_LENGTH_MILLIMETERS,
+      ...(maximumVisualDistanceMillimeters === undefined
+        ? {}
+        : { maximumVisualDistanceMillimeters }),
     });
     samplePreparedRouteInto(
       motion.preparedRoute,

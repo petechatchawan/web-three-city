@@ -18,10 +18,12 @@ describe('reconcileRciForBuildingChange', () => {
       buildingsBefore: before.buildings,
       buildingsAfter: afterBuildings,
       registries: createFoundationRciRegistries(),
-      evaluationTick: before.simulation.absoluteTick,
+      evaluationTick: before.simulation.absoluteGameMinute,
     });
 
     expect(reconciled.employment.workplaces).toHaveLength(1);
-    expect(reconciled.employment.workplaces[0]?.retiredAtTick).toBe(before.simulation.absoluteTick);
+    expect(reconciled.employment.workplaces[0]?.retiredAtTick).toBe(
+      before.simulation.absoluteGameMinute,
+    );
   });
 });

@@ -21,11 +21,16 @@ import {
   type RoadPlacementEnvironment,
   type RoadSnapshot,
 } from '@web-three-city/road-core';
-import { createSimulationSnapshot, type SimulationSnapshot } from '@web-three-city/simulation-core';
+import {
+  createSimulationSnapshot,
+  deriveMacroHourIndex,
+  type SimulationSnapshot,
+} from '@web-three-city/simulation-core';
 import { createTerrainMap, type TerrainSnapshot } from '@web-three-city/terrain-core';
 import {
   createEmptyTrafficSnapshot,
   createTrafficSnapshot,
+  createTrafficSnapshotV2,
   type TrafficSnapshotV1,
 } from '@web-three-city/traffic-core';
 import { deriveWaterSnapshot, type WaterSnapshot } from '@web-three-city/water-core';
@@ -191,7 +196,12 @@ export function createCommittedWorld(input: CommittedWorldInput): CommittedWorld
   );
   const simulation = createSimulationSnapshot(complete.simulation);
   const mobility = createMobilitySnapshot(complete.mobility);
-  const traffic = createTrafficSnapshot(complete.traffic);
+  // Traffic V2 is introduced at the Game transaction seam ahead of the Save-schema cutover.
+  // Keep the declared application compatibility shape until the later persistence migration.
+  const traffic =
+    (complete.traffic as { schemaVersion: number }).schemaVersion === 2
+      ? (createTrafficSnapshotV2(complete.traffic as never) as unknown as TrafficSnapshotV1)
+      : createTrafficSnapshot(complete.traffic);
   const environments = Object.freeze({
     road: createRoadPlacementEnvironment(terrain, water, WORLD_CONFIG),
     zone: createZonePlacementEnvironment(
@@ -305,7 +315,7 @@ export function createCommittedWorldFromDomainState(input: CommittedDomainState)
       citizens: createPresentCitizenMobilityProjection(
         input.rci,
         input.buildings,
-        input.simulation.absoluteTick,
+        deriveMacroHourIndex(input.simulation.absoluteGameMinute),
       ),
     }).snapshot;
   }
@@ -330,7 +340,7 @@ export function createCommittedWorldFromDomainState(input: CommittedDomainState)
           environments.building,
         ),
       }),
-    });
+    }) as TrafficSnapshotV1;
   }
 
   rememberMobilityTrafficState(input.rci, mobility, traffic);

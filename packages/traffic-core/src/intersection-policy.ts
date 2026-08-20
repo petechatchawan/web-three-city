@@ -18,6 +18,9 @@ export const FOUNDATION_INTERSECTION_POLICY_V1: FoundationIntersectionPolicyV1 =
   uTurnPriority: 3,
 });
 
+/** Integer-only starvation bound for the v1 arbitration policy. */
+export const INTERSECTION_AGE_PROMOTION_SECONDS = 30 as const;
+
 const ORDER: readonly TrafficCardinalDirection[] = Object.freeze(['N', 'E', 'S', 'W']);
 
 function indexOf(direction: TrafficCardinalDirection): number {

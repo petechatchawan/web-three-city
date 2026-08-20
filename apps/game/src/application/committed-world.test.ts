@@ -57,7 +57,7 @@ function sourceWorld(revision = 0): CommittedWorldInput {
   };
   const buildings = createEmptyBuildingSnapshot(WORLD_CONFIG);
   const simulation = createInitialSimulationSnapshot();
-  const rci = createInitialRciSnapshot({ absoluteTick: simulation.absoluteTick });
+  const rci = createInitialRciSnapshot({ absoluteTick: simulation.absoluteGameMinute });
   const environments = Object.freeze({
     road: createRoadPlacementEnvironment(terrain, waterResult.value, WORLD_CONFIG),
     zone: createZonePlacementEnvironment(
@@ -85,7 +85,7 @@ function sourceWorld(revision = 0): CommittedWorldInput {
     simulation,
     rci,
     economy: createInitialEconomySnapshot(
-      { year: 1, month: 1, latestDailySettlementTick: simulation.absoluteTick },
+      { year: 1, month: 1, latestDailySettlementTick: simulation.absoluteGameMinute },
       FOUNDATION_ECONOMY_RULES,
     ),
     environments,

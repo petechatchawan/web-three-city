@@ -19,6 +19,7 @@ import {
   type TrafficGraph,
 } from '@web-three-city/traffic-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
+import { deriveMacroHourIndex } from '@web-three-city/simulation-core';
 import { createCommittedWorldFromDomainState } from './application/committed-world.js';
 import {
   createBuildingTrafficAccessProjection,
@@ -70,7 +71,7 @@ function performanceRci(
   base: ReturnType<typeof createTrafficReleaseFixture>['world'],
 ): RciSnapshot {
   const initial = createInitialRciSnapshot({
-    absoluteTick: base.simulation.absoluteTick,
+    absoluteTick: deriveMacroHourIndex(base.simulation.absoluteGameMinute),
     deterministicSeed: 20260816,
   });
   const citizens = Array.from({ length: TRAFFIC_PERFORMANCE_LOGICAL_CITIZENS }, (_, index) => ({

@@ -116,7 +116,7 @@ function validCandidate(world: CommittedWorld): boolean {
   for (const instance of world.buildings.instances) {
     if (
       instance.lifecycle === 'construction' &&
-      instance.constructionCompletesAtTick <= world.simulation.absoluteTick
+      instance.constructionCompletesAtTick <= world.simulation.absoluteGameMinute
     ) {
       return false;
     }

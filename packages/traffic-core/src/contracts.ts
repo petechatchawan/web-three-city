@@ -4,8 +4,11 @@ export type TrafficNodeId = string;
 export type TrafficEdgeId = string;
 export type TrafficMode = 'Walk' | 'Drive';
 export type TrafficTripStatus = 'Active' | 'Arrived' | 'Failed' | 'Cancelled';
+export type DriveMovementPhase = 'WaitingForEntry' | 'Entering' | 'Travelling' | 'Leaving';
 export type TrafficTripFailureReason = 'UnreachableDestination';
 export type TrafficCardinalDirection = 'N' | 'E' | 'S' | 'W';
+export type NodeTraversalClass = 'Merge' | 'ConflictJunction';
+export type IntersectionMovementKind = 'Straight' | 'Left' | 'Right';
 
 export const TRAFFIC_PROGRESS_MAX_Q = 1_000_000 as const;
 export const TRAFFIC_POSITION_Q_PER_METER = 1_000 as const;
@@ -89,6 +92,40 @@ export interface ActiveTransportTrip {
   }> | null;
   readonly status: TrafficTripStatus;
   readonly failureReason: TrafficTripFailureReason | null;
+}
+
+export interface ActiveTransportTripV2 {
+  readonly tripId: string;
+  readonly citizenId: string;
+  readonly mode: TrafficMode;
+  readonly originBuildingId: string;
+  readonly destinationBuildingId: string;
+  readonly routeEdgeIds: readonly TrafficEdgeId[];
+  readonly routeGraphRevision: number;
+  readonly segmentIndex: number;
+  readonly progressQ: number;
+  readonly lastStableNodeId: TrafficNodeId;
+  readonly queuedMovement: Readonly<{
+    fromEdgeId: TrafficEdgeId;
+    toEdgeId: TrafficEdgeId;
+    arrivedAtTransportSecond: number;
+  }> | null;
+  readonly status: TrafficTripStatus;
+  readonly failureReason: TrafficTripFailureReason | null;
+  readonly driveMovementPhase: DriveMovementPhase | null;
+  readonly entryServiceCredit?: number;
+  readonly entryReservationResourceIds?: readonly string[];
+  readonly activeNodeTraversal?: ActiveNodeTraversal;
+}
+
+export interface ActiveNodeTraversal {
+  readonly nodeId: TrafficNodeId;
+  readonly traversalClass: NodeTraversalClass;
+  readonly incomingEdgeId: TrafficEdgeId;
+  readonly outgoingEdgeId: TrafficEdgeId;
+  readonly movementKind?: IntersectionMovementKind;
+  readonly reservedResourceIds: readonly string[];
+  readonly progressQ: number;
 }
 
 export function compareTrafficId(first: string, second: string): number {
@@ -192,5 +229,79 @@ export function validateActiveTransportTrip(trip: ActiveTransportTrip): void {
     assertTrafficId(trip.queuedMovement.fromEdgeId);
     assertTrafficId(trip.queuedMovement.toEdgeId);
     assertTrafficSafeInteger(trip.queuedMovement.arrivedAtGameSecond);
+  }
+}
+
+export function validateActiveTransportTripV2(trip: ActiveTransportTripV2): void {
+  assertTrafficId(trip.tripId);
+  assertTrafficId(trip.citizenId);
+  assertTrafficId(trip.originBuildingId);
+  assertTrafficId(trip.destinationBuildingId);
+  assertTrafficSafeInteger(trip.routeGraphRevision);
+  assertTrafficSafeInteger(trip.segmentIndex);
+  assertTrafficSafeInteger(trip.progressQ);
+  if (trip.progressQ > TRAFFIC_PROGRESS_MAX_Q)
+    throw new TrafficContractError('traffic:invalid-trip');
+  assertTrafficId(trip.lastStableNodeId);
+  for (const edgeId of trip.routeEdgeIds) assertTrafficId(edgeId);
+  if (
+    trip.status === 'Active' &&
+    (trip.failureReason !== null ||
+      trip.routeEdgeIds.length === 0 ||
+      trip.segmentIndex >= trip.routeEdgeIds.length)
+  ) {
+    throw new TrafficContractError('traffic:invalid-trip');
+  }
+  if (trip.status === 'Failed') {
+    if (trip.failureReason !== 'UnreachableDestination')
+      throw new TrafficContractError('traffic:invalid-trip');
+  } else if (trip.failureReason !== null) {
+    throw new TrafficContractError('traffic:invalid-trip');
+  }
+  if (trip.mode === 'Walk') {
+    if (trip.driveMovementPhase !== null) throw new TrafficContractError('traffic:invalid-trip');
+  } else if (trip.status !== 'Active') {
+    if (trip.driveMovementPhase !== null) throw new TrafficContractError('traffic:invalid-trip');
+  } else if (trip.driveMovementPhase === null) {
+    throw new TrafficContractError('traffic:invalid-trip');
+  } else if (
+    (trip.driveMovementPhase === 'WaitingForEntry' || trip.driveMovementPhase === 'Entering') &&
+    (trip.segmentIndex !== 0 || trip.progressQ !== 0 || trip.queuedMovement !== null)
+  ) {
+    throw new TrafficContractError('traffic:invalid-trip');
+  } else if (
+    trip.driveMovementPhase === 'Leaving' &&
+    (trip.segmentIndex !== trip.routeEdgeIds.length - 1 ||
+      trip.progressQ !== TRAFFIC_PROGRESS_MAX_Q ||
+      trip.queuedMovement !== null)
+  ) {
+    throw new TrafficContractError('traffic:invalid-trip');
+  }
+  if (trip.queuedMovement !== null) {
+    assertTrafficId(trip.queuedMovement.fromEdgeId);
+    assertTrafficId(trip.queuedMovement.toEdgeId);
+    assertTrafficSafeInteger(trip.queuedMovement.arrivedAtTransportSecond);
+  }
+  assertTrafficSafeInteger(trip.entryServiceCredit ?? 0);
+  for (const resourceId of trip.entryReservationResourceIds ?? []) assertTrafficId(resourceId);
+  if (trip.activeNodeTraversal !== undefined) {
+    if (trip.mode !== 'Drive' || trip.status !== 'Active' || trip.queuedMovement !== null) {
+      throw new TrafficContractError('traffic:invalid-trip');
+    }
+    assertTrafficId(trip.activeNodeTraversal.nodeId);
+    assertTrafficId(trip.activeNodeTraversal.incomingEdgeId);
+    assertTrafficId(trip.activeNodeTraversal.outgoingEdgeId);
+    assertTrafficSafeInteger(trip.activeNodeTraversal.progressQ);
+    if (trip.activeNodeTraversal.progressQ > TRAFFIC_PROGRESS_MAX_Q) {
+      throw new TrafficContractError('traffic:invalid-trip');
+    }
+    for (const resourceId of trip.activeNodeTraversal.reservedResourceIds)
+      assertTrafficId(resourceId);
+  }
+  if (
+    (trip.mode !== 'Drive' || trip.status !== 'Active') &&
+    ((trip.entryServiceCredit ?? 0) !== 0 || (trip.entryReservationResourceIds?.length ?? 0) !== 0)
+  ) {
+    throw new TrafficContractError('traffic:invalid-trip');
   }
 }

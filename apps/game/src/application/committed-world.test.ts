@@ -29,7 +29,10 @@ import {
   createCommittedWorld,
   type CommittedWorldInput,
 } from './committed-world.js';
-import { fingerprintCommittedWorld } from './committed-world-fingerprint.js';
+import {
+  fingerprintCommittedWorld,
+  memoizedFingerprintCommittedWorld,
+} from './committed-world-fingerprint.js';
 
 function sourceWorld(revision = 0): CommittedWorldInput {
   const terrain = createTerrainMap({
@@ -212,6 +215,30 @@ describe('CommittedWorldStore', () => {
     expect(fingerprintCommittedWorld(first)).toBe(fingerprintCommittedWorld(second));
     second.terrain.heightLevels[0] = (second.terrain.heightLevels[0] ?? 0) + 1;
     expect(fingerprintCommittedWorld(second)).not.toBe(fingerprintCommittedWorld(first));
+  });
+
+  it('keeps the authority fingerprint identical while reusing immutable static components', () => {
+    const initial = createCommittedWorld(sourceWorld(0));
+    const next = createCommittedWorld(
+      {
+        ...initial,
+        revision: 1,
+        simulation: createSimulationSnapshot({
+          ...initial.simulation,
+          revision: initial.simulation.revision + 1,
+          absoluteGameMinute: initial.simulation.absoluteGameMinute + 1,
+        }),
+      },
+      { reuseStaticFrom: initial },
+    );
+
+    const initialRegular = fingerprintCommittedWorld(initial);
+    expect(memoizedFingerprintCommittedWorld(initial)).toBe(initialRegular);
+    const nextRegular = fingerprintCommittedWorld(next);
+    expect(memoizedFingerprintCommittedWorld(next)).toBe(nextRegular);
+    expect(memoizedFingerprintCommittedWorld(next)).not.toBe(
+      memoizedFingerprintCommittedWorld(initial),
+    );
   });
 
   it('reuses static authority only when a transport publication carries the same snapshots', () => {

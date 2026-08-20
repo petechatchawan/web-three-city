@@ -7,7 +7,7 @@ import {
   type TrafficSnapshotV2,
 } from '@web-three-city/traffic-core';
 import type { CommittedWorld } from './application/committed-world.js';
-import { fingerprintCommittedWorld } from './application/committed-world-fingerprint.js';
+import { memoizedFingerprintCommittedWorld } from './application/committed-world-fingerprint.js';
 import type {
   WorldPresentationPort,
   WorldPublicationResult,
@@ -79,9 +79,9 @@ export function planTrafficTransportTransaction(
   }) as CommittedWorld;
   return Object.freeze({
     baseWorldRevision: input.world.revision,
-    baseFingerprint: fingerprintCommittedWorld(input.world),
+    baseFingerprint: memoizedFingerprintCommittedWorld(input.world),
     nextWorld,
-    nextFingerprint: fingerprintCommittedWorld(nextWorld),
+    nextFingerprint: memoizedFingerprintCommittedWorld(nextWorld),
   });
 }
 
@@ -89,12 +89,16 @@ export function commitTrafficTransportTransaction(
   coordinator: WorldTransactionCoordinator,
   plan: TrafficTransportTransactionPlan,
   presentation?: WorldPresentationPort,
+  internalCommit = false,
 ): WorldPublicationResult {
-  return coordinator.publish({
+  const publication = {
     baseRevision: plan.baseWorldRevision,
     baseFingerprint: plan.baseFingerprint,
     nextWorld: plan.nextWorld,
     nextFingerprint: plan.nextFingerprint,
     ...(presentation === undefined ? {} : { presentation }),
-  });
+  };
+  return internalCommit
+    ? coordinator.publishForTransaction(publication)
+    : coordinator.publish(publication);
 }

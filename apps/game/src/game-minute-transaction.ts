@@ -40,7 +40,7 @@ import {
   createRoadTrafficSourceProjectionFromEnvironment,
 } from './traffic-source-projection.js';
 import { createCommittedWorld, type CommittedWorld } from './application/committed-world.js';
-import { fingerprintCommittedWorld } from './application/committed-world-fingerprint.js';
+import { memoizedFingerprintCommittedWorld } from './application/committed-world-fingerprint.js';
 import type {
   WorldPresentationPort,
   WorldPublicationResult,
@@ -145,7 +145,7 @@ export interface GameMinuteTransactionPlan {
 }
 
 function invalidPlan(world: CommittedWorld, reason: string): GameMinuteTransactionPlan {
-  const fingerprint = fingerprintCommittedWorld(world);
+  const fingerprint = memoizedFingerprintCommittedWorld(world);
   return Object.freeze({
     valid: false,
     invalidReason: reason,
@@ -324,9 +324,9 @@ export function planGameMinuteTransaction(
       valid: true,
       invalidReason: null,
       baseWorldRevision: world.revision,
-      baseFingerprint: fingerprintCommittedWorld(world),
+      baseFingerprint: memoizedFingerprintCommittedWorld(world),
       nextWorld,
-      nextFingerprint: fingerprintCommittedWorld(nextWorld),
+      nextFingerprint: memoizedFingerprintCommittedWorld(nextWorld),
       buildingReceipt,
       rciReceipt,
       rciDemandContributions,
@@ -342,17 +342,21 @@ export function commitGameMinuteTransaction(
   coordinator: WorldTransactionCoordinator,
   plan: GameMinuteTransactionPlan,
   presentation?: WorldPresentationPort,
+  internalCommit = false,
 ): WorldPublicationResult {
   if (!plan.valid || plan.invalidReason !== null) {
     throw new Error('game-minute-transaction:invalid-plan');
   }
-  return coordinator.publish({
+  const publication = {
     baseRevision: plan.baseWorldRevision,
     baseFingerprint: plan.baseFingerprint,
     nextWorld: plan.nextWorld,
     nextFingerprint: plan.nextFingerprint,
     ...(presentation === undefined ? {} : { presentation }),
-  });
+  };
+  return internalCommit
+    ? coordinator.publishForTransaction(publication)
+    : coordinator.publish(publication);
 }
 
 export function executeGameMinuteTransaction(

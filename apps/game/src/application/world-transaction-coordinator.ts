@@ -15,7 +15,10 @@ import {
   createCommittedWorldFromDomainState,
   type CommittedWorld,
 } from './committed-world.js';
-import { fingerprintCommittedWorld } from './committed-world-fingerprint.js';
+import {
+  fingerprintCommittedWorld,
+  memoizedFingerprintCommittedWorld,
+} from './committed-world-fingerprint.js';
 
 export type WorldPublicationRejection =
   | 'world:stale-revision'
@@ -51,6 +54,8 @@ export interface WorldTransactionCoordinator {
   /** Internal transaction read; only authority-owned planning code may consume it. */
   snapshotForTransaction(): CommittedWorld;
   publish(plan: WorldPublication): WorldPublicationResult;
+  /** Internal stepping path; result.world must not escape authority-owned code. */
+  publishForTransaction(plan: WorldPublication): WorldPublicationResult;
   replaceFromDecodedWorld(world: DecodedWorldState): WorldPublicationResult;
 }
 
@@ -178,33 +183,44 @@ export class DefaultWorldTransactionCoordinator implements WorldTransactionCoord
   }
 
   publish(plan: WorldPublication): WorldPublicationResult {
+    return this.#publish(plan, true);
+  }
+
+  publishForTransaction(plan: WorldPublication): WorldPublicationResult {
+    return this.#publish(plan, false);
+  }
+
+  #publish(plan: WorldPublication, copyResultWorld: boolean): WorldPublicationResult {
     const current = this.#worldStore.committedForTransaction();
     const currentFingerprint = fingerprintCommittedWorld(current);
+    const readCurrent = (): CommittedWorld =>
+      copyResultWorld ? this.#worldStore.snapshot() : current;
     if (plan.baseRevision !== current.revision)
-      return rejected(this.#worldStore.snapshot(), 'world:stale-revision');
+      return rejected(readCurrent(), 'world:stale-revision');
     if (plan.baseFingerprint !== currentFingerprint)
-      return rejected(this.#worldStore.snapshot(), 'world:stale-content');
+      return rejected(readCurrent(), 'world:stale-content');
     const candidateFingerprint = fingerprintCommittedWorld(plan.nextWorld);
     if (plan.nextFingerprint !== candidateFingerprint)
-      return rejected(this.#worldStore.snapshot(), 'world:stale-content');
+      return rejected(readCurrent(), 'world:stale-content');
     if (plan.nextWorld.revision !== current.revision + 1)
-      return rejected(this.#worldStore.snapshot(), 'world:stale-content');
+      return rejected(readCurrent(), 'world:stale-content');
 
     let candidate: CommittedWorld;
     try {
       candidate = createCommittedWorld(plan.nextWorld, { reuseStaticFrom: current });
-      if (!validCandidate(candidate))
-        return rejected(this.#worldStore.snapshot(), 'world:invalid-candidate');
+      if (memoizedFingerprintCommittedWorld(candidate) !== plan.nextFingerprint)
+        return rejected(readCurrent(), 'world:stale-content');
+      if (!validCandidate(candidate)) return rejected(readCurrent(), 'world:invalid-candidate');
       this.#worldStore.replacePrepared(current.revision, candidate);
     } catch {
-      return rejected(this.#worldStore.snapshot(), 'world:invalid-candidate');
+      return rejected(readCurrent(), 'world:invalid-candidate');
     }
 
     const presentation = plan.presentation ?? this.#presentation;
     if (presentation === null) {
       return Object.freeze({
         status: 'committed' as const,
-        world: this.#worldStore.snapshot(),
+        world: copyResultWorld ? this.#worldStore.snapshot() : candidate,
         presentation: Object.freeze({ status: 'synchronized' as const }),
       });
     }
@@ -212,7 +228,7 @@ export class DefaultWorldTransactionCoordinator implements WorldTransactionCoord
       presentation.synchronize(candidate);
       return Object.freeze({
         status: 'committed' as const,
-        world: this.#worldStore.snapshot(),
+        world: copyResultWorld ? this.#worldStore.snapshot() : candidate,
         presentation: Object.freeze({ status: 'synchronized' as const }),
       });
     } catch {
@@ -223,7 +239,7 @@ export class DefaultWorldTransactionCoordinator implements WorldTransactionCoord
       }
       return Object.freeze({
         status: 'committed' as const,
-        world: this.#worldStore.snapshot(),
+        world: copyResultWorld ? this.#worldStore.snapshot() : candidate,
         presentation: Object.freeze({
           status: 'degraded' as const,
           recoveryRequired: true as const,

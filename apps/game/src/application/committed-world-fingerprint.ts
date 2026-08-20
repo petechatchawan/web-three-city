@@ -1,5 +1,7 @@
 import type { CommittedWorld } from './committed-world.js';
 
+const MEMOIZED_FINGERPRINTS = new WeakMap<CommittedWorld, string>();
+
 function stableValue(value: unknown): unknown {
   if (value instanceof Uint8Array) return [...value];
   if (Array.isArray(value)) return value.map(stableValue);
@@ -15,6 +17,8 @@ function stableValue(value: unknown): unknown {
 }
 
 export function fingerprintCommittedWorld(world: CommittedWorld): string {
+  const cached = MEMOIZED_FINGERPRINTS.get(world);
+  if (cached !== undefined) return cached;
   return `committed-world-v2:${JSON.stringify(
     stableValue({
       revision: world.revision,
@@ -48,4 +52,13 @@ export function fingerprintCommittedWorld(world: CommittedWorld): string {
       },
     }),
   )}`;
+}
+
+/** Memoize only for authority-owned immutable planning/commit objects. */
+export function memoizedFingerprintCommittedWorld(world: CommittedWorld): string {
+  const cached = MEMOIZED_FINGERPRINTS.get(world);
+  if (cached !== undefined) return cached;
+  const fingerprint = fingerprintCommittedWorld(world);
+  MEMOIZED_FINGERPRINTS.set(world, fingerprint);
+  return fingerprint;
 }

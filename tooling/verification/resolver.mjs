@@ -8,7 +8,7 @@
  * No production behavior is changed; this is pure verification planning.
  */
 
-import { GLOBAL_OWNER, GLOBAL_PATTERNS, GRAPH_BLIND_PATTERNS, OWNERSHIP } from './ownership.mjs';
+import { GLOBAL_OWNER, GLOBAL_PATTERNS, GRAPH_BLIND_PATTERNS, normalizePath, OWNERSHIP } from './ownership.mjs';
 import { VerificationRisk, maxRiskOf } from './risk.mjs';
 
 /**
@@ -22,12 +22,12 @@ import { VerificationRisk, maxRiskOf } from './risk.mjs';
  */
 
 function isGlobalFile(file) {
-  const n = file.replace(/\\/g, '/');
+  const n = normalizePath(file);
   return GLOBAL_PATTERNS.some((re) => re.test(n));
 }
 
 function isGraphBlindFile(file) {
-  const n = file.replace(/\\/g, '/');
+  const n = normalizePath(file);
   return GRAPH_BLIND_PATTERNS.some((re) => re.test(n));
 }
 
@@ -40,7 +40,7 @@ function compareText(left, right) {
 function resolveOwnerSystems(files) {
   const direct = new Set();
   for (const f of files) {
-    const n = f.replace(/\\/g, '/');
+    const n = normalizePath(f);
     const match = Object.values(OWNERSHIP).find((o) => n.startsWith(o.pathPrefix));
     if (match) direct.add(match.system);
   }
@@ -118,7 +118,7 @@ export function resolveVerificationPlan(changedFiles) {
   // GRAPH_BLIND escalation: unknown files or blind-pattern files
   const hasBlind = files.some(isGraphBlindFile);
   const unknownFiles = files.filter((f) => {
-    const n = f.replace(/\\/g, '/');
+    const n = normalizePath(f);
     if (isGraphBlindFile(f)) return false;
     // known if matches any ownership prefix or global pattern
     const knownOwner = Object.values(OWNERSHIP).some((o) => n.startsWith(o.pathPrefix));

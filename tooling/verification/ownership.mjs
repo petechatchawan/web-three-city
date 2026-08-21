@@ -274,11 +274,15 @@ export const GRAPH_BLIND_PATTERNS = Object.freeze([
   /apps\/game\/src\/game-bootstrap/,
 ]);
 
+export function normalizePath(file) {
+  return file.replaceAll('\\', '/');
+}
+
 /**
  * Returns owner key for a file path, or null if no direct owner.
  */
 export function ownerForFile(file) {
-  const normalized = file.replace(/\\/g, '/');
+  const normalized = normalizePath(file);
   for (const owner of Object.values(OWNERSHIP)) {
     if (normalized.startsWith(owner.pathPrefix)) return owner.system;
   }

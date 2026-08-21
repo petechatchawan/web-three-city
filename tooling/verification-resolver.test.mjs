@@ -1,8 +1,16 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
+import { URL } from 'node:url';
 
 import { resolveVerificationPlan } from './verification/resolver.mjs';
 import { VerificationRisk } from './verification/risk.mjs';
+
+test('resolver makes text ordering explicit for every sort operation', () => {
+  const source = readFileSync(new URL('./verification/resolver.mjs', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /\.sort\(\)/);
+  assert.match(source, /\.sort\(compareText\)/);
+});
 
 test('resolver exposes risk ordering with escalation preference', () => {
   assert.ok(VerificationRisk.GRAPH_SAFE !== VerificationRisk.GLOBAL);

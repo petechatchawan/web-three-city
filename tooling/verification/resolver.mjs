@@ -31,6 +31,12 @@ function isGraphBlindFile(file) {
   return GRAPH_BLIND_PATTERNS.some((re) => re.test(n));
 }
 
+function compareText(left, right) {
+  if (left < right) return -1;
+  if (left > right) return 1;
+  return 0;
+}
+
 function resolveOwnerSystems(files) {
   const direct = new Set();
   for (const f of files) {
@@ -48,7 +54,7 @@ function expandConsumers(systems) {
     if (!owner) continue;
     for (const c of owner.consumers) expanded.add(c);
   }
-  return [...expanded].sort();
+  return [...expanded].sort(compareText);
 }
 
 function collectVerification(systems) {
@@ -57,7 +63,7 @@ function collectVerification(systems) {
     const owner = OWNERSHIP[s];
     if (owner) for (const v of owner.verification) out.add(v);
   }
-  return [...out].sort();
+  return [...out].sort(compareText);
 }
 
 function collectBrowserTags(systems) {
@@ -66,7 +72,7 @@ function collectBrowserTags(systems) {
     const owner = OWNERSHIP[s];
     if (owner) for (const t of owner.browserTags) tags.add(t);
   }
-  return [...tags].sort();
+  return [...tags].sort(compareText);
 }
 
 /**
@@ -95,10 +101,10 @@ export function resolveVerificationPlan(changedFiles) {
     // expand consumers of direct owners as well
     const expanded = new Set(expandConsumers([...direct]));
     expanded.add('GLOBAL');
-    const systems = [...expanded].sort();
+    const systems = [...expanded].sort(compareText);
     // verification is GLOBAL + direct verification
-    const verification = [...new Set([...GLOBAL_OWNER.verification, ...collectVerification([...direct])])].sort();
-    const browserTags = [...new Set([...GLOBAL_OWNER.browserTags, ...collectBrowserTags([...direct])])].sort();
+    const verification = [...new Set([...GLOBAL_OWNER.verification, ...collectVerification([...direct])])].sort(compareText);
+    const browserTags = [...new Set([...GLOBAL_OWNER.browserTags, ...collectBrowserTags([...direct])])].sort(compareText);
     return {
       systems,
       risk: VerificationRisk.GLOBAL,
@@ -125,12 +131,12 @@ export function resolveVerificationPlan(changedFiles) {
     const direct = resolveOwnerSystems(files);
     const expanded = expandConsumers(direct);
     // include unknown owner systems as-is plus expansion
-    const systems = [...new Set([...direct, ...expanded])].sort();
+    const systems = [...new Set([...direct, ...expanded])].sort(compareText);
     // if completely unknown, include generic graph-blind verification
     const baseVerification = systems.length > 0 ? collectVerification(systems) : [];
     const verification =
       baseVerification.length > 0
-        ? [...new Set([...baseVerification, 'verify'] )].sort()
+        ? [...new Set([...baseVerification, 'verify'] )].sort(compareText)
         : ['verify', 'test:deployment'];
     const browserTags = collectBrowserTags(systems);
     // GRAPH_BLIND always requires browser consideration

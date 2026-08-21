@@ -28,6 +28,7 @@ Own deterministic in-game time, calendar derivation, tick planning/commit, time-
 - Revision, `absoluteGameMinute`, and Building growth sequence persist across Save/Load.
 - `apps/game` has a minute-boundary transaction that stages macro-hour work, Mobility due boundaries, and a coherent world candidate before publication.
 - Traffic uses a subordinate four-quanta-per-game-minute cursor; minute and transport-quantum publication are separate atomic transaction classes.
+- Every committed automatic minute or transport publication is adopted by the Game runtime before UI and presentation subscribers are notified; deterministic test-time batching suppresses those notifications until its final rebuild.
 
 ## Ownership and State
 

@@ -34,4 +34,18 @@ describe('GameRuntime committed-world authority', () => {
     expect(mainSource).toMatch(/runtime\.snapshotForTest\(\)/);
     expect(bootstrapSource).toMatch(/snapshotForTest\(\): CommittedWorld/);
   });
+
+  it('adopts automatic calendar and transport publications for committed-world subscribers', () => {
+    const calendarSection = bootstrapSource.slice(
+      bootstrapSource.indexOf('const advanceGameMinute'),
+      bootstrapSource.indexOf('const advanceTransportQuantum'),
+    );
+    const transportSection = bootstrapSource.slice(
+      bootstrapSource.indexOf('const advanceTransportQuantum'),
+      bootstrapSource.indexOf('const resetSimulationForTest'),
+    );
+
+    expect(calendarSection).toMatch(/adoptCommittedWorld\(publication\.world\)/);
+    expect(transportSection).toMatch(/adoptCommittedWorld\(publication\.world\)/);
+  });
 });

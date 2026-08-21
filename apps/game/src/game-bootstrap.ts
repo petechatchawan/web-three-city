@@ -606,6 +606,8 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
 
   const inputRef: { current: ReturnType<typeof createGameInput> | null } = { current: null };
 
+  let presentationSuppressedForTest = false;
+
   const committedWorldStore = new CommittedWorldStore(initialWorld);
   const committedWorldSubscribers = new Set<CommittedWorldSubscriber>();
 
@@ -634,7 +636,7 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
     zoneEnvironment = world.environments.zone;
     buildingsSnapshot = world.buildings;
     buildingEnvironment = world.environments.building;
-    lastPresentedStaticWorld = world;
+    if (!presentationSuppressedForTest) lastPresentedStaticWorld = world;
     notifyCommittedWorld(world, reason);
   };
 
@@ -669,7 +671,6 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
     synchronize: (world: CommittedWorld) => void,
   ): WorldPresentationPort => presentationCoordinator.incrementalPort(synchronize);
   const noOpPresentation = presentationCoordinator.noOpPort();
-  let presentationSuppressedForTest = false;
   const transactionCoordinator = new DefaultWorldTransactionCoordinator({
     worldStore: committedWorldStore,
     presentation: completeWorldPresentation,
@@ -1038,9 +1039,11 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
         presentationSuppressedForTest ? noOpPresentation : undefined,
         presentationSuppressedForTest,
       );
-      return publication.status === 'committed'
-        ? publication.world
-        : transactionCoordinator.snapshot();
+      if (publication.status === 'committed') {
+        adoptCommittedWorld(publication.world);
+        return publication.world;
+      }
+      return transactionCoordinator.snapshot();
     } catch {
       return transactionCoordinator.snapshot();
     }
@@ -1065,9 +1068,11 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
         presentationSuppressedForTest ? noOpPresentation : undefined,
         presentationSuppressedForTest,
       );
-      return publication.status === 'committed'
-        ? publication.world
-        : transactionCoordinator.snapshot();
+      if (publication.status === 'committed') {
+        adoptCommittedWorld(publication.world);
+        return publication.world;
+      }
+      return transactionCoordinator.snapshot();
     } catch {
       return transactionCoordinator.snapshot();
     }

@@ -25,6 +25,32 @@ for (const viewport of viewports) {
       expect(dialogBox.x + dialogBox.width).toBeLessThanOrEqual(viewport.width + 1);
       expect(dialogBox.y + dialogBox.height).toBeLessThanOrEqual(viewport.height + 1);
     }
+
+    if (viewport.name === 'landscape') {
+      const time = page.locator('[data-metric="gameTime"]');
+      const demand = page.locator('[data-metric="demand"]');
+      await expect(time.locator('.city-mobile-hud-value--time')).toBeVisible();
+      const timeBox = await time.boundingBox();
+      const demandBox = await demand.boundingBox();
+      expect(timeBox).not.toBeNull();
+      expect(demandBox).not.toBeNull();
+      if (timeBox !== null && demandBox !== null) {
+        expect(timeBox.width).toBeGreaterThanOrEqual(144);
+        expect(demandBox.height).toBeGreaterThanOrEqual(72);
+      }
+
+      const demandRows = demand.locator('[data-rci-demand-bar]');
+      await expect(demandRows).toHaveCount(3);
+      const rowBoxes = await demandRows.evaluateAll((rows) =>
+        rows.map((row) => {
+          const box = row.getBoundingClientRect();
+          return { height: box.height, top: box.top };
+        }),
+      );
+      expect(rowBoxes.every((row) => row.height >= 16)).toBe(true);
+      expect(rowBoxes[0]!.top).toBeLessThan(rowBoxes[1]!.top);
+      expect(rowBoxes[1]!.top).toBeLessThan(rowBoxes[2]!.top);
+    }
   });
 }
 

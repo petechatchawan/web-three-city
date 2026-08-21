@@ -29,114 +29,215 @@ interface RoadDeterministicFixtureCase {
   readonly minimumDirtyChunkCount?: number;
 }
 
-const CENTER = Object.freeze({ x: 8, z: 8 });
-const NORTH = Object.freeze({ x: 8, z: 7 });
-const EAST = Object.freeze({ x: 9, z: 8 });
-const SOUTH = Object.freeze({ x: 8, z: 9 });
-const WEST = Object.freeze({ x: 7, z: 8 });
-const NORTH_SOUTH = Object.freeze(['north', 'south'] as const);
-const EAST_WEST = Object.freeze(['east', 'west'] as const);
+const CENTER = { x: 8, z: 8 };
+const NORTH = { x: 8, z: 7 };
+const EAST = { x: 9, z: 8 };
+const SOUTH = { x: 8, z: 9 };
+const WEST = { x: 7, z: 8 };
 
-function valid(
-  id: string,
-  cells: readonly CellCoord[],
-  expectedConnections: readonly RoadFixtureDirection[],
-  options: Readonly<{
-    focusCell?: CellCoord;
-    shapes?: Readonly<Record<string, TerrainShape>>;
-    minimumDirtyChunkCount?: number;
-  }> = {},
-): RoadDeterministicFixtureCase {
-  return Object.freeze({
-    id,
-    cells: Object.freeze([...cells]),
-    focusCell: options.focusCell ?? CENTER,
-    shapes: options.shapes,
+const ROAD_DETERMINISTIC_FIXTURE_CASES: readonly RoadDeterministicFixtureCase[] = [
+  {
+    id: 'road-isolated',
+    cells: [CENTER],
+    focusCell: CENTER,
     expectedValid: true,
     expectedInvalidReason: null,
-    expectedConnections: Object.freeze([...expectedConnections]),
-    minimumDirtyChunkCount: options.minimumDirtyChunkCount,
-  });
-}
-
-function invalid(
-  id: string,
-  cells: readonly CellCoord[],
-  expectedInvalidReason: RoadInvalidReason,
-  options: Readonly<{
-    shapes?: Readonly<Record<string, TerrainShape>>;
-    wetCellKeys?: readonly string[];
-  }> = {},
-): RoadDeterministicFixtureCase {
-  return Object.freeze({
-    id,
-    cells: Object.freeze([...cells]),
+    expectedConnections: [],
+  },
+  {
+    id: 'road-end-north',
+    cells: [CENTER, NORTH],
     focusCell: CENTER,
-    shapes: options.shapes,
-    wetCellKeys: options.wetCellKeys,
+    expectedValid: true,
+    expectedInvalidReason: null,
+    expectedConnections: ['north'],
+  },
+  {
+    id: 'road-end-east',
+    cells: [CENTER, EAST],
+    focusCell: CENTER,
+    expectedValid: true,
+    expectedInvalidReason: null,
+    expectedConnections: ['east'],
+  },
+  {
+    id: 'road-end-south',
+    cells: [CENTER, SOUTH],
+    focusCell: CENTER,
+    expectedValid: true,
+    expectedInvalidReason: null,
+    expectedConnections: ['south'],
+  },
+  {
+    id: 'road-end-west',
+    cells: [CENTER, WEST],
+    focusCell: CENTER,
+    expectedValid: true,
+    expectedInvalidReason: null,
+    expectedConnections: ['west'],
+  },
+  {
+    id: 'road-straight-ns',
+    cells: [NORTH, CENTER, SOUTH],
+    focusCell: CENTER,
+    expectedValid: true,
+    expectedInvalidReason: null,
+    expectedConnections: ['north', 'south'],
+  },
+  {
+    id: 'road-straight-ew',
+    cells: [WEST, CENTER, EAST],
+    focusCell: CENTER,
+    expectedValid: true,
+    expectedInvalidReason: null,
+    expectedConnections: ['east', 'west'],
+  },
+  {
+    id: 'road-corner-ne',
+    cells: [NORTH, CENTER, EAST],
+    focusCell: CENTER,
+    expectedValid: true,
+    expectedInvalidReason: null,
+    expectedConnections: ['north', 'east'],
+  },
+  {
+    id: 'road-corner-es',
+    cells: [EAST, CENTER, SOUTH],
+    focusCell: CENTER,
+    expectedValid: true,
+    expectedInvalidReason: null,
+    expectedConnections: ['east', 'south'],
+  },
+  {
+    id: 'road-corner-sw',
+    cells: [SOUTH, CENTER, WEST],
+    focusCell: CENTER,
+    expectedValid: true,
+    expectedInvalidReason: null,
+    expectedConnections: ['south', 'west'],
+  },
+  {
+    id: 'road-corner-wn',
+    cells: [WEST, CENTER, NORTH],
+    focusCell: CENTER,
+    expectedValid: true,
+    expectedInvalidReason: null,
+    expectedConnections: ['west', 'north'],
+  },
+  {
+    id: 'road-t-north',
+    cells: [WEST, CENTER, EAST, NORTH],
+    focusCell: CENTER,
+    expectedValid: true,
+    expectedInvalidReason: null,
+    expectedConnections: ['west', 'east', 'north'],
+  },
+  {
+    id: 'road-t-east',
+    cells: [NORTH, CENTER, SOUTH, EAST],
+    focusCell: CENTER,
+    expectedValid: true,
+    expectedInvalidReason: null,
+    expectedConnections: ['north', 'south', 'east'],
+  },
+  {
+    id: 'road-t-south',
+    cells: [WEST, CENTER, EAST, SOUTH],
+    focusCell: CENTER,
+    expectedValid: true,
+    expectedInvalidReason: null,
+    expectedConnections: ['west', 'east', 'south'],
+  },
+  {
+    id: 'road-t-west',
+    cells: [NORTH, CENTER, SOUTH, WEST],
+    focusCell: CENTER,
+    expectedValid: true,
+    expectedInvalidReason: null,
+    expectedConnections: ['north', 'south', 'west'],
+  },
+  {
+    id: 'road-four-way',
+    cells: [NORTH, EAST, SOUTH, WEST, CENTER],
+    focusCell: CENTER,
+    expectedValid: true,
+    expectedInvalidReason: null,
+    expectedConnections: ['north', 'east', 'south', 'west'],
+  },
+  {
+    id: 'road-ramp-north-up',
+    cells: [NORTH, CENTER, SOUTH],
+    focusCell: CENTER,
+    shapes: { '8:8': 'ramp-north' },
+    expectedValid: true,
+    expectedInvalidReason: null,
+    expectedConnections: ['north', 'south'],
+  },
+  {
+    id: 'road-ramp-north-down',
+    cells: [NORTH, CENTER, SOUTH],
+    focusCell: CENTER,
+    shapes: { '8:8': 'ramp-south' },
+    expectedValid: true,
+    expectedInvalidReason: null,
+    expectedConnections: ['north', 'south'],
+  },
+  {
+    id: 'road-ramp-east-up',
+    cells: [WEST, CENTER, EAST],
+    focusCell: CENTER,
+    shapes: { '8:8': 'ramp-east' },
+    expectedValid: true,
+    expectedInvalidReason: null,
+    expectedConnections: ['east', 'west'],
+  },
+  {
+    id: 'road-ramp-east-down',
+    cells: [WEST, CENTER, EAST],
+    focusCell: CENTER,
+    shapes: { '8:8': 'ramp-west' },
+    expectedValid: true,
+    expectedInvalidReason: null,
+    expectedConnections: ['east', 'west'],
+  },
+  {
+    id: 'road-invalid-ramp-perpendicular',
+    cells: [WEST, CENTER, EAST],
+    focusCell: CENTER,
+    shapes: { '8:8': 'ramp-north' },
     expectedValid: false,
-    expectedInvalidReason,
-  });
-}
-
-const ROAD_DETERMINISTIC_FIXTURE_CASES = Object.freeze([
-  valid('road-isolated', [CENTER], []),
-  valid('road-end-north', [CENTER, NORTH], ['north']),
-  valid('road-end-east', [CENTER, EAST], ['east']),
-  valid('road-end-south', [CENTER, SOUTH], ['south']),
-  valid('road-end-west', [CENTER, WEST], ['west']),
-  valid('road-straight-ns', [NORTH, CENTER, SOUTH], NORTH_SOUTH),
-  valid('road-straight-ew', [WEST, CENTER, EAST], EAST_WEST),
-  valid('road-corner-ne', [NORTH, CENTER, EAST], ['north', 'east']),
-  valid('road-corner-es', [EAST, CENTER, SOUTH], ['east', 'south']),
-  valid('road-corner-sw', [SOUTH, CENTER, WEST], ['south', 'west']),
-  valid('road-corner-wn', [WEST, CENTER, NORTH], ['west', 'north']),
-  valid('road-t-north', [WEST, CENTER, EAST, NORTH], ['west', 'east', 'north']),
-  valid('road-t-east', [NORTH, CENTER, SOUTH, EAST], ['north', 'south', 'east']),
-  valid('road-t-south', [WEST, CENTER, EAST, SOUTH], ['west', 'east', 'south']),
-  valid('road-t-west', [NORTH, CENTER, SOUTH, WEST], ['north', 'south', 'west']),
-  valid('road-four-way', [NORTH, EAST, SOUTH, WEST, CENTER], ['north', 'east', 'south', 'west']),
-  valid('road-ramp-north-up', [NORTH, CENTER, SOUTH], NORTH_SOUTH, {
-    shapes: Object.freeze({ '8:8': 'ramp-north' }),
-  }),
-  valid('road-ramp-north-down', [NORTH, CENTER, SOUTH], NORTH_SOUTH, {
-    shapes: Object.freeze({ '8:8': 'ramp-south' }),
-  }),
-  valid('road-ramp-east-up', [WEST, CENTER, EAST], EAST_WEST, {
-    shapes: Object.freeze({ '8:8': 'ramp-east' }),
-  }),
-  valid('road-ramp-east-down', [WEST, CENTER, EAST], EAST_WEST, {
-    shapes: Object.freeze({ '8:8': 'ramp-west' }),
-  }),
-  invalid(
-    'road-invalid-ramp-perpendicular',
-    [WEST, CENTER, EAST],
-    'road:invalid-ramp-topology',
-    { shapes: Object.freeze({ '8:8': 'ramp-north' }) },
-  ),
-  invalid(
-    'road-invalid-ramp-junction',
-    [NORTH, CENTER, SOUTH, EAST],
-    'road:invalid-ramp-topology',
-    { shapes: Object.freeze({ '8:8': 'ramp-north' }) },
-  ),
-  invalid('road-invalid-wet', [CENTER], 'road:wet-cell', {
-    wetCellKeys: Object.freeze(['8:8']),
-  }),
-  valid(
-    'road-chunk-boundary',
-    [
-      Object.freeze({ x: 15, z: 8 }),
-      Object.freeze({ x: 16, z: 8 }),
-      Object.freeze({ x: 17, z: 8 }),
+    expectedInvalidReason: 'road:invalid-ramp-topology',
+  },
+  {
+    id: 'road-invalid-ramp-junction',
+    cells: [NORTH, CENTER, SOUTH, EAST],
+    focusCell: CENTER,
+    shapes: { '8:8': 'ramp-north' },
+    expectedValid: false,
+    expectedInvalidReason: 'road:invalid-ramp-topology',
+  },
+  {
+    id: 'road-invalid-wet',
+    cells: [CENTER],
+    focusCell: CENTER,
+    wetCellKeys: ['8:8'],
+    expectedValid: false,
+    expectedInvalidReason: 'road:wet-cell',
+  },
+  {
+    id: 'road-chunk-boundary',
+    cells: [
+      { x: 15, z: 8 },
+      { x: 16, z: 8 },
+      { x: 17, z: 8 },
     ],
-    EAST_WEST,
-    {
-      focusCell: Object.freeze({ x: 16, z: 8 }),
-      minimumDirtyChunkCount: 2,
-    },
-  ),
-]);
+    focusCell: { x: 16, z: 8 },
+    expectedValid: true,
+    expectedInvalidReason: null,
+    expectedConnections: ['east', 'west'],
+    minimumDirtyChunkCount: 2,
+  },
+];
 
 const EXPECTED_BROWSER_FIXTURE_IDS = [
   'road-isolated',

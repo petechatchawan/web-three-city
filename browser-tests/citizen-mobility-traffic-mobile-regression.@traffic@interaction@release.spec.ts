@@ -4,8 +4,18 @@ import { openBuildCategory } from './helpers/city-ui.js';
 const viewports = [
   { width: 414, height: 896, name: 'canonical portrait' },
   { width: 390, height: 844, name: 'secondary portrait' },
-  { width: 844, height: 390, name: 'landscape' },
+  { width: 844, height: 390, name: 'compact landscape' },
+  { width: 896, height: 414, name: 'rotated landscape' },
+  { width: 1024, height: 600, name: 'tablet landscape' },
+  { width: 1280, height: 720, name: 'desktop landscape' },
 ] as const;
+
+const landscapeViewports = new Set([
+  'compact landscape',
+  'rotated landscape',
+  'tablet landscape',
+  'desktop landscape',
+]);
 
 for (const viewport of viewports) {
   test(`${viewport.name}: Traffic UI preserves mobile shell bounds`, async ({ page }) => {
@@ -26,18 +36,48 @@ for (const viewport of viewports) {
       expect(dialogBox.y + dialogBox.height).toBeLessThanOrEqual(viewport.height + 1);
     }
 
-    if (viewport.name === 'landscape') {
+    if (landscapeViewports.has(viewport.name)) {
+      const hud = page.locator('.city-awareness-hud.city-mobile-hud');
+      const city = page.locator('[data-metric-group="city-values"]');
       const time = page.locator('[data-metric="gameTime"]');
       const demand = page.locator('[data-metric="demand"]');
+      const controls = page.locator('.city-simulation-controls');
+      const step = page.locator('[data-simulation-step]');
+      await expect(hud).toHaveCSS('display', 'grid');
       await expect(time.locator('.city-mobile-hud-value--time')).toBeVisible();
+      await expect(step).toBeVisible();
+      const cityBox = await city.boundingBox();
       const timeBox = await time.boundingBox();
       const demandBox = await demand.boundingBox();
+      const controlsBox = await controls.boundingBox();
+      const stepBox = await step.boundingBox();
+      expect(cityBox).not.toBeNull();
       expect(timeBox).not.toBeNull();
       expect(demandBox).not.toBeNull();
-      if (timeBox !== null && demandBox !== null) {
+      expect(controlsBox).not.toBeNull();
+      expect(stepBox).not.toBeNull();
+      if (
+        cityBox !== null &&
+        timeBox !== null &&
+        demandBox !== null &&
+        controlsBox !== null &&
+        stepBox !== null
+      ) {
+        expect(cityBox.width).toBeLessThanOrEqual(Math.min(560, viewport.width * 0.7));
         expect(timeBox.width).toBeGreaterThanOrEqual(144);
         expect(demandBox.height).toBeGreaterThanOrEqual(72);
+        expect(timeBox.x + timeBox.width).toBeLessThanOrEqual(viewport.width + 1);
+        expect(demandBox.x + demandBox.width).toBeLessThanOrEqual(viewport.width + 1);
+        expect(stepBox.y).toBeGreaterThanOrEqual(controlsBox.y - 1);
+        expect(stepBox.y + stepBox.height).toBeLessThanOrEqual(
+          controlsBox.y + controlsBox.height + 1,
+        );
       }
+
+      const gridTemplateColumns = await hud.evaluate(
+        (element) => getComputedStyle(element).gridTemplateColumns,
+      );
+      expect(gridTemplateColumns).not.toBe('none');
 
       const demandRows = demand.locator('[data-rci-demand-bar]');
       await expect(demandRows).toHaveCount(3);

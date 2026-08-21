@@ -170,6 +170,9 @@ This is a **conservative verification map**, not the architectural dependency gr
 | `terrain-three` | `game`, `terrain-lab` |
 | `water-three` | `game`, `terrain-lab` |
 | `zone-three` | `game` |
+| `citizen-mobility-core` | `traffic-core`, `game` |
+| `traffic-core` | `traffic-three`, `game` |
+| `traffic-three` | `game` |
 
 Maintenance rules:
 
@@ -177,6 +180,7 @@ Maintenance rules:
 - Inspect relevant workspace `package.json` manifests whenever dependency relationships change.
 - Update this map in the same PR as any dependency relationship change that alters consumers.
 - A new package must have ownership and Level 2 consumers assigned before its implementation PR is ready.
+- The PR-T2 `tooling/verification/` impact resolver is the deterministic changed-source-to-verification foundation. Its ownership map is complementary to this table; when the resolver expands consumers it must remain a superset of the rows above. `pnpm verify:impact <changed files...>` previews the plan. Unknown ownership escalates to `GRAPH_BLIND`; global-pattern files escalate to `GLOBAL`. The resolver never reduces browser authority or changes CI gate execution.
 - If a listed consumer has no `test` script, run its available `typecheck`/build gate as appropriate rather than fabricating a no-op test.
 - A later workflow version may replace this table with affected/dependent graph tooling; until then this map is authoritative for Level 2 selection.
 

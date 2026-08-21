@@ -17,5 +17,5 @@ export const FOUNDATION_TRAFFIC_PRESENTATION_POLICY: TrafficPresentationPolicy =
   midRadiusMeters: 192,
   nearUpdateEveryFrames: 1,
   midUpdateEveryFrames: 3,
-  vehicleMinimumHeadwayMillimeters: 4_500,
+  vehicleMinimumHeadwayMillimeters: 650,
 });

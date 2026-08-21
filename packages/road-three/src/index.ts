@@ -5,6 +5,11 @@ export { createRoadMaterials } from './material-factory.js';
 export type { RoadMaterials } from './material-factory.js';
 export { RoadChunkPresentation } from './road-chunk-presentation.js';
 export type { RoadPresentationSource } from './road-chunk-presentation.js';
+export {
+  buildRoadCornerLaneMarkingMesh,
+  classifyRoadCorner,
+} from './road-corner-marking-geometry.js';
+export type { RoadCornerKind } from './road-corner-marking-geometry.js';
 export { buildRoadCellMesh, mergeRoadCellMeshes } from './road-geometry.js';
 export { buildRoadInvalidMarker } from './road-invalid-marker.js';
 export type { RoadInvalidMarkerData } from './road-invalid-marker.js';

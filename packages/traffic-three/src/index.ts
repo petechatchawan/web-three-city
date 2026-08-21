@@ -1,3 +1,4 @@
+export * from './cubic-motion-curve.js';
 export * from './directed-lane-path.js';
 export * from './intersection-lane-connector.js';
 export * from './materialization-policy.js';
@@ -10,6 +11,7 @@ export * from './traffic-presentation-metrics.js';
 export * from './traffic-spatial-index.js';
 export * from './vehicle-agent.js';
 export * from './vehicle-appearance.js';
+export * from './vehicle-motion-kinematics.js';
 export * from './vehicle-pool.js';
 export * from './vehicle-spacing.js';
 export * from './visual-scale-policy.js';

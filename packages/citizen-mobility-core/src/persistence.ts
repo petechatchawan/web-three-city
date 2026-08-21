@@ -18,6 +18,22 @@ export interface MobilitySaveV1 {
   readonly trips: readonly MobilityTrip[];
 }
 
+/**
+ * Current persistence envelope. The in-memory snapshot remains the durable
+ * trip authority; `schedulePolicyVersion` declares that only future schedule
+ * collection uses SchedulePolicyV2 after load/migration.
+ */
+export interface MobilitySaveV2 {
+  readonly schemaVersion: 2;
+  readonly revision: number;
+  readonly policyVersion: 2;
+  readonly schedulePolicyVersion: 2;
+  readonly scheduleSeedVersion: 1;
+  readonly nextTripSequence: number;
+  readonly citizenStates: readonly CitizenMobilityState[];
+  readonly trips: readonly MobilityTrip[];
+}
+
 export type MobilitySaveDecodeResult =
   | Readonly<{ ok: true; value: MobilitySnapshotV1 }>
   | Readonly<{ ok: false; error: Readonly<{ code: 'mobility-save:invalid' }> }>;
@@ -136,4 +152,55 @@ export function decodeMobilitySaveV1(input: unknown): MobilitySaveDecodeResult {
     }
     throw error;
   }
+}
+
+export function encodeMobilitySaveV2(snapshot: MobilitySnapshotV1): MobilitySaveV2 {
+  const canonical = createMobilitySnapshot(snapshot);
+  return Object.freeze({
+    schemaVersion: 2,
+    revision: canonical.revision,
+    policyVersion: 2,
+    schedulePolicyVersion: 2,
+    scheduleSeedVersion: canonical.scheduleSeedVersion,
+    nextTripSequence: canonical.nextTripSequence,
+    citizenStates: Object.freeze(
+      canonical.citizenStates.map((state) => Object.freeze({ ...state })),
+    ),
+    trips: Object.freeze(canonical.trips.map((trip) => Object.freeze({ ...trip }))),
+  });
+}
+
+export function decodeMobilitySaveV2(input: unknown): MobilitySaveDecodeResult {
+  if (
+    !isRecord(input) ||
+    input.schemaVersion !== 2 ||
+    input.policyVersion !== 2 ||
+    input.schedulePolicyVersion !== 2 ||
+    input.scheduleSeedVersion !== MOBILITY_SCHEDULE_SEED_VERSION ||
+    !Number.isSafeInteger(input.revision) ||
+    !Number.isSafeInteger(input.nextTripSequence) ||
+    !Array.isArray(input.citizenStates) ||
+    !Array.isArray(input.trips)
+  ) {
+    return Object.freeze({ ok: false, error: Object.freeze({ code: 'mobility-save:invalid' }) });
+  }
+
+  return decodeMobilitySaveV1(
+    Object.freeze({
+      schemaVersion: MOBILITY_SCHEMA_VERSION,
+      revision: input.revision,
+      policyVersion: MOBILITY_POLICY_VERSION,
+      scheduleSeedVersion: input.scheduleSeedVersion,
+      nextTripSequence: input.nextTripSequence,
+      citizenStates: input.citizenStates,
+      trips: input.trips,
+    }),
+  );
+}
+
+/** Pure migration for legacy V1 bytes; callers choose when to write V2. */
+export function migrateMobilitySaveV1ToV2(input: MobilitySaveV1): MobilitySaveV2 {
+  const decoded = decodeMobilitySaveV1(input);
+  if (!decoded.ok) throw new MobilityContractError('mobility:invalid-state');
+  return encodeMobilitySaveV2(decoded.value);
 }

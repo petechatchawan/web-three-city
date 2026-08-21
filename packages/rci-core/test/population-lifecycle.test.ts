@@ -42,6 +42,30 @@ const zeroRateRegistries = createFoundationRciRegistries({
 });
 
 describe('RCI daily population lifecycle', () => {
+  it('does not run daily lifecycle work during 08:00 to 08:01', () => {
+    const snapshot = createPartneredHouseholdSnapshot();
+    const plan = planRciTick({
+      rci: snapshot,
+      simulationBefore: testSimulationBefore,
+      simulationAfter: testSimulationAfter,
+      macroHourTransition: {
+        beforeAbsoluteGameMinute: 8 * 60,
+        afterAbsoluteGameMinute: 8 * 60 + 1,
+        beforeMacroHourIndex: 8,
+        afterMacroHourIndex: 8,
+        crossed: false,
+      },
+      buildingsBefore: testBuildings,
+      buildingsAfter: testBuildings,
+      registries: guaranteedBirthRegistries,
+      configuration: { populationRateProfileDefinitionId: 'population-rate.fixture.birth.v1' },
+    });
+
+    expect(plan.valid).toBe(true);
+    expect(plan.proposedSnapshot).toBe(snapshot);
+    expect(plan.emittedEvents).toEqual([]);
+  });
+
   it('creates a child, Household membership, and biological parent relationships atomically', () => {
     const snapshot = createPartneredHouseholdSnapshot();
     const plan = planRciTick({

@@ -9,7 +9,10 @@ import {
   createEmptyRoadSnapshot,
   planRoadMutation,
 } from '@web-three-city/road-core';
-import { createInitialSimulationSnapshot } from '@web-three-city/simulation-core';
+import {
+  createInitialSimulationSnapshot,
+  deriveMacroHourIndex,
+} from '@web-three-city/simulation-core';
 import { generateCoastalTerrain } from '@web-three-city/terrain-generator';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { createEmptyZoneSnapshot } from '@web-three-city/zone-core';
@@ -17,9 +20,23 @@ import { describe, expect, it } from 'vitest';
 import { createApplicationFixture } from '../../test/application-fixtures.js';
 import { CommittedWorldStore, createCommittedWorldFromDomainState } from './committed-world.js';
 import { fingerprintCommittedWorld } from './committed-world-fingerprint.js';
-import { DefaultWorldTransactionCoordinator } from './world-transaction-coordinator.js';
+import {
+  DefaultWorldTransactionCoordinator,
+  StaticWorldValidationCache,
+} from './world-transaction-coordinator.js';
 
 describe('WorldTransactionCoordinator', () => {
+  it('reuses static validation only for the same immutable authority references', () => {
+    const initial = createApplicationFixture();
+    const changedStaticWorld = createApplicationFixture({ applicationRevision: 1 });
+    const cache = new StaticWorldValidationCache();
+
+    expect(cache.shouldValidate(initial)).toBe(true);
+    cache.markValidated(initial);
+    expect(cache.shouldValidate(initial)).toBe(false);
+    expect(cache.shouldValidate(changedStaticWorld)).toBe(true);
+  });
+
   it('rejects stale content without changing committed authority', () => {
     const initial = createApplicationFixture();
     const store = new CommittedWorldStore(initial);
@@ -95,9 +112,15 @@ describe('WorldTransactionCoordinator', () => {
       zones: createEmptyZoneSnapshot(WORLD_CONFIG),
       buildings: createEmptyBuildingSnapshot(WORLD_CONFIG),
       simulation,
-      rci: createInitialRciSnapshot({ absoluteTick: simulation.absoluteTick }),
+      rci: createInitialRciSnapshot({
+        absoluteTick: deriveMacroHourIndex(simulation.absoluteGameMinute),
+      }),
       economy: createInitialEconomySnapshot(
-        { year: 1, month: 1, latestDailySettlementTick: simulation.absoluteTick },
+        {
+          year: 1,
+          month: 1,
+          latestDailySettlementTick: deriveMacroHourIndex(simulation.absoluteGameMinute),
+        },
         FOUNDATION_ECONOMY_RULES,
       ),
     });

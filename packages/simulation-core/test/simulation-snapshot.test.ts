@@ -4,19 +4,19 @@ import { createInitialSimulationSnapshot, createSimulationSnapshot } from '../sr
 describe('simulation snapshot', () => {
   it('creates immutable initial authority', () => {
     const snapshot = createInitialSimulationSnapshot();
-    expect(snapshot).toEqual({ revision: 0, absoluteTick: 8, growthSequence: 0 });
+    expect(snapshot).toEqual({ revision: 0, absoluteGameMinute: 480, growthSequence: 0 });
     expect(Object.isFrozen(snapshot)).toBe(true);
   });
 
   it('rejects invalid authority', () => {
     expect(() =>
-      createSimulationSnapshot({ revision: -1, absoluteTick: 8, growthSequence: 0 }),
+      createSimulationSnapshot({ revision: -1, absoluteGameMinute: 480, growthSequence: 0 }),
     ).toThrow();
     expect(() =>
-      createSimulationSnapshot({ revision: 0, absoluteTick: -1, growthSequence: 0 }),
+      createSimulationSnapshot({ revision: 0, absoluteGameMinute: -1, growthSequence: 0 }),
     ).toThrow();
     expect(() =>
-      createSimulationSnapshot({ revision: 0, absoluteTick: 8, growthSequence: -1 }),
+      createSimulationSnapshot({ revision: 0, absoluteGameMinute: 480, growthSequence: -1 }),
     ).toThrow();
   });
 });

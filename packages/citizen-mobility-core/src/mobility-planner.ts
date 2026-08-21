@@ -1,12 +1,13 @@
 import {
   assertMobilityId,
   compareMobilityId,
+  type CitizenMobilityState,
   type MobilityTripPlanningRequest,
   type PresentCitizenMobilityProjection,
 } from './contracts.js';
 import { MobilityContractError } from './errors.js';
 import { createMobilitySnapshot, type MobilitySnapshotV1 } from './mobility-snapshot.js';
-import type { DueMobilityBoundary } from './schedule-policy.js';
+import { deriveCitizenScheduleForDay, type DueMobilityBoundary } from './schedule-policy.js';
 
 export interface MobilityPlanResult {
   readonly baseRevision: number;
@@ -54,6 +55,39 @@ function resolveTripEndpoints(
   return Object.freeze({ ok: true, originBuildingId, destinationBuildingId });
 }
 
+function desiredActivityAtGameMinute(
+  citizen: PresentCitizenMobilityProjection,
+  currentGameMinute: number,
+): DueMobilityBoundary['nextActivity'] {
+  const dayIndex = Math.floor(currentGameMinute / 1440);
+  let desiredActivity: DueMobilityBoundary['nextActivity'] = 'Home';
+  for (const boundary of deriveCitizenScheduleForDay(citizen, dayIndex)) {
+    if (boundary.atGameMinute > currentGameMinute) break;
+    desiredActivity = boundary.nextActivity;
+  }
+  return desiredActivity;
+}
+
+function resolveCatchUpEndpoints(
+  desiredActivity: DueMobilityBoundary['nextActivity'],
+  state: CitizenMobilityState,
+  citizen: PresentCitizenMobilityProjection,
+): ResolvedTripEndpoints {
+  const destinationBuildingId =
+    desiredActivity === 'Work' ? citizen.workBuildingId : citizen.homeBuildingId;
+  if (state.stationaryBuildingId === null) {
+    return Object.freeze({ ok: false, reason: 'OriginUnavailable' });
+  }
+  if (destinationBuildingId === null || destinationBuildingId === state.stationaryBuildingId) {
+    return Object.freeze({ ok: false, reason: 'DestinationUnavailable' });
+  }
+  return Object.freeze({
+    ok: true,
+    originBuildingId: state.stationaryBuildingId,
+    destinationBuildingId,
+  });
+}
+
 export function formatMobilityTripId(sequence: number): string {
   if (!Number.isSafeInteger(sequence) || sequence < 1) {
     throw new MobilityContractError('mobility:invalid-sequence');
@@ -86,6 +120,11 @@ export function planMobilityBoundaries(
     const state = stateByCitizenId.get(boundary.citizenId);
     if (citizen === undefined || !citizen.present || state === undefined) continue;
     if (state.activeTripId !== null || requestedCitizens.has(boundary.citizenId)) continue;
+    const desiredBuildingId =
+      boundary.nextActivity === 'Work' ? citizen.workBuildingId : citizen.homeBuildingId;
+    if (state.stationaryBuildingId !== null && state.stationaryBuildingId === desiredBuildingId) {
+      continue;
+    }
 
     const endpoints = resolveTripEndpoints(boundary, citizen);
     if (!endpoints.ok) {
@@ -105,6 +144,57 @@ export function planMobilityBoundaries(
       }),
     );
     requestedCitizens.add(boundary.citizenId);
+  }
+
+  return Object.freeze({
+    baseRevision: snapshot.revision,
+    proposedSnapshot: snapshot,
+    planningRequests: Object.freeze(planningRequests),
+    skipped: Object.freeze(skipped.map((entry) => Object.freeze({ ...entry }))),
+  });
+}
+
+export function planMobilityCatchUp(
+  input: Readonly<{
+    snapshot: MobilitySnapshotV1;
+    citizens: readonly PresentCitizenMobilityProjection[];
+    currentGameMinute: number;
+  }>,
+): MobilityPlanResult {
+  if (!Number.isSafeInteger(input.currentGameMinute) || input.currentGameMinute < 0) {
+    throw new MobilityContractError('mobility:invalid-time');
+  }
+  const snapshot = createMobilitySnapshot(input.snapshot);
+  const citizenById = new Map(
+    input.citizens.map((citizen) => [citizen.citizenId, citizen] as const),
+  );
+  const planningRequests: MobilityTripPlanningRequest[] = [];
+  const skipped: { citizenId: string; reason: MobilitySkipReason }[] = [];
+
+  for (const state of snapshot.citizenStates) {
+    const citizen = citizenById.get(state.citizenId);
+    if (citizen === undefined || !citizen.present || state.activeTripId !== null) continue;
+
+    const desiredActivity = desiredActivityAtGameMinute(citizen, input.currentGameMinute);
+    const desiredBuildingId =
+      desiredActivity === 'Work' ? citizen.workBuildingId : citizen.homeBuildingId;
+    if (desiredBuildingId !== null && desiredBuildingId === state.stationaryBuildingId) continue;
+    const endpoints = resolveCatchUpEndpoints(desiredActivity, state, citizen);
+    if (!endpoints.ok) {
+      skipped.push({ citizenId: citizen.citizenId, reason: endpoints.reason });
+      continue;
+    }
+
+    planningRequests.push(
+      Object.freeze({
+        tripId: formatMobilityTripId(snapshot.nextTripSequence + planningRequests.length),
+        citizenId: citizen.citizenId,
+        purpose: desiredActivity === 'Work' ? 'CommuteToWork' : 'CommuteHome',
+        originBuildingId: endpoints.originBuildingId,
+        destinationBuildingId: endpoints.destinationBuildingId,
+        departureGameMinute: input.currentGameMinute,
+      }),
+    );
   }
 
   return Object.freeze({

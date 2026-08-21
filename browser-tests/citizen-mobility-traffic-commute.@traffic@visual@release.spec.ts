@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 type TrafficSnapshot = {
   worldRevision: number;
-  absoluteTick: number;
+  absoluteGameMinute: number;
   citizenIds: string[];
   mobility: {
     citizenStates: Array<{
@@ -19,18 +19,39 @@ type TrafficSnapshot = {
       status: string;
     }>;
   };
-  traffic: { activeTrips: Array<{ tripId: string; citizenId: string; mode: 'Walk' | 'Drive' }> };
+  traffic: {
+    timeCursor: {
+      sourceGameMinute: number;
+      completedTransportQuantaWithinMinute: number;
+      absoluteTransportSecond: number;
+      temporalPolicyVersion: number;
+    };
+    activeTrips: Array<{
+      tripId: string;
+      citizenId: string;
+      mode: 'Walk' | 'Drive';
+      status: 'Active' | 'Arrived' | 'Failed' | 'Cancelled';
+      driveMovementPhase: 'WaitingForEntry' | 'Entering' | 'Travelling' | 'Leaving' | null;
+    }>;
+    queuedResourceSummaries: Array<{ resourceId: string; tripIds: string[] }>;
+    reservedResourceSummaries: Array<{ resourceId: string; tripId: string }>;
+  };
   presentation: {
     visiblePedestrians: number;
     visibleVehicles: number;
-    journeyReplayCount: number;
-    journeyReplayPedestrians: number;
-    journeyReplayVehicles: number;
+    materializedTripIds: string[];
+    replayCount?: number;
+    canonicalActiveDrives: Array<{
+      tripId: string;
+      driveMovementPhase: string;
+      reservationResourceIds: string[];
+    }>;
   } | null;
 };
 
 type FixtureSummary = {
-  startAbsoluteTick: number;
+  startAbsoluteGameMinute: number;
+  departureGameMinutes: Record<string, number>;
   citizenIds: string[];
   walkCitizenIds: string[];
   driveCitizenIds: string[];
@@ -64,18 +85,19 @@ async function installFixture(page: import('@playwright/test').Page): Promise<Fi
 }
 
 async function step(page: import('@playwright/test').Page, count = 1): Promise<void> {
-  for (let index = 0; index < count; index += 1) {
-    const advanced = await page.evaluate(() => {
-      const api = (
-        window as Window & {
-          __WEB_THREE_CITY_TIME__?: { step(): boolean };
-        }
-      ).__WEB_THREE_CITY_TIME__;
-      if (api === undefined) throw new Error('time test API unavailable');
-      return api.step();
-    });
-    expect(advanced).toBe(true);
-  }
+  const advanced = await page.evaluate((steps) => {
+    const api = (
+      window as Window & {
+        __WEB_THREE_CITY_TIME__?: { step(): boolean };
+      }
+    ).__WEB_THREE_CITY_TIME__;
+    if (api === undefined) throw new Error('time test API unavailable');
+    for (let index = 0; index < steps; index += 1) {
+      if (!api.step()) return false;
+    }
+    return true;
+  }, count);
+  expect(advanced).toBe(true);
 }
 
 async function trafficSnapshot(page: import('@playwright/test').Page): Promise<TrafficSnapshot> {
@@ -91,20 +113,20 @@ async function trafficSnapshot(page: import('@playwright/test').Page): Promise<T
 }
 
 test.describe('Citizen commute browser acceptance', () => {
-  test('morning commute uses real Citizens, deterministic Walk/Drive choice, and visible Three.js agents', async ({
+  test('morning commute exposes only authoritative lifecycle and materialization facts', async ({
     page,
-  }) => {
+  }, testInfo) => {
     const fixture = await installFixture(page);
-    expect(fixture.startAbsoluteTick).toBe(6);
-    await step(page, 2);
+    expect(fixture.startAbsoluteGameMinute).toBe(540);
+    await step(page, 1);
 
-    await expect
-      .poll(async () => (await trafficSnapshot(page)).presentation?.journeyReplayCount ?? 0)
-      .toBeGreaterThan(0);
     const state = await trafficSnapshot(page);
-    expect(state.absoluteTick).toBe(8);
+    expect(state.absoluteGameMinute).toBeGreaterThan(fixture.startAbsoluteGameMinute);
+    expect(state.traffic.timeCursor.sourceGameMinute).toBe(state.absoluteGameMinute);
+    expect(state.traffic.timeCursor.completedTransportQuantaWithinMinute).toBeGreaterThanOrEqual(0);
+    expect(state.traffic.timeCursor.absoluteTransportSecond).toBeGreaterThan(0);
+    expect(state.traffic.timeCursor.temporalPolicyVersion).toBeGreaterThan(0);
     expect(canonicalCitizenIds(state.citizenIds)).toEqual(canonicalCitizenIds(fixture.citizenIds));
-    expect(state.mobility.trips).toHaveLength(fixture.citizenIds.length);
     expect(state.mobility.trips.every((trip) => fixture.citizenIds.includes(trip.citizenId))).toBe(
       true,
     );
@@ -115,33 +137,50 @@ test.describe('Citizen commute browser acceptance', () => {
     for (const citizenId of fixture.driveCitizenIds)
       expect(modeByCitizen.get(citizenId)).toBe('Drive');
 
-    expect(state.presentation?.journeyReplayPedestrians).toBe(fixture.walkCitizenIds.length);
-    expect(state.presentation?.journeyReplayVehicles).toBe(fixture.driveCitizenIds.length);
+    const activeTripIds = state.traffic.activeTrips.map((trip) => trip.tripId);
+    expect(new Set(activeTripIds).size).toBe(activeTripIds.length);
+    expect(
+      state.traffic.activeTrips.every(
+        (trip) =>
+          trip.status === 'Active' &&
+          (trip.mode === 'Walk'
+            ? trip.driveMovementPhase === null
+            : trip.driveMovementPhase !== null),
+      ),
+    ).toBe(true);
+    expect(
+      state.presentation?.materializedTripIds.every((tripId) => activeTripIds.includes(tripId)),
+    ).toBe(true);
+    expect(state.presentation?.replayCount ?? 0).toBe(0);
     expect(state.presentation?.visiblePedestrians ?? 0).toBeLessThanOrEqual(300);
     expect(state.presentation?.visibleVehicles ?? 0).toBeLessThanOrEqual(300);
     expect(
       (state.presentation?.visiblePedestrians ?? 0) + (state.presentation?.visibleVehicles ?? 0),
     ).toBeLessThanOrEqual(500);
+
+    await page.screenshot({
+      path: testInfo.outputPath('traffic-motion-realism-mobile.png'),
+      fullPage: true,
+    });
   });
 
-  test('evening commute returns the same real Citizens Home without creating synthetic citizens', async ({
+  test('active Drive trips publish phase and resource facts without synthetic replay', async ({
     page,
   }) => {
     const fixture = await installFixture(page);
-    await step(page, 11);
-    await expect
-      .poll(async () => (await trafficSnapshot(page)).presentation?.journeyReplayCount ?? 0)
-      .toBeGreaterThan(0);
+    await step(page, 1);
 
     const state = await trafficSnapshot(page);
-    expect(state.absoluteTick).toBe(17);
-    expect(canonicalCitizenIds(state.citizenIds)).toEqual(canonicalCitizenIds(fixture.citizenIds));
-    expect(state.mobility.trips).toHaveLength(fixture.citizenIds.length * 2);
+    const driveTrips = state.traffic.activeTrips.filter((trip) => trip.mode === 'Drive');
+    expect(driveTrips.length).toBeGreaterThan(0);
     expect(
-      state.mobility.citizenStates.every((citizen) => citizen.currentActivity === 'Home'),
+      state.presentation?.canonicalActiveDrives.every(
+        (drive) =>
+          drive.driveMovementPhase.length > 0 &&
+          drive.reservationResourceIds.every((resourceId) => typeof resourceId === 'string'),
+      ),
     ).toBe(true);
-    expect(new Set(state.mobility.trips.map((trip) => trip.citizenId))).toEqual(
-      new Set(fixture.citizenIds),
-    );
+    expect(state.presentation?.replayCount ?? 0).toBe(0);
+    expect(canonicalCitizenIds(state.citizenIds)).toEqual(canonicalCitizenIds(fixture.citizenIds));
   });
 });

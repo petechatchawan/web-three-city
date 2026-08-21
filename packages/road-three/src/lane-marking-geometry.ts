@@ -6,6 +6,10 @@ import {
   type RoadCellView,
 } from '@web-three-city/road-core';
 import type { WorldConfig } from '@web-three-city/world-core';
+import {
+  buildRoadCornerLaneMarkingMesh,
+  classifyRoadCorner,
+} from './road-corner-marking-geometry.js';
 import { createRoadMeshData, emptyRoadMeshData, type RoadMeshData } from './road-mesh-data.js';
 import { roadStyleProfileForDefinition } from './road-style-profile.js';
 
@@ -106,5 +110,7 @@ export function buildRoadLaneMarkingMesh(view: RoadCellView, config: WorldConfig
   if (view.connections === eastWest) {
     return buildDividerRectangle(view, config, 'east-west');
   }
+  const corner = classifyRoadCorner(view.connections);
+  if (corner !== null) return buildRoadCornerLaneMarkingMesh(view, config, corner);
   return emptyRoadMeshData();
 }

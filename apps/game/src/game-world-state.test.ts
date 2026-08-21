@@ -20,10 +20,10 @@ function initialState(): GameWorldStateInput {
     revision: 0,
     simulation,
     buildings: createEmptyBuildingSnapshot(WORLD_CONFIG),
-    rci: createInitialRciSnapshot({ absoluteTick: simulation.absoluteTick }),
+    rci: createInitialRciSnapshot({ absoluteTick: simulation.absoluteGameMinute }),
     roads: createEmptyRoadSnapshot(WORLD_CONFIG),
     economy: createInitialEconomySnapshot(
-      { year: 1, month: 1, latestDailySettlementTick: simulation.absoluteTick },
+      { year: 1, month: 1, latestDailySettlementTick: simulation.absoluteGameMinute },
       FOUNDATION_ECONOMY_RULES,
     ),
   });
@@ -50,7 +50,7 @@ describe('GameWorldStateStore', () => {
       simulation: Object.freeze({
         ...before.simulation,
         revision: 1,
-        absoluteTick: before.simulation.absoluteTick + 1,
+        absoluteGameMinute: before.simulation.absoluteGameMinute + 1,
       }),
     });
     expect(store.replace(0, next)).toBe(next);
@@ -75,7 +75,7 @@ describe('GameWorldStateStore', () => {
     const simulation = Object.freeze({
       ...before.simulation,
       revision: before.simulation.revision + 1,
-      absoluteTick: before.simulation.absoluteTick + 1,
+      absoluteGameMinute: before.simulation.absoluteGameMinute + 1,
     });
     const synchronized = store.synchronizeExternal({
       simulation,

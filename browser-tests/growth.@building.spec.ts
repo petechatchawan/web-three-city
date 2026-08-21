@@ -36,6 +36,12 @@ test('exposes the simple calendar and deterministic time controls', async ({ pag
   await normal.click();
   await expect(normal).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('[data-simulation-step]')).toHaveCount(0);
+  await expect
+    .poll(() => page.locator('[data-metric="gameTime"] strong').textContent(), {
+      timeout: 4_000,
+      message: 'automatic simulation must refresh the visible calendar',
+    })
+    .not.toBe('Y1 M1 D1 08:00');
   await fast.click();
   await expect(fast).toHaveAttribute('aria-pressed', 'true');
   await faster.click();

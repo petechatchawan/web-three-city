@@ -48,6 +48,8 @@ export interface TrafficPresentationAgent {
   readonly turn: TrafficPresentationTurn | null;
   readonly routeSegments: readonly TrafficPresentationRouteSegment[];
   readonly routeDistanceMillimeters: number;
+  readonly driveMovementPhase?: string;
+  readonly reservationResourceIds?: readonly string[];
 }
 
 export interface TrafficPresentationSnapshot {
@@ -240,6 +242,8 @@ function routeProjectionForGraph(
           from: segment.from,
           to: segment.to,
           lengthMillimeters: segment.lengthMillimeters,
+          ...(segment.curve === undefined ? {} : { curve: segment.curve }),
+          movementKind: segment.movementKind,
         }),
       ),
     ),
@@ -320,6 +324,13 @@ export function createTrafficPresentationSnapshot(
       agent.progressQ,
     );
     if (endpoints === null || routeDistanceMillimeters === null) return [];
+    const tripWithAuthority = logicalTrip as unknown as
+      | Readonly<{
+          driveMovementPhase?: string;
+          entryReservationResourceIds?: readonly string[];
+          activeNodeTraversal?: Readonly<{ reservedResourceIds: readonly string[] }>;
+        }>
+      | undefined;
     return [
       Object.freeze({
         ...agent,
@@ -328,6 +339,17 @@ export function createTrafficPresentationSnapshot(
         turn: null,
         routeSegments: route.segments,
         routeDistanceMillimeters,
+        ...(tripWithAuthority?.driveMovementPhase === undefined
+          ? {}
+          : { driveMovementPhase: tripWithAuthority.driveMovementPhase }),
+        ...(tripWithAuthority === undefined
+          ? {}
+          : {
+              reservationResourceIds: Object.freeze([
+                ...(tripWithAuthority.entryReservationResourceIds ?? []),
+                ...(tripWithAuthority.activeNodeTraversal?.reservedResourceIds ?? []),
+              ]),
+            }),
       }),
     ];
   });

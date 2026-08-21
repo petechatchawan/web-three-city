@@ -21,11 +21,16 @@ import {
   type RoadPlacementEnvironment,
   type RoadSnapshot,
 } from '@web-three-city/road-core';
-import { createSimulationSnapshot, type SimulationSnapshot } from '@web-three-city/simulation-core';
+import {
+  createSimulationSnapshot,
+  deriveMacroHourIndex,
+  type SimulationSnapshot,
+} from '@web-three-city/simulation-core';
 import { createTerrainMap, type TerrainSnapshot } from '@web-three-city/terrain-core';
 import {
   createEmptyTrafficSnapshot,
   createTrafficSnapshot,
+  createTrafficSnapshotV2,
   type TrafficSnapshotV1,
 } from '@web-three-city/traffic-core';
 import { deriveWaterSnapshot, type WaterSnapshot } from '@web-three-city/water-core';
@@ -76,6 +81,15 @@ export type CommittedWorldInput = Omit<CommittedWorld, 'mobility' | 'traffic'> &
   }>;
 
 type CompleteCommittedWorldInput = Omit<CommittedWorld, never>;
+
+export interface CommittedWorldCreationOptions {
+  /**
+   * Reuse static authority and derived environments for a transport-only
+   * publication. Domain revisions are the invalidation boundary for these
+   * immutable snapshots; dynamic Mobility/Traffic state is still cloned.
+   */
+  readonly reuseStaticFrom?: CommittedWorld;
+}
 
 function assertApplicationRevision(revision: number): void {
   if (!Number.isSafeInteger(revision) || revision < 0)
@@ -151,58 +165,89 @@ function cloneForRead(world: CommittedWorld): CommittedWorld {
   return clone;
 }
 
-export function createCommittedWorld(input: CommittedWorldInput): CommittedWorld {
+export function createCommittedWorld(
+  input: CommittedWorldInput,
+  options: CommittedWorldCreationOptions = {},
+): CommittedWorld {
   const complete = completeCommittedMobilityTraffic(input);
   assertApplicationRevision(complete.revision);
   assertEnvironmentProvenance(complete);
   if (!validateEconomySnapshot(complete.economy, FOUNDATION_ECONOMY_RULES)) {
     throw new RangeError('committed-world:invalid-economy');
   }
-  const terrain = createTerrainMap({
-    config: WORLD_CONFIG,
-    heightLevels: complete.terrain.heightLevels,
-    seed: complete.terrain.seed,
-    generatorVersion: complete.terrain.generatorVersion,
-    generationAttempt: complete.terrain.generationAttempt,
-    revision: complete.terrain.revision,
-  });
-  const water = cloneWaterSnapshot(complete.water);
-  const roads = createRoadSnapshot(
-    {
-      width: complete.roads.width,
-      height: complete.roads.height,
-      revision: complete.roads.revision,
-      definitionCodes: complete.roads.definitionCodes,
-    },
-    WORLD_CONFIG,
-  );
-  const zones = createZoneSnapshot(
-    {
-      width: complete.zones.width,
-      height: complete.zones.height,
-      revision: complete.zones.revision,
-      definitionCodes: complete.zones.definitionCodes,
-    },
-    WORLD_CONFIG,
-  );
-  const buildings = createBuildingSnapshot(
-    { revision: complete.buildings.revision, instances: complete.buildings.instances },
-    WORLD_CONFIG,
-  );
+  const reusable = options.reuseStaticFrom;
+  const reuseStatic =
+    reusable !== undefined &&
+    complete.terrain === reusable.terrain &&
+    complete.water === reusable.water &&
+    complete.roads === reusable.roads &&
+    complete.zones === reusable.zones &&
+    complete.buildings === reusable.buildings &&
+    complete.terrain.revision === reusable.terrain.revision &&
+    complete.water.sourceTerrainRevision === reusable.water.sourceTerrainRevision &&
+    complete.roads.revision === reusable.roads.revision &&
+    complete.zones.revision === reusable.zones.revision &&
+    complete.buildings.revision === reusable.buildings.revision;
+  const terrain = reuseStatic
+    ? reusable.terrain
+    : createTerrainMap({
+        config: WORLD_CONFIG,
+        heightLevels: complete.terrain.heightLevels,
+        seed: complete.terrain.seed,
+        generatorVersion: complete.terrain.generatorVersion,
+        generationAttempt: complete.terrain.generationAttempt,
+        revision: complete.terrain.revision,
+      });
+  const water = reuseStatic ? reusable.water : cloneWaterSnapshot(complete.water);
+  const roads = reuseStatic
+    ? reusable.roads
+    : createRoadSnapshot(
+        {
+          width: complete.roads.width,
+          height: complete.roads.height,
+          revision: complete.roads.revision,
+          definitionCodes: complete.roads.definitionCodes,
+        },
+        WORLD_CONFIG,
+      );
+  const zones = reuseStatic
+    ? reusable.zones
+    : createZoneSnapshot(
+        {
+          width: complete.zones.width,
+          height: complete.zones.height,
+          revision: complete.zones.revision,
+          definitionCodes: complete.zones.definitionCodes,
+        },
+        WORLD_CONFIG,
+      );
+  const buildings = reuseStatic
+    ? reusable.buildings
+    : createBuildingSnapshot(
+        { revision: complete.buildings.revision, instances: complete.buildings.instances },
+        WORLD_CONFIG,
+      );
   const simulation = createSimulationSnapshot(complete.simulation);
   const mobility = createMobilitySnapshot(complete.mobility);
-  const traffic = createTrafficSnapshot(complete.traffic);
-  const environments = Object.freeze({
-    road: createRoadPlacementEnvironment(terrain, water, WORLD_CONFIG),
-    zone: createZonePlacementEnvironment(
-      terrain,
-      water,
-      roads,
-      createBuildingWorldOccupancy(buildings),
-      WORLD_CONFIG,
-    ),
-    building: createBuildingDevelopmentEnvironment(terrain, water, roads, zones, WORLD_CONFIG),
-  });
+  // Traffic V2 is introduced at the Game transaction seam ahead of the Save-schema cutover.
+  // Keep the declared application compatibility shape until the later persistence migration.
+  const traffic =
+    (complete.traffic as { schemaVersion: number }).schemaVersion === 2
+      ? (createTrafficSnapshotV2(complete.traffic as never) as unknown as TrafficSnapshotV1)
+      : createTrafficSnapshot(complete.traffic);
+  const environments = reuseStatic
+    ? reusable.environments
+    : Object.freeze({
+        road: createRoadPlacementEnvironment(terrain, water, WORLD_CONFIG),
+        zone: createZonePlacementEnvironment(
+          terrain,
+          water,
+          roads,
+          createBuildingWorldOccupancy(buildings),
+          WORLD_CONFIG,
+        ),
+        building: createBuildingDevelopmentEnvironment(terrain, water, roads, zones, WORLD_CONFIG),
+      });
   const world = Object.freeze({
     revision: complete.revision,
     terrain,
@@ -230,6 +275,20 @@ export class CommittedWorldStore {
 
   snapshot(): CommittedWorld {
     return cloneForRead(this.#world);
+  }
+
+  /** Internal coordinator read; callers must not expose or mutate this object. */
+  committedForTransaction(): CommittedWorld {
+    return this.#world;
+  }
+
+  /** Internal coordinator commit for an already defensively-created candidate. */
+  replacePrepared(expectedRevision: number, next: CommittedWorld): void {
+    if (expectedRevision !== this.#world.revision)
+      throw new Error('committed-world:stale-revision');
+    if (next.revision !== this.#world.revision + 1)
+      throw new Error('committed-world:invalid-next-revision');
+    this.#world = next;
   }
 
   replace(expectedRevision: number, next: CommittedWorldInput): CommittedWorld {
@@ -305,7 +364,7 @@ export function createCommittedWorldFromDomainState(input: CommittedDomainState)
       citizens: createPresentCitizenMobilityProjection(
         input.rci,
         input.buildings,
-        input.simulation.absoluteTick,
+        deriveMacroHourIndex(input.simulation.absoluteGameMinute),
       ),
     }).snapshot;
   }
@@ -330,7 +389,7 @@ export function createCommittedWorldFromDomainState(input: CommittedDomainState)
           environments.building,
         ),
       }),
-    });
+    }) as TrafficSnapshotV1;
   }
 
   rememberMobilityTrafficState(input.rci, mobility, traffic);

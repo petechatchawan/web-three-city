@@ -6,7 +6,10 @@ import {
 } from '@web-three-city/economy-core';
 import { createInitialRciSnapshot } from '@web-three-city/rci-core';
 import { createEmptyRoadSnapshot, type RoadSnapshot } from '@web-three-city/road-core';
-import { createInitialSimulationSnapshot } from '@web-three-city/simulation-core';
+import {
+  createInitialSimulationSnapshot,
+  createSimulationSnapshot,
+} from '@web-three-city/simulation-core';
 import { createTerrainMap } from '@web-three-city/terrain-core';
 import { createEmptyTrafficSnapshot } from '@web-three-city/traffic-core';
 import { deriveWaterSnapshot } from '@web-three-city/water-core';
@@ -26,7 +29,10 @@ import {
   createCommittedWorld,
   type CommittedWorldInput,
 } from './committed-world.js';
-import { fingerprintCommittedWorld } from './committed-world-fingerprint.js';
+import {
+  fingerprintCommittedWorld,
+  memoizedFingerprintCommittedWorld,
+} from './committed-world-fingerprint.js';
 
 function sourceWorld(revision = 0): CommittedWorldInput {
   const terrain = createTerrainMap({
@@ -57,7 +63,7 @@ function sourceWorld(revision = 0): CommittedWorldInput {
   };
   const buildings = createEmptyBuildingSnapshot(WORLD_CONFIG);
   const simulation = createInitialSimulationSnapshot();
-  const rci = createInitialRciSnapshot({ absoluteTick: simulation.absoluteTick });
+  const rci = createInitialRciSnapshot({ absoluteTick: simulation.absoluteGameMinute });
   const environments = Object.freeze({
     road: createRoadPlacementEnvironment(terrain, waterResult.value, WORLD_CONFIG),
     zone: createZonePlacementEnvironment(
@@ -85,7 +91,7 @@ function sourceWorld(revision = 0): CommittedWorldInput {
     simulation,
     rci,
     economy: createInitialEconomySnapshot(
-      { year: 1, month: 1, latestDailySettlementTick: simulation.absoluteTick },
+      { year: 1, month: 1, latestDailySettlementTick: simulation.absoluteGameMinute },
       FOUNDATION_ECONOMY_RULES,
     ),
     environments,
@@ -209,5 +215,53 @@ describe('CommittedWorldStore', () => {
     expect(fingerprintCommittedWorld(first)).toBe(fingerprintCommittedWorld(second));
     second.terrain.heightLevels[0] = (second.terrain.heightLevels[0] ?? 0) + 1;
     expect(fingerprintCommittedWorld(second)).not.toBe(fingerprintCommittedWorld(first));
+  });
+
+  it('keeps the authority fingerprint identical while reusing immutable static components', () => {
+    const initial = createCommittedWorld(sourceWorld(0));
+    const next = createCommittedWorld(
+      {
+        ...initial,
+        revision: 1,
+        simulation: createSimulationSnapshot({
+          ...initial.simulation,
+          revision: initial.simulation.revision + 1,
+          absoluteGameMinute: initial.simulation.absoluteGameMinute + 1,
+        }),
+      },
+      { reuseStaticFrom: initial },
+    );
+
+    const initialRegular = fingerprintCommittedWorld(initial);
+    expect(memoizedFingerprintCommittedWorld(initial)).toBe(initialRegular);
+    const nextRegular = fingerprintCommittedWorld(next);
+    expect(memoizedFingerprintCommittedWorld(next)).toBe(nextRegular);
+    expect(memoizedFingerprintCommittedWorld(next)).not.toBe(
+      memoizedFingerprintCommittedWorld(initial),
+    );
+  });
+
+  it('reuses static authority only when a transport publication carries the same snapshots', () => {
+    const initial = createCommittedWorld(sourceWorld(0));
+    const next = createCommittedWorld(
+      {
+        ...initial,
+        revision: 1,
+        simulation: createSimulationSnapshot({
+          ...initial.simulation,
+          revision: initial.simulation.revision + 1,
+          absoluteGameMinute: initial.simulation.absoluteGameMinute + 1,
+        }),
+      },
+      { reuseStaticFrom: initial },
+    );
+
+    expect(next.terrain).toBe(initial.terrain);
+    expect(next.water).toBe(initial.water);
+    expect(next.roads).toBe(initial.roads);
+    expect(next.zones).toBe(initial.zones);
+    expect(next.buildings).toBe(initial.buildings);
+    expect(next.environments).toBe(initial.environments);
+    expect(next.simulation).not.toBe(initial.simulation);
   });
 });

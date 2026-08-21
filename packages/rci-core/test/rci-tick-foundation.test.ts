@@ -14,12 +14,12 @@ import {
 
 const before: SimulationSnapshot = Object.freeze({
   revision: 8,
-  absoluteTick: 32,
+  absoluteGameMinute: 32 * 60,
   growthSequence: 0,
 });
 const after: SimulationSnapshot = Object.freeze({
   revision: 9,
-  absoluteTick: 33,
+  absoluteGameMinute: 33 * 60,
   growthSequence: 0,
 });
 

@@ -101,7 +101,7 @@ export function createApplicationFixture(
   const simulation = createInitialSimulationSnapshot();
   const rci = createRciMigrationInventory({
     buildings,
-    absoluteTick: simulation.absoluteTick,
+    absoluteTick: Math.floor(simulation.absoluteGameMinute / 60),
     registries: createFoundationRciRegistries(),
   });
   const environments = Object.freeze({
@@ -131,7 +131,11 @@ export function createApplicationFixture(
     simulation,
     rci,
     economy: createInitialEconomySnapshot(
-      { year: 1, month: 1, latestDailySettlementTick: simulation.absoluteTick },
+      {
+        year: 1,
+        month: 1,
+        latestDailySettlementTick: Math.floor(simulation.absoluteGameMinute / 60),
+      },
       FOUNDATION_ECONOMY_RULES,
     ),
     environments,

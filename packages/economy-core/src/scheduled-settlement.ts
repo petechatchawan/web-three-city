@@ -105,6 +105,13 @@ export function calculateDailySettlement(
 export interface ScheduledSettlementInput {
   readonly beforeTick: number;
   readonly afterTick: number;
+  readonly macroHourTransition?: Readonly<{
+    beforeAbsoluteGameMinute: number;
+    afterAbsoluteGameMinute: number;
+    beforeMacroHourIndex: number;
+    afterMacroHourIndex: number;
+    crossed: boolean;
+  }>;
   readonly calendar: Readonly<{ year: number; month: number; day: number; hour: number }>;
   readonly taxableActivity: TaxableActivityProjection;
   readonly roadMaintenance: RoadMaintenanceProjection;
@@ -130,7 +137,27 @@ export function settleScheduledEconomy(
   ) {
     return { ok: false, reason: 'invalid-transition' };
   }
-  if (input.calendar.hour !== 8 || snapshot.lastDailySettlementTick >= input.afterTick) {
+  const macroHourTransition = input.macroHourTransition;
+  if (
+    macroHourTransition !== undefined &&
+    (!Number.isSafeInteger(macroHourTransition.beforeAbsoluteGameMinute) ||
+      !Number.isSafeInteger(macroHourTransition.afterAbsoluteGameMinute) ||
+      macroHourTransition.beforeAbsoluteGameMinute < 0 ||
+      macroHourTransition.afterAbsoluteGameMinute < macroHourTransition.beforeAbsoluteGameMinute ||
+      macroHourTransition.beforeMacroHourIndex !==
+        Math.floor(macroHourTransition.beforeAbsoluteGameMinute / 60) ||
+      macroHourTransition.afterMacroHourIndex !==
+        Math.floor(macroHourTransition.afterAbsoluteGameMinute / 60) ||
+      macroHourTransition.crossed !==
+        (macroHourTransition.beforeMacroHourIndex !== macroHourTransition.afterMacroHourIndex))
+  ) {
+    return { ok: false, reason: 'invalid-transition' };
+  }
+  if (macroHourTransition !== undefined && !macroHourTransition.crossed) {
+    return { ok: true, status: 'not-due', snapshot };
+  }
+  const afterTick = macroHourTransition?.afterMacroHourIndex ?? input.afterTick;
+  if (input.calendar.hour !== 8 || snapshot.lastDailySettlementTick >= afterTick) {
     return { ok: true, status: 'not-due', snapshot };
   }
   const calculation = calculateDailySettlement(
@@ -150,7 +177,7 @@ export function settleScheduledEconomy(
       staged,
       {
         baseRevision: staged.revision,
-        atTick: input.afterTick,
+        atTick: afterTick,
         nextPeriod: { year: input.calendar.year, month: input.calendar.month },
       },
       rules,
@@ -168,7 +195,7 @@ export function settleScheduledEconomy(
     rules,
   );
   if (!applied.ok) return applied;
-  const candidate = { ...applied.snapshot, lastDailySettlementTick: input.afterTick };
+  const candidate = { ...applied.snapshot, lastDailySettlementTick: afterTick };
   if (!validateEconomySnapshot(candidate, rules)) return { ok: false, reason: 'overflow' };
   return { ok: true, status: 'settled', snapshot: cloneEconomySnapshot(candidate) };
 }

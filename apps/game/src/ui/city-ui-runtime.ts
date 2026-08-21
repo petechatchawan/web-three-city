@@ -344,7 +344,11 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
     update(world: CommittedWorld): void {
       latestWorld = world;
       const economy = createEconomyViewProjection(world.economy);
-      const rci = createRciHudModel(world.rci, ports.rciRegistries, world.simulation.absoluteTick);
+      const rci = createRciHudModel(
+        world.rci,
+        ports.rciRegistries,
+        world.simulation.absoluteGameMinute,
+      );
       const time = createGameTimePresentation(world.simulation, world.buildings);
       shell.update({
         population: String(rci.population),

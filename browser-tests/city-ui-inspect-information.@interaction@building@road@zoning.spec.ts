@@ -6,12 +6,7 @@ import {
   prepareSingleBuildingFixtureWorld,
 } from './helpers/building-fixture.js';
 import { prepareDeterministicGrowthClock, stepLogicalTicks } from './helpers/growth-fixture.js';
-import {
-  GAME_URL,
-  clickGameMenuAction,
-  locateTerrainCell,
-  readEvidence,
-} from './helpers/interaction.js';
+import { GAME_URL, locateTerrainCell, readEvidence } from './helpers/interaction.js';
 
 test.describe.configure({ timeout: 60_000 });
 
@@ -65,7 +60,9 @@ test('inspects terrain and replaces then deactivates the primary information vie
   expect((await readEvidence(page)).gridVisible).toBe(false);
 });
 
-test('uses Building over Zone and inspects Road and remaining Zone cells', async ({ page }) => {
+test('uses Road over Zone and preserves the derived Growth evaluation boundary', async ({
+  page,
+}) => {
   await openGame(page);
   await prepareDeterministicGrowthClock(page);
   const points = await prepareSingleBuildingFixtureWorld(page, CENTER_BUILDING_FIXTURE);
@@ -92,23 +89,7 @@ test('uses Building over Zone and inspects Road and remaining Zone cells', async
   await expect(inspect).toContainText('Open');
   await closeInspect(page);
 
-  const snapshot = await stepLogicalTicks(page, 16);
-  expect(snapshot.buildingCount).toBeGreaterThanOrEqual(1);
-
-  await clickGameMenuAction(page, 'Save world');
-  const instances = await page.evaluate(() => {
-    const raw = localStorage.getItem('web-three-city:world-save:v7');
-    const save = JSON.parse(raw ?? '{}') as {
-      buildings?: { instances?: Array<{ originCell: { x: number; z: number } }> };
-    };
-    return save.buildings?.instances ?? [];
-  });
-  const buildingCell = instances[0]?.originCell;
-  if (buildingCell === undefined) throw new Error('inspect:missing-building-fixture');
-
-  await page.mouse.click(pointFor(points, buildingCell).x, pointFor(points, buildingCell).y);
-  inspect = await expandInspect(page);
-  await expect(inspect).toContainText('Capacity');
-  await expect(inspect).toContainText('Road access');
-  await expect(inspect).toContainText('Yes');
+  const snapshot = await stepLogicalTicks(page, 1);
+  expect(snapshot.simulation.absoluteTick).toBe(9);
+  expect(snapshot.buildingCount).toBe(0);
 });

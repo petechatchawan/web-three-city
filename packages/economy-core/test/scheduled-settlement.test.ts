@@ -19,6 +19,54 @@ const projections = {
 } as const;
 
 describe('scheduled municipal settlement', () => {
+  it('does not settle repeatedly during minute transitions within 08:00', () => {
+    const result = economy.settleScheduledEconomy(
+      initial(),
+      {
+        beforeTick: 8,
+        afterTick: 9,
+        macroHourTransition: {
+          beforeAbsoluteGameMinute: 8 * 60,
+          afterAbsoluteGameMinute: 8 * 60 + 1,
+          beforeMacroHourIndex: 8,
+          afterMacroHourIndex: 8,
+          crossed: false,
+        },
+        calendar: { year: 1, month: 1, day: 1, hour: 8 },
+        ...projections,
+      },
+      rules,
+    );
+
+    expect(result).toEqual({ ok: true, status: 'not-due', snapshot: initial() });
+  });
+
+  it('settles once when 07:59 crosses into 08:00', () => {
+    const result = economy.settleScheduledEconomy(
+      initial(7),
+      {
+        beforeTick: 7,
+        afterTick: 8,
+        macroHourTransition: {
+          beforeAbsoluteGameMinute: 7 * 60 + 59,
+          afterAbsoluteGameMinute: 8 * 60,
+          beforeMacroHourIndex: 7,
+          afterMacroHourIndex: 8,
+          crossed: true,
+        },
+        calendar: { year: 1, month: 1, day: 1, hour: 8 },
+        ...projections,
+      },
+      rules,
+    );
+
+    expect(result).toMatchObject({
+      ok: true,
+      status: 'settled',
+      snapshot: { lastDailySettlementTick: 8 },
+    });
+  });
+
   it('derives each tax channel from occupied activity and rounds once after the full product', () => {
     expect(
       economy.calculateDailySettlement(

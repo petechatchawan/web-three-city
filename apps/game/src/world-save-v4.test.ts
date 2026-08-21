@@ -16,7 +16,7 @@ describe('WorldSaveV4', () => {
     const buildings = createBuildingSnapshot({ revision: 0, instances: [] }, WORLD_CONFIG);
     const simulation = createSimulationSnapshot({
       revision: 4,
-      absoluteTick: 27,
+      absoluteGameMinute: 27 * 60,
       growthSequence: 3,
     });
     const decoded = decodeWorldSave(
@@ -27,7 +27,7 @@ describe('WorldSaveV4', () => {
     if (decoded.ok) {
       expect(decoded.value.simulation).toEqual({
         revision: 0,
-        absoluteTick: 27,
+        absoluteGameMinute: 27 * 60,
         growthSequence: 3,
       });
     }

@@ -6,8 +6,13 @@ const SPEED_MULTIPLIER: Readonly<Record<SimulationSpeed, number>> = Object.freez
   fast: 2,
   faster: 4,
 });
-const TICK_MILLISECONDS = 1000;
-const MAX_FRAME_DELTA_MILLISECONDS = 250;
+const GAME_MINUTE_MILLISECONDS = 1000;
+const TRANSPORT_QUANTA_PER_GAME_MINUTE = 4;
+const MAX_GAME_MINUTES_PER_ADVANCE = 4;
+
+export type SimulationRuntimeEvent =
+  | Readonly<{ readonly type: 'game-minute' }>
+  | Readonly<{ readonly type: 'transport-quantum'; readonly ordinal: 1 | 2 | 3 | 4 }>;
 
 export interface SimulationRuntimeState {
   readonly speed: SimulationSpeed;
@@ -17,8 +22,8 @@ export interface SimulationRuntimeState {
 export interface SimulationRuntime {
   getState(): SimulationRuntimeState;
   setSpeed(speed: SimulationSpeed): void;
-  advance(realDeltaMilliseconds: number, onTick: () => void): number;
-  step(onTick: () => void): boolean;
+  advance(realDeltaMilliseconds: number, onEvent: (event: SimulationRuntimeEvent) => void): number;
+  step(onEvent: (event: SimulationRuntimeEvent) => void): boolean;
   resetAfterVisibilityChange(): void;
 }
 
@@ -37,7 +42,10 @@ export function createSimulationRuntime(initialSpeed: SimulationSpeed): Simulati
       speed = nextSpeed;
       accumulatedMilliseconds = 0;
     },
-    advance(realDeltaMilliseconds: number, onTick: () => void): number {
+    advance(
+      realDeltaMilliseconds: number,
+      onEvent: (event: SimulationRuntimeEvent) => void,
+    ): number {
       if (!Number.isFinite(realDeltaMilliseconds) || realDeltaMilliseconds < 0) {
         throw new RangeError('simulation-runtime:invalid-delta');
       }
@@ -45,23 +53,37 @@ export function createSimulationRuntime(initialSpeed: SimulationSpeed): Simulati
         accumulatedMilliseconds = 0;
         return 0;
       }
-      const acceptedDelta = Math.min(realDeltaMilliseconds, MAX_FRAME_DELTA_MILLISECONDS);
-      accumulatedMilliseconds += acceptedDelta * SPEED_MULTIPLIER[speed];
+      accumulatedMilliseconds += realDeltaMilliseconds * SPEED_MULTIPLIER[speed];
       let emitted = 0;
-      while (accumulatedMilliseconds >= TICK_MILLISECONDS) {
-        accumulatedMilliseconds -= TICK_MILLISECONDS;
-        onTick();
+      while (
+        accumulatedMilliseconds >= GAME_MINUTE_MILLISECONDS &&
+        emitted < MAX_GAME_MINUTES_PER_ADVANCE
+      ) {
+        accumulatedMilliseconds -= GAME_MINUTE_MILLISECONDS;
+        emitGameMinute(onEvent);
         emitted += 1;
       }
       return emitted;
     },
-    step(onTick: () => void): boolean {
+    step(onEvent: (event: SimulationRuntimeEvent) => void): boolean {
       if (speed !== 'paused') return false;
-      onTick();
+      emitGameMinute(onEvent);
       return true;
     },
     resetAfterVisibilityChange(): void {
       accumulatedMilliseconds = 0;
     },
   });
+}
+
+function emitGameMinute(onEvent: (event: SimulationRuntimeEvent) => void): void {
+  onEvent(Object.freeze({ type: 'game-minute' }));
+  for (let ordinal = 1; ordinal <= TRANSPORT_QUANTA_PER_GAME_MINUTE; ordinal += 1) {
+    onEvent(
+      Object.freeze({
+        type: 'transport-quantum',
+        ordinal: ordinal as 1 | 2 | 3 | 4,
+      }),
+    );
+  }
 }

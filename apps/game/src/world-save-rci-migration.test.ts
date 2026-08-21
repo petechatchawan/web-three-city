@@ -1,7 +1,7 @@
 import { createBuildingSnapshot } from '@web-three-city/building-core';
 import { createInitialRciSnapshot } from '@web-three-city/rci-core';
 import { createEmptyRoadSnapshot } from '@web-three-city/road-core';
-import { createSimulationSnapshot } from '@web-three-city/simulation-core';
+import { createSimulationSnapshot, deriveMacroHourIndex } from '@web-three-city/simulation-core';
 import { generateCoastalTerrain } from '@web-three-city/terrain-generator';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { createEmptyZoneSnapshot } from '@web-three-city/zone-core';
@@ -16,10 +16,12 @@ function createWorldFixture() {
   const buildings = createBuildingSnapshot({ revision: 0, instances: [] }, WORLD_CONFIG);
   const simulation = createSimulationSnapshot({
     revision: 4,
-    absoluteTick: 27,
+    absoluteGameMinute: 27 * 60,
     growthSequence: 3,
   });
-  const rci = createInitialRciSnapshot({ absoluteTick: simulation.absoluteTick });
+  const rci = createInitialRciSnapshot({
+    absoluteTick: deriveMacroHourIndex(simulation.absoluteGameMinute),
+  });
   return { terrain: terrain.value, roads, zones, buildings, simulation, rci };
 }
 
@@ -60,7 +62,9 @@ describe('WorldSaveV5 RCI foundation', () => {
     expect(decoded.ok).toBe(true);
     if (decoded.ok) {
       expect(decoded.value.rci).toEqual(
-        createInitialRciSnapshot({ absoluteTick: decoded.value.simulation.absoluteTick }),
+        createInitialRciSnapshot({
+          absoluteTick: deriveMacroHourIndex(decoded.value.simulation.absoluteGameMinute),
+        }),
       );
     }
   });

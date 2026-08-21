@@ -1,7 +1,30 @@
 import { describe, expect, it } from 'vitest';
-import { deriveGameCalendar, isDevelopmentEvaluationTick } from '../src/index.js';
+import {
+  crossedMacroHour,
+  deriveGameCalendar,
+  deriveGameCalendarFromGameMinute,
+  deriveMacroHourIndex,
+  isDevelopmentEvaluationTick,
+} from '../src/index.js';
 
 describe('simple game calendar', () => {
+  it('derives the legacy 08:00 calendar position from game minute 480', () => {
+    expect(deriveMacroHourIndex(480)).toBe(8);
+    expect(deriveGameCalendarFromGameMinute(480)).toEqual({
+      year: 1,
+      month: 1,
+      day: 1,
+      hour: 8,
+    });
+  });
+
+  it('keeps minutes before 09:00 in macro hour eight and crosses at minute 540', () => {
+    expect(deriveMacroHourIndex(539)).toBe(8);
+    expect(deriveMacroHourIndex(540)).toBe(9);
+    expect(crossedMacroHour(480, 539)).toBe(false);
+    expect(crossedMacroHour(539, 540)).toBe(true);
+  });
+
   it('derives the initial calendar from absolute tick eight', () => {
     expect(deriveGameCalendar(8)).toEqual({ year: 1, month: 1, day: 1, hour: 8 });
   });

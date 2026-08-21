@@ -12,14 +12,40 @@ describe('GameRuntime committed-world authority', () => {
     );
     expect(mainSource).toMatch(/runtime\.snapshot\(\)/);
     expect(mainSource).toMatch(/runtime\.subscribeCommittedWorld/);
-    expect(mainSource).toMatch(/runtime\.advanceLogicalTick/);
+    expect(mainSource).toMatch(/runtime\.advanceGameMinute/);
+    expect(mainSource).toMatch(/runtime\.advanceTransportQuantum/);
     expect(mainSource).toMatch(/runtime\.savePayload\(\)/);
   });
 
   it('exposes one committed-world read and tick command surface', () => {
     expect(bootstrapSource).toMatch(/snapshot\(\): CommittedWorld/);
     expect(bootstrapSource).toMatch(/subscribeCommittedWorld/);
-    expect(bootstrapSource).toMatch(/advanceLogicalTick/);
+    expect(bootstrapSource).toMatch(/advanceGameMinute/);
+    expect(bootstrapSource).toMatch(/advanceTransportQuantum/);
     expect(bootstrapSource).toMatch(/savePayload/);
+  });
+
+  it('batches deterministic test-time steps behind one presentation rebuild', () => {
+    expect(mainSource).toMatch(/runtime\.setPresentationSuppressed\(true\)/);
+    expect(mainSource).toMatch(/runtime\.rebuildPresentationForTest\(\)/);
+    expect(bootstrapSource).toMatch(/setPresentationSuppressed/);
+    expect(bootstrapSource).toMatch(/rebuildPresentationForTest/);
+    expect(bootstrapSource).toMatch(/staticPresentationNeedsRebuild/);
+    expect(mainSource).toMatch(/runtime\.snapshotForTest\(\)/);
+    expect(bootstrapSource).toMatch(/snapshotForTest\(\): CommittedWorld/);
+  });
+
+  it('adopts automatic calendar and transport publications for committed-world subscribers', () => {
+    const calendarSection = bootstrapSource.slice(
+      bootstrapSource.indexOf('const advanceGameMinute'),
+      bootstrapSource.indexOf('const advanceTransportQuantum'),
+    );
+    const transportSection = bootstrapSource.slice(
+      bootstrapSource.indexOf('const advanceTransportQuantum'),
+      bootstrapSource.indexOf('const resetSimulationForTest'),
+    );
+
+    expect(calendarSection).toMatch(/adoptCommittedWorld\(publication\.world\)/);
+    expect(transportSection).toMatch(/adoptCommittedWorld\(publication\.world\)/);
   });
 });

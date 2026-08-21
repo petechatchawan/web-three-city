@@ -1,8 +1,46 @@
 import type { TrafficGraph } from './contracts.js';
 import { validateTrafficGraph } from './contracts.js';
-import { createTrafficSnapshot, type TrafficSnapshotV1 } from './traffic-snapshot.js';
+import {
+  createTrafficSnapshot,
+  createTrafficSnapshotV2,
+  type TrafficSnapshotV1,
+  type TrafficSnapshotV2,
+} from './traffic-snapshot.js';
 
-export function fingerprintTrafficSnapshot(snapshot: TrafficSnapshotV1): string {
+export function fingerprintTrafficSnapshot(
+  snapshot: TrafficSnapshotV1 | TrafficSnapshotV2,
+): string {
+  if (snapshot.schemaVersion === 2) {
+    const canonical = createTrafficSnapshotV2(snapshot);
+    return JSON.stringify({
+      schemaVersion: canonical.schemaVersion,
+      revision: canonical.revision,
+      policyVersion: canonical.policyVersion,
+      graphSourceRoadRevision: canonical.graphSourceRoadRevision,
+      graphSourceBuildingRevision: canonical.graphSourceBuildingRevision,
+      timeCursor: canonical.timeCursor,
+      activeTrips: canonical.activeTrips.map((trip) => [
+        trip.tripId,
+        trip.citizenId,
+        trip.mode,
+        trip.originBuildingId,
+        trip.destinationBuildingId,
+        trip.routeEdgeIds,
+        trip.routeGraphRevision,
+        trip.segmentIndex,
+        trip.progressQ,
+        trip.lastStableNodeId,
+        trip.queuedMovement,
+        trip.status,
+        trip.failureReason,
+        trip.driveMovementPhase,
+        trip.entryServiceCredit ?? 0,
+        trip.entryReservationResourceIds ?? [],
+        trip.activeNodeTraversal ?? null,
+      ]),
+    });
+  }
+
   const canonical = createTrafficSnapshot(snapshot);
   return JSON.stringify({
     schemaVersion: canonical.schemaVersion,

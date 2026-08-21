@@ -1,8 +1,11 @@
 import {
-  commitSimulationTick,
+  commitSimulationMinute,
   createSimulationSnapshot,
+  deriveMacroHourTransition,
   isDevelopmentEvaluationTick,
-  planSimulationTick,
+  isMacroHourTransition,
+  planSimulationMinute,
+  type MacroHourTransition,
   type SimulationSnapshot,
 } from '@web-three-city/simulation-core';
 import { chunkForCell, type ChunkCoord } from '@web-three-city/terrain-core';
@@ -59,8 +62,19 @@ function invalidPlan(
     baseWaterSourceTerrainRevision: environment.waterSourceTerrainRevision,
     baseRoadRevision: environment.roadRevision,
     baseZoneRevision: environment.zoneRevision,
-    beforeAbsoluteTick: simulation.absoluteTick,
-    afterAbsoluteTick: simulation.absoluteTick,
+    beforeAbsoluteTick: deriveMacroHourTransition(
+      simulation.absoluteGameMinute,
+      simulation.absoluteGameMinute,
+    ).beforeMacroHourIndex,
+    afterAbsoluteTick: deriveMacroHourTransition(
+      simulation.absoluteGameMinute,
+      simulation.absoluteGameMinute,
+    ).afterMacroHourIndex,
+    macroHourTransition: deriveMacroHourTransition(
+      simulation.absoluteGameMinute,
+      simulation.absoluteGameMinute,
+    ),
+    simulationAdvanceOwnedByBuilding: false,
     proposedInstances: Object.freeze([]),
     startedInstanceIds: Object.freeze([]),
     completedInstanceIds: Object.freeze([]),
@@ -71,36 +85,142 @@ function invalidPlan(
   });
 }
 
+type GrowthPreparation = Readonly<{
+  buildings: BuildingSnapshot;
+  simulation: SimulationSnapshot;
+  reason: BuildingGrowthInvalidReason | null;
+}>;
+
+function prepareGrowthSnapshots(input: {
+  readonly buildings: BuildingSnapshot;
+  readonly simulation: SimulationSnapshot;
+  readonly config: WorldConfig;
+}): GrowthPreparation {
+  let buildings: BuildingSnapshot;
+  try {
+    buildings = createBuildingSnapshot(input.buildings, input.config);
+  } catch {
+    return {
+      buildings: input.buildings,
+      simulation: input.simulation,
+      reason: 'building-growth:invalid-building-state',
+    };
+  }
+  try {
+    return {
+      buildings,
+      simulation: createSimulationSnapshot(input.simulation),
+      reason: null,
+    };
+  } catch {
+    return {
+      buildings,
+      simulation: input.simulation,
+      reason: 'building-growth:invalid-simulation-state',
+    };
+  }
+}
+
+function normalizeGrowthBuildings(
+  buildings: BuildingSnapshot,
+  macroHourTransition: MacroHourTransition,
+  config: WorldConfig,
+): Readonly<{
+  proposed: AuthoritativeBuildingInstance[];
+  completedIds: string[];
+  dirty: ChunkCoord[];
+}> {
+  const completedIds: string[] = [];
+  const dirty: ChunkCoord[] = [];
+  const proposed: AuthoritativeBuildingInstance[] = !macroHourTransition.crossed
+    ? buildings.instances.map(normalizeBuildingInstance)
+    : buildings.instances.map((instance) => {
+        const authoritative = normalizeBuildingInstance(instance);
+        if (
+          authoritative.lifecycle === 'construction' &&
+          authoritative.constructionCompletesAtTick <= macroHourTransition.afterMacroHourIndex
+        ) {
+          completedIds.push(authoritative.instanceId);
+          for (const cell of occupiedCellsForBuilding(authoritative))
+            dirty.push(chunkForCell(cell, config));
+          return activateCompletedBuilding(authoritative, macroHourTransition.afterMacroHourIndex);
+        }
+        return authoritative;
+      });
+  return { proposed, completedIds, dirty };
+}
+
+function applyScheduledGrowth(input: {
+  readonly buildings: BuildingSnapshot;
+  readonly proposed: AuthoritativeBuildingInstance[];
+  readonly simulation: SimulationSnapshot;
+  readonly environment: BuildingDevelopmentEnvironment;
+  readonly config: WorldConfig;
+  readonly macroHourTransition: MacroHourTransition;
+  readonly reservedCells?: readonly CellCoord[];
+  readonly growthPolicy?: BuildingGrowthPolicy;
+}): Readonly<{
+  nextGrowthSequence: number;
+  startedIds: string[];
+  dirty: ChunkCoord[];
+}> {
+  const startedIds: string[] = [];
+  let nextGrowthSequence = input.simulation.growthSequence;
+  if (
+    !input.macroHourTransition.crossed ||
+    !isDevelopmentEvaluationTick(input.macroHourTransition.afterMacroHourIndex)
+  ) {
+    return { nextGrowthSequence, startedIds, dirty: [] };
+  }
+  const intermediate = createBuildingSnapshot(
+    { revision: input.buildings.revision, instances: input.proposed },
+    input.config,
+  );
+  const selected = selectGrowthBuildingPlacement({
+    buildings: intermediate,
+    environment: input.environment,
+    config: input.config,
+    absoluteTick: input.macroHourTransition.afterMacroHourIndex,
+    growthSequence: input.simulation.growthSequence,
+    ...(input.reservedCells === undefined ? {} : { reservedCells: input.reservedCells }),
+    ...(input.growthPolicy === undefined ? {} : { growthPolicy: input.growthPolicy }),
+  });
+  if (selected === null) return { nextGrowthSequence, startedIds, dirty: [] };
+  nextGrowthSequence += 1;
+  const definition = buildingDefinitionForId(selected.definition.id);
+  const construction: AuthoritativeBuildingInstance = Object.freeze({
+    instanceId: `building:growth:${nextGrowthSequence}`,
+    buildingDefinitionId: definition.id,
+    buildingDefinitionVersion: definition.version,
+    originCell: Object.freeze({ ...selected.instance.originCell }),
+    rotationQuarterTurns: selected.instance.rotationQuarterTurns,
+    lifecycle: 'construction',
+    constructionStartedAtTick: input.macroHourTransition.afterMacroHourIndex,
+    constructionCompletesAtTick:
+      input.macroHourTransition.afterMacroHourIndex + definition.constructionDurationTicks,
+  });
+  input.proposed.push(construction);
+  startedIds.push(construction.instanceId);
+  const dirty = occupiedCellsForBuilding(construction).map((cell) =>
+    chunkForCell(cell, input.config),
+  );
+  return { nextGrowthSequence, startedIds, dirty };
+}
+
 export function planBuildingGrowthTick(input: {
   readonly buildings: BuildingSnapshot;
   readonly simulation: SimulationSnapshot;
   readonly environment: BuildingDevelopmentEnvironment;
   readonly config: WorldConfig;
+  readonly macroHourTransition?: MacroHourTransition;
   readonly reservedCells?: readonly CellCoord[];
   readonly growthPolicy?: BuildingGrowthPolicy;
 }): BuildingGrowthPlan {
-  let buildings: BuildingSnapshot;
-  let simulation: SimulationSnapshot;
-  try {
-    buildings = createBuildingSnapshot(input.buildings, input.config);
-  } catch {
-    return invalidPlan(
-      input.buildings,
-      input.simulation,
-      input.environment,
-      'building-growth:invalid-building-state',
-    );
+  const prepared = prepareGrowthSnapshots(input);
+  if (prepared.reason !== null) {
+    return invalidPlan(prepared.buildings, prepared.simulation, input.environment, prepared.reason);
   }
-  try {
-    simulation = createSimulationSnapshot(input.simulation);
-  } catch {
-    return invalidPlan(
-      buildings,
-      input.simulation,
-      input.environment,
-      'building-growth:invalid-simulation-state',
-    );
-  }
+  const { buildings, simulation } = prepared;
   if (!environmentValid(input.environment)) {
     return invalidPlan(
       buildings,
@@ -109,63 +229,36 @@ export function planBuildingGrowthTick(input: {
       'building-growth:invalid-environment',
     );
   }
-  const tickPlan = planSimulationTick(simulation);
+  const tickPlan = planSimulationMinute(simulation);
   if (!tickPlan.valid) {
     return invalidPlan(buildings, simulation, input.environment, 'building-growth:tick-overflow');
   }
 
-  const afterAbsoluteTick = tickPlan.afterAbsoluteTick;
-  const completedIds: string[] = [];
-  const dirty: ChunkCoord[] = [];
-  const proposed: AuthoritativeBuildingInstance[] = buildings.instances.map((instance) => {
-    const authoritative = normalizeBuildingInstance(instance);
-    if (
-      authoritative.lifecycle === 'construction' &&
-      authoritative.constructionCompletesAtTick <= afterAbsoluteTick
-    ) {
-      completedIds.push(authoritative.instanceId);
-      for (const cell of occupiedCellsForBuilding(authoritative))
-        dirty.push(chunkForCell(cell, input.config));
-      return activateCompletedBuilding(authoritative, afterAbsoluteTick);
-    }
-    return authoritative;
-  });
-
-  const startedIds: string[] = [];
-  let nextGrowthSequence = simulation.growthSequence;
-  if (isDevelopmentEvaluationTick(afterAbsoluteTick)) {
-    const intermediate = createBuildingSnapshot(
-      { revision: buildings.revision, instances: proposed },
-      input.config,
+  const simulationAdvanceOwnedByBuilding = input.macroHourTransition === undefined;
+  const macroHourTransition =
+    input.macroHourTransition ??
+    deriveMacroHourTransition(simulation.absoluteGameMinute, tickPlan.afterAbsoluteGameMinute);
+  if (!isMacroHourTransition(macroHourTransition)) {
+    return invalidPlan(
+      buildings,
+      simulation,
+      input.environment,
+      'building-growth:invalid-simulation-state',
     );
-    const selected = selectGrowthBuildingPlacement({
-      buildings: intermediate,
-      environment: input.environment,
-      config: input.config,
-      absoluteTick: afterAbsoluteTick,
-      growthSequence: simulation.growthSequence,
-      ...(input.reservedCells === undefined ? {} : { reservedCells: input.reservedCells }),
-      ...(input.growthPolicy === undefined ? {} : { growthPolicy: input.growthPolicy }),
-    });
-    if (selected !== null) {
-      nextGrowthSequence += 1;
-      const definition = buildingDefinitionForId(selected.definition.id);
-      const construction: AuthoritativeBuildingInstance = Object.freeze({
-        instanceId: `building:growth:${nextGrowthSequence}`,
-        buildingDefinitionId: definition.id,
-        buildingDefinitionVersion: definition.version,
-        originCell: Object.freeze({ ...selected.instance.originCell }),
-        rotationQuarterTurns: selected.instance.rotationQuarterTurns,
-        lifecycle: 'construction',
-        constructionStartedAtTick: afterAbsoluteTick,
-        constructionCompletesAtTick: afterAbsoluteTick + definition.constructionDurationTicks,
-      });
-      proposed.push(construction);
-      startedIds.push(construction.instanceId);
-      for (const cell of occupiedCellsForBuilding(construction))
-        dirty.push(chunkForCell(cell, input.config));
-    }
   }
+
+  const afterAbsoluteTick = macroHourTransition.afterMacroHourIndex;
+  const normalized = normalizeGrowthBuildings(buildings, macroHourTransition, input.config);
+  const scheduled = applyScheduledGrowth({
+    buildings,
+    proposed: normalized.proposed,
+    simulation,
+    environment: input.environment,
+    config: input.config,
+    macroHourTransition,
+    ...(input.reservedCells === undefined ? {} : { reservedCells: input.reservedCells }),
+    ...(input.growthPolicy === undefined ? {} : { growthPolicy: input.growthPolicy }),
+  });
 
   return Object.freeze({
     baseBuildingRevision: buildings.revision,
@@ -174,13 +267,15 @@ export function planBuildingGrowthTick(input: {
     baseWaterSourceTerrainRevision: input.environment.waterSourceTerrainRevision,
     baseRoadRevision: input.environment.roadRevision,
     baseZoneRevision: input.environment.zoneRevision,
-    beforeAbsoluteTick: simulation.absoluteTick,
+    beforeAbsoluteTick: macroHourTransition.beforeMacroHourIndex,
     afterAbsoluteTick,
-    proposedInstances: Object.freeze(proposed.map(normalizeBuildingInstance)),
-    startedInstanceIds: frozenStrings(startedIds),
-    completedInstanceIds: frozenStrings(completedIds),
-    nextGrowthSequence,
-    dirtyChunks: frozenChunks(dirty),
+    macroHourTransition,
+    simulationAdvanceOwnedByBuilding,
+    proposedInstances: Object.freeze(normalized.proposed.map(normalizeBuildingInstance)),
+    startedInstanceIds: frozenStrings(scheduled.startedIds),
+    completedInstanceIds: frozenStrings(normalized.completedIds),
+    nextGrowthSequence: scheduled.nextGrowthSequence,
+    dirtyChunks: frozenChunks([...normalized.dirty, ...scheduled.dirty]),
     valid: true,
     invalidReason: null,
   });
@@ -204,7 +299,11 @@ export function commitBuildingGrowthTick(input: {
     throw new BuildingContractError('building:stale-building-plan');
   if (
     input.simulation.revision !== plan.baseSimulationRevision ||
-    input.simulation.absoluteTick !== plan.beforeAbsoluteTick
+    (plan.simulationAdvanceOwnedByBuilding &&
+      deriveMacroHourTransition(
+        input.simulation.absoluteGameMinute,
+        input.simulation.absoluteGameMinute,
+      ).beforeMacroHourIndex !== plan.beforeAbsoluteTick)
   ) {
     throw new BuildingContractError('building-growth:stale-simulation-plan');
   }
@@ -216,15 +315,20 @@ export function commitBuildingGrowthTick(input: {
     throw new BuildingContractError('building:stale-road-plan');
   if (input.environment.zoneRevision !== plan.baseZoneRevision)
     throw new BuildingContractError('building:stale-zone-plan');
-  const tickPlan = planSimulationTick(input.simulation);
-  if (!tickPlan.valid || tickPlan.afterAbsoluteTick !== plan.afterAbsoluteTick) {
+  const tickPlan = planSimulationMinute(input.simulation);
+  if (
+    plan.simulationAdvanceOwnedByBuilding &&
+    (!tickPlan.valid ||
+      deriveMacroHourTransition(
+        input.simulation.absoluteGameMinute,
+        tickPlan.afterAbsoluteGameMinute,
+      ).afterMacroHourIndex !== plan.afterAbsoluteTick)
+  ) {
     throw new BuildingContractError('building-growth:stale-simulation-plan');
   }
-  const simulationCommit = commitSimulationTick(
-    input.simulation,
-    tickPlan,
-    plan.nextGrowthSequence,
-  );
+  const simulationCommit = plan.simulationAdvanceOwnedByBuilding
+    ? commitSimulationMinute(input.simulation, tickPlan, plan.nextGrowthSequence)
+    : { snapshot: input.simulation };
   const changed = plan.startedInstanceIds.length > 0 || plan.completedInstanceIds.length > 0;
   const buildings = changed
     ? createBuildingSnapshot(
@@ -240,8 +344,8 @@ export function commitBuildingGrowthTick(input: {
       afterBuildingRevision: buildings.revision,
       beforeSimulationRevision: input.simulation.revision,
       afterSimulationRevision: simulationCommit.snapshot.revision,
-      beforeAbsoluteTick: input.simulation.absoluteTick,
-      afterAbsoluteTick: simulationCommit.snapshot.absoluteTick,
+      beforeAbsoluteTick: plan.beforeAbsoluteTick,
+      afterAbsoluteTick: plan.afterAbsoluteTick,
       startedInstanceIds: plan.startedInstanceIds,
       completedInstanceIds: plan.completedInstanceIds,
       dirtyChunks: plan.dirtyChunks,

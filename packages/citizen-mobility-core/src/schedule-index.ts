@@ -1,10 +1,10 @@
 import { compareMobilityId, type PresentCitizenMobilityProjection } from './contracts.js';
 import { MobilityContractError } from './errors.js';
 import {
-  FOUNDATION_MOBILITY_SCHEDULE_POLICY_V1,
+  FOUNDATION_MOBILITY_SCHEDULE_POLICY_V2,
   deriveCitizenScheduleForDay,
   type DueMobilityBoundary,
-  type FoundationMobilitySchedulePolicyV1,
+  type FoundationMobilitySchedulePolicy,
 } from './schedule-policy.js';
 
 function activityPriority(activity: DueMobilityBoundary['nextActivity']): number {
@@ -16,7 +16,7 @@ export function collectDueMobilityBoundaries(
     citizens: readonly PresentCitizenMobilityProjection[];
     fromGameMinuteExclusive: number;
     toGameMinuteInclusive: number;
-    policy?: FoundationMobilitySchedulePolicyV1;
+    policy?: FoundationMobilitySchedulePolicy;
     scheduleSeedVersion?: number;
   }>,
 ): readonly DueMobilityBoundary[] {
@@ -31,7 +31,7 @@ export function collectDueMobilityBoundaries(
     throw new MobilityContractError('mobility:invalid-time');
   }
 
-  const policy = input.policy ?? FOUNDATION_MOBILITY_SCHEDULE_POLICY_V1;
+  const policy = input.policy ?? FOUNDATION_MOBILITY_SCHEDULE_POLICY_V2;
   const seedVersion = input.scheduleSeedVersion ?? 1;
   const firstMinute = Math.max(0, fromGameMinuteExclusive + 1);
   const firstDay = Math.floor(firstMinute / 1440);

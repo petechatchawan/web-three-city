@@ -1,5 +1,5 @@
 import type { BuildingSnapshot } from '@web-three-city/building-core';
-import type { SimulationSnapshot } from '@web-three-city/simulation-core';
+import { deriveMacroHourIndex, type SimulationSnapshot } from '@web-three-city/simulation-core';
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_RCI_DETERMINISTIC_SEED,
@@ -12,14 +12,16 @@ import {
 const buildings: BuildingSnapshot = Object.freeze({ revision: 0, instances: Object.freeze([]) });
 const simulation: SimulationSnapshot = Object.freeze({
   revision: 0,
-  absoluteTick: 120,
+  absoluteGameMinute: 120 * 60,
   growthSequence: 0,
 });
 const registries = createFoundationRciRegistries();
 
 describe('RCI snapshots', () => {
   it('creates an empty immutable foundation snapshot', () => {
-    const snapshot = createInitialRciSnapshot({ absoluteTick: simulation.absoluteTick });
+    const snapshot = createInitialRciSnapshot({
+      absoluteTick: deriveMacroHourIndex(simulation.absoluteGameMinute),
+    });
 
     expect(snapshot.revision).toBe(0);
     expect(snapshot.deterministicSeed).toBe(DEFAULT_RCI_DETERMINISTIC_SEED);
@@ -47,7 +49,9 @@ describe('RCI snapshots', () => {
   });
 
   it('canonicalizes records without mutating caller arrays', () => {
-    const initial = createInitialRciSnapshot({ absoluteTick: simulation.absoluteTick });
+    const initial = createInitialRciSnapshot({
+      absoluteTick: deriveMacroHourIndex(simulation.absoluteGameMinute),
+    });
     const citizens = [
       {
         citizenId: 'citizen:2',
@@ -87,7 +91,9 @@ describe('RCI snapshots', () => {
   });
 
   it('rejects unsafe revisions and sequence reuse', () => {
-    const initial = createInitialRciSnapshot({ absoluteTick: simulation.absoluteTick });
+    const initial = createInitialRciSnapshot({
+      absoluteTick: deriveMacroHourIndex(simulation.absoluteGameMinute),
+    });
     expect(() =>
       createRciSnapshot({ ...initial, revision: -1 }, { buildings, simulation, registries }),
     ).toThrowError(new RciContractError('rci:invalid-state'));

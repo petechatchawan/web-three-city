@@ -8,7 +8,7 @@ export interface RoadStyleProfile {
   readonly markingSurfaceOffset: number;
 }
 
-const CENTER_DIVIDER_COLOR = Object.freeze({ r: 0.92, g: 0.88, b: 0.68 });
+const CENTER_DIVIDER_COLOR = Object.freeze({ r: 1, g: 1, b: 1 });
 const CENTER_DIVIDER_WIDTH_RATIO = 0.05;
 const MAX_CENTER_DIVIDER_WIDTH = 0.04;
 const MARKING_SURFACE_OFFSET = 0.004;

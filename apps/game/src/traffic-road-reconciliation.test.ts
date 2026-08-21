@@ -7,6 +7,7 @@ import {
 import {
   createActiveTransportTrip,
   createTrafficSnapshot,
+  createTrafficSnapshotV2,
   deriveBuildingAccessNodes,
   derivePedestrianTrafficGraph,
   deriveVehicleTrafficGraph,
@@ -185,6 +186,83 @@ function assertMixedRoadTypesProjectAsConnectedTrafficOccupancy(): void {
 }
 
 describe('Traffic reconciliation after committed Road changes', () => {
+  it('preserves an active Drive identity across a definition-only Road upgrade', () => {
+    const state = activeDriveState();
+    const definitionCodes = new Uint8Array(state.fixture.world.roads.definitionCodes);
+    const upgrade = state.fixture.summary.alternateRouteCells[0]!;
+    definitionCodes[upgrade.z * WORLD_CONFIG.mapWidth + upgrade.x] = ARTERIAL_ROAD_CODE;
+    const roadsAfter = createRoadSnapshot(
+      {
+        width: WORLD_CONFIG.mapWidth,
+        height: WORLD_CONFIG.mapHeight,
+        revision: 2,
+        definitionCodes,
+      },
+      WORLD_CONFIG,
+    );
+
+    const reconciled = reconcileTrafficAfterRoadChange({
+      traffic: state.traffic,
+      mobility: state.mobility,
+      trafficSourceAfter: sourceAfter(state.fixture, roadsAfter),
+    });
+
+    expect(reconciled.activeTrips[0]).toMatchObject({
+      tripId: state.trip.tripId,
+      citizenId: state.trip.citizenId,
+      status: 'Active',
+      routeEdgeIds: state.trip.routeEdgeIds,
+    });
+  });
+
+  it('reconciles V2 Traffic without downgrading the transport cursor or lifecycle phase', () => {
+    const state = activeDriveState();
+    const v2 = createTrafficSnapshotV2({
+      schemaVersion: 2,
+      revision: state.traffic.revision,
+      policyVersion: 1,
+      graphSourceRoadRevision: state.traffic.graphSourceRoadRevision,
+      graphSourceBuildingRevision: state.traffic.graphSourceBuildingRevision,
+      timeCursor: {
+        sourceGameMinute: 540,
+        completedTransportQuantaWithinMinute: 2,
+        absoluteTransportSecond: 2_162,
+        temporalPolicyVersion: 1,
+      },
+      activeTrips: [
+        {
+          ...state.trip,
+          queuedMovement:
+            state.trip.queuedMovement === null
+              ? null
+              : {
+                  fromEdgeId: state.trip.queuedMovement.fromEdgeId,
+                  toEdgeId: state.trip.queuedMovement.toEdgeId,
+                  arrivedAtTransportSecond: state.trip.queuedMovement.arrivedAtGameSecond * 4,
+                },
+          driveMovementPhase: 'Travelling',
+          entryReservationResourceIds: Object.freeze(['entry:home']),
+        },
+      ],
+    });
+    const roadsAfter = roadsWithout([state.fixture.summary.primaryRoadCutCell], 2);
+
+    const reconciled = reconcileTrafficAfterRoadChange({
+      traffic: v2,
+      mobility: state.mobility,
+      trafficSourceAfter: sourceAfter(state.fixture, roadsAfter),
+    });
+
+    expect(reconciled.schemaVersion).toBe(2);
+    if (reconciled.schemaVersion !== 2) return;
+    expect(reconciled.timeCursor).toEqual(v2.timeCursor);
+    expect(reconciled.activeTrips[0]).toMatchObject({
+      tripId: state.trip.tripId,
+      driveMovementPhase: 'Travelling',
+      entryReservationResourceIds: [],
+    });
+  });
+
   it('recovers an active Drive trip through the deterministic alternate corridor', () => {
     assertMixedRoadTypesProjectAsConnectedTrafficOccupancy();
 

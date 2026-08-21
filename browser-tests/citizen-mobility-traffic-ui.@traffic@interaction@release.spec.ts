@@ -2,14 +2,14 @@ import { expect, test } from '@playwright/test';
 
 type TrafficApiSnapshot = {
   worldRevision: number;
-  absoluteTick: number;
+  absoluteGameMinute: number;
   citizenIds: string[];
   mobility: unknown;
   traffic: unknown;
   presentation: {
     visiblePedestrians: number;
     visibleVehicles: number;
-    journeyReplayCount: number;
+    replayCount?: number;
   } | null;
 };
 
@@ -49,7 +49,7 @@ test.describe('Citizen Mobility & Traffic Foundation v0.1', () => {
   }) => {
     const state = await readTraffic(page);
     expect(state.worldRevision).toBeGreaterThanOrEqual(0);
-    expect(state.absoluteTick).toBeGreaterThanOrEqual(0);
+    expect(state.absoluteGameMinute).toBeGreaterThanOrEqual(0);
     expect(state.mobility).toBeTruthy();
     expect(state.traffic).toBeTruthy();
     expect(state.presentation).toBeTruthy();
@@ -102,6 +102,6 @@ test.describe('Citizen Mobility & Traffic Foundation v0.1', () => {
     expect(after.citizenIds).toEqual(before.citizenIds);
     expect(after.mobility).toEqual(before.mobility);
     expect(after.traffic).toEqual(before.traffic);
-    expect(after.absoluteTick).toBe(before.absoluteTick);
+    expect(after.absoluteGameMinute).toBe(before.absoluteGameMinute);
   });
 });

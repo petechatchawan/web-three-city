@@ -1,5 +1,5 @@
 import type { BuildingSnapshot } from '@web-three-city/building-core';
-import type { SimulationSnapshot } from '@web-three-city/simulation-core';
+import { deriveMacroHourIndex, type SimulationSnapshot } from '@web-three-city/simulation-core';
 import { describe, expect, it } from 'vitest';
 import {
   createFoundationRciRegistries,
@@ -11,14 +11,16 @@ import {
 const buildings: BuildingSnapshot = Object.freeze({ revision: 0, instances: Object.freeze([]) });
 const simulation: SimulationSnapshot = Object.freeze({
   revision: 0,
-  absoluteTick: 120,
+  absoluteGameMinute: 120 * 60,
   growthSequence: 0,
 });
 const registries = createFoundationRciRegistries();
 
 describe('RciSaveV1', () => {
   it('round-trips the canonical empty snapshot losslessly', () => {
-    const snapshot = createInitialRciSnapshot({ absoluteTick: simulation.absoluteTick });
+    const snapshot = createInitialRciSnapshot({
+      absoluteTick: deriveMacroHourIndex(simulation.absoluteGameMinute),
+    });
     const encoded = encodeRciSaveV1(snapshot);
     const decoded = decodeRciSaveV1(encoded, { buildings, simulation, registries });
 
@@ -28,7 +30,9 @@ describe('RciSaveV1', () => {
   });
 
   it('encodes authoritative arrays in stable id order', () => {
-    const snapshot = createInitialRciSnapshot({ absoluteTick: simulation.absoluteTick });
+    const snapshot = createInitialRciSnapshot({
+      absoluteTick: deriveMacroHourIndex(simulation.absoluteGameMinute),
+    });
     const encoded = encodeRciSaveV1({
       ...snapshot,
       population: {
@@ -76,7 +80,9 @@ describe('RciSaveV1', () => {
     ).toEqual({ ok: false, error: { code: 'rci-save:invalid-schema' } });
 
     const encoded = encodeRciSaveV1(
-      createInitialRciSnapshot({ absoluteTick: simulation.absoluteTick }),
+      createInitialRciSnapshot({
+        absoluteTick: deriveMacroHourIndex(simulation.absoluteGameMinute),
+      }),
     );
     const invalid = {
       ...encoded,

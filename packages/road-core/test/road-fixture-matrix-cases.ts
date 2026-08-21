@@ -84,12 +84,11 @@ export const ROAD_DETERMINISTIC_FIXTURE_CASES: readonly RoadDeterministicFixture
     valid('road-t-east', [NORTH, CENTER, SOUTH, EAST], ['north', 'south', 'east']),
     valid('road-t-south', [WEST, CENTER, EAST, SOUTH], ['west', 'east', 'south']),
     valid('road-t-west', [NORTH, CENTER, SOUTH, WEST], ['north', 'south', 'west']),
-    valid('road-four-way', [NORTH, EAST, SOUTH, WEST, CENTER], [
-      'north',
-      'east',
-      'south',
-      'west',
-    ]),
+    valid(
+      'road-four-way',
+      [NORTH, EAST, SOUTH, WEST, CENTER],
+      ['north', 'east', 'south', 'west'],
+    ),
     valid('road-ramp-north-up', [NORTH, CENTER, SOUTH], NORTH_SOUTH, {
       shapes: Object.freeze({ '8:8': 'ramp-north' }),
     }),

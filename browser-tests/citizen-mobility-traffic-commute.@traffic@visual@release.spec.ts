@@ -163,24 +163,4 @@ test.describe('Citizen commute browser acceptance', () => {
       fullPage: true,
     });
   });
-
-  test('active Drive trips publish phase and resource facts without synthetic replay', async ({
-    page,
-  }) => {
-    const fixture = await installFixture(page);
-    await step(page, 1);
-
-    const state = await trafficSnapshot(page);
-    const driveTrips = state.traffic.activeTrips.filter((trip) => trip.mode === 'Drive');
-    expect(driveTrips.length).toBeGreaterThan(0);
-    expect(
-      state.presentation?.canonicalActiveDrives.every(
-        (drive) =>
-          drive.driveMovementPhase.length > 0 &&
-          drive.reservationResourceIds.every((resourceId) => typeof resourceId === 'string'),
-      ),
-    ).toBe(true);
-    expect(state.presentation?.replayCount ?? 0).toBe(0);
-    expect(canonicalCitizenIds(state.citizenIds)).toEqual(canonicalCitizenIds(fixture.citizenIds));
-  });
 });

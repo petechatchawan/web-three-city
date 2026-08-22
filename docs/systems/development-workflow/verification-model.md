@@ -1,16 +1,18 @@
-# Verification Infrastructure — PR-T2 Foundation
+# Verification Infrastructure — Authority-Aware Routing
 
-**Status:** Implemented — PR-T2 Verification Infrastructure Foundation  
-**Relation:** builds on PR-T1 (Formal Test Architecture Audit)  
+**Status:** Implemented — PR-T2 foundation with PR-T3.3 authority semantics
+**Relation:** builds on PR-T1 (Formal Test Architecture Audit) and PR-T2 (Verification Infrastructure Foundation)
 **System:** Development Workflow
 
 ## Purpose
 
-PR-T2 does **not** migrate or change any Playwright tests, CI behavior, workers, retries, or browser configuration. It establishes a deterministic answer to one question:
+The resolver establishes a deterministic answer to one question:
 
 > From these changed files, what verification must run?
 
-The output is a **verification plan** with a bounded, fail-safe escalation behavior. This is the foundation for PR-T3 (Browser Classification / Migration).
+The output is a **verification plan** with authority and risk kept separate. A
+test metadata change can request exact topology/deployment checks or targeted
+browser evidence without becoming a shared browser-infrastructure change.
 
 ## Architecture
 
@@ -18,16 +20,16 @@ The output is a **verification plan** with a bounded, fail-safe escalation behav
 Changed Files
       |
       v
+Authority Classifier tooling/verification/authority.mjs
+      |
+      v
 Impact Resolver      tooling/verification/resolver.mjs
       |
       v
-Affected Systems     tooling/verification/ownership.mjs (source of truth)
+Ownership + Risk     tooling/verification/ownership.mjs + risk.mjs
       |
       v
-Risk Classification tooling/verification/risk.mjs
-      |
-      v
-Verification Plan   systems + risk + verification + browserRequired
+Verification Plan   authority + systems + risk + checks + browser mode
 ```
 
 Entry point: `pnpm verify:impact <changed files...>` (`tooling/verify-impact.mjs`).
@@ -39,7 +41,7 @@ Entry point: `pnpm verify:impact <changed files...>` (`tooling/verify-impact.mjs
 | `GRAPH_SAFE` | Dependency clear; related tests trustworthy. | pure utility, isolated domain logic |
 | `PARTIAL` | Multiple consumers; requires static expansion. | package API, shared domain module |
 | `GRAPH_BLIND` | Import graph insufficient. | runtime registry, event bus, dynamic lookup, string identifiers, runtime composition |
-| `GLOBAL` | Change is wide-reaching. | package.json, lockfile, vite config, build config, persistence schema, bootstrap |
+| `GLOBAL` | Shared verification/configuration authority is changed. | package.json, lockfile, Vite/Playwright config, CI, resolver, shared verification scripts |
 
 Risk is ordered low → high. When merging multiple changes, the **highest** risk wins.
 
@@ -53,6 +55,18 @@ Risk is ordered low → high. When merging multiple changes, the **highest** ris
 - `browserTags` — Playwright ownership tags required when directly changed;
 - `consumers` — static Level-2 expansion consumers (extra verification is safe).
 
+`tooling/verification/authority.mjs` classifies the changed-file authority
+before risk is merged:
+
+| Authority | Meaning | Browser consequence |
+|---|---|---|
+| `PRODUCT_SOURCE` | Owned production source | owner + Level-2 consumers; browser only when the direct owner requires it |
+| `DETERMINISTIC_TEST` | Unit/application test below the browser | owner/consumer tests; no browser by itself |
+| `BROWSER_CONTRACT` | Tagged Playwright contract | targeted ownership tags; no Full Browser by itself |
+| `TEST_TOPOLOGY` | Inventory/discovery/topology assertion | exact deployment/topology checks; no Full Browser by itself |
+| `SHARED_VERIFICATION` | Resolver, CI, config, or shared harness | `GLOBAL`; Full Browser escalation |
+| `GRAPH_BLIND_RUNTIME` | Dynamic/unknown runtime composition | conservative owner/browser expansion; Full Browser only when policy explicitly requires it |
+
 Audit-required packages added by PR-T2:
 
 - `citizen-mobility-core` (PARTIAL, consumers `traffic-core`, `game`)
@@ -65,17 +79,24 @@ verification merely because a presentation consumer (`traffic-three`) owns brows
 Browser requirement for `traffic-core` is satisfied by `traffic-core:test` + the
 expanded `traffic-three:test` (Vitest), not by the `@traffic` browser suite.
 
-## Global Escalation Rules (fail-safe)
+## Authority-Aware Escalation Rules (fail-safe)
 
 ```text
 Unknown  ──────────────►  GRAPH_BLIND
-High risk / global file ─► GLOBAL
+Shared verification/config ─► GLOBAL
 Safety > optimization
 ```
 
 - Unknown file ownership → escalate to `GRAPH_BLIND` (never under-verify).
-- GLOBAL-pattern file (config, lockfile, persistence schema, bootstrap, CI) → `GLOBAL` with `verify` + `verify:full` and `browserRequired: true`.
+- A tagged `browser-tests/*.spec.*` file → `BROWSER_CONTRACT` with its ownership tag(s), targeted browser, and `fullBrowserRequired: false`.
+- `tooling/test-topology.test.mjs` and inventory guards → `TEST_TOPOLOGY` with `deploymentRequired: true` and `fullBrowserRequired: false`.
+- Shared resolver/config/CI/harness files → `SHARED_VERIFICATION` with `GLOBAL`, `verify:full`, and `fullBrowserRequired: true`.
 - `GRAPH_BLIND` always sets `browserRequired: true`.
+
+Persistence and application integration are not automatically `GLOBAL`; they
+are classified by their actual owning source/test boundary. Shared schema or
+bootstrap infrastructure may still escalate explicitly when it changes the
+execution contract.
 
 ## CLI Preview
 
@@ -105,7 +126,9 @@ Recommended Verification:
 Browser Required: NO
 ```
 
-JSON variant: `pnpm verify:impact --json <files...>`.
+JSON variant: `pnpm verify:impact --json <files...>`. The JSON plan includes
+`entries`, `authority`, `fullBrowserRequired`, and `deploymentRequired` so CI
+can consume the same decision without reclassifying paths.
 
 ## Tests
 
@@ -119,8 +142,8 @@ PR-T2 preserves all existing authority:
 
 - No production behavior changed.
 - No gameplay/runtime logic changed.
-- No Playwright tests migrated, removed, or reduced.
-- CI gate execution, workers, retries, and browser configuration unchanged.
+- No Playwright tests migrated, removed, or reduced by this resolver change.
+- Existing CI gate execution, workers, retries, and browser configuration remain unchanged until a separately reviewed affected-execution/CI phase.
 - `pnpm verify`, `pnpm verify:full`, Lean CI artifact flow, deterministic browser
   verification, clean-worktree evidence, and release-gate discipline unchanged.
 
@@ -134,5 +157,6 @@ PR-T2 preserves all existing authority:
 
 ## Next
 
-PR-T3 will use this foundation for Browser Classification / Migration, turning
-`browserRequired` + `browserTags` into precise targeted Playwright tag selection.
+PR-T4 will use this foundation to execute owner tests, Level-2 consumers, and
+targeted browser tags from one exact-head plan. System pilots remain separate
+stacked PRs and must follow lower-layer RED → GREEN → browser narrowing.

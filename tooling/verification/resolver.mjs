@@ -1,35 +1,29 @@
 /**
- * Impact Resolver — PR-T2 Verification Infrastructure Foundation
+ * Impact Resolver — authority-aware verification planning.
  *
- * Changed Files → Affected Systems → Risk → Verification Plan
- *
- * Fail-safe: unknown → GRAPH_BLIND, high risk → GLOBAL, safety > optimization.
- *
- * No production behavior is changed; this is pure verification planning.
+ * Changed files are classified by what they are allowed to prove first, then
+ * expanded through the conservative ownership map. Test metadata is not a
+ * shared browser infrastructure change, so it cannot request Full Browser by
+ * itself.
  */
 
-import { GLOBAL_OWNER, GLOBAL_PATTERNS, GRAPH_BLIND_PATTERNS, normalizePath, OWNERSHIP } from './ownership.mjs';
+import { GLOBAL_OWNER, OWNERSHIP, normalizePath } from './ownership.mjs';
+import { classifyChangedFile, VerificationAuthority } from './authority.mjs';
 import { VerificationRisk, maxRiskOf } from './risk.mjs';
 
 /**
  * @typedef {Object} VerificationPlan
+ * @property {Array<Object>} entries
+ * @property {string} authority
  * @property {string[]} systems
  * @property {string} risk
  * @property {string[]} verification
  * @property {boolean} browserRequired
  * @property {string[]} browserTags
+ * @property {boolean} fullBrowserRequired
+ * @property {boolean} deploymentRequired
  * @property {string} reason
  */
-
-function isGlobalFile(file) {
-  const n = normalizePath(file);
-  return GLOBAL_PATTERNS.some((re) => re.test(n));
-}
-
-function isGraphBlindFile(file) {
-  const n = normalizePath(file);
-  return GRAPH_BLIND_PATTERNS.some((re) => re.test(n));
-}
 
 function compareText(left, right) {
   if (left < right) return -1;
@@ -37,42 +31,38 @@ function compareText(left, right) {
   return 0;
 }
 
-function resolveOwnerSystems(files) {
-  const direct = new Set();
-  for (const f of files) {
-    const n = normalizePath(f);
-    const match = Object.values(OWNERSHIP).find((o) => n.startsWith(o.pathPrefix));
-    if (match) direct.add(match.system);
-  }
-  return [...direct];
+function uniqueSorted(values) {
+  return [...new Set(values)].sort(compareText);
 }
 
 function expandConsumers(systems) {
   const expanded = new Set(systems);
-  for (const s of systems) {
-    const owner = OWNERSHIP[s];
+  for (const system of systems) {
+    const owner = OWNERSHIP[system];
     if (!owner) continue;
-    for (const c of owner.consumers) expanded.add(c);
+    for (const consumer of owner.consumers) expanded.add(consumer);
   }
   return [...expanded].sort(compareText);
 }
 
 function collectVerification(systems) {
-  const out = new Set();
-  for (const s of systems) {
-    const owner = OWNERSHIP[s];
-    if (owner) for (const v of owner.verification) out.add(v);
+  const verification = new Set();
+  for (const system of systems) {
+    const owner = OWNERSHIP[system];
+    if (!owner) continue;
+    for (const command of owner.verification) verification.add(command);
   }
-  return [...out].sort(compareText);
+  return [...verification].sort(compareText);
 }
 
-function collectBrowserTags(systems) {
-  const tags = new Set();
-  for (const s of systems) {
-    const owner = OWNERSHIP[s];
-    if (owner) for (const t of owner.browserTags) tags.add(t);
-  }
-  return [...tags].sort(compareText);
+function authorityFor(entries) {
+  const authorities = uniqueSorted(entries.map((entry) => entry.authority));
+  return authorities.length === 1 ? authorities[0] : 'MIXED';
+}
+
+function reasonFor(entries) {
+  if (entries.length === 1) return entries[0].reason;
+  return `merged authority-aware plan for ${entries.length} changed files`;
 }
 
 /**
@@ -81,102 +71,68 @@ function collectBrowserTags(systems) {
  * @returns {VerificationPlan}
  */
 export function resolveVerificationPlan(changedFiles) {
-  const files = (changedFiles ?? []).map(String).filter(Boolean);
+  const files = uniqueSorted(
+    (changedFiles ?? [])
+      .map((file) => String(file))
+      .filter(Boolean)
+      .map((file) => normalizePath(file)),
+  );
 
   if (files.length === 0) {
     return {
+      entries: [],
+      authority: null,
       systems: [],
       risk: VerificationRisk.GRAPH_SAFE,
       verification: [],
       browserRequired: false,
       browserTags: [],
+      fullBrowserRequired: false,
+      deploymentRequired: false,
       reason: 'no changed files',
     };
   }
 
-  // GLOBAL escalation: any global-pattern file → GLOBAL
-  const hasGlobal = files.some(isGlobalFile);
-  if (hasGlobal) {
-    const direct = resolveOwnerSystems(files);
-    // expand consumers of direct owners as well
-    const expanded = new Set(expandConsumers([...direct]));
-    expanded.add('GLOBAL');
-    const systems = [...expanded].sort(compareText);
-    // verification is GLOBAL + direct verification
-    const verification = [...new Set([...GLOBAL_OWNER.verification, ...collectVerification([...direct])])].sort(compareText);
-    const browserTags = [...new Set([...GLOBAL_OWNER.browserTags, ...collectBrowserTags([...direct])])].sort(compareText);
-    return {
-      systems,
-      risk: VerificationRisk.GLOBAL,
-      verification,
-      browserRequired: true,
-      browserTags,
-      reason: 'GLOBAL pattern matched — full verification required',
-    };
+  const entries = files.map((file) => classifyChangedFile(file));
+  const hasGlobal = entries.some((entry) => entry.authority === VerificationAuthority.SHARED_VERIFICATION);
+  const directSystems = uniqueSorted(entries.flatMap((entry) => entry.systems).filter((system) => system !== 'GLOBAL'));
+  const systems = new Set(expandConsumers(directSystems));
+  if (hasGlobal) systems.add('GLOBAL');
+  if (systems.size === 0 && entries.some((entry) => entry.authority === VerificationAuthority.GRAPH_BLIND_RUNTIME)) {
+    systems.add('unknown');
   }
 
-  // GRAPH_BLIND escalation: unknown files or blind-pattern files
-  const hasBlind = files.some(isGraphBlindFile);
-  const unknownFiles = files.filter((f) => {
-    const n = normalizePath(f);
-    if (isGraphBlindFile(f)) return false;
-    // known if matches any ownership prefix or global pattern
-    const knownOwner = Object.values(OWNERSHIP).some((o) => n.startsWith(o.pathPrefix));
-    const knownGlobal = GLOBAL_PATTERNS.some((re) => re.test(n));
-    return !knownOwner && !knownGlobal;
-  });
-  const hasUnknown = unknownFiles.length > 0;
-
-  if (hasBlind || hasUnknown) {
-    const direct = resolveOwnerSystems(files);
-    const expanded = expandConsumers(direct);
-    // include unknown owner systems as-is plus expansion
-    const systems = [...new Set([...direct, ...expanded])].sort(compareText);
-    // if completely unknown, include generic graph-blind verification
-    const baseVerification = systems.length > 0 ? collectVerification(systems) : [];
-    const verification =
-      baseVerification.length > 0
-        ? [...new Set([...baseVerification, 'verify'] )].sort(compareText)
-        : ['verify', 'test:deployment'];
-    const browserTags = collectBrowserTags(systems);
-    // GRAPH_BLIND always requires browser consideration
-    return {
-      systems: systems.length > 0 ? systems : ['unknown'],
-      risk: VerificationRisk.GRAPH_BLIND,
-      verification,
-      browserRequired: true,
-      browserTags,
-      reason: hasBlind
-        ? 'GRAPH_BLIND pattern matched (registry/event-bus/composition)'
-        : `unknown ownership for: ${unknownFiles.join(', ')}`,
-    };
+  const verification = new Set([
+    ...collectVerification([...systems].filter((system) => system !== 'unknown' && system !== 'GLOBAL')),
+    ...entries.flatMap((entry) => entry.verification),
+  ]);
+  if (hasGlobal) for (const command of GLOBAL_OWNER.verification) verification.add(command);
+  if (verification.size === 0 && systems.has('unknown')) {
+    verification.add('verify');
+    verification.add('test:deployment');
   }
 
-  // Normal: map files to owners, expand consumers, compute max risk.
-  // Browser requirement is driven by the DIRECT changed owner(s), not expanded
-  // consumers: a pure-domain change does not force browser verification merely
-  // because a presentation consumer also has browser specs.
-  const direct = resolveOwnerSystems(files);
-  const systems = expandConsumers(direct);
-  const risks = direct.map((s) => OWNERSHIP[s]?.risk ?? VerificationRisk.GRAPH_SAFE);
-  const risk = maxRiskOf(risks);
-  const verification = collectVerification(systems);
-  const browserTags = collectBrowserTags(direct);
-  const browserRequired = browserTags.length > 0;
+  const browserTags = uniqueSorted(entries.flatMap((entry) => entry.browserTags));
+  if (hasGlobal) browserTags.push(...GLOBAL_OWNER.browserTags);
 
   return {
-    systems,
-    risk,
-    verification,
-    browserRequired,
-    browserTags,
-    reason: `matched owners: ${direct.join(', ')}`,
+    entries,
+    authority: authorityFor(entries),
+    systems: [...systems].sort(compareText),
+    risk: maxRiskOf(entries.map((entry) => entry.risk)),
+    verification: uniqueSorted(verification),
+    browserRequired: hasGlobal || entries.some((entry) => entry.browserRequired),
+    browserTags: uniqueSorted(browserTags),
+    fullBrowserRequired: hasGlobal || entries.some((entry) => entry.fullBrowserRequired),
+    deploymentRequired: hasGlobal || entries.some((entry) => entry.deploymentRequired),
+    reason: reasonFor(entries),
   };
 }
 
 /**
- * Legacy alias for spec example shape.
- * Returns minimal shape expected by PR-T2 spec tests.
+ * Legacy alias for the PR-T2 resolver contract. New authority/evidence fields
+ * remain available through resolveVerificationPlan without changing callers
+ * that consume the original minimal shape.
  */
 export function resolve(changedFiles) {
   const plan = resolveVerificationPlan(changedFiles);

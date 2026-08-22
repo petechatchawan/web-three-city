@@ -104,8 +104,9 @@ export const GLOBAL_OWNER = Object.freeze({
 });
 
 /**
- * Patterns that force GLOBAL escalation (fail-safe: safety > optimization).
- * Matches against the changed file path.
+ * Shared verification/configuration patterns that force GLOBAL escalation.
+ * Test authority has explicit rules in authority.mjs and must not be swept
+ * into this list merely because it lives under tooling/ or browser-tests/.
  */
 export const GLOBAL_PATTERNS = Object.freeze([
   /^package\.json$/,
@@ -118,14 +119,11 @@ export const GLOBAL_PATTERNS = Object.freeze([
   /^playwright\.config\./,
   /^eslint\.config\./,
   /^\.github\//,
-  /^tooling\//,
-  /^browser-tests\//,
-  // persistence / save schema / bootstrap are GLOBAL per spec
-  /persistence/i,
-  /WorldSave/i,
-  /Save.*V\d+/,
-  /bootstrap/i,
-  /game-bootstrap/i,
+  /^tooling\/verification(?:\/|-)/,
+  /^tooling\/verify-(?:impact|affected)\./,
+  /^tooling\/ci-topology\.test\./,
+  /^tooling\/verification-scripts\.test\./,
+  /^tooling\/(?:architecture-boundary|development-workflow|compose-vercel-output|bootstrap-vercel-project|verify-clean-worktree|check-provenance)\./,
   // build infra
   /vercel\.json$/,
   /Dockerfile/,
@@ -142,6 +140,7 @@ export const GRAPH_BLIND_PATTERNS = Object.freeze([
   /lookup/i,
   /composition/i,
   /apps\/game\/src\/game-bootstrap/,
+  /bootstrap/i,
 ]);
 
 export function normalizePath(file) {

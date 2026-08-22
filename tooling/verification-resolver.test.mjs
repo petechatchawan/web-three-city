@@ -54,3 +54,27 @@ test('merging keeps verification deduplicated', () => {
   assert.ok(plan.systems.includes('traffic-three'));
   assert.ok(plan.systems.includes('road-three'));
 });
+
+test('tagged Traffic browser specs select targeted Traffic only', () => {
+  const plan = resolveVerificationPlan([
+    'browser-tests/citizen-mobility-traffic-commute.@traffic@visual@release.spec.ts',
+  ]);
+  assert.equal(plan.authority, 'BROWSER_CONTRACT');
+  assert.deepEqual(plan.browserTags, ['@traffic']);
+  assert.equal(plan.browserRequired, true);
+  assert.equal(plan.fullBrowserRequired, false);
+});
+
+test('test topology metadata does not imply Full Browser', () => {
+  const plan = resolveVerificationPlan(['tooling/test-topology.test.mjs']);
+  assert.equal(plan.authority, 'TEST_TOPOLOGY');
+  assert.equal(plan.deploymentRequired, true);
+  assert.equal(plan.fullBrowserRequired, false);
+});
+
+test('verification implementation remains GLOBAL', () => {
+  const plan = resolveVerificationPlan(['tooling/verification/resolver.mjs']);
+  assert.equal(plan.authority, 'SHARED_VERIFICATION');
+  assert.equal(plan.risk, VerificationRisk.GLOBAL);
+  assert.equal(plan.fullBrowserRequired, true);
+});

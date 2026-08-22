@@ -40,7 +40,11 @@ import {
   createBuildingTrafficAccessProjection,
   createRoadTrafficSourceProjectionFromEnvironment,
 } from './traffic-source-projection.js';
-import { createCommittedWorld, type CommittedWorld } from './application/committed-world.js';
+import {
+  createCommittedWorld,
+  createCommittedWorldFromDomainState,
+  type CommittedWorld,
+} from './application/committed-world.js';
 import { memoizedFingerprintCommittedWorld } from './application/committed-world-fingerprint.js';
 import type {
   WorldPresentationPort,
@@ -370,23 +374,38 @@ export function planGameMinuteTransaction(
         )
       : { ok: true as const, snapshot: world.economy };
     if (!settlement.ok) return invalidPlan(world, `economy:${settlement.reason}`);
-    const nextWorld = createCommittedWorld(
-      {
-        ...world,
-        revision: world.revision + 1,
-        simulation,
-        buildings,
-        rci,
-        economy: settlement.snapshot,
-        mobility: mobilityTraffic.mobility,
-        traffic: trafficV2AtMinute({
-          before: world.traffic as unknown as TrafficSnapshotV1 | TrafficSnapshotV2,
-          after: mobilityTraffic.traffic,
-          sourceGameMinute: simulation.absoluteGameMinute,
-        }) as unknown as typeof world.traffic,
-      },
-      { ...(buildings === world.buildings ? { reuseStaticFrom: world } : {}) },
-    );
+    const traffic = trafficV2AtMinute({
+      before: world.traffic as unknown as TrafficSnapshotV1 | TrafficSnapshotV2,
+      after: mobilityTraffic.traffic,
+      sourceGameMinute: simulation.absoluteGameMinute,
+    }) as unknown as typeof world.traffic;
+    const nextWorld =
+      buildings === world.buildings
+        ? createCommittedWorld(
+            {
+              ...world,
+              revision: world.revision + 1,
+              simulation,
+              buildings,
+              rci,
+              economy: settlement.snapshot,
+              mobility: mobilityTraffic.mobility,
+              traffic,
+            },
+            { reuseStaticFrom: world },
+          )
+        : createCommittedWorldFromDomainState({
+            revision: world.revision + 1,
+            terrain: world.terrain,
+            roads: world.roads,
+            zones: world.zones,
+            buildings,
+            simulation,
+            rci,
+            economy: settlement.snapshot,
+            mobility: mobilityTraffic.mobility,
+            traffic,
+          });
     return Object.freeze({
       valid: true,
       invalidReason: null,

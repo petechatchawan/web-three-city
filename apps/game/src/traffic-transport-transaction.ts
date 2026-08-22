@@ -34,11 +34,15 @@ export function planTrafficTransportTransaction(
     input.traffic.schemaVersion === 2
       ? advanceTrafficQuantum({
           snapshot: input.traffic,
-          graph:
-            input.graph ??
-            (() => {
-              throw new Error('traffic-transport-transaction:missing-graph');
-            })(),
+          ...(input.traffic.activeTrips.length === 0
+            ? {}
+            : {
+                graph:
+                  input.graph ??
+                  (() => {
+                    throw new Error('traffic-transport-transaction:missing-graph');
+                  })(),
+              }),
         }).snapshot
       : input.traffic;
   let mobility = input.mobility;

@@ -91,6 +91,15 @@ export class TrafficRuntimePresentation {
   }
 
   synchronize(world: CommittedWorld): void {
+    if (
+      this.#latestWorld !== null &&
+      !this.#overlay.active &&
+      this.#latestWorld.traffic.activeTrips.length === 0 &&
+      world.traffic.activeTrips.length === 0
+    ) {
+      this.#latestWorld = world;
+      return;
+    }
     this.#latestWorld = world;
     const roads = createRoadTrafficSourceProjectionFromEnvironment(
       world.roads,

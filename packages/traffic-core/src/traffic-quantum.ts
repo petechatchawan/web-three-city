@@ -408,7 +408,7 @@ function advanceOneQuantum(
 export function advanceTrafficQuantum(
   input: Readonly<{
     snapshot: TrafficSnapshotV2;
-    graph: TrafficGraph;
+    graph?: TrafficGraph;
     entryAdmission?: Readonly<{
       accessServiceRatePerTransportSecond?: number;
       ingressRearClearanceProgressQ?: number;
@@ -437,15 +437,17 @@ export function advanceTrafficQuantum(
       }),
     });
   }
+  if (input.graph === undefined) throw new Error('traffic:missing-graph');
+  const graph = input.graph;
   const arrived: string[] = [];
   const newlyQueued: string[] = [];
   const released: string[] = [];
   const metadata = (input.graphMetadataCache ?? defaultTrafficGraphMetadataCache).getOrCreate(
-    input.graph,
+    graph,
     input.scaleInstrumentation,
   );
   const occupancy = createLaneOccupancyIndex({
-    graph: input.graph,
+    graph,
     trips: snapshot.activeTrips,
     ...(input.scaleInstrumentation === undefined
       ? {}
@@ -510,7 +512,7 @@ export function advanceTrafficQuantum(
     if (candidate !== undefined && grantedTripIds.has(originalTrip.tripId)) return trip;
     const result = advanceOneQuantum(
       trip,
-      input.graph,
+      graph,
       metadata,
       timeCursor.absoluteTransportSecond,
       input.scaleInstrumentation,

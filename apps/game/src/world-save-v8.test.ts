@@ -1,3 +1,4 @@
+import { createBuildingSnapshot } from '@web-three-city/building-core';
 import { createSimulationSnapshot } from '@web-three-city/simulation-core';
 import { createTrafficSnapshotV2 } from '@web-three-city/traffic-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
@@ -79,5 +80,41 @@ describe('WorldSaveV8', () => {
       absoluteTransportSecond: 1922,
       temporalPolicyVersion: 1,
     });
+  });
+
+  it('accepts a construction checkpoint whose completion tick is in the macro-hour domain', () => {
+    const world = createApplicationFixture({ withCommercialBuilding: true });
+    const sourceBuilding = world.buildings.instances[0];
+    if (sourceBuilding === undefined) throw new Error('test:missing-building');
+    const buildings = createBuildingSnapshot(
+      {
+        revision: world.buildings.revision,
+        instances: [
+          {
+            ...sourceBuilding,
+            lifecycle: 'construction',
+            constructionStartedAtTick: 8,
+            constructionCompletesAtTick: 36,
+          },
+        ],
+      },
+      WORLD_CONFIG,
+    );
+    const encoded = api.encodeWorldSaveV8!(
+      world.terrain,
+      world.roads,
+      world.zones,
+      buildings,
+      createSimulationSnapshot({
+        ...world.simulation,
+        absoluteGameMinute: 12 * 60,
+      }),
+      world.rci,
+      world.economy,
+      world.mobility,
+      world.traffic as never,
+    );
+
+    expect(worldSave.decodeWorldSave(encoded, WORLD_CONFIG)).toMatchObject({ ok: true });
   });
 });

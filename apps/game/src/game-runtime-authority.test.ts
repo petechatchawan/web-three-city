@@ -46,6 +46,6 @@ describe('GameRuntime committed-world authority', () => {
     );
 
     expect(calendarSection).toMatch(/adoptCommittedWorld\(publication\.world\)/);
-    expect(transportSection).toMatch(/adoptCommittedWorld\(publication\.world\)/);
+    expect(transportSection).toMatch(/adoptCommittedWorld\(publication\.world, 'transport'\)/);
   });
 });

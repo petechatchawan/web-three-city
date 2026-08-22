@@ -1,4 +1,4 @@
-import { createEmptyBuildingSnapshot } from '@web-three-city/building-core';
+import { createBuildingSnapshot, createEmptyBuildingSnapshot } from '@web-three-city/building-core';
 import {
   createInitialEconomySnapshot,
   FOUNDATION_ECONOMY_RULES,
@@ -11,6 +11,7 @@ import {
 } from '@web-three-city/road-core';
 import {
   createInitialSimulationSnapshot,
+  createSimulationSnapshot,
   deriveMacroHourIndex,
 } from '@web-three-city/simulation-core';
 import { generateCoastalTerrain } from '@web-three-city/terrain-generator';
@@ -99,6 +100,65 @@ describe('WorldTransactionCoordinator', () => {
     expect(fingerprintCommittedWorld(coordinator.snapshot())).toBe(
       fingerprintCommittedWorld(initial),
     );
+  });
+
+  it('accepts a construction candidate whose completion tick is in the macro-hour domain', () => {
+    const base = createApplicationFixture({ withCommercialInfrastructure: true });
+    const simulation = createSimulationSnapshot({
+      ...base.simulation,
+      revision: 0,
+      absoluteGameMinute: 12 * 60,
+    });
+    const initial = createCommittedWorldFromDomainState({
+      revision: 0,
+      terrain: base.terrain,
+      roads: base.roads,
+      zones: base.zones,
+      buildings: createEmptyBuildingSnapshot(WORLD_CONFIG),
+      simulation,
+      rci: base.rci,
+      economy: base.economy,
+    });
+    const construction = createBuildingSnapshot(
+      {
+        revision: 1,
+        instances: [
+          {
+            instanceId: 'building:growth:1',
+            buildingDefinitionId: 'commercial-shop-1x1',
+            buildingDefinitionVersion: 1,
+            originCell: { x: 4, z: 4 },
+            rotationQuarterTurns: 0,
+            lifecycle: 'construction',
+            constructionStartedAtTick: 12,
+            constructionCompletesAtTick: 36,
+          },
+        ],
+      },
+      WORLD_CONFIG,
+    );
+    const next = createCommittedWorldFromDomainState({
+      revision: 1,
+      terrain: initial.terrain,
+      roads: initial.roads,
+      zones: initial.zones,
+      buildings: construction,
+      simulation,
+      rci: initial.rci,
+      economy: initial.economy,
+    });
+    const coordinator = new DefaultWorldTransactionCoordinator({
+      worldStore: new CommittedWorldStore(initial),
+    });
+
+    const result = coordinator.publish({
+      baseRevision: initial.revision,
+      baseFingerprint: fingerprintCommittedWorld(initial),
+      nextWorld: next,
+      nextFingerprint: fingerprintCommittedWorld(next),
+    });
+
+    expect(result.status).toBe('committed');
   });
 
   it('publishes valid Road additions on the curated runtime terrain', () => {

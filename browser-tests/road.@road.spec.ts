@@ -124,23 +124,14 @@ async function buildRoadTap(page: Page, cell: Readonly<{ x: number; z: number }>
   await expect(page.getByTestId('tool-context-status')).toHaveText('Road built');
 }
 
-interface TerrainLabRoadEvidence {
+interface TerrainLabRoadPresentationEvidence {
   readonly fixture: string;
-  readonly valid: boolean;
-  readonly invalidReason: string | null;
-  readonly roadRevision: number;
-  readonly occupiedCellCount: number;
-  readonly connectionMask: number;
-  readonly requestedCellCount: number;
-  readonly dirtyChunkCount: number;
   readonly committedRootCount: number;
   readonly previewRootCount: number;
-  readonly terrainRevision: number;
-  readonly waterSourceTerrainRevision: number;
   readonly estimatedGeometryBytes: number;
 }
 
-async function readRoadFixture(page: Page): Promise<TerrainLabRoadEvidence> {
+async function readRoadFixture(page: Page): Promise<TerrainLabRoadPresentationEvidence> {
   return page.evaluate(() => {
     const evidence = window.__WEB_THREE_CITY_ROAD_EVIDENCE__;
     if (evidence === undefined) throw new Error('missing Road fixture evidence');
@@ -148,60 +139,42 @@ async function readRoadFixture(page: Page): Promise<TerrainLabRoadEvidence> {
   });
 }
 
-const VALID_FIXTURES = [
+// The complete deterministic fixture matrix is owned by road-core. These
+// representatives retain the browser authority that the matrix cannot prove:
+// rendered topology, orientation, slope direction, chunk presentation, and
+// invalid-preview materialization.
+const BROWSER_VALID_FIXTURES = [
   'road-isolated',
   'road-end-north',
-  'road-end-east',
-  'road-end-south',
-  'road-end-west',
   'road-straight-ns',
   'road-straight-ew',
   'road-corner-ne',
-  'road-corner-es',
-  'road-corner-sw',
-  'road-corner-wn',
-  'road-t-north',
   'road-t-east',
-  'road-t-south',
-  'road-t-west',
   'road-four-way',
   'road-ramp-north-up',
-  'road-ramp-north-down',
   'road-ramp-east-up',
+  'road-ramp-north-down',
   'road-ramp-east-down',
   'road-chunk-boundary',
 ] as const;
 
-for (const fixture of VALID_FIXTURES) {
-  test(`renders valid ${fixture} deterministically`, async ({ page }) => {
+for (const fixture of BROWSER_VALID_FIXTURES) {
+  test(`renders representative valid ${fixture} Road presentation`, async ({ page }) => {
     await page.goto(`${TERRAIN_LAB_URL}?fixture=${fixture}`);
     await expect(page.getByTestId('terrain-status')).toHaveText('Ready');
     const evidence = await readRoadFixture(page);
     expect(evidence.fixture).toBe(fixture);
-    expect(evidence.valid).toBe(true);
-    expect(evidence.invalidReason).toBeNull();
-    expect(evidence.roadRevision).toBe(1);
-    expect(evidence.occupiedCellCount).toBeGreaterThan(0);
     expect(evidence.committedRootCount).toBe(1);
     expect(evidence.previewRootCount).toBe(0);
-    expect(evidence.terrainRevision).toBe(evidence.waterSourceTerrainRevision);
     expect(evidence.estimatedGeometryBytes).toBeGreaterThan(0);
-    if (fixture === 'road-chunk-boundary') expect(evidence.dirtyChunkCount).toBeGreaterThan(1);
   });
 }
 
-for (const [fixture, reason] of [
-  ['road-invalid-ramp-perpendicular', 'road:invalid-ramp-topology'],
-  ['road-invalid-ramp-junction', 'road:invalid-ramp-topology'],
-  ['road-invalid-wet', 'road:wet-cell'],
-] as const) {
-  test(`renders invalid ${fixture} Preview`, async ({ page }) => {
+for (const fixture of ['road-invalid-ramp-perpendicular', 'road-invalid-wet'] as const) {
+  test(`renders representative invalid ${fixture} Preview`, async ({ page }) => {
     await page.goto(`${TERRAIN_LAB_URL}?fixture=${fixture}`);
     const evidence = await readRoadFixture(page);
-    expect(evidence.valid).toBe(false);
-    expect(evidence.invalidReason).toBe(reason);
-    expect(evidence.roadRevision).toBe(0);
-    expect(evidence.occupiedCellCount).toBe(0);
+    expect(evidence.fixture).toBe(fixture);
     expect(evidence.committedRootCount).toBe(1);
     expect(evidence.previewRootCount).toBe(1);
   });

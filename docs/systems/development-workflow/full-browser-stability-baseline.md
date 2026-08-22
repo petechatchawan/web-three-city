@@ -37,6 +37,36 @@ These groups are not evidence of a Traffic migration defect. Each group needs
 its own reproduction at a known exact head and an authority classification:
 product defect, test defect, environment flake, or timeout-budget issue.
 
+## Fresh exact-head escalation from PR #88
+
+The explicit shared-verification escalation for PR-T3.3 was also run against
+the final resolver candidate:
+
+| Field | Evidence |
+|---|---|
+| Candidate SHA | `c928e9044947727a62ea64ca24dd9114a11d871c` |
+| Workflow run | `32576690764` |
+| Browser job | `97040314452` |
+| Browser artifact | `9477187019` (`browser-evidence`) |
+| Result | `CANCELLED` by the 35m21s job timeout |
+| Lean job | `97039957022` — PASS |
+| Sonar | PASS |
+| Traffic observation | Traffic evidence ran before the unrelated failure groups; no resolver-related browser failure was observed |
+
+Distinct failure evidence captured before timeout:
+
+- RCI HUD round-trip values; Economy committed-save round trip;
+- RCI/game dialog active-tool expectations;
+- Game WorldSave round trip and interaction tool selection;
+- Growth deterministic time controls, construction-per-tick, mobile controls,
+  automatic tool/in-progress stroke, exact logical tick persistence, and
+  reservation behavior;
+- Building Undo/SaveV7 and Residential/Industrial visual prototypes.
+
+The artifact contains screenshots, traces, and `error-context.md` for these
+cases. Road visual evidence completed in the same run, and the run did not
+produce a Traffic authority failure before the timeout.
+
 ## Local package-suite timing observation
 
 At resolver candidate `c928e9044947727a62ea64ca24dd9114a11d871c`, a recursive

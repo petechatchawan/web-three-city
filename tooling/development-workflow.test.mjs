@@ -49,7 +49,9 @@ test('every Vitest workspace exposes watch mode and non-test workspaces do not g
     }
   }
   assert.equal(vitestWorkspaceCount, 21);
-  const terrainLab = manifests.find(({ packageJson }) => packageJson.name === '@web-three-city/terrain-lab');
+  const terrainLab = manifests.find(
+    ({ packageJson }) => packageJson.name === '@web-three-city/terrain-lab',
+  );
   assert.ok(terrainLab);
   assert.equal(terrainLab.packageJson.scripts?.test, undefined);
   assert.equal(terrainLab.packageJson.scripts?.['test:watch'], undefined);
@@ -71,7 +73,10 @@ test('pre-commit setup is staged-only and excludes slow gates', async () => {
   assert.equal(lintStaged['*.{mjs,cjs}'], 'eslint --fix');
   assert.equal(lintStaged['*.{yml,yaml}'], 'prettier --write');
   const serializedPolicy = `${preCommit}\n${JSON.stringify(lintStaged)}`;
-  assert.doesNotMatch(serializedPolicy, /typecheck|vitest|playwright|pnpm verify|eslint \.|pnpm lint/i);
+  assert.doesNotMatch(
+    serializedPolicy,
+    /typecheck|vitest|playwright|pnpm verify|eslint \.|pnpm lint/i,
+  );
 });
 
 test('AGENTS defines actionable repository navigation and verification policy', async () => {
@@ -211,8 +216,9 @@ test('development workflow reserves Full Browser for explicit escalation', async
 
 test('Development Workflow living handoff records targeted browser CI', async () => {
   const readme = await readRepoText('docs/systems/development-workflow/README.md');
-  assert.match(readme, /Targeted browser tags:\s*traffic building/i);
-  assert.match(readme, /Browser CI targeted mode.*Lean preview artifact/is);
+  assert.match(readme, /affected-verification-plan\.json/i);
+  assert.match(readme, /Browser CI.*targeted mode.*plan/is);
+  assert.match(readme, /exact Lean preview artifact/is);
   assert.match(readme, /Full Browser is not the default gate for every PR/i);
 });
 
@@ -222,5 +228,8 @@ test('system registry reports implemented RCI and the Development Workflow syste
     registry,
     /\[RCI Demand & Occupancy\]\(rci\/README\.md\).*Implemented.*`rci-core`.*`RciSaveV1`.*`WorldSaveV5`/i,
   );
-  assert.match(registry, /\[Development Workflow\]\(development-workflow\/README\.md\).*Implemented/i);
+  assert.match(
+    registry,
+    /\[Development Workflow\]\(development-workflow\/README\.md\).*Implemented/i,
+  );
 });

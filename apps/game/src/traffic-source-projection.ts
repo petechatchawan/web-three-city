@@ -29,6 +29,15 @@ type SurfaceReader = (cell: Readonly<{ x: number; z: number }>) => Readonly<{
   maximumLevel: number;
 }>;
 
+const ROAD_PROJECTION_CACHE = new WeakMap<
+  RoadSnapshot,
+  WeakMap<object, RoadTrafficSourceProjection>
+>();
+const BUILDING_ACCESS_CACHE = new WeakMap<
+  BuildingSnapshot,
+  WeakMap<object, BuildingTrafficAccessProjection>
+>();
+
 function roadCodeAt(roads: RoadSnapshot, x: number, z: number): number {
   if (x < 0 || z < 0 || x >= roads.width || z >= roads.height) return EMPTY_ROAD_CODE;
   return roads.definitionCodes[z * roads.width + x] ?? EMPTY_ROAD_CODE;
@@ -91,7 +100,15 @@ export function createRoadTrafficSourceProjectionFromEnvironment(
   roads: RoadSnapshot,
   environment: Pick<BuildingDevelopmentEnvironment, 'surfaceAt'>,
 ): RoadTrafficSourceProjection {
-  return createRoadProjection(roads, (cell) => environment.surfaceAt(cell));
+  const environmentKey = environment as object;
+  const cachedByEnvironment = ROAD_PROJECTION_CACHE.get(roads);
+  const cached = cachedByEnvironment?.get(environmentKey);
+  if (cached !== undefined) return cached;
+  const projection = createRoadProjection(roads, (cell) => environment.surfaceAt(cell));
+  const nextCache = cachedByEnvironment ?? new WeakMap<object, RoadTrafficSourceProjection>();
+  nextCache.set(environmentKey, projection);
+  if (cachedByEnvironment === undefined) ROAD_PROJECTION_CACHE.set(roads, nextCache);
+  return projection;
 }
 
 export function createTrafficGraphDirtyRegion(
@@ -144,6 +161,9 @@ export function createBuildingTrafficAccessProjection(
   _roads: RoadSnapshot,
   environment: BuildingDevelopmentEnvironment,
 ): BuildingTrafficAccessProjection {
+  const cachedByEnvironment = BUILDING_ACCESS_CACHE.get(buildings);
+  const cached = cachedByEnvironment?.get(environment);
+  if (cached !== undefined) return cached;
   const accesses = buildings.instances
     .filter((instance) => instance.lifecycle === undefined || instance.lifecycle === 'active')
     .map((instance) => {
@@ -162,8 +182,12 @@ export function createBuildingTrafficAccessProjection(
     })
     .filter((value): value is NonNullable<typeof value> => value !== null)
     .sort((a, b) => a.buildingInstanceId.localeCompare(b.buildingInstanceId));
-  return Object.freeze({
+  const projection = Object.freeze({
     buildingRevision: buildings.revision,
     accesses: Object.freeze(accesses),
   });
+  const nextCache = cachedByEnvironment ?? new WeakMap<object, BuildingTrafficAccessProjection>();
+  nextCache.set(environment, projection);
+  if (cachedByEnvironment === undefined) BUILDING_ACCESS_CACHE.set(buildings, nextCache);
+  return projection;
 }

@@ -25,6 +25,7 @@ import {
   createInitialSimulationSnapshot,
   createSimulationSnapshot,
   decodeSimulationSaveV1,
+  deriveMacroHourIndex,
   encodeSimulationSaveV1,
   type SimulationSaveV1,
   type SimulationSnapshot,
@@ -347,7 +348,7 @@ export function decodeWorldSave(
   for (const instance of buildings.instances) {
     if (
       instance.lifecycle === 'construction' &&
-      instance.constructionCompletesAtTick <= simulation.absoluteGameMinute
+      instance.constructionCompletesAtTick <= deriveMacroHourIndex(simulation.absoluteGameMinute)
     ) {
       return err({
         code: 'world-save:invalid-building-lifecycle',

@@ -5,6 +5,7 @@ import {
 } from '@web-three-city/building-core';
 import { createFoundationRciRegistries, validateRciSnapshot } from '@web-three-city/rci-core';
 import { roadCellPolicyInvalidReason, roadOccupiedAt } from '@web-three-city/road-core';
+import { deriveMacroHourIndex } from '@web-three-city/simulation-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { zoneCellPolicyInvalidReason, zoneOccupiedAt } from '@web-three-city/zone-core';
 import { createZonePlacementEnvironment } from '../zone-placement-environment.js';
@@ -116,7 +117,8 @@ function validBuildingInstance(
 ): boolean {
   if (
     instance.lifecycle === 'construction' &&
-    instance.constructionCompletesAtTick <= world.simulation.absoluteGameMinute
+    instance.constructionCompletesAtTick <=
+      deriveMacroHourIndex(world.simulation.absoluteGameMinute)
   ) {
     return false;
   }

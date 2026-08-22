@@ -142,7 +142,7 @@ const QUALITY_POLICY = Object.freeze({
   high: { label: 'High', maxPixelRatio: 2, shadows: true },
 });
 
-export type CommittedWorldChangeReason = 'publication' | 'load' | 'undo' | 'reset';
+export type CommittedWorldChangeReason = 'publication' | 'transport' | 'load' | 'undo' | 'reset';
 export type CommittedWorldSubscriber = (
   world: CommittedWorld,
   reason: CommittedWorldChangeReason,
@@ -636,8 +636,10 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
     zoneEnvironment = world.environments.zone;
     buildingsSnapshot = world.buildings;
     buildingEnvironment = world.environments.building;
-    if (!presentationSuppressedForTest) lastPresentedStaticWorld = world;
-    notifyCommittedWorld(world, reason);
+    if (!presentationSuppressedForTest) {
+      lastPresentedStaticWorld = world;
+      notifyCommittedWorld(world, reason);
+    }
   };
 
   const presentationCoordinator = new PresentationCoordinator({
@@ -1033,13 +1035,28 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
         ...(input.automaticGrowth === undefined ? {} : { automaticGrowth: input.automaticGrowth }),
       });
       if (!plan.valid) return transactionCoordinator.snapshot();
+      const buildingChanged =
+        plan.buildingReceipt !== null &&
+        (plan.buildingReceipt.startedInstanceIds.length > 0 ||
+          plan.buildingReceipt.completedInstanceIds.length > 0);
+      const presentation =
+        presentationSuppressedForTest || !buildingChanged
+          ? noOpPresentation
+          : incrementalPresentation((world) => buildingPresentation.load(world.buildings));
       const publication = commitGameMinuteTransaction(
         transactionCoordinator,
         plan,
-        presentationSuppressedForTest ? noOpPresentation : undefined,
+        presentation,
         presentationSuppressedForTest,
       );
       if (publication.status === 'committed') {
+        if (
+          plan.buildingReceipt !== null &&
+          (plan.buildingReceipt.startedInstanceIds.length > 0 ||
+            plan.buildingReceipt.completedInstanceIds.length > 0)
+        ) {
+          buildingCommitCount += 1;
+        }
         adoptCommittedWorld(publication.world);
         return publication.world;
       }
@@ -1060,7 +1077,9 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
         world: current,
         mobility: current.mobility,
         traffic: current.traffic as never,
-        graph: combinedTrafficGraphForWorld(current),
+        ...(current.traffic.activeTrips.length === 0
+          ? {}
+          : { graph: combinedTrafficGraphForWorld(current) }),
       });
       const publication = commitTrafficTransportTransaction(
         transactionCoordinator,
@@ -1069,7 +1088,7 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
         presentationSuppressedForTest,
       );
       if (publication.status === 'committed') {
-        adoptCommittedWorld(publication.world);
+        adoptCommittedWorld(publication.world, 'transport');
         return publication.world;
       }
       return transactionCoordinator.snapshot();

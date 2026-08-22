@@ -31,9 +31,11 @@ const WATER = GAME_WATER;
 const ROAD_ENVIRONMENT = ROAD_PLACEMENT_ENVIRONMENT;
 const EMPTY_OCCUPANCY = EMPTY_WORLD_OCCUPANCY;
 const DIRECTIONS = Object.freeze([
-  Object.freeze({ x: 0, z: -1 }),
-  Object.freeze({ x: 1, z: 0 }),
+  // Keep the fixture below the landscape HUD so projected interaction points remain
+  // browser-clickable without hiding the production shell.
   Object.freeze({ x: 0, z: 1 }),
+  Object.freeze({ x: 1, z: 0 }),
+  Object.freeze({ x: 0, z: -1 }),
   Object.freeze({ x: -1, z: 0 }),
 ]);
 

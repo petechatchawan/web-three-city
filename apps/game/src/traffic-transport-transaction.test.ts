@@ -1,4 +1,4 @@
-import { createTrafficSnapshot } from '@web-three-city/traffic-core';
+import { createTrafficSnapshot, createTrafficSnapshotV2 } from '@web-three-city/traffic-core';
 import { describe, expect, it } from 'vitest';
 import { createApplicationFixture } from '../test/application-fixtures.js';
 import { CommittedWorldStore } from './application/committed-world.js';
@@ -10,6 +10,34 @@ import {
 } from './traffic-transport-transaction.js';
 
 describe('Traffic transport transaction', () => {
+  it('advances an empty V2 transport quantum without requiring a graph', () => {
+    const world = createApplicationFixture();
+    const traffic = createTrafficSnapshotV2({
+      schemaVersion: 2,
+      revision: world.traffic.revision,
+      policyVersion: 1,
+      graphSourceRoadRevision: world.roads.revision,
+      graphSourceBuildingRevision: world.buildings.revision,
+      timeCursor: {
+        sourceGameMinute: world.simulation.absoluteGameMinute,
+        completedTransportQuantaWithinMinute: 0,
+        absoluteTransportSecond: world.simulation.absoluteGameMinute * 4,
+        temporalPolicyVersion: 1,
+      },
+      activeTrips: [],
+    });
+
+    const plan = planTrafficTransportTransaction({
+      world,
+      mobility: world.mobility,
+      traffic,
+    });
+
+    expect(
+      (plan.nextWorld.traffic as unknown as typeof traffic).timeCursor.absoluteTransportSecond,
+    ).toBe(world.simulation.absoluteGameMinute * 4 + 1);
+  });
+
   it('publishes Traffic and Mobility atomically without advancing the simulation minute', () => {
     const before = createApplicationFixture();
     const coordinator = new DefaultWorldTransactionCoordinator({

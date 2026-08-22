@@ -148,6 +148,10 @@ function synchronizeCommittedWorld(
   reason: Parameters<Parameters<typeof runtime.subscribeCommittedWorld>[0]>[1],
 ): void {
   if (suppressPresentationSync) return;
+  if (reason === 'transport') {
+    trafficRuntime?.synchronize(world);
+    return;
+  }
   if (reason === 'load') {
     setSimulationSpeed('paused');
     simulationRuntime.resetAfterVisibilityChange();

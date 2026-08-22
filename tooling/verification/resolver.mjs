@@ -71,7 +71,12 @@ function reasonFor(entries) {
  * @returns {VerificationPlan}
  */
 export function resolveVerificationPlan(changedFiles) {
-  const files = uniqueSorted((changedFiles ?? []).map(String).filter(Boolean).map(normalizePath));
+  const files = uniqueSorted(
+    (changedFiles ?? [])
+      .map((file) => String(file))
+      .filter(Boolean)
+      .map((file) => normalizePath(file)),
+  );
 
   if (files.length === 0) {
     return {
@@ -88,7 +93,7 @@ export function resolveVerificationPlan(changedFiles) {
     };
   }
 
-  const entries = files.map(classifyChangedFile);
+  const entries = files.map((file) => classifyChangedFile(file));
   const hasGlobal = entries.some((entry) => entry.authority === VerificationAuthority.SHARED_VERIFICATION);
   const directSystems = uniqueSorted(entries.flatMap((entry) => entry.systems).filter((system) => system !== 'GLOBAL'));
   const systems = new Set(expandConsumers(directSystems));

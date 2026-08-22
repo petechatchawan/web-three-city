@@ -37,7 +37,13 @@ const BROWSER_TAG_SYSTEMS = Object.freeze({
 });
 
 function sorted(values) {
-  return [...new Set(values)].sort((left, right) => (left < right ? -1 : left > right ? 1 : 0));
+  return [...new Set(values)].sort(compareText);
+}
+
+function compareText(left, right) {
+  if (left < right) return -1;
+  if (left > right) return 1;
+  return 0;
 }
 
 function extractBrowserTags(file) {

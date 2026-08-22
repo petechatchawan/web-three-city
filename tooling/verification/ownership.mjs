@@ -119,7 +119,7 @@ export const GLOBAL_PATTERNS = Object.freeze([
   /^playwright\.config\./,
   /^eslint\.config\./,
   /^\.github\//,
-  /^tooling\/verification(?:\/|[-])/,
+  /^tooling\/verification(?:\/|-)/,
   /^tooling\/verify-(?:impact|affected)\./,
   /^tooling\/ci-topology\.test\./,
   /^tooling\/verification-scripts\.test\./,

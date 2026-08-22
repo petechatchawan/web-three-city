@@ -6,6 +6,7 @@ import { parseArgs, readChangedFiles } from './verify-affected.mjs';
 test('parses exact-head affected verification arguments', () => {
   assert.deepEqual(
     parseArgs([
+      '--',
       '--base',
       'base-sha',
       '--head',

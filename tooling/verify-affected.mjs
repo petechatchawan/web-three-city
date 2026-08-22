@@ -16,6 +16,7 @@ export function parseArgs(argv) {
   const options = { baseSha: null, headSha: null, json: false, output: null, skipBrowser: false };
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
+    if (argument === '--') continue;
     if (argument === '--json') {
       options.json = true;
       continue;

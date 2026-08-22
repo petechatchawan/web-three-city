@@ -11,7 +11,7 @@ Define the repository-owned development loop for humans and AI agents so changes
 
 ## Current State
 
-Development Workflow v0.2 makes verification proportional to the affected surface. Package-targeted Level 0/1 verification remains the default inner loop; Level 2 uses the conservative static consumer map; Level 3 `pnpm verify` remains the repository/tooling finalization gate.
+Development Workflow v0.2 makes verification proportional to the affected surface. Package-targeted Level 0/1 verification remains the default inner loop; Level 2 uses the conservative static consumer map; Level 3 `pnpm verify` remains the repository/tooling finalization gate. The PR-T3.3 authority-aware resolver distinguishes deterministic tests, browser contracts, test topology, shared verification infrastructure, and graph-blind runtime composition before selecting escalation.
 
 Browser-observable changes now require targeted Playwright evidence for every affected browser path before PR readiness. Full Browser is not the default gate for every PR: the unfiltered Chromium suite is reserved for explicit Level 4 escalation such as release or milestone closure, shared browser infrastructure with an unbounded impact surface, an explicit `full-ci` PR label, manual workflow dispatch, and nightly scheduled regression.
 
@@ -33,16 +33,16 @@ Behavior/public-contract changes update their living system README in the same i
 
 The Level 2 table in `AGENTS.md` is conservative verification policy, not the architectural dependency graph. Workspace dependency changes that alter consumers must update that table in the same PR. Current package manifests remain the factual input used to review the map.
 
-## Verification Infrastructure Foundation (PR-T2)
+## Verification Infrastructure Foundation (PR-T2 / PR-T3.3)
 
 PR-T2 adds a deterministic changed-source impact resolver under `tooling/verification/`
 and a `pnpm verify:impact` preview command. It answers "from these changed files, what
-verification must run?" with a fail-safe escalation model. It does not migrate, remove,
-or reduce any Playwright/browser coverage, and does not change CI gate execution,
-workers, retries, or browser configuration. See
-[Verification Infrastructure Model](verification-model.md) for the risk classification,
-ownership model, escalation rules, and non-goals. The foundation is the basis for
-PR-T3 Browser Classification / Migration.
+verification must run?" with a fail-safe escalation model. PR-T3.3 makes the resolver
+authority-aware: tagged browser specs select targeted ownership evidence, test-topology
+metadata selects exact deployment checks, and shared resolver/config/CI changes remain
+`GLOBAL`. See [Verification Infrastructure Model](verification-model.md) for the
+authority classes, risk model, ownership map, escalation rules, and non-goals. This
+remains a planning layer; PR-T4 will add execution of the resulting owner/consumer plan.
 
 ## Current Limitations / Deferred
 
@@ -50,7 +50,7 @@ v0.2 intentionally does not:
 
 - refactor `apps/game/src/game-bootstrap.ts` or introduce an Application Layer;
 - replace the static downstream map with automatic affected/dependent graph tooling;
-- add automatic changed-file-to-Playwright-tag inference;
+- execute affected owner/consumer commands automatically from the resolver plan;
 - add Nx, Turborepo, or another build-graph framework;
 - redesign browser-suite sharding or CI parallelization;
 - change Playwright worker/retry/timeout policy as part of this verification-policy change;

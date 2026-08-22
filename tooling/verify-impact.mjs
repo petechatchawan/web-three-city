@@ -21,6 +21,7 @@ function formatPlan(plan) {
     'Affected Systems:',
     ...(plan.systems.length === 0 ? ['  (none)'] : plan.systems.map((s) => `  - ${s}`)),
     '',
+    `Authority: ${plan.authority ?? '(none)'}`,
     `Risk: ${plan.risk}`,
     ...(plan.reason ? [`Reason: ${plan.reason}`] : []),
     '',
@@ -30,6 +31,8 @@ function formatPlan(plan) {
     ...(plan.browserRequired
       ? ['Browser Required: YES', `Browser Tags: ${plan.browserTags.join(', ') || '(none specific)'}`]
       : ['Browser Required: NO']),
+    `Full Browser Required: ${plan.fullBrowserRequired ? 'YES' : 'NO'}`,
+    `Deployment/Topology Checks: ${plan.deploymentRequired ? 'YES' : 'NO'}`,
   ];
   return lines.join('\n');
 }

@@ -13,7 +13,28 @@ import {
 import { createTrafficReleaseFixture } from './traffic-release-fixture.js';
 import { decodeWorldSave } from './world-save.js';
 
+interface TrafficBrowserReplacementCase {
+  readonly id: string;
+  readonly browserSpec: string;
+  readonly lowerLayerProof: readonly string[];
+  readonly migratedAssertions: readonly string[];
+}
+
+const EXPECTED_TRAFFIC_BROWSER_REPLACEMENT_CASE_IDS = [
+  'traffic-commute-authoritative-drive-facts',
+] as const;
+
+// RED scaffold: the replacement authority must be explicitly populated before
+// the corresponding browser assertion can be narrowed.
+const TRAFFIC_BROWSER_REPLACEMENT_CASES: readonly TrafficBrowserReplacementCase[] = [];
+
 describe('Citizen Mobility & Traffic release fixture', () => {
+  it('covers every deterministic Traffic browser assertion selected for replacement', () => {
+    expect(TRAFFIC_BROWSER_REPLACEMENT_CASES.map((testCase) => testCase.id)).toEqual(
+      EXPECTED_TRAFFIC_BROWSER_REPLACEMENT_CASE_IDS,
+    );
+  });
+
   it('round-trips through WorldSaveV7 with real RCI Home/Work references intact', () => {
     const fixture = createTrafficReleaseFixture();
     const decoded = decodeWorldSave(fixture.save, WORLD_CONFIG);

@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { buildExecutionCommands, runCommand } from './verification/command-runner.mjs';
+import {
+  buildExecutionCommands,
+  runCommand,
+  runExecutionPlan,
+} from './verification/command-runner.mjs';
 
 test('builds owner, typecheck, and targeted browser commands as safe argument arrays', () => {
   const commands = buildExecutionCommands({
@@ -96,4 +100,27 @@ test('runCommand passes executable and arguments without shell interpolation', a
       options: { cwd: '/tmp/project with spaces' },
     },
   ]);
+});
+
+test('skip-browser execution leaves browser authority for the Browser job', async () => {
+  const calls = [];
+  const result = await runExecutionPlan(
+    {
+      ownerTests: [],
+      consumerTests: [],
+      typechecks: [],
+      deploymentChecks: false,
+      browser: { mode: 'targeted', tags: ['@traffic'], fullBrowserRequired: false },
+    },
+    {
+      skipBrowser: true,
+      execFileImpl: async (executable, args) => {
+        calls.push({ executable, args });
+        return { stdout: '', stderr: '' };
+      },
+    },
+  );
+
+  assert.deepEqual(result.commands, []);
+  assert.deepEqual(calls, []);
 });

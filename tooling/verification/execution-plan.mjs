@@ -26,9 +26,7 @@ function mergeTargets(targets) {
       merged.set(key, { ...target, files: uniqueSorted(target.files) });
     }
   }
-  return [...merged.values()].sort((left, right) =>
-    targetKey(left).localeCompare(targetKey(right)),
-  );
+  return [...merged.values()].sort((left, right) => compareText(targetKey(left), targetKey(right)));
 }
 
 function directOwnerEntries(entries) {

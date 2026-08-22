@@ -30,9 +30,14 @@ Ownership + Risk     tooling/verification/ownership.mjs + risk.mjs
       |
       v
 Verification Plan   authority + systems + risk + checks + browser mode
+      |
+      v
+Affected Execution  owner tests -> consumers -> typechecks -> browser
 ```
 
-Entry point: `pnpm verify:impact <changed files...>` (`tooling/verify-impact.mjs`).
+Planning entry point: `pnpm verify:impact <changed files...>` (`tooling/verify-impact.mjs`).
+Execution entry point: `pnpm verify:affected -- --base <sha> --head <sha> [--json]`
+(`tooling/verify-affected.mjs`).
 
 ## Risk Classification
 
@@ -130,6 +135,36 @@ JSON variant: `pnpm verify:impact --json <files...>`. The JSON plan includes
 `entries`, `authority`, `fullBrowserRequired`, and `deploymentRequired` so CI
 can consume the same decision without reclassifying paths.
 
+## Affected Execution Contract (PR-T4)
+
+`buildAffectedExecutionPlan` converts one resolver result into an exact-head
+execution plan:
+
+```json
+{
+  "ownerTests": [{ "workspace": "@web-three-city/traffic-core", "files": [], "mode": "package" }],
+  "consumerTests": [{ "workspace": "@web-three-city/game", "files": [], "mode": "package" }],
+  "typechecks": ["@web-three-city/traffic-core", "@web-three-city/game"],
+  "deploymentChecks": false,
+  "browser": { "mode": "targeted", "tags": ["@traffic"], "fullBrowserRequired": false },
+  "exactHead": { "baseSha": "...", "headSha": "..." }
+}
+```
+
+`mode: files` runs changed deterministic tests directly. `mode: related` runs
+Vitest related to changed production source. `mode: package` runs the owning
+or conservative consumer workspace. Commands are passed to Node `execFile`
+as executable plus argument arrays; paths are never interpolated into a shell
+command. `--skip-browser` is used by Lean so Browser remains the sole owner of
+Playwright execution.
+
+Lean computes the plan with a full-depth/equivalent base checkout, executes
+owner/consumer/typecheck/deployment work while retaining `pnpm check` as the
+rollout safety net, and packages the plan with the exact Game/Terrain Lab
+artifact. Browser reads the plan and runs targeted tags or explicit Full
+Browser. The Browser job removes the downloaded plan before clean-worktree
+verification.
+
 ## Tests
 
 - `tooling/verification/verification-resolver.test.mjs` — resolver behavior (TDD RED first).
@@ -143,7 +178,7 @@ PR-T2 preserves all existing authority:
 - No production behavior changed.
 - No gameplay/runtime logic changed.
 - No Playwright tests migrated, removed, or reduced by this resolver change.
-- Existing CI gate execution, workers, retries, and browser configuration remain unchanged until a separately reviewed affected-execution/CI phase.
+- Existing worker, retry, and timeout policy remains unchanged. PR-T4 changes only the affected execution selection/artifact flow; `pnpm check` and the Lean artifact remain the repository safety net.
 - `pnpm verify`, `pnpm verify:full`, Lean CI artifact flow, deterministic browser
   verification, clean-worktree evidence, and release-gate discipline unchanged.
 
@@ -157,6 +192,6 @@ PR-T2 preserves all existing authority:
 
 ## Next
 
-PR-T4 will use this foundation to execute owner tests, Level-2 consumers, and
-targeted browser tags from one exact-head plan. System pilots remain separate
-stacked PRs and must follow lower-layer RED → GREEN → browser narrowing.
+System pilots remain separate stacked PRs and must follow lower-layer RED → GREEN
+→ browser narrowing. PR-T4 is the execution foundation; it does not migrate or
+delete Playwright tests.

@@ -5,12 +5,22 @@ import { parseArgs, readChangedFiles } from './verify-affected.mjs';
 
 test('parses exact-head affected verification arguments', () => {
   assert.deepEqual(
-    parseArgs(['--base', 'base-sha', '--head', 'head-sha', '--json', '--output', '/tmp/plan.json']),
+    parseArgs([
+      '--base',
+      'base-sha',
+      '--head',
+      'head-sha',
+      '--json',
+      '--output',
+      '/tmp/plan.json',
+      '--skip-browser',
+    ]),
     {
       baseSha: 'base-sha',
       headSha: 'head-sha',
       json: true,
       output: '/tmp/plan.json',
+      skipBrowser: true,
     },
   );
 });

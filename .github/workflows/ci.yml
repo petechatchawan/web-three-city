@@ -24,6 +24,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: pnpm/action-setup@v4
         with:
           version: 10.13.1
@@ -32,9 +34,16 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Compute affected verification plan
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before || 'HEAD~1' }}
+          HEAD_SHA: ${{ github.sha }}
+        run: node tooling/verify-affected.mjs --base "$BASE_SHA" --head "$HEAD_SHA" --output affected-verification-plan.json --skip-browser
       - run: pnpm check
       - name: Archive lean build outputs
-        run: tar -czf lean-builds.tar.gz apps/game/dist apps/terrain-lab/dist
+        run: |
+          tar -czf lean-builds.tar.gz apps/game/dist apps/terrain-lab/dist affected-verification-plan.json
+          rm affected-verification-plan.json
       - name: Upload lean build outputs
         uses: actions/upload-artifact@v4
         with:
@@ -48,9 +57,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'schedule' ||
-      (github.event_name == 'pull_request' &&
-      (contains(github.event.pull_request.labels.*.name, 'full-ci') ||
-      contains(github.event.pull_request.body || '', 'Targeted browser tags:')))
+      github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -72,54 +79,39 @@ jobs:
           tar -xzf lean-builds.tar.gz
           test -d apps/game/dist
           test -d apps/terrain-lab/dist
+          test -s affected-verification-plan.json
           rm lean-builds.tar.gz
-      - name: Resolve targeted browser tags
-        id: targets
-        if: >-
-          github.event_name == 'pull_request' &&
-          !contains(github.event.pull_request.labels.*.name, 'full-ci') &&
-          contains(github.event.pull_request.body || '', 'Targeted browser tags:')
+      - name: Resolve affected verification plan
+        id: plan
         env:
-          PR_BODY: ${{ github.event.pull_request.body }}
+          EXPLICIT_FULL: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'full-ci')) }}
         run: |
           node - <<'NODE'
           const fs = require('node:fs');
-          const body = process.env.PR_BODY ?? '';
-          const match = body.match(/^Targeted browser tags:\s*(.+)$/im);
-          if (match === null) throw new Error('targeted-browser:missing-tags');
-          const allowed = new Set([
-            'smoke',
-            'terrain',
-            'water',
-            'road',
-            'zoning',
-            'building',
-            'rci',
-            'traffic',
-            'interaction',
-          ]);
-          const tags = [...new Set(match[1].split(/[\s,]+/).filter(Boolean))];
-          if (tags.length === 0 || tags.some((tag) => !allowed.has(tag))) {
-            throw new Error(`targeted-browser:invalid-tags:${tags.join(',')}`);
+          const evidence = JSON.parse(fs.readFileSync('affected-verification-plan.json', 'utf8'));
+          const browser = evidence.plan?.browser;
+          if (!browser) throw new Error('affected-plan:missing-browser-plan');
+          const explicitFull = process.env.EXPLICIT_FULL === 'true';
+          const mode = explicitFull || browser.fullBrowserRequired ? 'full' : browser.mode;
+          if (mode === 'targeted' && browser.tags.length === 0) {
+            throw new Error('affected-plan:targeted-browser-missing-tags');
           }
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `grep=${tags.map((tag) => `@${tag}`).join('|')}\n`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `mode=${mode}\n`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `grep=${browser.tags.join('|')}\n`);
           NODE
       - run: ./node_modules/.bin/playwright install chromium
-      - name: Run targeted browser ownership sets
-        if: >-
-          github.event_name == 'pull_request' &&
-          !contains(github.event.pull_request.labels.*.name, 'full-ci') &&
-          contains(github.event.pull_request.body || '', 'Targeted browser tags:')
+        if: steps.plan.outputs.mode != 'none'
+      - name: Run planned targeted browser verification
+        if: steps.plan.outputs.mode == 'targeted'
         env:
-          GREP: ${{ steps.targets.outputs.grep }}
+          GREP: ${{ steps.plan.outputs.grep }}
         run: ./node_modules/.bin/playwright test --grep "$GREP" --project=chromium
-      - name: Run full browser verification
-        if: >-
-          github.event_name == 'workflow_dispatch' ||
-          github.event_name == 'schedule' ||
-          (github.event_name == 'pull_request' &&
-          contains(github.event.pull_request.labels.*.name, 'full-ci'))
+      - name: Run planned Full Browser verification
+        if: steps.plan.outputs.mode == 'full'
         run: pnpm test:browser:only
+      - name: Remove affected verification plan artifact
+        if: always()
+        run: rm -f affected-verification-plan.json
       - run: node tooling/verify-clean-worktree.mjs
       - uses: actions/upload-artifact@v4
         if: always()
@@ -128,4 +120,5 @@ jobs:
           path: |
             playwright-report
             test-results
+            affected-verification-plan.json
           if-no-files-found: ignore

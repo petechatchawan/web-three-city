@@ -10,13 +10,18 @@ import { runExecutionPlan } from './verification/command-runner.mjs';
 import { resolveVerificationPlan } from './verification/resolver.mjs';
 
 const execFileAsync = promisify(execFileCallback);
+const compareText = (left, right) => (left < right ? -1 : left > right ? 1 : 0);
 
 export function parseArgs(argv) {
-  const options = { baseSha: null, headSha: null, json: false, output: null };
+  const options = { baseSha: null, headSha: null, json: false, output: null, skipBrowser: false };
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     if (argument === '--json') {
       options.json = true;
+      continue;
+    }
+    if (argument === '--skip-browser') {
+      options.skipBrowser = true;
       continue;
     }
     if (argument === '--base' || argument === '--head' || argument === '--output') {
@@ -54,7 +59,7 @@ export async function readChangedFiles({
         .map((file) => file.trim())
         .filter(Boolean),
     ),
-  ].sort();
+  ].sort(compareText);
 }
 
 export async function runAffectedVerification({
@@ -62,11 +67,12 @@ export async function runAffectedVerification({
   headSha,
   cwd = process.cwd(),
   execFileImpl = execFileAsync,
+  skipBrowser = false,
 }) {
   const changedFiles = await readChangedFiles({ baseSha, headSha, cwd, execFileImpl });
   const resolution = resolveVerificationPlan(changedFiles);
   const plan = buildAffectedExecutionPlan(resolution, changedFiles, { baseSha, headSha });
-  const execution = await runExecutionPlan(plan, { cwd, execFileImpl });
+  const execution = await runExecutionPlan(plan, { cwd, execFileImpl, skipBrowser });
   return { changedFiles, resolution, plan, execution };
 }
 

@@ -48,7 +48,8 @@ async function readWorkflowJobs(path) {
 }
 
 function evaluateWorkflowCondition(condition, context) {
-  if (condition === undefined || condition.trim() === '' || condition.trim() === 'true') return true;
+  if (condition === undefined || condition.trim() === '' || condition.trim() === 'true')
+    return true;
   const normalized = condition.replace(/\s+/g, ' ');
   if (
     normalized.includes("github.event_name == 'workflow_dispatch'") &&
@@ -56,10 +57,7 @@ function evaluateWorkflowCondition(condition, context) {
   ) {
     return true;
   }
-  if (
-    normalized.includes("github.event_name == 'schedule'") &&
-    context.event === 'schedule'
-  ) {
+  if (normalized.includes("github.event_name == 'schedule'") && context.event === 'schedule') {
     return true;
   }
   if (
@@ -67,6 +65,9 @@ function evaluateWorkflowCondition(condition, context) {
     normalized.includes("contains(github.event.pull_request.labels.*.name, 'full-ci')")
   ) {
     return context.event === 'pull_request' && (context.labels?.includes('full-ci') ?? false);
+  }
+  if (normalized.includes("github.event_name == 'pull_request'")) {
+    return context.event === 'pull_request';
   }
   if (normalized.includes("github.event.action != 'labeled'")) return context.action !== 'labeled';
   return false;
@@ -112,13 +113,11 @@ test('Full Browser remains opt-in for pull requests and runs as nightly regressi
   assert.match(workflow, /schedule:\s*\n\s*- cron:\s*['"]0 18 \* \* \*['"]/);
   assert.match(jobs.browser.if, /github\.event_name == 'schedule'/);
   assert.equal(
-    evaluateWorkflowCondition(jobs.browser.if, {
-      event: 'pull_request',
-      action: 'synchronize',
-      labels: [],
-    }),
-    false,
+    evaluateWorkflowCondition(jobs.browser.if, { event: 'pull_request', labels: [] }),
+    true,
   );
+  assert.match(jobs.browser.text, /Run planned Full Browser verification/);
+  assert.match(jobs.browser.text, /if:\s*steps\.plan\.outputs\.mode == 'full'/);
   assert.equal(
     evaluateWorkflowCondition(jobs.browser.if, {
       event: 'schedule',
@@ -171,6 +170,30 @@ test('Lean uploads exactly the browser preview build outputs', async () => {
   assert.match(jobs.lean.text, /path:\s*lean-builds\.tar\.gz/);
 });
 
+test('Lean computes and publishes one exact-head affected execution plan', async () => {
+  const jobs = await readWorkflowJobs('.github/workflows/ci.yml');
+  assert.match(jobs.lean.text, /fetch-depth:\s*0/);
+  assert.match(
+    jobs.lean.text,
+    /node tooling\/verify-affected\.mjs --base "\$BASE_SHA" --head "\$HEAD_SHA" --output affected-verification-plan\.json --skip-browser/,
+  );
+  assert.match(jobs.lean.text, /affected-verification-plan\.json/);
+  assert.match(
+    jobs.lean.text,
+    /tar -czf lean-builds\.tar\.gz[\s\S]*affected-verification-plan\.json/,
+  );
+});
+
+test('Browser consumes the Lean affected plan for targeted or Full Browser execution', async () => {
+  const jobs = await readWorkflowJobs('.github/workflows/ci.yml');
+  assert.match(jobs.browser.text, /affected-verification-plan\.json/);
+  assert.match(jobs.browser.text, /Resolve affected verification plan/);
+  assert.match(jobs.browser.text, /fullBrowserRequired/);
+  assert.match(jobs.browser.text, /browserTags|browser\.tags|tags/);
+  assert.match(jobs.browser.text, /Run planned targeted browser verification/);
+  assert.match(jobs.browser.text, /Run planned Full Browser verification/);
+});
+
 test('Browser job retains failure artifacts', async () => {
   const jobs = await readWorkflowJobs('.github/workflows/ci.yml');
   assert.match(jobs.browser.text, /if:\s*always\(\)/);
@@ -179,26 +202,13 @@ test('Browser job retains failure artifacts', async () => {
   assert.match(jobs.browser.text, /test-results/);
 });
 
-test('PR metadata can request whitelisted targeted browser ownership sets', async () => {
+test('affected plan selects targeted browser ownership sets', async () => {
   const jobs = await readWorkflowJobs('.github/workflows/ci.yml');
   const browser = jobs.browser.text;
-  assert.match(browser, /Targeted browser tags:/);
-  assert.match(browser, /Resolve targeted browser tags/);
-  for (const tag of [
-    'smoke',
-    'terrain',
-    'water',
-    'road',
-    'zoning',
-    'building',
-    'rci',
-    'traffic',
-    'interaction',
-  ]) {
-    assert.match(browser, new RegExp(`['"]${tag}['"]`));
-  }
+  assert.match(browser, /Resolve affected verification plan/);
+  assert.match(browser, /browser\.tags\.join\('\|'\)/);
   assert.match(browser, /playwright test --grep "\$GREP" --project=chromium/);
-  assert.match(browser, /Run full browser verification/);
+  assert.match(browser, /Run planned Full Browser verification/);
   assert.match(browser, /contains\(github\.event\.pull_request\.labels\.\*\.name, 'full-ci'\)/);
 });
 

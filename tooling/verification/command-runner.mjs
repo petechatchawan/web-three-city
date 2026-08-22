@@ -81,7 +81,9 @@ export async function runCommand({
 }
 
 export async function runExecutionPlan(plan, options = {}) {
-  const commands = buildExecutionCommands(plan);
+  const commands = buildExecutionCommands(plan).filter(
+    (command) => !options.skipBrowser || command.kind !== 'browser',
+  );
   const results = [];
   for (const command of commands) {
     const result = await runCommand({ ...command, ...options });

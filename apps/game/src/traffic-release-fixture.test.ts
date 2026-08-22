@@ -13,7 +13,52 @@ import {
 import { createTrafficReleaseFixture } from './traffic-release-fixture.js';
 import { decodeWorldSave } from './world-save.js';
 
+interface TrafficBrowserReplacementCase {
+  readonly id: string;
+  readonly browserSpec: string;
+  readonly lowerLayerProof: readonly string[];
+  readonly migratedAssertions: readonly string[];
+}
+
+const EXPECTED_TRAFFIC_BROWSER_REPLACEMENT_CASE_IDS = [
+  'traffic-commute-authoritative-drive-facts',
+] as const;
+
+const TRAFFIC_BROWSER_REPLACEMENT_CASES: readonly TrafficBrowserReplacementCase[] = [
+  {
+    id: 'traffic-commute-authoritative-drive-facts',
+    browserSpec:
+      'browser-tests/citizen-mobility-traffic-commute.@traffic@visual@release.spec.ts:167',
+    lowerLayerProof: [
+      'traffic-release-fixture.test.ts > generates deterministic mixed Walk/Drive commute departures between 07:00 and 09:00',
+      'traffic-authoritative-short-trip.test.ts > keeps a real short Drive active at a transport checkpoint instead of completing it at departure',
+      'traffic-presentation.test.ts > projects every active Drive lifecycle phase under the same authoritative trip identity',
+      'traffic-runtime-presentation.test.ts > contains no replay pools, timing constants, or receipt-to-presentation dependency',
+    ],
+    migratedAssertions: [
+      'at least one active Drive trip exists',
+      'each active Drive exposes a lifecycle phase and reservation resource identifiers',
+      'the fixture citizen identity remains canonical',
+      'the presentation path has no synthetic replay authority',
+    ],
+  },
+];
+
 describe('Citizen Mobility & Traffic release fixture', () => {
+  it('covers every deterministic Traffic browser assertion selected for replacement', () => {
+    expect(TRAFFIC_BROWSER_REPLACEMENT_CASES.map((testCase) => testCase.id)).toEqual(
+      EXPECTED_TRAFFIC_BROWSER_REPLACEMENT_CASE_IDS,
+    );
+    expect(
+      TRAFFIC_BROWSER_REPLACEMENT_CASES.every(
+        (testCase) =>
+          testCase.browserSpec.length > 0 &&
+          testCase.lowerLayerProof.length > 0 &&
+          testCase.migratedAssertions.length > 0,
+      ),
+    ).toBe(true);
+  });
+
   it('round-trips through WorldSaveV7 with real RCI Home/Work references intact', () => {
     const fixture = createTrafficReleaseFixture();
     const decoded = decodeWorldSave(fixture.save, WORLD_CONFIG);

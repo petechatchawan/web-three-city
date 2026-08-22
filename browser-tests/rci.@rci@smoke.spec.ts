@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { openBuildCategory, waitForCityUi } from './helpers/city-ui.js';
 import { GAME_URL, clickGameMenuAction } from './helpers/interaction.js';
 
-const SAVE_KEY = 'web-three-city:world-save:v7';
+const SAVE_KEY = 'web-three-city:world-save:v8';
 
 async function waitForReady(page: Page): Promise<void> {
   await page.setViewportSize({ width: 414, height: 896 });
@@ -81,7 +81,7 @@ test('background RCI ticks do not interrupt an active zoning tool', async ({ pag
   await expect(page.getByTestId('nav-build')).toHaveAttribute('aria-pressed', 'false');
 });
 
-test('round-trips WorldSaveV7 with RCI, Economy, and restores HUD values', async ({ page }) => {
+test('round-trips WorldSaveV8 with RCI, Economy, and restores HUD values', async ({ page }) => {
   await waitForReady(page);
   const before = await readCityDialog(page);
   await expect(metric(page, 'population')).toHaveText(before.population);
@@ -91,13 +91,13 @@ test('round-trips WorldSaveV7 with RCI, Economy, and restores HUD values', async
   expect(saved).not.toBeNull();
   expect(JSON.parse(saved ?? '{}')).toMatchObject({
     kind: 'world-save',
-    schemaVersion: 7,
-    simulation: { schemaVersion: 2 },
+    schemaVersion: 8,
+    simulation: { schemaVersion: 3 },
     buildings: { schemaVersion: 2 },
     rci: { kind: 'rci-save', schemaVersion: 1 },
     economy: { schemaVersion: 1 },
-    mobility: { schemaVersion: 1 },
-    traffic: { schemaVersion: 1 },
+    mobility: { schemaVersion: 2 },
+    traffic: { schemaVersion: 2 },
   });
 
   await clickGameMenuAction(page, 'Load world');

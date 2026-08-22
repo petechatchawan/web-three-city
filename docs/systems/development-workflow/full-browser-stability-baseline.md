@@ -1,6 +1,6 @@
 # Full Browser Stability Baseline
 
-**Status:** Stability backlog — evidence recorded, remediation not included
+**Status:** Stability remediation in progress — bounded fixes included in PR #89; exact-head Full Browser still required
 **Date:** 2026-08-22
 **Scope:** Full Chromium release authority only
 
@@ -36,6 +36,31 @@ failure groups were:
 These groups are not evidence of a Traffic migration defect. Each group needs
 its own reproduction at a known exact head and an authority classification:
 product defect, test defect, environment flake, or timeout-budget issue.
+
+## Bounded remediation in PR #89
+
+The first remediation pass identified and fixed concrete authority/schema
+drift without changing browser workers, retries, global timeouts, or
+assertion strength:
+
+- temporal GameMinute publication now rebuilds derived environments when the
+  Building snapshot changes, while transport-only publications reuse immutable
+  static projections;
+- construction checkpoints are validated in the derived macro-hour domain,
+  while `absoluteGameMinute` remains the canonical calendar authority;
+- empty Traffic V2 transport quanta do not rebuild a graph, and immutable Road
+  and Building Traffic projections are cached by snapshot/environment identity;
+- WorldSave browser assertions use the current WorldSaveV8, SimulationV3,
+  MobilityV2, and TrafficV2 contracts;
+- stale browser expectations for the current Local Street label and derived
+  calendar minute were aligned, and zoning visual fixtures avoid the landscape
+  HUD without changing the production shell;
+- the intentional Game Vitest inventory is now 94 files / 381 tests.
+
+Focused Game/Traffic tests, owning-package typechecks, deployment contracts,
+and the affected targeted browser union pass locally on the remediation
+candidate. A fresh Lean/Sonar/Full Browser exact-head run remains the release
+evidence for this branch.
 
 ## Fresh exact-head escalation from PR #88
 
@@ -80,9 +105,9 @@ matches continuous morning+return commute after a midday save/decode boundary
 ```
 
 The focused test passed in about 1.1s, and a standalone Game package run
-passed `93` files / `376` tests. A separate full recursive run also passed
-the same Game inventory. This is currently classified as a reproducibility
-and resource-contention investigation item, not a timeout to be hidden.
+passed `94` files / `381` tests. This is currently classified as a
+reproducibility and resource-contention investigation item, not a timeout to
+be hidden.
 
 ## Stabilization protocol
 

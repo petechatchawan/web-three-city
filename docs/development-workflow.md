@@ -47,13 +47,13 @@ pnpm exec playwright test --grep @smoke
 
 Record the targeted command/spec and result in the pull request. Expand the subset when multiple browser domains or shared interaction paths are affected.
 
-For CI-backed targeted evidence, add one metadata line to the pull request body using only approved ownership tags:
+For CI-backed targeted evidence, a pull request body may include one optional metadata line using only approved ownership tags:
 
 ```text
 Targeted browser tags: traffic building
 ```
 
-The classification job publishes one exact affected plan. Changed-file lint, owner tests, consumer tests, typechecks, and deployment contracts fan out independently. When browser evidence is required, `browser_build` produces the exact Game/Terrain Lab preview artifact and Browser CI consumes that artifact without waiting for the Lean aggregate. Browser then enters targeted mode from the plan and runs only the affected Playwright ownership-set union. PR-body metadata is not the authority for normal affected execution; remove temporary tag metadata after evidence is collected when needed, because editing PR metadata does not change the candidate SHA.
+The classification job publishes one exact affected plan. Changed-file lint, owner tests, consumer tests, typechecks, and deployment contracts fan out independently. When browser evidence is required, `browser_build` produces the exact Game/Terrain Lab preview artifact and Browser CI consumes that artifact without waiting for the Lean aggregate. Browser then enters targeted mode from the plan and runs only the affected Playwright ownership-set union. PR-body metadata is optional allowlisted evidence/override metadata; it is not the authority for whether Browser runs and cannot suppress a plan-required Browser lane. Remove temporary tag metadata after evidence is collected when needed, because editing PR metadata does not change the candidate SHA.
 
 **Full Browser is not the default gate for every PR.** Targeted browser verification is the normal browser-observable PR gate. Escalate to the unfiltered suite when release closure, milestone closure, or shared browser infrastructure makes the impact too broad to bound safely with targeted tests.
 
@@ -82,7 +82,7 @@ Lean CI is the mandatory aggregate status for the independent affected non-brows
 
 Browser CI depends on the Browser build lane and has two mutually exclusive execution modes:
 
-- **Targeted mode:** a PR body with approved `Targeted browser tags:` metadata consumes the Lean artifacts and runs only the selected ownership-tag union.
+- **Targeted mode:** the affected plan selects the ownership-tag union; optional approved `Targeted browser tags:` metadata may document or request bounded evidence but cannot replace the plan or suppress required Browser verification.
 - **Full mode:** runs the unfiltered browser authority only when the PR has `full-ci`, a maintainer uses `workflow_dispatch`, or the nightly schedule executes.
 
 Both modes reuse the exact Browser build artifact and do not rerun non-browser unit, typecheck, deployment, or build work.

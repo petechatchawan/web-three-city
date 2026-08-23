@@ -69,7 +69,8 @@ v0.2 intentionally does not:
 4. Historical v0.1 design: [Development Workflow System Improvement v0.1](specs/2026-08-07-development-workflow-system-improvement-v0-1.md)
 5. Historical v0.1 TDD plan: [Development Workflow System Improvement v0.1 Implementation Plan](tdd/2026-08-07-development-workflow-system-improvement-v0-1.md)
 6. Stable v0.1 verification record: [Development Workflow System Improvement v0.1 Verification](verification/2026-08-07-development-workflow-system-improvement-v0-1.md)
-7. Human workflow overview: [`docs/development-workflow.md`](../../development-workflow.md)
-8. System registry: [`docs/systems/README.md`](../README.md)
+7. CI topology remediation verification handoff: [CI Topology Remediation Verification](verification/2026-08-23-ci-topology-remediation.md)
+8. Human workflow overview: [`docs/development-workflow.md`](../../development-workflow.md)
+9. System registry: [`docs/systems/README.md`](../README.md)
 
 The v0.1 documents remain historical design/execution records. v0.2 changes verification topology and policy; it does not redesign gameplay/runtime contracts.

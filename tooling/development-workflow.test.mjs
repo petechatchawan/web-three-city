@@ -208,7 +208,12 @@ test('development workflow reserves Full Browser for explicit escalation', async
   const workflow = await readRepoText('docs/development-workflow.md');
   assert.match(workflow, /browser-observable.*targeted.*Playwright/is);
   assert.match(workflow, /Targeted browser tags:\s*traffic building/i);
-  assert.match(workflow, /Browser CI.*targeted mode.*Lean artifact/is);
+  assert.match(
+    workflow,
+    /`browser_build` produces the exact Game\/Terrain Lab preview artifact and Browser CI consumes that artifact/is,
+  );
+  assert.match(workflow, /Browser then enters targeted mode from the plan/i);
+  assert.doesNotMatch(workflow, /Targeted mode:.*consumes the Lean artifacts/i);
   assert.match(workflow, /Full Browser.*not.*default.*every PR/is);
   assert.match(workflow, /release.*milestone.*shared browser infrastructure/is);
   assert.match(workflow, /nightly/i);

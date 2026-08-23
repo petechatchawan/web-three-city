@@ -143,8 +143,61 @@ export const GRAPH_BLIND_PATTERNS = Object.freeze([
   /bootstrap/i,
 ]);
 
+/**
+ * `apps/game` is a composition boundary, not one Browser owner. These rules
+ * narrow bounded presentation paths before the generic game owner is used.
+ * Deterministic test files are classified by authority before these rules are
+ * consulted, so test metadata cannot inherit production Browser tags.
+ */
+const GAME_SOURCE_RULES = Object.freeze([
+  {
+    pattern: /^apps\/game\/src\/(?:traffic-presentation|traffic-runtime-presentation|traffic-presentation-projection|traffic-information-view|traffic-inspect-target)\.ts$/,
+    browserTags: ['@traffic'],
+    browserRequired: true,
+    fullBrowserRequired: false,
+  },
+  {
+    pattern: /^apps\/game\/src\/ui\/inspect\/traffic-inspect-projections\.ts$/,
+    browserTags: ['@traffic'],
+    browserRequired: true,
+    fullBrowserRequired: false,
+  },
+  {
+    pattern: /^apps\/game\/src\/terraform-water-projection\.ts$/,
+    browserTags: ['@water'],
+    browserRequired: true,
+    fullBrowserRequired: false,
+  },
+  {
+    pattern: /^apps\/game\/src\/zone-building-presentation\.ts$/,
+    browserTags: ['@building', '@zoning'],
+    browserRequired: true,
+    fullBrowserRequired: false,
+  },
+  {
+    pattern: /^apps\/game\/src\/(?:traffic-transport-transaction|traffic-source-projection|traffic-road-reconciliation|traffic-graph-cache|mobility-traffic-tick|mobility-traffic-state-registry|rci-building-reconciliation|economy-tax-policy-command|traffic-release-fixture|traffic-performance-release-fixture)\.ts$/,
+    browserTags: [],
+    browserRequired: false,
+    fullBrowserRequired: false,
+  },
+  {
+    pattern: /^apps\/game\/src\/(?:game-bootstrap|main)\.ts$/,
+    browserTags: [],
+    browserRequired: true,
+    fullBrowserRequired: true,
+  },
+]);
+
 export function normalizePath(file) {
   return file.replaceAll('\\', '/');
+}
+
+/**
+ * Returns a bounded `apps/game` source rule, when one is declared.
+ */
+export function gameSourceRuleForFile(file) {
+  const normalized = normalizePath(file);
+  return GAME_SOURCE_RULES.find(({ pattern }) => pattern.test(normalized)) ?? null;
 }
 
 /**

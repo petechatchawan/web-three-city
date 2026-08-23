@@ -10,6 +10,7 @@ import {
   GRAPH_BLIND_PATTERNS,
   GLOBAL_PATTERNS,
   OWNERSHIP,
+  gameSourceRuleForFile,
   normalizePath,
   ownerForFile,
 } from './ownership.mjs';
@@ -82,11 +83,16 @@ function isGraphBlindRuntime(file) {
 function ownerClassification(file, authority) {
   const system = ownerForFile(file);
   const owner = system ? OWNERSHIP[system] : undefined;
+  const gameRule = authority === VerificationAuthority.PRODUCT_SOURCE ? gameSourceRuleForFile(file) : null;
   return {
     systems: system ? [system] : [],
     risk: owner?.risk ?? VerificationRisk.GRAPH_BLIND,
     verification: owner?.verification ?? [],
-    browserTags: authority === VerificationAuthority.PRODUCT_SOURCE ? owner?.browserTags ?? [] : [],
+    browserTags: authority === VerificationAuthority.PRODUCT_SOURCE
+      ? gameRule?.browserTags ?? owner?.browserTags ?? []
+      : [],
+    browserRequired: gameRule?.browserRequired ?? undefined,
+    fullBrowserRequired: gameRule?.fullBrowserRequired ?? undefined,
   };
 }
 
@@ -154,7 +160,7 @@ export function classifyChangedFile(file) {
       verification: owner.verification,
       browserTags: owner.browserTags,
       browserRequired: true,
-      fullBrowserRequired: false,
+      fullBrowserRequired: owner.fullBrowserRequired ?? true,
       deploymentRequired: false,
       reason: 'dynamic runtime composition cannot be bounded by the static ownership graph',
     };
@@ -182,8 +188,8 @@ export function classifyChangedFile(file) {
       file: normalized,
       authority: VerificationAuthority.PRODUCT_SOURCE,
       ...owner,
-      browserRequired: owner.browserTags.length > 0,
-      fullBrowserRequired: false,
+      browserRequired: owner.browserRequired ?? owner.browserTags.length > 0,
+      fullBrowserRequired: owner.fullBrowserRequired ?? false,
       deploymentRequired: false,
       reason: `owned production source: ${owner.systems.join(', ')}`,
     };
@@ -197,7 +203,7 @@ export function classifyChangedFile(file) {
     verification: ['verify', 'test:deployment'],
     browserTags: [],
     browserRequired: true,
-    fullBrowserRequired: false,
+    fullBrowserRequired: true,
     deploymentRequired: true,
     reason: `unknown ownership for: ${normalized}`,
   };

@@ -1,6 +1,6 @@
 # Selective Verification vNext — Ownership Precision Handoff
 
-**Status:** Planned implementation; Owner Acceptance pending after execution
+**Status:** Local implementation GREEN; hosted natural system canaries pending
 **System:** `development-workflow`
 
 ## Scope
@@ -80,3 +80,16 @@ The final candidate must pass the repository tooling gate, affected plan
 preview, deployment contracts, exact-head hosted verification, Sonar, and
 clean-worktree verification. Full Browser is run only when the candidate's
 authority requires escalation.
+
+Local focused evidence for the ownership-precision candidate:
+
+- resolver and execution contracts: 23/23 PASS;
+- CI/runner regression contracts: 37/37 PASS;
+- execution-plan and command-runner contracts: 22/22 PASS;
+- development-workflow documentation contracts: 16/16 PASS.
+
+Deterministic-only and bounded browser-observable hosted canaries remain
+pending the first natural post-topology system candidate. They must not be
+manufactured with a meaningless change. PR-T6 remains the shared/global
+topology canary and its Full Browser evidence remains historical evidence for
+the unchanged CI topology.

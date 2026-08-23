@@ -25,8 +25,17 @@ const EXECUTION_LANES = Object.freeze({
   browser: ['browser'],
 });
 
-export function parseArgs(argv) {
-  const options = {
+const FLAG_OPTIONS = Object.freeze({
+  '--json': 'json',
+  '--skip-browser': 'skipBrowser',
+  '--plan-only': 'planOnly',
+  '--github-event': 'githubEvent',
+});
+
+const VALUE_OPTIONS = new Set(['--base', '--head', '--output', '--lane', '--plan-file']);
+
+function createParseOptions() {
+  return {
     baseSha: null,
     headSha: null,
     json: false,
@@ -37,50 +46,40 @@ export function parseArgs(argv) {
     planFile: null,
     githubEvent: false,
   };
+}
+
+function applyValueOption(options, argument, value) {
+  if (argument === '--base') options.baseSha = value;
+  if (argument === '--head') options.headSha = value;
+  if (argument === '--output') options.output = value;
+  if (argument === '--lane') {
+    if (!Object.hasOwn(EXECUTION_LANES, value)) {
+      throw new Error(`unknown execution lane: ${value}`);
+    }
+    options.lane = value;
+  }
+  if (argument === '--plan-file') {
+    if (value !== PUBLISHED_PLAN_FILE) {
+      throw new Error(`affected-plan:file-name-must-be-${PUBLISHED_PLAN_FILE}`);
+    }
+    options.planFile = PUBLISHED_PLAN_FILE;
+  }
+}
+
+export function parseArgs(argv) {
+  const options = createParseOptions();
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     if (argument === '--') continue;
-    if (argument === '--json') {
-      options.json = true;
+    if (Object.hasOwn(FLAG_OPTIONS, argument)) {
+      options[FLAG_OPTIONS[argument]] = true;
       continue;
     }
-    if (argument === '--skip-browser') {
-      options.skipBrowser = true;
-      continue;
-    }
-    if (argument === '--plan-only') {
-      options.planOnly = true;
-      continue;
-    }
-    if (argument === '--github-event') {
-      options.githubEvent = true;
-      continue;
-    }
-    if (
-      argument === '--base' ||
-      argument === '--head' ||
-      argument === '--output' ||
-      argument === '--lane' ||
-      argument === '--plan-file'
-    ) {
+    if (VALUE_OPTIONS.has(argument)) {
       const value = argv[index + 1];
       if (!value) throw new Error(`${argument} requires a value`);
       index += 1;
-      if (argument === '--base') options.baseSha = value;
-      if (argument === '--head') options.headSha = value;
-      if (argument === '--output') options.output = value;
-      if (argument === '--lane') {
-        if (!Object.hasOwn(EXECUTION_LANES, value)) {
-          throw new Error(`unknown execution lane: ${value}`);
-        }
-        options.lane = value;
-      }
-      if (argument === '--plan-file') {
-        if (value !== PUBLISHED_PLAN_FILE) {
-          throw new Error(`affected-plan:file-name-must-be-${PUBLISHED_PLAN_FILE}`);
-        }
-        options.planFile = PUBLISHED_PLAN_FILE;
-      }
+      applyValueOption(options, argument, value);
       continue;
     }
     throw new Error(`unknown argument: ${argument}`);
@@ -138,6 +137,68 @@ export async function readChangedFiles({
   ].sort(compareText);
 }
 
+async function resolveInputRevisions({
+  baseSha,
+  headSha,
+  githubEvent,
+  cwd,
+}) {
+  if (!githubEvent) return { baseSha, headSha };
+  const revisions = await readGithubEventRevisions({ cwd, headSha });
+  return {
+    baseSha: baseSha ?? revisions.baseSha,
+    headSha: headSha ?? revisions.headSha,
+  };
+}
+
+function assertPublishedPlanShape(published) {
+  if (!Array.isArray(published.changedFiles) || !published.resolution || !published.plan?.exactHead) {
+    throw new Error('affected-plan:invalid-published-plan');
+  }
+}
+
+function resolvePublishedHead(published, baseSha, headSha) {
+  const resolvedBaseSha = baseSha ?? published.plan.exactHead.baseSha;
+  const resolvedHeadSha = headSha ?? published.plan.exactHead.headSha;
+  if (
+    published.plan.exactHead.baseSha !== resolvedBaseSha ||
+    published.plan.exactHead.headSha !== resolvedHeadSha
+  ) {
+    throw new Error('affected-plan:exact-head-mismatch');
+  }
+  return { baseSha: resolvedBaseSha, headSha: resolvedHeadSha };
+}
+
+async function readPublishedVerificationPlan({
+  cwd,
+  baseSha,
+  headSha,
+  exactHeadProvided,
+  githubEvent,
+  execFileImpl,
+}) {
+  const published = JSON.parse(await readFile(join(cwd, PUBLISHED_PLAN_FILE), 'utf8'));
+  assertPublishedPlanShape(published);
+  const revisions = resolvePublishedHead(published, baseSha, headSha);
+  if (!exactHeadProvided && !githubEvent) {
+    const { stdout } = await execFileImpl('git', ['rev-parse', 'HEAD'], { cwd });
+    if (stdout.trim() !== revisions.headSha) {
+      throw new Error('affected-plan:checked-out-head-mismatch');
+    }
+  }
+  return { ...published, ...revisions };
+}
+
+async function buildVerificationPlan({ baseSha, headSha, cwd, execFileImpl }) {
+  if (!baseSha || !headSha) {
+    throw new Error('--base and --head are required for a new plan');
+  }
+  const changedFiles = await readChangedFiles({ baseSha, headSha, cwd, execFileImpl });
+  const resolution = resolveVerificationPlan(changedFiles);
+  const plan = buildAffectedExecutionPlan(resolution, changedFiles, { baseSha, headSha });
+  return { changedFiles, resolution, plan };
+}
+
 export async function runAffectedVerification({
   baseSha,
   headSha,
@@ -151,54 +212,31 @@ export async function runAffectedVerification({
   githubHeadSha = process.env.GITHUB_SHA,
 }) {
   const exactHeadProvided = Boolean(baseSha && headSha);
-  if (githubEvent) {
-    const revisions = await readGithubEventRevisions({
-      cwd,
-      headSha: githubHeadSha,
-    });
-    baseSha ??= revisions.baseSha;
-    headSha ??= revisions.headSha;
-  }
-
-  let changedFiles;
-  let resolution;
-  let plan;
-  if (planFile) {
-    const published = JSON.parse(await readFile(join(cwd, PUBLISHED_PLAN_FILE), 'utf8'));
-    changedFiles = published.changedFiles;
-    resolution = published.resolution;
-    plan = published.plan;
-    if (!Array.isArray(changedFiles) || !resolution || !plan?.exactHead) {
-      throw new Error('affected-plan:invalid-published-plan');
-    }
-    baseSha ??= plan.exactHead.baseSha;
-    headSha ??= plan.exactHead.headSha;
-    if (plan.exactHead.baseSha !== baseSha || plan.exactHead.headSha !== headSha) {
-      throw new Error('affected-plan:exact-head-mismatch');
-    }
-    if (!exactHeadProvided && !githubEvent) {
-      const { stdout } = await execFileImpl('git', ['rev-parse', 'HEAD'], { cwd });
-      if (stdout.trim() !== headSha) {
-        throw new Error('affected-plan:checked-out-head-mismatch');
-      }
-    }
-  } else {
-    if (!baseSha || !headSha) {
-      throw new Error('--base and --head are required for a new plan');
-    }
-    changedFiles = await readChangedFiles({ baseSha, headSha, cwd, execFileImpl });
-    resolution = resolveVerificationPlan(changedFiles);
-    plan = buildAffectedExecutionPlan(resolution, changedFiles, { baseSha, headSha });
-  }
+  ({ baseSha, headSha } = await resolveInputRevisions({
+    baseSha,
+    headSha: githubEvent ? githubHeadSha : headSha,
+    githubEvent,
+    cwd,
+  }));
+  const evidence = planFile
+    ? await readPublishedVerificationPlan({
+        cwd,
+        baseSha,
+        headSha,
+        exactHeadProvided,
+        githubEvent,
+        execFileImpl,
+      })
+    : await buildVerificationPlan({ baseSha, headSha, cwd, execFileImpl });
   const execution = planOnly
     ? { commands: [], results: [] }
-    : await runExecutionPlan(plan, {
+    : await runExecutionPlan(evidence.plan, {
         cwd,
         execFileImpl,
         skipBrowser,
         kinds: executionKindsForLane(lane),
       });
-  return { changedFiles, resolution, plan, execution };
+  return { ...evidence, execution };
 }
 
 function formatEvidence(evidence) {

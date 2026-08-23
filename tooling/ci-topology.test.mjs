@@ -123,11 +123,11 @@ test('Browser installs Chromium through the frozen local Playwright binary', asy
 
 test('Browser job consumes Lean build artifacts instead of rerunning Lean verification', async () => {
   const jobs = await readWorkflowJobs('.github/workflows/ci.yml');
-  assert.match(jobs.browser_build.text, /actions\/download-artifact@v4/);
+  assert.match(jobs.browser_build.text, /actions\/download-artifact@[0-9a-f]{40}/);
   assert.match(jobs.browser_build.text, /name:\s*affected-plan/);
   assert.match(jobs.browser_build.text, /pnpm build:browser/);
   assert.match(jobs.browser_build.text, /name:\s*browser-builds/);
-  assert.match(jobs.browser.text, /actions\/download-artifact@v4/);
+  assert.match(jobs.browser.text, /actions\/download-artifact@[0-9a-f]{40}/);
   assert.match(jobs.browser.text, /name:\s*browser-builds/);
   assert.match(jobs.browser_full.text, /name:\s*browser-builds/);
   assert.match(jobs.browser_full.text, /SHARD: \$\{\{ matrix\.shard \}\}/);
@@ -169,7 +169,7 @@ test('Plan computes and publishes one exact-head affected execution plan', async
     /cp "\$GITHUB_EVENT_PATH" \.ci-event\.json[\s\S]*node tooling\/verify-affected\.mjs --github-event --output affected-verification-plan\.json --plan-only --json/,
   );
   assert.match(jobs.plan.text, /affected-verification-plan\.json/);
-  assert.match(jobs.plan.text, /actions\/upload-artifact@v4[\s\S]*name:\s*affected-plan/);
+  assert.match(jobs.plan.text, /actions\/upload-artifact@[0-9a-f]{40}[\s\S]*name:\s*affected-plan/);
 });
 
 test('Browser consumes the Lean affected plan for targeted or Full Browser execution', async () => {
@@ -302,5 +302,14 @@ test('each CI job declares least-privilege read permissions explicitly', async (
   const jobs = await readWorkflowJobs('.github/workflows/ci.yml');
   for (const [name, job] of Object.entries(jobs)) {
     assert.match(job.text, /permissions:\s*\n\s+contents:\s*read/, `${name} lacks job permissions`);
+  }
+});
+
+test('CI action dependencies are pinned to immutable commit SHAs', async () => {
+  const workflow = await readRepoText('.github/workflows/ci.yml');
+  const references = [...workflow.matchAll(/uses:\s*([^\s]+)/g)].map(([, reference]) => reference);
+  assert.ok(references.length > 0, 'workflow must use at least one action');
+  for (const reference of references) {
+    assert.match(reference, /^[\w.-]+\/[\w.-]+@[0-9a-f]{40}$/, `unpinned action: ${reference}`);
   }
 });

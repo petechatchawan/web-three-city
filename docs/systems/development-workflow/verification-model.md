@@ -165,6 +165,35 @@ artifact. Browser reads the plan and runs targeted tags or explicit Full
 Browser. The Browser job removes the downloaded plan before clean-worktree
 verification.
 
+## Local-First Candidate Policy (PR-T5+)
+
+Every system-by-system deterministic-proof migration must produce a locally
+verified GREEN candidate before it is pushed:
+
+```text
+Local RED
+→ Local GREEN
+→ owner and affected-consumer verification
+→ pnpm check
+→ targeted browser authority when applicable
+→ clean worktree
+→ commit GREEN candidate
+→ push GREEN candidate only
+→ GitHub Actions exact-head independent verification
+```
+
+The local loop is the normal implementation and debugging authority. GitHub
+Actions confirms the pushed exact head independently; it must not be used as a
+substitute for focused local RED/GREEN work. A GitHub-hosted run may be used
+before push only when the behavior under test is inherently CI-specific, such
+as workflow events, permissions, artifact handoff, or hosted-runner
+semantics. This exception does not apply to ordinary package, browser, or
+integration verification that can run locally.
+
+Living documentation changes for a system pilot are included in the next
+locally verified GREEN candidate. Post-run CI and artifact identifiers belong
+in PR metadata and do not justify a follow-up metadata-only commit.
+
 ## Tests
 
 - `tooling/verification/verification-resolver.test.mjs` — resolver behavior (TDD RED first).

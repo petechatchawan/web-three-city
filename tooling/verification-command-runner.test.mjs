@@ -124,3 +124,78 @@ test('skip-browser execution leaves browser authority for the Browser job', asyn
   assert.deepEqual(result.commands, []);
   assert.deepEqual(calls, []);
 });
+
+test('selects one affected execution lane without running unrelated commands', async () => {
+  const calls = [];
+  const result = await runExecutionPlan(
+    {
+      ownerTests: [
+        {
+          workspace: '@web-three-city/traffic-core',
+          files: [],
+          mode: 'package',
+        },
+      ],
+      consumerTests: [
+        {
+          workspace: '@web-three-city/game',
+          files: ['apps/game/src/traffic.test.ts'],
+          mode: 'files',
+        },
+      ],
+      typechecks: ['@web-three-city/traffic-core'],
+      deploymentChecks: true,
+      browser: { mode: 'targeted', tags: ['@traffic'], fullBrowserRequired: false },
+    },
+    {
+      kinds: ['owner-test'],
+      execFileImpl: async (executable, args) => {
+        calls.push({ executable, args });
+        return { stdout: '', stderr: '' };
+      },
+    },
+  );
+
+  assert.deepEqual(result.commands, [
+    {
+      kind: 'owner-test',
+      executable: 'pnpm',
+      args: ['--filter', '@web-three-city/traffic-core', 'test'],
+    },
+  ]);
+  assert.deepEqual(calls, [
+    {
+      executable: 'pnpm',
+      args: ['--filter', '@web-three-city/traffic-core', 'test'],
+    },
+  ]);
+});
+
+test('builds changed-file lint commands without invoking repository-wide lint', () => {
+  const commands = buildExecutionCommands({
+    lintFiles: [
+      'apps/game/src/game.ts',
+      'docs/systems/README.md',
+      'tooling/ci-topology.test.mjs',
+      'tooling/ci.yml',
+    ],
+    ownerTests: [],
+    consumerTests: [],
+    typechecks: [],
+    deploymentChecks: false,
+    browser: { mode: 'none', tags: [], fullBrowserRequired: false },
+  }).filter((command) => command.kind === 'lint');
+
+  assert.deepEqual(commands, [
+    {
+      kind: 'lint',
+      executable: 'pnpm',
+      args: ['exec', 'prettier', '--check', 'apps/game/src/game.ts', 'tooling/ci.yml'],
+    },
+    {
+      kind: 'lint',
+      executable: 'pnpm',
+      args: ['exec', 'eslint', 'apps/game/src/game.ts', 'tooling/ci-topology.test.mjs'],
+    },
+  ]);
+});

@@ -27,12 +27,34 @@ function packageTestCommand(target, kind) {
   };
 }
 
+function buildLintCommands(plan) {
+  const files = plan.lintFiles ?? [];
+  const prettierFiles = files.filter((file) => /\.(?:ts|js|yml|yaml)$/.test(file));
+  const eslintFiles = files.filter((file) => /\.(?:[cm]?js|[cm]?ts)$/.test(file));
+  const commands = [];
+  if (prettierFiles.length > 0) {
+    commands.push({
+      kind: 'lint',
+      executable: 'pnpm',
+      args: ['exec', 'prettier', '--check', ...prettierFiles],
+    });
+  }
+  if (eslintFiles.length > 0) {
+    commands.push({
+      kind: 'lint',
+      executable: 'pnpm',
+      args: ['exec', 'eslint', ...eslintFiles],
+    });
+  }
+  return commands;
+}
+
 /**
  * Convert an affected execution plan to explicit executable/argument tuples.
  * No command is interpolated into a shell string.
  */
 export function buildExecutionCommands(plan) {
-  const commands = [];
+  const commands = buildLintCommands(plan);
   for (const target of plan.ownerTests ?? [])
     commands.push(packageTestCommand(target, 'owner-test'));
   for (const target of plan.consumerTests ?? [])
@@ -81,8 +103,11 @@ export async function runCommand({
 }
 
 export async function runExecutionPlan(plan, options = {}) {
+  const selectedKinds = options.kinds ? new Set(options.kinds) : null;
   const commands = buildExecutionCommands(plan).filter(
-    (command) => !options.skipBrowser || command.kind !== 'browser',
+    (command) =>
+      (!options.skipBrowser || command.kind !== 'browser') &&
+      (!selectedKinds || selectedKinds.has(command.kind)),
   );
   const results = [];
   for (const command of commands) {

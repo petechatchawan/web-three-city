@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { execFile as execFileCallback } from 'node:child_process';
-import { writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 
@@ -12,8 +12,26 @@ import { resolveVerificationPlan } from './verification/resolver.mjs';
 const execFileAsync = promisify(execFileCallback);
 const compareText = (left, right) => (left < right ? -1 : left > right ? 1 : 0);
 
+const EXECUTION_LANES = Object.freeze({
+  lint: ['lint'],
+  'owner-tests': ['owner-test'],
+  'consumer-tests': ['consumer-test'],
+  typecheck: ['typecheck'],
+  deployment: ['deployment'],
+  browser: ['browser'],
+});
+
 export function parseArgs(argv) {
-  const options = { baseSha: null, headSha: null, json: false, output: null, skipBrowser: false };
+  const options = {
+    baseSha: null,
+    headSha: null,
+    json: false,
+    output: null,
+    skipBrowser: false,
+    lane: null,
+    planOnly: false,
+    planFile: null,
+  };
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     if (argument === '--') continue;
@@ -25,13 +43,30 @@ export function parseArgs(argv) {
       options.skipBrowser = true;
       continue;
     }
-    if (argument === '--base' || argument === '--head' || argument === '--output') {
+    if (argument === '--plan-only') {
+      options.planOnly = true;
+      continue;
+    }
+    if (
+      argument === '--base' ||
+      argument === '--head' ||
+      argument === '--output' ||
+      argument === '--lane' ||
+      argument === '--plan-file'
+    ) {
       const value = argv[index + 1];
       if (!value) throw new Error(`${argument} requires a value`);
       index += 1;
       if (argument === '--base') options.baseSha = value;
       if (argument === '--head') options.headSha = value;
       if (argument === '--output') options.output = value;
+      if (argument === '--lane') {
+        if (!Object.hasOwn(EXECUTION_LANES, value)) {
+          throw new Error(`unknown execution lane: ${value}`);
+        }
+        options.lane = value;
+      }
+      if (argument === '--plan-file') options.planFile = value;
       continue;
     }
     throw new Error(`unknown argument: ${argument}`);
@@ -40,6 +75,11 @@ export function parseArgs(argv) {
     throw new Error('--base and --head are required');
   }
   return options;
+}
+
+export function executionKindsForLane(lane) {
+  if (lane === null || lane === undefined) return undefined;
+  return EXECUTION_LANES[lane];
 }
 
 export async function readChangedFiles({
@@ -69,11 +109,37 @@ export async function runAffectedVerification({
   cwd = process.cwd(),
   execFileImpl = execFileAsync,
   skipBrowser = false,
+  lane = null,
+  planOnly = false,
+  planFile = null,
 }) {
-  const changedFiles = await readChangedFiles({ baseSha, headSha, cwd, execFileImpl });
-  const resolution = resolveVerificationPlan(changedFiles);
-  const plan = buildAffectedExecutionPlan(resolution, changedFiles, { baseSha, headSha });
-  const execution = await runExecutionPlan(plan, { cwd, execFileImpl, skipBrowser });
+  let changedFiles;
+  let resolution;
+  let plan;
+  if (planFile) {
+    const published = JSON.parse(await readFile(planFile, 'utf8'));
+    changedFiles = published.changedFiles;
+    resolution = published.resolution;
+    plan = published.plan;
+    if (!Array.isArray(changedFiles) || !resolution || !plan?.exactHead) {
+      throw new Error('affected-plan:invalid-published-plan');
+    }
+    if (plan.exactHead.baseSha !== baseSha || plan.exactHead.headSha !== headSha) {
+      throw new Error('affected-plan:exact-head-mismatch');
+    }
+  } else {
+    changedFiles = await readChangedFiles({ baseSha, headSha, cwd, execFileImpl });
+    resolution = resolveVerificationPlan(changedFiles);
+    plan = buildAffectedExecutionPlan(resolution, changedFiles, { baseSha, headSha });
+  }
+  const execution = planOnly
+    ? { commands: [], results: [] }
+    : await runExecutionPlan(plan, {
+        cwd,
+        execFileImpl,
+        skipBrowser,
+        kinds: executionKindsForLane(lane),
+      });
   return { changedFiles, resolution, plan, execution };
 }
 

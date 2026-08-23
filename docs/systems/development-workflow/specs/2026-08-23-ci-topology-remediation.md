@@ -1,6 +1,7 @@
 # CI Topology Remediation
 
-**Status:** CI-R1 through CI-R6 implemented and verified on exact hosted head `9fdea3c7769c4c22dfa2ac1d6429d0249aad25f3`
+**Status:** CI-R1 through CI-R6 implemented. Exact-head hosted evidence for the
+current candidate is recorded in the PR body.
 **System:** Development Workflow
 **Scope:** GitHub Actions execution topology only
 
@@ -57,7 +58,7 @@ Normal pull requests use the existing affected plan and targeted Browser authori
 The local Playwright discovery baseline is 137 Chromium tests in 33 spec files.
 The hosted two-shard run produces 71 and 66 passing tests respectively, with an
 exact 137-test union. Each hosted shard runs with `--workers=1`; no test assertion,
-retry policy, or timeout was changed. Run `32640249302` completed in approximately
-14m07s wall clock; shard runtimes were 11m32s and 13m34s (25m06s aggregate active
-shard time). Artifacts are `9493546141` and `9493570625`. Sonar Quality Gate and
-all affected verification lanes passed on the same exact head.
+retry policy, or timeout was changed. The stable acceptance contract is an exact
+137-test union across two one-worker shards; the current run, timing, and artifact
+IDs are recorded in the PR body rather than bound to this living document's
+historical commit.

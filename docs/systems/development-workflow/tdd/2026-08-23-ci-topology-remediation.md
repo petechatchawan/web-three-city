@@ -76,13 +76,13 @@ No Full Browser assertions, retries, workers, or timeouts were weakened.
 
 ## CI-R5/CI-R6 hosted verification
 
-The exact-head hosted run was `32640249302` on
-`9fdea3c7769c4c22dfa2ac1d6429d0249aad25f3`. Classification, changed-file lint,
-owner tests, consumer tests, typechecks, deployment contracts, Lean aggregation,
-and the Browser build artifact all passed. Sonar Quality Gate passed. Browser
-verification ran as two independent Full Browser shards with 71 and 66 passing
-tests; the wall-clock duration was approximately 14m07s and the aggregate active
-shard time was 25m06s. Browser artifacts were `9493546141` and `9493570625`.
+Hosted verification for the current candidate is recorded in the PR body. The
+required evidence is classification, changed-file lint, owner tests, consumer
+tests, typechecks, deployment contracts, Lean aggregation, the exact Browser
+build artifact, Sonar Quality Gate, and two independent Full Browser shards with
+71 and 66 passing tests forming the exact 137-test union. Run IDs, timings, and
+artifact IDs remain PR evidence so this historical TDD document does not become
+stale after a docs-only candidate update.
 
 Third-party workflow actions are pinned to immutable commit SHAs and each CI job
 declares least-privilege `contents: read` permissions. The rollback command remains

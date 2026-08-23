@@ -28,6 +28,7 @@ test('parses exact-head affected verification arguments', () => {
       lane: null,
       planOnly: false,
       planFile: null,
+      githubEventFile: null,
     },
   );
 });
@@ -35,8 +36,8 @@ test('parses exact-head affected verification arguments', () => {
 test('reads changed paths through git argument arrays', async () => {
   const calls = [];
   const files = await readChangedFiles({
-    baseSha: 'base sha',
-    headSha: 'head;sha',
+    baseSha: 'base-sha',
+    headSha: 'head-sha',
     cwd: '/tmp/project',
     execFileImpl: async (executable, args, options) => {
       calls.push({ executable, args, options });
@@ -53,10 +54,27 @@ test('reads changed paths through git argument arrays', async () => {
   assert.deepEqual(calls, [
     {
       executable: 'git',
-      args: ['diff', '--name-only', '--diff-filter=ACMR', 'base sha...head;sha'],
+      args: ['diff', '--name-only', '--diff-filter=ACMR', 'base-sha...head-sha'],
       options: { cwd: '/tmp/project' },
     },
   ]);
+});
+
+test('rejects unsafe git revisions before invoking git', async () => {
+  let invoked = false;
+
+  await assert.rejects(
+    readChangedFiles({
+      baseSha: 'base-sha',
+      headSha: 'head;sha',
+      execFileImpl: async () => {
+        invoked = true;
+        return { stdout: '', stderr: '' };
+      },
+    }),
+    /unsafe git revision: headSha/,
+  );
+  assert.equal(invoked, false);
 });
 
 test('parses execution lane and plan-only options for CI fan-out', () => {
@@ -81,8 +99,57 @@ test('parses execution lane and plan-only options for CI fan-out', () => {
       lane: 'owner-tests',
       planOnly: true,
       planFile: '/tmp/plan.json',
+      githubEventFile: null,
     },
   );
+});
+
+test('allows published-plan lanes to derive exact-head revisions from the plan', () => {
+  assert.deepEqual(
+    parseArgs(['--plan-file', '/tmp/plan.json', '--lane', 'owner-tests', '--skip-browser']),
+    {
+      baseSha: null,
+      headSha: null,
+      json: false,
+      output: null,
+      skipBrowser: true,
+      lane: 'owner-tests',
+      planOnly: false,
+      planFile: '/tmp/plan.json',
+      githubEventFile: null,
+    },
+  );
+});
+
+test('resolves the pull request base from the GitHub event file for plan creation', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'verify-affected-event-'));
+  const eventFile = join(directory, 'event.json');
+  await writeFile(
+    eventFile,
+    `${JSON.stringify({ pull_request: { base: { sha: 'base-sha' } } })}\n`,
+    'utf8',
+  );
+
+  try {
+    const evidence = await runAffectedVerification({
+      githubEventFile: eventFile,
+      githubHeadSha: 'head-sha',
+      planOnly: true,
+      execFileImpl: async (executable, args) => {
+        assert.equal(executable, 'git');
+        assert.deepEqual(args, [
+          'diff',
+          '--name-only',
+          '--diff-filter=ACMR',
+          'base-sha...head-sha',
+        ]);
+        return { stdout: '', stderr: '' };
+      },
+    });
+    assert.deepEqual(evidence.plan.exactHead, { baseSha: 'base-sha', headSha: 'head-sha' });
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 test('plan-only resolution publishes the exact plan without executing verification commands', async () => {

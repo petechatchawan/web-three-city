@@ -11,6 +11,7 @@ import { resolveVerificationPlan } from './verification/resolver.mjs';
 
 const execFileAsync = promisify(execFileCallback);
 const compareText = (left, right) => (left < right ? -1 : left > right ? 1 : 0);
+const SAFE_GIT_REVISION = /^[A-Za-z0-9._~^/-]+$/;
 
 const EXECUTION_LANES = Object.freeze({
   lint: ['lint'],
@@ -31,6 +32,7 @@ export function parseArgs(argv) {
     lane: null,
     planOnly: false,
     planFile: null,
+    githubEventFile: null,
   };
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
@@ -52,7 +54,8 @@ export function parseArgs(argv) {
       argument === '--head' ||
       argument === '--output' ||
       argument === '--lane' ||
-      argument === '--plan-file'
+      argument === '--plan-file' ||
+      argument === '--github-event-file'
     ) {
       const value = argv[index + 1];
       if (!value) throw new Error(`${argument} requires a value`);
@@ -67,14 +70,36 @@ export function parseArgs(argv) {
         options.lane = value;
       }
       if (argument === '--plan-file') options.planFile = value;
+      if (argument === '--github-event-file') options.githubEventFile = value;
       continue;
     }
     throw new Error(`unknown argument: ${argument}`);
   }
-  if (!options.baseSha || !options.headSha) {
-    throw new Error('--base and --head are required');
+  if ((!options.baseSha || !options.headSha) && !options.planFile && !options.githubEventFile) {
+    throw new Error(
+      '--base and --head are required unless --plan-file or --github-event-file is used',
+    );
   }
   return options;
+}
+
+export function assertSafeGitRevision(value, name) {
+  if (typeof value !== 'string' || !SAFE_GIT_REVISION.test(value)) {
+    throw new Error(`unsafe git revision: ${name}`);
+  }
+  return value;
+}
+
+export async function readGithubEventRevisions({
+  eventFile,
+  headSha = process.env.GITHUB_SHA,
+  readFileImpl = readFile,
+}) {
+  const event = JSON.parse(await readFileImpl(eventFile, 'utf8'));
+  const baseSha = event.pull_request?.base?.sha ?? event.before ?? 'HEAD~1';
+  assertSafeGitRevision(baseSha, 'baseSha');
+  assertSafeGitRevision(headSha, 'headSha');
+  return { baseSha, headSha };
 }
 
 export function executionKindsForLane(lane) {
@@ -88,6 +113,8 @@ export async function readChangedFiles({
   cwd = process.cwd(),
   execFileImpl = execFileAsync,
 }) {
+  assertSafeGitRevision(baseSha, 'baseSha');
+  assertSafeGitRevision(headSha, 'headSha');
   const { stdout } = await execFileImpl(
     'git',
     ['diff', '--name-only', '--diff-filter=ACMR', `${baseSha}...${headSha}`],
@@ -112,7 +139,19 @@ export async function runAffectedVerification({
   lane = null,
   planOnly = false,
   planFile = null,
+  githubEventFile = null,
+  githubHeadSha = process.env.GITHUB_SHA,
 }) {
+  const exactHeadProvided = Boolean(baseSha && headSha);
+  if (githubEventFile) {
+    const revisions = await readGithubEventRevisions({
+      eventFile: githubEventFile,
+      headSha: githubHeadSha,
+    });
+    baseSha ??= revisions.baseSha;
+    headSha ??= revisions.headSha;
+  }
+
   let changedFiles;
   let resolution;
   let plan;
@@ -124,10 +163,21 @@ export async function runAffectedVerification({
     if (!Array.isArray(changedFiles) || !resolution || !plan?.exactHead) {
       throw new Error('affected-plan:invalid-published-plan');
     }
+    baseSha ??= plan.exactHead.baseSha;
+    headSha ??= plan.exactHead.headSha;
     if (plan.exactHead.baseSha !== baseSha || plan.exactHead.headSha !== headSha) {
       throw new Error('affected-plan:exact-head-mismatch');
     }
+    if (!exactHeadProvided && !githubEventFile) {
+      const { stdout } = await execFileImpl('git', ['rev-parse', 'HEAD'], { cwd });
+      if (stdout.trim() !== headSha) {
+        throw new Error('affected-plan:checked-out-head-mismatch');
+      }
+    }
   } else {
+    if (!baseSha || !headSha) {
+      throw new Error('--base and --head are required for a new plan');
+    }
     changedFiles = await readChangedFiles({ baseSha, headSha, cwd, execFileImpl });
     resolution = resolveVerificationPlan(changedFiles);
     plan = buildAffectedExecutionPlan(resolution, changedFiles, { baseSha, headSha });

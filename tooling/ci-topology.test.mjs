@@ -69,7 +69,7 @@ test('full-ci label selects Full Browser without serializing behind Lean', async
   const jobs = await readWorkflowJobs('.github/workflows/ci.yml');
   assert.match(
     jobs.plan.text,
-    /contains\(github\.event\.pull_request\.labels\.\*\.name, 'full-ci'\)/,
+    /event\.pull_request\?\.labels\?\.some\(\(\{ name \}\) => name === 'full-ci'\)/,
   );
   assert.match(jobs.browser_build.text, /needs:\s*plan/);
   assert.match(jobs.browser.text, /needs:\s*browser_build/);
@@ -88,8 +88,11 @@ test('Full Browser remains opt-in for pull requests and runs as nightly regressi
   const workflow = await readRepoText('.github/workflows/ci.yml');
   const jobs = await readWorkflowJobs('.github/workflows/ci.yml');
   assert.match(workflow, /schedule:\s*\n\s*- cron:\s*['"]0 18 \* \* \*['"]/);
-  assert.match(jobs.plan.text, /github\.event_name == 'schedule'/);
-  assert.match(jobs.plan.text, /EXPLICIT_FULL/);
+  assert.match(
+    jobs.plan.text,
+    /\['workflow_dispatch', 'schedule'\]\.includes\(process\.env\.GITHUB_EVENT_NAME\)/,
+  );
+  assert.match(jobs.plan.text, /explicitFull/);
   assert.match(jobs.browser_full.text, /Confirm Full Browser mode/);
   assert.match(jobs.browser_full.text, /Run Full Browser spec shard/);
   assert.match(jobs.browser_full.if, /outputs\.mode == 'full'/);
@@ -127,7 +130,8 @@ test('Browser job consumes Lean build artifacts instead of rerunning Lean verifi
   assert.match(jobs.browser.text, /actions\/download-artifact@v4/);
   assert.match(jobs.browser.text, /name:\s*browser-builds/);
   assert.match(jobs.browser_full.text, /name:\s*browser-builds/);
-  assert.match(jobs.browser_full.text, /--shard=\$\{\{ matrix\.shard \}\}\/2/);
+  assert.match(jobs.browser_full.text, /SHARD: \$\{\{ matrix\.shard \}\}/);
+  assert.match(jobs.browser_full.text, /--shard="\$\{SHARD\}\/2"/);
   assert.doesNotMatch(jobs.browser.text + jobs.browser_full.text, /pnpm verify:full/);
   assert.doesNotMatch(
     jobs.browser.text + jobs.browser_full.text,
@@ -162,7 +166,7 @@ test('Plan computes and publishes one exact-head affected execution plan', async
   assert.match(jobs.plan.text, /fetch-depth:\s*0/);
   assert.match(
     jobs.plan.text,
-    /node tooling\/verify-affected\.mjs --base "\$BASE_SHA" --head "\$HEAD_SHA" --output affected-verification-plan\.json --plan-only --json/,
+    /node tooling\/verify-affected\.mjs --github-event-file "\$GITHUB_EVENT_PATH" --output affected-verification-plan\.json --plan-only --json/,
   );
   assert.match(jobs.plan.text, /affected-verification-plan\.json/);
   assert.match(jobs.plan.text, /actions\/upload-artifact@v4[\s\S]*name:\s*affected-plan/);
@@ -194,7 +198,7 @@ test('affected plan selects targeted browser ownership sets', async () => {
   assert.match(browser, /browser\.tags\.join\('\|'\)/);
   assert.match(browser, /playwright test --grep "\$GREP" --project=chromium/);
   assert.match(jobs.browser_full.text, /Run Full Browser spec shard/);
-  assert.match(browser, /contains\(github\.event\.pull_request\.labels\.\*\.name, 'full-ci'\)/);
+  assert.match(browser, /browser\.fullBrowserRequired/);
 });
 
 test('Full browser release command remains available', async () => {
@@ -260,7 +264,7 @@ test('normal pull requests use the affected Browser plan instead of unconditiona
   assert.match(browser, /Run planned targeted browser verification/);
   assert.match(browser, /outputs\.mode == 'targeted'/);
   assert.doesNotMatch(browser, /github\.event_name == ['"]pull_request['"]\s*$/m);
-  assert.match(browser, /full-ci/);
+  assert.match(workflow, /name === 'full-ci'/);
 });
 
 test('Full Browser runs as two exact spec shards with one worker each', async () => {
@@ -271,6 +275,25 @@ test('Full Browser runs as two exact spec shards with one worker each', async ()
   assert.match(jobs.browser_full.text, /needs:\s*browser_build/);
   assert.match(jobs.browser_full.if, /outputs\.mode == 'full'/);
   assert.match(jobs.browser_full.text, /--workers=1/);
-  assert.match(jobs.browser_full.text, /--shard=\$\{\{ matrix\.shard \}\}\/2/);
+  assert.match(jobs.browser_full.text, /SHARD: \$\{\{ matrix\.shard \}\}/);
+  assert.match(jobs.browser_full.text, /--shard="\$\{SHARD\}\/2"/);
   assert.doesNotMatch(jobs.browser_full.text, /pnpm verify:full/);
+});
+
+test('workflow does not interpolate GitHub context directly into shell commands', async () => {
+  const workflow = await readRepoText('.github/workflows/ci.yml');
+  const runBlocks = [];
+  let current = null;
+  for (const line of workflow.split('\n')) {
+    const match = /^(\s*)run:/.exec(line);
+    const indentation = line.match(/^\s*/)[0].length;
+    if (current && (line.trim() === '' || indentation > current.indentation)) {
+      current.lines.push(line);
+      continue;
+    }
+    if (current) runBlocks.push(current.lines.join('\n'));
+    current = match ? { indentation, lines: [line] } : null;
+  }
+  if (current) runBlocks.push(current.lines.join('\n'));
+  assert.doesNotMatch(runBlocks.join('\n'), /\$\{\{/);
 });

@@ -34,18 +34,16 @@ jobs:
           node-version: 22
       - name: Compute affected verification plan
         id: plan
-        env:
-          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before || 'HEAD~1' }}
-          HEAD_SHA: ${{ github.sha }}
-          EXPLICIT_FULL: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'full-ci')) }}
         run: |
-          node tooling/verify-affected.mjs --base "$BASE_SHA" --head "$HEAD_SHA" --output affected-verification-plan.json --plan-only --json
+          node tooling/verify-affected.mjs --github-event-file "$GITHUB_EVENT_PATH" --output affected-verification-plan.json --plan-only --json
           node - <<'NODE'
           const fs = require('node:fs');
           const evidence = JSON.parse(fs.readFileSync('affected-verification-plan.json', 'utf8'));
           const browser = evidence.plan?.browser;
           if (!browser) throw new Error('affected-plan:missing-browser-plan');
-          const explicitFull = process.env.EXPLICIT_FULL === 'true';
+          const event = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'));
+          const explicitFull = ['workflow_dispatch', 'schedule'].includes(process.env.GITHUB_EVENT_NAME)
+            || event.pull_request?.labels?.some(({ name }) => name === 'full-ci') === true;
           const mode = explicitFull || browser.fullBrowserRequired ? 'full' : browser.mode;
           if (mode === 'targeted' && browser.tags.length === 0) {
             throw new Error('affected-plan:targeted-browser-missing-tags');
@@ -81,10 +79,7 @@ jobs:
         with:
           name: affected-plan
       - name: Run changed-file lint lane
-        env:
-          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before || 'HEAD~1' }}
-          HEAD_SHA: ${{ github.sha }}
-        run: node tooling/verify-affected.mjs --base "$BASE_SHA" --head "$HEAD_SHA" --plan-file affected-verification-plan.json --lane lint --skip-browser
+        run: node tooling/verify-affected.mjs --plan-file affected-verification-plan.json --lane lint --skip-browser
 
   tests:
     name: Related owner tests
@@ -107,10 +102,7 @@ jobs:
         with:
           name: affected-plan
       - name: Run affected owner tests
-        env:
-          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before || 'HEAD~1' }}
-          HEAD_SHA: ${{ github.sha }}
-        run: node tooling/verify-affected.mjs --base "$BASE_SHA" --head "$HEAD_SHA" --plan-file affected-verification-plan.json --lane owner-tests --skip-browser
+        run: node tooling/verify-affected.mjs --plan-file affected-verification-plan.json --lane owner-tests --skip-browser
 
   consumers:
     name: Affected consumer tests
@@ -133,10 +125,7 @@ jobs:
         with:
           name: affected-plan
       - name: Run affected consumer tests
-        env:
-          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before || 'HEAD~1' }}
-          HEAD_SHA: ${{ github.sha }}
-        run: node tooling/verify-affected.mjs --base "$BASE_SHA" --head "$HEAD_SHA" --plan-file affected-verification-plan.json --lane consumer-tests --skip-browser
+        run: node tooling/verify-affected.mjs --plan-file affected-verification-plan.json --lane consumer-tests --skip-browser
 
   typecheck:
     name: Affected typecheck
@@ -159,10 +148,7 @@ jobs:
         with:
           name: affected-plan
       - name: Run affected typechecks
-        env:
-          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before || 'HEAD~1' }}
-          HEAD_SHA: ${{ github.sha }}
-        run: node tooling/verify-affected.mjs --base "$BASE_SHA" --head "$HEAD_SHA" --plan-file affected-verification-plan.json --lane typecheck --skip-browser
+        run: node tooling/verify-affected.mjs --plan-file affected-verification-plan.json --lane typecheck --skip-browser
 
   deployment:
     name: Deployment contracts
@@ -185,10 +171,7 @@ jobs:
         with:
           name: affected-plan
       - name: Run affected deployment checks
-        env:
-          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before || 'HEAD~1' }}
-          HEAD_SHA: ${{ github.sha }}
-        run: node tooling/verify-affected.mjs --base "$BASE_SHA" --head "$HEAD_SHA" --plan-file affected-verification-plan.json --lane deployment --skip-browser
+        run: node tooling/verify-affected.mjs --plan-file affected-verification-plan.json --lane deployment --skip-browser
 
   browser_build:
     name: Browser build artifact
@@ -276,20 +259,16 @@ jobs:
           rm browser-builds.tar.gz
       - name: Resolve affected verification plan
         id: plan
-        env:
-          EXPLICIT_FULL: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'full-ci')) }}
         run: |
           node - <<'NODE'
           const fs = require('node:fs');
           const evidence = JSON.parse(fs.readFileSync('affected-verification-plan.json', 'utf8'));
           const browser = evidence.plan?.browser;
           if (!browser) throw new Error('affected-plan:missing-browser-plan');
-          const explicitFull = process.env.EXPLICIT_FULL === 'true';
-          const mode = explicitFull || browser.fullBrowserRequired ? 'full' : browser.mode;
-          if (mode === 'targeted' && browser.tags.length === 0) {
+          if (browser.fullBrowserRequired || browser.mode !== 'targeted' || browser.tags.length === 0) {
             throw new Error('affected-plan:targeted-browser-missing-tags');
           }
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `mode=${mode}\n`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, 'mode=targeted\n');
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `grep=${browser.tags.join('|')}\n`);
           NODE
       - run: ./node_modules/.bin/playwright install chromium
@@ -349,22 +328,21 @@ jobs:
           test -s affected-verification-plan.json
           rm browser-builds.tar.gz
       - name: Confirm Full Browser mode
-        env:
-          EXPLICIT_FULL: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'full-ci')) }}
         run: |
           node - <<'NODE'
           const fs = require('node:fs');
           const evidence = JSON.parse(fs.readFileSync('affected-verification-plan.json', 'utf8'));
           const browser = evidence.plan?.browser;
           if (!browser) throw new Error('affected-plan:missing-browser-plan');
-          const explicitFull = process.env.EXPLICIT_FULL === 'true';
-          if (!explicitFull && !browser.fullBrowserRequired) {
-            throw new Error('affected-plan:full-browser-not-authorized');
+          if (!Array.isArray(browser.tags) || typeof browser.fullBrowserRequired !== 'boolean') {
+            throw new Error('affected-plan:invalid-browser-plan');
           }
           NODE
       - run: ./node_modules/.bin/playwright install chromium
       - name: Run Full Browser spec shard
-        run: ./node_modules/.bin/playwright test --project=chromium --workers=1 --shard=${{ matrix.shard }}/2
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: ./node_modules/.bin/playwright test --project=chromium --workers=1 --shard="${SHARD}/2"
       - name: Remove affected verification plan artifact
         if: always()
         run: rm -f affected-verification-plan.json

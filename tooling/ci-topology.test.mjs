@@ -74,6 +74,7 @@ test('full-ci label selects Full Browser without serializing behind Lean', async
   assert.match(jobs.browser_build.text, /needs:\s*plan/);
   assert.match(jobs.browser.text, /needs:\s*browser_build/);
   assert.doesNotMatch(jobs.browser.text, /needs:\s*lean/);
+  assert.match(jobs.browser.if, /outputs\.mode == 'targeted'/);
   assert.equal(jobs.browser_build.if.includes("needs.plan.outputs.mode != 'none'"), true);
 });
 
@@ -257,6 +258,7 @@ test('normal pull requests use the affected Browser plan instead of unconditiona
   assert.match(browser, /affected-verification-plan\.json/);
   assert.match(browser, /browser\.mode|mode/);
   assert.match(browser, /Run planned targeted browser verification/);
+  assert.match(browser, /outputs\.mode == 'targeted'/);
   assert.doesNotMatch(browser, /github\.event_name == ['"]pull_request['"]\s*$/m);
   assert.match(browser, /full-ci/);
 });

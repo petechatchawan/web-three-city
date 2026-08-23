@@ -248,7 +248,7 @@ jobs:
     needs: browser_build
     if: >-
       needs.browser_build.result == 'success' &&
-      needs.browser_build.outputs.mode != 'none'
+      needs.browser_build.outputs.mode == 'targeted'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:

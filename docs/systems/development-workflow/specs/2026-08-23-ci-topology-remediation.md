@@ -1,0 +1,62 @@
+# CI Topology Remediation
+
+**Status:** CI-R1 through CI-R5 implemented locally; CI-R6 release closure pending exact-head hosted verification
+**System:** Development Workflow
+**Scope:** GitHub Actions execution topology only
+
+## Goal
+
+Reduce pull-request wall-clock time by running the existing affected verification plan as independent non-browser lanes while keeping Browser verification dependent only on the exact Game/Terrain Lab artifact it consumes.
+
+## Authority
+
+`AGENTS.md` Level 0–4 is the only verification-level authority:
+
+- L0 focused local iteration
+- L1 owning package
+- L2 affected consumers
+- L3 repository/PR verification
+- L4 Full Browser/full regression escalation
+
+`GRAPH_SAFE`, `PARTIAL`, `GRAPH_BLIND`, and `GLOBAL` remain internal resolver risk signals. They do not define another verification hierarchy.
+
+## Required topology
+
+```text
+Existing PR-T4 affected plan
+        ├── changed-file lint
+        ├── owner/related tests
+        ├── affected consumers
+        ├── affected typechecks
+        └── deployment contracts
+
+Existing PR-T4 affected plan
+        └── Browser build → exact artifact → targeted Browser
+
+Explicit Full Browser
+        └── Browser build → exact artifact → two spec shards (1/2, 2/2)
+```
+
+Browser must not wait for the aggregate Lean check. Lean aggregates non-browser lanes and does not rerun them.
+
+## Browser policy
+
+Normal pull requests use the existing affected plan and targeted Browser authority when required. Full Browser remains an escalation/backstop. The initial Full Browser pilot uses two spec-file shards, one worker per shard, with an exact union equal to the serial baseline. `pnpm verify:full` remains the serial rollback and local release authority.
+
+## Non-goals
+
+- no production or gameplay changes;
+- no Playwright assertion migration;
+- no new classifier or verification-plan framework;
+- no retry, worker, or timeout weakening;
+- no WoC-specific merge-queue, long-simulation, or four/eight-shard rollout in this phase;
+- no RCI, Growth, Zoning, Building, Water, or Terrain migration until this topology gate passes.
+
+## Pilot evidence
+
+The local Playwright discovery baseline is 137 Chromium tests in 33 spec files.
+The two shard commands produce 71 and 66 tests respectively, with zero overlap
+and an exact 137-test union. Each hosted shard runs with `--workers=1`; no test
+assertion, retry policy, or timeout was changed. Hosted wall-clock and
+runner-minute comparison remains a CI-R6 evidence item because local discovery
+cannot measure GitHub runner scheduling.

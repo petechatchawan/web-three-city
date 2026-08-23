@@ -137,7 +137,7 @@ test('AGENTS static Level 2 map contains every approved changed-owner row', asyn
     'water-three',
     'zone-three',
   ]) {
-    assert.ok(agents.includes('| `' + owner + '` |'), owner);
+    assert.match(agents, new RegExp('\\\\|\\\\s*`' + owner + '`\\\\s*\\\\|'), owner);
   }
 });
 
@@ -218,7 +218,7 @@ test('Development Workflow living handoff records targeted browser CI', async ()
   const readme = await readRepoText('docs/systems/development-workflow/README.md');
   assert.match(readme, /affected-verification-plan\.json/i);
   assert.match(readme, /Browser CI.*targeted mode.*plan/is);
-  assert.match(readme, /exact Lean preview artifact/is);
+  assert.match(readme, /exact Game\/Terrain Lab artifact/is);
   assert.match(readme, /Full Browser is not the default gate for every PR/i);
 });
 

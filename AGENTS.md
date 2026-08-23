@@ -98,24 +98,32 @@ Playwright currently serializes CI with one worker, uses two workers locally, an
 ```text
 Pull request
   ↓
-Lean CI
-  ├─ repository verification, unit tests, typecheck, and build
-  └─ publish exact browser preview build artifact
-          ↓ only when Full Browser is explicitly triggered
-Full Browser CI
-  ├─ consume the exact Lean artifact
+Classify / affected plan
+  ├─ changed-file lint
+  ├─ affected owner tests
+  ├─ affected consumer tests
+  ├─ affected typechecks
+  ├─ deployment contracts
+  └─ Browser build only when the plan requires browser evidence
+          ↓
+Lean CI aggregate
+          ↓ only for non-browser lane status
+Browser CI
+  ├─ consume the exact Browser build artifact
   ├─ install browser runtime
-  └─ run unfiltered browser regression evidence
+  └─ run targeted ownership evidence or explicit Full Browser
 
 Nightly schedule / workflow_dispatch
   ↓
-Lean CI → Full Browser CI
+Classify / affected plan → parallel verification → Full Browser CI
 ```
 
-- Lean CI owns repository verification and application builds and remains the normal mandatory PR CI gate.
-- Full Browser CI reuses the exact Lean-produced Game and Terrain Lab outputs. Apart from dependency/browser setup, clean-worktree validation, and evidence retention, its responsibility is browser verification only.
+- The affected plan is the single execution input for normal PR lanes. It is computed once from the exact base/head pair and published as an artifact.
+- Changed-file lint, owner tests, consumer tests, typechecks, and deployment contracts fan out independently after classification. Lean CI is the aggregate status for those lanes; it does not rerun them through `pnpm check`.
+- Browser build is an independent lane. When required, it produces the exact Game/Terrain Lab outputs consumed by Browser CI; Browser does not wait for the Lean aggregate.
+- Browser CI does not repeat Lean-owned checks, tests, typechecks, or application builds. It only installs Chromium, restores the exact artifact, and runs the planned browser authority.
 - Ordinary pull-request synchronization does not run Full Browser unless the PR has the `full-ci` label.
-- Browser CI must not duplicate `pnpm check`, unit suites, typecheck, or application builds.
+- `pnpm verify:full` remains the local/manual full-regression command and the serial rollback path while the two-shard pilot is evaluated.
 - A CI-topology change must update the architecture/CI topology contract tests in the same PR. Do not add duplicate verification “for safety” without an explicit architecture decision backed by evidence.
 
 ## Verification Escalation Rules
@@ -152,27 +160,27 @@ Conflict resolution:
 
 This is a **conservative verification map**, not the architectural dependency graph. Extra verification is acceptable; omitting a real consumer is not.
 
-| Changed owner | Level 2 verification consumers |
-| --- | --- |
-| `world-core` | `terrain-core`, `road-core`, `water-core`, `zone-core`, `building-core`, `rci-core`, `building-three`, `road-three`, `terrain-three`, `water-three`, `zone-three`, `game`, `terrain-lab` |
-| `terrain-core` | `road-core`, `water-core`, `zone-core`, `building-core`, `road-three`, `terrain-three`, `game`, `terrain-lab` |
-| `simulation-core` | `building-core`, `rci-core`, `game` |
-| `zone-core` | `building-core`, `rci-core`, `zone-three`, `game` |
-| `building-core` | `rci-core`, `building-three`, `game` |
-| `rci-core` | `game` |
-| `economy-core` | `game` |
-| `road-core` | `road-three`, `game`, `terrain-lab` |
-| `water-core` | `water-three`, `game`, `terrain-lab` |
-| `terrain-generator` | `game`, `terrain-lab` |
-| `camera-input` | `game`, `terrain-lab` |
-| `building-three` | `game` |
-| `road-three` | `game`, `terrain-lab` |
-| `terrain-three` | `game`, `terrain-lab` |
-| `water-three` | `game`, `terrain-lab` |
-| `zone-three` | `game` |
-| `citizen-mobility-core` | `traffic-core`, `game` |
-| `traffic-core` | `traffic-three`, `game` |
-| `traffic-three` | `game` |
+| Changed owner           | Level 2 verification consumers                                                                                                                                                           |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `world-core`            | `terrain-core`, `road-core`, `water-core`, `zone-core`, `building-core`, `rci-core`, `building-three`, `road-three`, `terrain-three`, `water-three`, `zone-three`, `game`, `terrain-lab` |
+| `terrain-core`          | `road-core`, `water-core`, `zone-core`, `building-core`, `road-three`, `terrain-three`, `game`, `terrain-lab`                                                                            |
+| `simulation-core`       | `building-core`, `rci-core`, `game`                                                                                                                                                      |
+| `zone-core`             | `building-core`, `rci-core`, `zone-three`, `game`                                                                                                                                        |
+| `building-core`         | `rci-core`, `building-three`, `game`                                                                                                                                                     |
+| `rci-core`              | `game`                                                                                                                                                                                   |
+| `economy-core`          | `game`                                                                                                                                                                                   |
+| `road-core`             | `road-three`, `game`, `terrain-lab`                                                                                                                                                      |
+| `water-core`            | `water-three`, `game`, `terrain-lab`                                                                                                                                                     |
+| `terrain-generator`     | `game`, `terrain-lab`                                                                                                                                                                    |
+| `camera-input`          | `game`, `terrain-lab`                                                                                                                                                                    |
+| `building-three`        | `game`                                                                                                                                                                                   |
+| `road-three`            | `game`, `terrain-lab`                                                                                                                                                                    |
+| `terrain-three`         | `game`, `terrain-lab`                                                                                                                                                                    |
+| `water-three`           | `game`, `terrain-lab`                                                                                                                                                                    |
+| `zone-three`            | `game`                                                                                                                                                                                   |
+| `citizen-mobility-core` | `traffic-core`, `game`                                                                                                                                                                   |
+| `traffic-core`          | `traffic-three`, `game`                                                                                                                                                                  |
+| `traffic-three`         | `game`                                                                                                                                                                                   |
 
 Maintenance rules:
 

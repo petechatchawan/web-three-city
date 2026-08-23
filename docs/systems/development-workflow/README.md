@@ -1,6 +1,6 @@
 # Development Workflow System
 
-**Status:** Implemented — Browser Verification Policy v0.2 + PR-T4 affected execution + CI topology remediation CI-R1–CI-R6<br>
+**Status:** Implemented — Browser Verification Policy v0.2 + PR-T4 affected execution + CI topology remediation CI-R1–CI-R6; Selective Verification vNext ownership precision planned<br>
 **System:** Development Workflow  
 **Primary ownership:** repository root configuration, `.github/`, `AGENTS.md`, and development documentation  
 **Persistence:** Git-tracked repository configuration and documentation only
@@ -16,6 +16,14 @@ Development Workflow v0.2 makes verification proportional to the affected surfac
 Browser-observable changes now require targeted Playwright evidence for every affected browser path before PR readiness. Full Browser is not the default gate for every PR: the unfiltered Chromium suite is reserved for explicit Level 4 escalation such as release or milestone closure, shared browser infrastructure with an unbounded impact surface, an explicit `full-ci` PR label, manual workflow dispatch, and nightly scheduled regression.
 
 The CI topology remediation now computes one exact-head `affected-verification-plan.json` in a fast classification job. Changed-file lint, owner tests, conservative Level-2 consumer tests, typechecks, and deployment checks fan out independently from that artifact. Lean CI is the aggregate status for those non-browser lanes. Browser build and Browser verification are separate lanes: Browser consumes the exact Game/Terrain Lab artifact produced by `browser_build` and does not wait for the Lean aggregate. Normal PRs run only the planned targeted ownership set; explicit Full Browser mode remains reserved for `full-ci`, manual dispatch, nightly regression, and shared verification escalation.
+
+Selective Verification vNext extends this affected-plan model across every
+system. Direct package ownership maps Terrain, Water, Road, Zoning,
+Building, RCI, Traffic, and Interaction presentation to their Browser tags.
+The bounded follow-up adds path-aware `apps/game` ownership so deterministic
+application files resolve to Browser `none`, bounded presentation files select
+only their system tag(s), and unbounded bootstrap/composition fails closed to
+Full Browser. It does not change CI topology or migrate tests.
 
 The repository exposes root `pnpm format`, root `test:watch`, and `test:watch` in the 21 workspaces that currently use Vitest. Husky invokes lint-staged at pre-commit so staged TypeScript/JavaScript receives the approved Prettier/ESLint fixes and staged YAML receives Prettier. The hook does not run TypeScript, tests, builds, `pnpm verify`, or Playwright.
 
@@ -70,7 +78,9 @@ v0.2 intentionally does not:
 5. Historical v0.1 TDD plan: [Development Workflow System Improvement v0.1 Implementation Plan](tdd/2026-08-07-development-workflow-system-improvement-v0-1.md)
 6. Stable v0.1 verification record: [Development Workflow System Improvement v0.1 Verification](verification/2026-08-07-development-workflow-system-improvement-v0-1.md)
 7. CI topology remediation verification handoff: [CI Topology Remediation Verification](verification/2026-08-23-ci-topology-remediation.md)
-8. Human workflow overview: [`docs/development-workflow.md`](../../development-workflow.md)
-9. System registry: [`docs/systems/README.md`](../README.md)
+8. Selective Verification vNext ownership-precision specification: [Selective Verification vNext](specs/2026-08-23-selective-verification-vnext.md)
+9. Selective Verification vNext handoff: [Selective Verification vNext Verification](verification/2026-08-23-selective-verification-vnext.md)
+10. Human workflow overview: [`docs/development-workflow.md`](../../development-workflow.md)
+11. System registry: [`docs/systems/README.md`](../README.md)
 
 The v0.1 documents remain historical design/execution records. v0.2 changes verification topology and policy; it does not redesign gameplay/runtime contracts.

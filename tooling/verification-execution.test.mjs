@@ -72,3 +72,73 @@ test('shared browser configuration selects Full Browser explicitly', () => {
   assert.deepEqual(plan.browser.tags, []);
   assert.equal(plan.deploymentChecks, true);
 });
+
+test('builds targeted Browser plans for every bounded system authority', () => {
+  const cases = [
+    ['packages/terrain-three/src/TerrainMesh.ts', ['@terrain']],
+    ['packages/water-three/src/WaterMesh.ts', ['@water']],
+    ['packages/road-three/src/RoadMesh.ts', ['@road']],
+    ['packages/zone-three/src/ZoneMesh.ts', ['@zoning']],
+    ['packages/building-three/src/BuildingMesh.ts', ['@building']],
+    ['packages/rci-core/src/rci.ts', ['@rci']],
+    ['packages/traffic-three/src/TrafficMesh.ts', ['@traffic']],
+    ['packages/camera-input/src/pointer.ts', ['@interaction']],
+    ['apps/game/src/traffic-presentation.ts', ['@traffic']],
+    ['apps/game/src/terraform-water-projection.ts', ['@water']],
+  ];
+
+  for (const [changedFile, tags] of cases) {
+    const resolution = resolveVerificationPlan([changedFile]);
+    const plan = buildAffectedExecutionPlan(resolution, [changedFile], {
+      baseSha: 'base-sha',
+      headSha: 'head-sha',
+    });
+
+    assert.deepEqual(plan.browser, {
+      mode: 'targeted',
+      tags,
+      fullBrowserRequired: false,
+    }, changedFile);
+  }
+});
+
+test('builds a sorted targeted union for bounded multi-system presentation', () => {
+  const changedFiles = ['apps/game/src/zone-building-presentation.ts'];
+  const resolution = resolveVerificationPlan(changedFiles);
+  const plan = buildAffectedExecutionPlan(resolution, changedFiles, {
+    baseSha: 'base-sha',
+    headSha: 'head-sha',
+  });
+
+  assert.deepEqual(plan.browser, {
+    mode: 'targeted',
+    tags: ['@building', '@zoning'],
+    fullBrowserRequired: false,
+  });
+});
+
+test('keeps deterministic and unbounded plans at opposite Browser boundaries', () => {
+  const deterministicFiles = ['apps/game/src/traffic-transport-transaction.ts'];
+  const deterministic = buildAffectedExecutionPlan(
+    resolveVerificationPlan(deterministicFiles),
+    deterministicFiles,
+    { baseSha: 'base-sha', headSha: 'head-sha' },
+  );
+  assert.deepEqual(deterministic.browser, {
+    mode: 'none',
+    tags: [],
+    fullBrowserRequired: false,
+  });
+
+  const unboundedFiles = ['apps/game/src/game-bootstrap.ts'];
+  const unbounded = buildAffectedExecutionPlan(
+    resolveVerificationPlan(unboundedFiles),
+    unboundedFiles,
+    { baseSha: 'base-sha', headSha: 'head-sha' },
+  );
+  assert.deepEqual(unbounded.browser, {
+    mode: 'full',
+    tags: [],
+    fullBrowserRequired: true,
+  });
+});

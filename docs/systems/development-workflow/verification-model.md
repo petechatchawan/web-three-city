@@ -175,10 +175,39 @@ the plan with the exact Game/Terrain Lab artifact. Browser reads the plan and ru
 targeted tags or explicit Full Browser. The Browser job removes the downloaded plan before clean-worktree
 verification.
 
+## Selective Verification vNext ownership precision
+
+The affected-plan model applies to every system, not only Road and Traffic.
+Direct package owners provide the baseline Browser tags for Terrain, Water,
+Road, Zoning, Building, RCI, Traffic, and Interaction. Deterministic
+Economy, Simulation, Mobility, and Traffic-core source remains below Browser.
+
+`apps/game` is not a single Browser owner. Its concrete paths must be
+classified by authority: deterministic application paths select owner and
+consumer verification with Browser `none`; bounded presentation paths select
+only their system tag(s); unbounded bootstrap/composition paths fail closed to
+`GRAPH_BLIND`/Full Browser. A source file's system name alone is not enough to
+request Browser evidence.
+
+The approved examples are:
+
+```text
+apps/game/src/traffic-transport-transaction.ts → Browser none
+apps/game/src/traffic-presentation.ts          → targeted @traffic
+apps/game/src/terraform-water-projection.ts    → targeted @water
+apps/game/src/zone-building-presentation.ts    → targeted @building|@zoning
+apps/game/src/game-bootstrap.ts                → GRAPH_BLIND + Full Browser
+```
+
+The path-aware rules are implemented and tested separately from the CI
+topology. They must not introduce a blanket `apps/game/**` tag union, change
+Playwright assertions, or change the Full Browser 137-test authority.
+
 ## Tests
 
 - `tooling/verification/verification-resolver.test.mjs` — resolver behavior (TDD RED first).
 - `tooling/verification-resolver.test.mjs` — rover-level contract incl. audit packages + CLI.
+- `tooling/verification-execution.test.mjs` — exact owner/consumer/Browser execution-plan contracts.
 - Both run inside `pnpm test:deployment`.
 
 ## Safety Invariants

@@ -61,6 +61,14 @@ Full Browser also remains available through the `full-ci` pull-request label and
 
 Targeted subsets are affected-behavior evidence; they must not be described as Full Browser or release-wide regression evidence.
 
+Selective Verification vNext applies this rule across all system authorities:
+`@terrain`, `@water`, `@road`, `@zoning`, `@building`, `@rci`, `@traffic`,
+and `@interaction`. The resolver does not infer Browser tags from a broad
+`apps/game/**` prefix. Deterministic application paths can resolve to Browser
+`none`, bounded presentation paths select only their system tag(s), and
+unbounded bootstrap/composition or unknown ownership fails closed to Full
+Browser.
+
 ## Pull request finalization
 
 Before a pull request is ready:

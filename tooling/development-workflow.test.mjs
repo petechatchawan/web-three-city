@@ -227,6 +227,24 @@ test('Development Workflow living handoff records targeted browser CI', async ()
   assert.match(readme, /Full Browser is not the default gate for every PR/i);
 });
 
+test('Selective Verification vNext documents all-system and apps/game precision', async () => {
+  const spec = await readRepoText(
+    'docs/systems/development-workflow/specs/2026-08-23-selective-verification-vnext.md',
+  );
+  const handoff = await readRepoText(
+    'docs/systems/development-workflow/verification/2026-08-23-selective-verification-vnext.md',
+  );
+
+  for (const tag of ['@terrain', '@water', '@road', '@zoning', '@building', '@rci', '@traffic', '@interaction']) {
+    assert.match(spec, new RegExp(`\\${tag}`), tag);
+  }
+  assert.match(spec, /apps\/game\/\*\*.*must not map to every Browser tag/is);
+  assert.match(spec, /traffic-transport-transaction.*none/is);
+  assert.match(spec, /game-bootstrap.*Full Browser/is);
+  assert.match(handoff, /deterministic-only core.*Browser none/is);
+  assert.match(handoff, /unknown\/shared authority.*Full Browser/is);
+});
+
 test('system registry reports implemented RCI and the Development Workflow system', async () => {
   const registry = await readRepoText('docs/systems/README.md');
   assert.match(

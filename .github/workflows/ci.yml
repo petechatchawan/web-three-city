@@ -35,7 +35,9 @@ jobs:
       - name: Compute affected verification plan
         id: plan
         run: |
-          node tooling/verify-affected.mjs --github-event-file "$GITHUB_EVENT_PATH" --output affected-verification-plan.json --plan-only --json
+          trap 'rm -f .ci-event.json' EXIT
+          cp "$GITHUB_EVENT_PATH" .ci-event.json
+          node tooling/verify-affected.mjs --github-event --output affected-verification-plan.json --plan-only --json
           node - <<'NODE'
           const fs = require('node:fs');
           const evidence = JSON.parse(fs.readFileSync('affected-verification-plan.json', 'utf8'));

@@ -166,7 +166,7 @@ test('Plan computes and publishes one exact-head affected execution plan', async
   assert.match(jobs.plan.text, /fetch-depth:\s*0/);
   assert.match(
     jobs.plan.text,
-    /node tooling\/verify-affected\.mjs --github-event-file "\$GITHUB_EVENT_PATH" --output affected-verification-plan\.json --plan-only --json/,
+    /cp "\$GITHUB_EVENT_PATH" \.ci-event\.json[\s\S]*node tooling\/verify-affected\.mjs --github-event --output affected-verification-plan\.json --plan-only --json/,
   );
   assert.match(jobs.plan.text, /affected-verification-plan\.json/);
   assert.match(jobs.plan.text, /actions\/upload-artifact@v4[\s\S]*name:\s*affected-plan/);

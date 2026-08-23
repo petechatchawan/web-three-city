@@ -28,7 +28,7 @@ test('parses exact-head affected verification arguments', () => {
       lane: null,
       planOnly: false,
       planFile: null,
-      githubEventFile: null,
+      githubEvent: false,
     },
   );
 });
@@ -88,7 +88,7 @@ test('parses execution lane and plan-only options for CI fan-out', () => {
       'owner-tests',
       '--plan-only',
       '--plan-file',
-      '/tmp/plan.json',
+      'affected-verification-plan.json',
     ]),
     {
       baseSha: 'base-sha',
@@ -98,15 +98,21 @@ test('parses execution lane and plan-only options for CI fan-out', () => {
       skipBrowser: false,
       lane: 'owner-tests',
       planOnly: true,
-      planFile: '/tmp/plan.json',
-      githubEventFile: null,
+      planFile: 'affected-verification-plan.json',
+      githubEvent: false,
     },
   );
 });
 
 test('allows published-plan lanes to derive exact-head revisions from the plan', () => {
   assert.deepEqual(
-    parseArgs(['--plan-file', '/tmp/plan.json', '--lane', 'owner-tests', '--skip-browser']),
+    parseArgs([
+      '--plan-file',
+      'affected-verification-plan.json',
+      '--lane',
+      'owner-tests',
+      '--skip-browser',
+    ]),
     {
       baseSha: null,
       headSha: null,
@@ -115,15 +121,30 @@ test('allows published-plan lanes to derive exact-head revisions from the plan',
       skipBrowser: true,
       lane: 'owner-tests',
       planOnly: false,
-      planFile: '/tmp/plan.json',
-      githubEventFile: null,
+      planFile: 'affected-verification-plan.json',
+      githubEvent: false,
     },
+  );
+});
+
+test('rejects arbitrary published-plan paths', () => {
+  assert.throws(
+    () =>
+      parseArgs([
+        '--base',
+        'base-sha',
+        '--head',
+        'head-sha',
+        '--plan-file',
+        '/tmp/other-plan.json',
+      ]),
+    /affected-plan:file-name-must-be-affected-verification-plan\.json/,
   );
 });
 
 test('resolves the pull request base from the GitHub event file for plan creation', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'verify-affected-event-'));
-  const eventFile = join(directory, 'event.json');
+  const eventFile = join(directory, '.ci-event.json');
   await writeFile(
     eventFile,
     `${JSON.stringify({ pull_request: { base: { sha: 'base-sha' } } })}\n`,
@@ -132,7 +153,8 @@ test('resolves the pull request base from the GitHub event file for plan creatio
 
   try {
     const evidence = await runAffectedVerification({
-      githubEventFile: eventFile,
+      cwd: directory,
+      githubEvent: true,
       githubHeadSha: 'head-sha',
       planOnly: true,
       execFileImpl: async (executable, args) => {
@@ -199,9 +221,10 @@ test('executes a published exact-head plan without recomputing changed files', a
   const calls = [];
   try {
     const evidence = await runAffectedVerification({
+      cwd: directory,
       baseSha: 'base-sha',
       headSha: 'head-sha',
-      planFile,
+      planFile: 'affected-verification-plan.json',
       lane: 'owner-tests',
       execFileImpl: async (executable, args, options) => {
         calls.push({ executable, args, options });

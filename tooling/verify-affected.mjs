@@ -2,6 +2,7 @@
 
 import { execFile as execFileCallback } from 'node:child_process';
 import { readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 
@@ -12,6 +13,8 @@ import { resolveVerificationPlan } from './verification/resolver.mjs';
 const execFileAsync = promisify(execFileCallback);
 const compareText = (left, right) => (left < right ? -1 : left > right ? 1 : 0);
 const SAFE_GIT_REVISION = /^[A-Za-z0-9._~^/-]+$/;
+const PUBLISHED_PLAN_FILE = 'affected-verification-plan.json';
+const CI_EVENT_FILE = '.ci-event.json';
 
 const EXECUTION_LANES = Object.freeze({
   lint: ['lint'],
@@ -32,7 +35,7 @@ export function parseArgs(argv) {
     lane: null,
     planOnly: false,
     planFile: null,
-    githubEventFile: null,
+    githubEvent: false,
   };
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
@@ -49,13 +52,16 @@ export function parseArgs(argv) {
       options.planOnly = true;
       continue;
     }
+    if (argument === '--github-event') {
+      options.githubEvent = true;
+      continue;
+    }
     if (
       argument === '--base' ||
       argument === '--head' ||
       argument === '--output' ||
       argument === '--lane' ||
-      argument === '--plan-file' ||
-      argument === '--github-event-file'
+      argument === '--plan-file'
     ) {
       const value = argv[index + 1];
       if (!value) throw new Error(`${argument} requires a value`);
@@ -69,16 +75,18 @@ export function parseArgs(argv) {
         }
         options.lane = value;
       }
-      if (argument === '--plan-file') options.planFile = value;
-      if (argument === '--github-event-file') options.githubEventFile = value;
+      if (argument === '--plan-file') {
+        if (value !== PUBLISHED_PLAN_FILE) {
+          throw new Error(`affected-plan:file-name-must-be-${PUBLISHED_PLAN_FILE}`);
+        }
+        options.planFile = PUBLISHED_PLAN_FILE;
+      }
       continue;
     }
     throw new Error(`unknown argument: ${argument}`);
   }
-  if ((!options.baseSha || !options.headSha) && !options.planFile && !options.githubEventFile) {
-    throw new Error(
-      '--base and --head are required unless --plan-file or --github-event-file is used',
-    );
+  if ((!options.baseSha || !options.headSha) && !options.planFile && !options.githubEvent) {
+    throw new Error('--base and --head are required unless --plan-file or --github-event is used');
   }
   return options;
 }
@@ -91,11 +99,11 @@ export function assertSafeGitRevision(value, name) {
 }
 
 export async function readGithubEventRevisions({
-  eventFile,
+  cwd = process.cwd(),
   headSha = process.env.GITHUB_SHA,
   readFileImpl = readFile,
 }) {
-  const event = JSON.parse(await readFileImpl(eventFile, 'utf8'));
+  const event = JSON.parse(await readFileImpl(join(cwd, CI_EVENT_FILE), 'utf8'));
   const baseSha = event.pull_request?.base?.sha ?? event.before ?? 'HEAD~1';
   assertSafeGitRevision(baseSha, 'baseSha');
   assertSafeGitRevision(headSha, 'headSha');
@@ -139,13 +147,13 @@ export async function runAffectedVerification({
   lane = null,
   planOnly = false,
   planFile = null,
-  githubEventFile = null,
+  githubEvent = false,
   githubHeadSha = process.env.GITHUB_SHA,
 }) {
   const exactHeadProvided = Boolean(baseSha && headSha);
-  if (githubEventFile) {
+  if (githubEvent) {
     const revisions = await readGithubEventRevisions({
-      eventFile: githubEventFile,
+      cwd,
       headSha: githubHeadSha,
     });
     baseSha ??= revisions.baseSha;
@@ -156,7 +164,7 @@ export async function runAffectedVerification({
   let resolution;
   let plan;
   if (planFile) {
-    const published = JSON.parse(await readFile(planFile, 'utf8'));
+    const published = JSON.parse(await readFile(join(cwd, PUBLISHED_PLAN_FILE), 'utf8'));
     changedFiles = published.changedFiles;
     resolution = published.resolution;
     plan = published.plan;
@@ -168,7 +176,7 @@ export async function runAffectedVerification({
     if (plan.exactHead.baseSha !== baseSha || plan.exactHead.headSha !== headSha) {
       throw new Error('affected-plan:exact-head-mismatch');
     }
-    if (!exactHeadProvided && !githubEventFile) {
+    if (!exactHeadProvided && !githubEvent) {
       const { stdout } = await execFileImpl('git', ['rev-parse', 'HEAD'], { cwd });
       if (stdout.trim() !== headSha) {
         throw new Error('affected-plan:checked-out-head-mismatch');

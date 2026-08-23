@@ -4,7 +4,7 @@
 
 **Goal:** Make targeted browser acceptance the normal browser-observable PR gate while reserving the unfiltered Full Browser suite for explicit release/shared-infrastructure escalation, manual runs, and nightly regression.
 
-**Architecture:** Keep Lean CI as the repository verification owner. Preserve the existing conditional Full Browser job and artifact handoff, add a nightly trigger, and change repository policy/tests/templates so Full Browser is no longer implied by every browser-visible change. Do not introduce automatic changed-file-to-tag inference in v0.2.
+**Architecture:** Keep Lean CI as the aggregate for affected non-browser verification. Preserve the conditional Full Browser job, make `browser_build` the exact Game/Terrain Lab artifact owner, and change repository policy/tests/templates so Full Browser is no longer implied by every browser-visible change. Do not introduce automatic changed-file-to-tag inference in v0.2; the later PR-T4 affected plan owns normal targeted selection.
 
 **Tech Stack:** GitHub Actions YAML, Node.js `node:test` tooling contracts, Playwright, pnpm, Markdown repository policy.
 
@@ -12,8 +12,8 @@
 
 - Full Browser must remain available via `full-ci`, `workflow_dispatch`, scheduled nightly regression, and `pnpm verify:full`.
 - Pull-request synchronization must not run Full Browser unless `full-ci` is present.
-- Lean CI remains mandatory and owns `pnpm check` and build artifacts.
-- Browser CI must consume Lean artifacts and must not rerun Lean-owned verification.
+- Lean CI remains mandatory for affected non-browser lanes; `browser_build` owns the exact Browser build artifacts.
+- Browser CI must consume the exact `browser_build` artifact and must not wait for or rerun Lean-owned verification.
 - Browser-observable changes require targeted Playwright evidence before PR readiness.
 - Do not change Playwright workers, retries, global timeout strategy, gameplay behavior, or Save semantics.
 - Keep documentation under `docs/systems/development-workflow/`.

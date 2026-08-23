@@ -121,7 +121,7 @@ test('Browser installs Chromium through the frozen local Playwright binary', asy
   assert.doesNotMatch(jobs.browser.text, /pnpm exec playwright install chromium/);
 });
 
-test('Browser job consumes Lean build artifacts instead of rerunning Lean verification', async () => {
+test('Browser job consumes browser build artifacts instead of rerunning Lean verification', async () => {
   const jobs = await readWorkflowJobs('.github/workflows/ci.yml');
   assert.match(jobs.browser_build.text, /actions\/download-artifact@[0-9a-f]{40}/);
   assert.match(jobs.browser_build.text, /name:\s*affected-plan/);
@@ -172,7 +172,7 @@ test('Plan computes and publishes one exact-head affected execution plan', async
   assert.match(jobs.plan.text, /actions\/upload-artifact@[0-9a-f]{40}[\s\S]*name:\s*affected-plan/);
 });
 
-test('Browser consumes the Lean affected plan for targeted or Full Browser execution', async () => {
+test('Browser consumes the published affected plan for targeted or Full Browser execution', async () => {
   const jobs = await readWorkflowJobs('.github/workflows/ci.yml');
   assert.match(jobs.browser.text, /affected-verification-plan\.json/);
   assert.match(jobs.browser.text, /Resolve affected verification plan/);

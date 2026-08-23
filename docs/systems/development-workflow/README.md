@@ -29,6 +29,30 @@ Lean CI remains the normal mandatory PR CI owner and produces the exact Game/Ter
 
 Behavior/public-contract changes update their living system README in the same implementation PR. Required living docs are complete before exact-head verification; post-run CI identifiers belong in the PR body/comment when no tree mutation is required.
 
+## Local-First Candidate Policy (PR-T5+)
+
+System migration PRs use a local-first candidate loop:
+
+```text
+local RED
+→ local GREEN
+→ owner and affected-consumer verification
+→ pnpm check
+→ targeted browser verification when browser authority is affected
+→ clean worktree
+→ commit the GREEN candidate
+→ push only the GREEN candidate
+→ GitHub Actions exact-head independent verification
+```
+
+GitHub Actions is not used as the first debugging loop. It is the independent
+exact-head verifier after the candidate has passed local gates. The only
+exception is behavior that exists specifically on GitHub Actions or hosted
+runners, such as workflow events, permissions, artifact handoff, or
+hosted-runner semantics that cannot be reproduced locally. Final CI run IDs and
+artifact IDs are recorded in the PR body or comment; they do not require a
+metadata-only commit.
+
 ## Static Map Maintenance
 
 The Level 2 table in `AGENTS.md` is conservative verification policy, not the architectural dependency graph. Workspace dependency changes that alter consumers must update that table in the same PR. Current package manifests remain the factual input used to review the map.

@@ -88,3 +88,16 @@ Third-party workflow actions are pinned to immutable commit SHAs and each CI job
 declares least-privilege `contents: read` permissions. The rollback command remains
 `pnpm verify:full`; no retry, worker, timeout, assertion, or gameplay behavior was
 changed.
+
+## CI-R6 lane-isolation correction
+
+The first manual-dispatch attempt on the documentation candidate exposed a
+lane-isolation defect: a plan with browser-required authority but no ownership
+tags was rejected while a non-browser lane was running with `--skip-browser`.
+The focused regression was RED for that intended failure, then GREEN after the
+command runner began omitting browser command construction whenever the
+selected lane excludes Browser. Browser authority remains validated and
+executed by the dedicated Browser lanes.
+
+Final focused command-runner evidence is `7/7 PASS`; the repository deployment
+contract suite is `97/97 PASS` after this correction.

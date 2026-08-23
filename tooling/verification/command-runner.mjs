@@ -53,7 +53,7 @@ function buildLintCommands(plan) {
  * Convert an affected execution plan to explicit executable/argument tuples.
  * No command is interpolated into a shell string.
  */
-export function buildExecutionCommands(plan) {
+export function buildExecutionCommands(plan, { includeBrowser = true } = {}) {
   const commands = buildLintCommands(plan);
   for (const target of plan.ownerTests ?? [])
     commands.push(packageTestCommand(target, 'owner-test'));
@@ -74,7 +74,7 @@ export function buildExecutionCommands(plan) {
     });
   }
 
-  if (plan.browser?.mode === 'targeted') {
+  if (includeBrowser && plan.browser?.mode === 'targeted') {
     const tags = plan.browser.tags.join('|');
     if (!tags) throw new Error('targeted browser execution requires at least one ownership tag');
     commands.push({
@@ -82,7 +82,7 @@ export function buildExecutionCommands(plan) {
       executable: 'pnpm',
       args: ['exec', 'playwright', 'test', '--grep', tags, '--project=chromium'],
     });
-  } else if (plan.browser?.mode === 'full') {
+  } else if (includeBrowser && plan.browser?.mode === 'full') {
     commands.push({
       kind: 'browser',
       executable: 'pnpm',
@@ -104,7 +104,9 @@ export async function runCommand({
 
 export async function runExecutionPlan(plan, options = {}) {
   const selectedKinds = options.kinds ? new Set(options.kinds) : null;
-  const commands = buildExecutionCommands(plan).filter(
+  const includeBrowser =
+    !options.skipBrowser && (!selectedKinds || selectedKinds.has('browser'));
+  const commands = buildExecutionCommands(plan, { includeBrowser }).filter(
     (command) =>
       (!options.skipBrowser || command.kind !== 'browser') &&
       (!selectedKinds || selectedKinds.has(command.kind)),

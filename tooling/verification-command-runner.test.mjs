@@ -125,6 +125,22 @@ test('skip-browser execution leaves browser authority for the Browser job', asyn
   assert.deepEqual(calls, []);
 });
 
+test('skip-browser lanes do not validate or execute an untagged browser plan', async () => {
+  const result = await runExecutionPlan(
+    {
+      ownerTests: [],
+      consumerTests: [],
+      typechecks: [],
+      deploymentChecks: false,
+      browser: { mode: 'targeted', tags: [], fullBrowserRequired: false },
+    },
+    { skipBrowser: true },
+  );
+
+  assert.deepEqual(result.commands, []);
+  assert.deepEqual(result.results, []);
+});
+
 test('selects one affected execution lane without running unrelated commands', async () => {
   const calls = [];
   const result = await runExecutionPlan(

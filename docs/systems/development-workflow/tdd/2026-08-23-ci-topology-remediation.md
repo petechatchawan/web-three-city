@@ -76,13 +76,13 @@ No Full Browser assertions, retries, workers, or timeouts were weakened.
 
 ## CI-R5/CI-R6 hosted verification
 
-The exact-head hosted run was `32637750034` on
-`33bcf7c7d3f7476edc3dfc08d11d9cbe467775f3`. Classification, changed-file lint,
+The exact-head hosted run was `32638659166` on
+`ac64f5bf945395801a4f32afe3f5bd2c746c89b2`. Classification, changed-file lint,
 owner tests, consumer tests, typechecks, deployment contracts, Lean aggregation,
 and the Browser build artifact all passed. Sonar Quality Gate passed. Browser
 verification ran as two independent Full Browser shards with 71 and 66 passing
-tests; the wall-clock duration was approximately 14m20s and the aggregate active
-shard time was 26m39s. Browser artifacts were `9492935602` and `9492920914`.
+tests; the wall-clock duration was approximately 13m34s and the aggregate active
+shard time was 25m41s. Browser artifacts were `9493160086` and `9493155237`.
 
 Third-party workflow actions are pinned to immutable commit SHAs and each CI job
 declares least-privilege `contents: read` permissions. The rollback command remains

@@ -47,9 +47,9 @@ Focused command results:
 
 ```text
 node --test tooling/verification-command-runner.test.mjs → 6/6 PASS
-node --test tooling/verify-affected.test.mjs → 5/5 PASS
-node --test tooling/ci-topology.test.mjs → 18/18 PASS
-pnpm test:deployment → 88/88 PASS
+node --test tooling/verify-affected.test.mjs → 9/9 PASS
+node --test tooling/ci-topology.test.mjs → 21/21 PASS
+pnpm test:deployment → 96/96 PASS
 ```
 
 ## CI-R4 GREEN — Full Browser two-shard pilot
@@ -74,10 +74,17 @@ extra:           0
 
 No Full Browser assertions, retries, workers, or timeouts were weakened.
 
-## CI-R5 measurement boundary
+## CI-R5/CI-R6 hosted verification
 
-Hosted wall-clock and runner-minute measurements are intentionally deferred to
-the exact-head GitHub run. Local discovery proves shard coverage but cannot
-prove GitHub scheduling or runner-minute cost. The rollback command remains
-`pnpm verify:full`, and the workflow can be returned to the previous serial
-Browser job if hosted evidence shows unacceptable imbalance or artifact risk.
+The exact-head hosted run was `32636726238` on
+`f4fe58e64f3afc93e3e9007c679579cbba7385d8`. Classification, changed-file lint,
+owner tests, consumer tests, typechecks, deployment contracts, Lean aggregation,
+and the Browser build artifact all passed. Sonar Quality Gate passed. Browser
+verification ran as two independent Full Browser shards with 71 and 66 passing
+tests; the wall-clock duration was 14m25s and the aggregate active shard time was
+26m10s. Browser artifacts were `9492677283` and `9492663494`.
+
+Third-party workflow actions are pinned to immutable commit SHAs and each CI job
+declares least-privilege `contents: read` permissions. The rollback command remains
+`pnpm verify:full`; no retry, worker, timeout, assertion, or gameplay behavior was
+changed.

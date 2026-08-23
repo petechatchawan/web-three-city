@@ -1,6 +1,6 @@
 # CI Topology Remediation
 
-**Status:** CI-R1 through CI-R5 implemented locally; CI-R6 release closure pending exact-head hosted verification
+**Status:** CI-R1 through CI-R6 implemented and verified on exact hosted head `f4fe58e64f3afc93e3e9007c679579cbba7385d8`
 **System:** Development Workflow
 **Scope:** GitHub Actions execution topology only
 
@@ -55,8 +55,9 @@ Normal pull requests use the existing affected plan and targeted Browser authori
 ## Pilot evidence
 
 The local Playwright discovery baseline is 137 Chromium tests in 33 spec files.
-The two shard commands produce 71 and 66 tests respectively, with zero overlap
-and an exact 137-test union. Each hosted shard runs with `--workers=1`; no test
-assertion, retry policy, or timeout was changed. Hosted wall-clock and
-runner-minute comparison remains a CI-R6 evidence item because local discovery
-cannot measure GitHub runner scheduling.
+The hosted two-shard run produces 71 and 66 passing tests respectively, with an
+exact 137-test union. Each hosted shard runs with `--workers=1`; no test assertion,
+retry policy, or timeout was changed. Run `32636726238` completed in 14m25s wall
+clock; shard runtimes were 13m39s and 12m31s (26m10s aggregate active shard time).
+Artifacts are `9492677283` and `9492663494`. Sonar Quality Gate and all affected
+verification lanes passed on the same exact head.

@@ -1,6 +1,6 @@
 # Development Workflow System
 
-**Status:** Implemented — Browser Verification Policy v0.2 + PR-T4 affected execution + CI topology remediation CI-R1/CI-R3<br>
+**Status:** Implemented — Browser Verification Policy v0.2 + PR-T4 affected execution + CI topology remediation CI-R1–CI-R6<br>
 **System:** Development Workflow  
 **Primary ownership:** repository root configuration, `.github/`, `AGENTS.md`, and development documentation  
 **Persistence:** Git-tracked repository configuration and documentation only
@@ -42,9 +42,12 @@ authority-aware: tagged browser specs select targeted ownership evidence, test-t
 metadata selects exact deployment checks, and shared resolver/config/CI changes remain
 `GLOBAL`. PR-T4 adds `pnpm verify:affected -- --base <sha> --head <sha> [--json]`,
 a safe `execFile` command runner, and CI artifact handoff for the exact
-owner/consumer/browser plan. CI-R1–CI-R3 extend that same plan with lane selection
+owner/consumer/browser plan. CI-R1–CI-R6 extend that same plan with lane selection
 (`lint`, `owner-tests`, `consumer-tests`, `typecheck`, `deployment`, and `browser`)
-and a plan-only publication step. See [Verification Infrastructure Model](verification-model.md)
+and a plan-only publication step. The CI workflow fans these lanes out in parallel,
+pins third-party actions to immutable commit SHAs, scopes every job to `contents: read`,
+and runs the explicit Full Browser escalation as two exact spec shards with one worker
+each. See [Verification Infrastructure Model](verification-model.md)
 for the authority classes, risk model, ownership map, escalation rules, and execution contract.
 
 ## Current Limitations / Deferred
@@ -54,7 +57,7 @@ v0.2 intentionally does not:
 - refactor `apps/game/src/game-bootstrap.ts` or introduce an Application Layer;
 - replace the static downstream map with automatic affected/dependent graph tooling;
 - add Nx, Turborepo, or another build-graph framework;
-- complete the Full Browser two-shard pilot or change the existing one-worker Playwright policy;
+- expand beyond the validated Full Browser two-shard pilot or change the existing one-worker Playwright policy;
 - change Playwright worker/retry/timeout policy as part of this verification-policy change;
 - change gameplay/runtime behavior, Save formats, or package ownership boundaries.
 

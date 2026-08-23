@@ -10,9 +10,6 @@ on:
     - cron: '0 18 * * *'
   workflow_dispatch:
 
-permissions:
-  contents: read
-
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -21,6 +18,8 @@ jobs:
   plan:
     name: Classify affected verification
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     timeout-minutes: 10
     outputs:
       mode: ${{ steps.plan.outputs.mode }}
@@ -64,6 +63,8 @@ jobs:
     name: Changed-file lint
     needs: plan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -87,6 +88,8 @@ jobs:
     name: Related owner tests
     needs: plan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -110,6 +113,8 @@ jobs:
     name: Affected consumer tests
     needs: plan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -133,6 +138,8 @@ jobs:
     name: Affected typecheck
     needs: plan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -156,6 +163,8 @@ jobs:
     name: Deployment contracts
     needs: plan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -180,6 +189,8 @@ jobs:
     needs: plan
     if: needs.plan.result == 'success' && needs.plan.outputs.mode != 'none'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     timeout-minutes: 20
     outputs:
       mode: ${{ needs.plan.outputs.mode }}
@@ -223,6 +234,8 @@ jobs:
       needs.typecheck.result == 'success' &&
       needs.deployment.result == 'success'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     timeout-minutes: 5
     steps:
       - name: Aggregate affected verification lanes
@@ -235,6 +248,8 @@ jobs:
       needs.browser_build.result == 'success' &&
       needs.browser_build.outputs.mode == 'targeted'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
@@ -305,6 +320,8 @@ jobs:
       matrix:
         shard: [1, 2]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4

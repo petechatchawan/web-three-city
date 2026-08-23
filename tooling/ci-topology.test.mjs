@@ -297,3 +297,10 @@ test('workflow does not interpolate GitHub context directly into shell commands'
   if (current) runBlocks.push(current.lines.join('\n'));
   assert.doesNotMatch(runBlocks.join('\n'), /\$\{\{/);
 });
+
+test('each CI job declares least-privilege read permissions explicitly', async () => {
+  const jobs = await readWorkflowJobs('.github/workflows/ci.yml');
+  for (const [name, job] of Object.entries(jobs)) {
+    assert.match(job.text, /permissions:\s*\n\s+contents:\s*read/, `${name} lacks job permissions`);
+  }
+});

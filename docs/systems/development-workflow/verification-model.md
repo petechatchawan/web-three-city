@@ -39,14 +39,22 @@ Planning entry point: `pnpm verify:impact <changed files...>` (`tooling/verify-i
 Execution entry point: `pnpm verify:affected -- --base <sha> --head <sha> [--json]`
 (`tooling/verify-affected.mjs`).
 
+CI computes the plan once with `--plan-only --output affected-verification-plan.json`.
+Each fan-out lane consumes that exact published file with `--plan-file` and selects
+only its command kind: `lint`, `owner-tests`, `consumer-tests`, `typecheck`,
+`deployment`, or `browser`. This keeps changed-source selection deterministic while
+allowing independent work to run in parallel. The Browser lane consumes the exact
+Game/Terrain Lab artifact from `browser_build`; it is not serialized behind the Lean
+aggregate.
+
 ## Risk Classification
 
-| Risk | Meaning | Examples |
-|---|---|---|
-| `GRAPH_SAFE` | Dependency clear; related tests trustworthy. | pure utility, isolated domain logic |
-| `PARTIAL` | Multiple consumers; requires static expansion. | package API, shared domain module |
-| `GRAPH_BLIND` | Import graph insufficient. | runtime registry, event bus, dynamic lookup, string identifiers, runtime composition |
-| `GLOBAL` | Shared verification/configuration authority is changed. | package.json, lockfile, Vite/Playwright config, CI, resolver, shared verification scripts |
+| Risk          | Meaning                                                 | Examples                                                                                  |
+| ------------- | ------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `GRAPH_SAFE`  | Dependency clear; related tests trustworthy.            | pure utility, isolated domain logic                                                       |
+| `PARTIAL`     | Multiple consumers; requires static expansion.          | package API, shared domain module                                                         |
+| `GRAPH_BLIND` | Import graph insufficient.                              | runtime registry, event bus, dynamic lookup, string identifiers, runtime composition      |
+| `GLOBAL`      | Shared verification/configuration authority is changed. | package.json, lockfile, Vite/Playwright config, CI, resolver, shared verification scripts |
 
 Risk is ordered low → high. When merging multiple changes, the **highest** risk wins.
 
@@ -63,14 +71,14 @@ Risk is ordered low → high. When merging multiple changes, the **highest** ris
 `tooling/verification/authority.mjs` classifies the changed-file authority
 before risk is merged:
 
-| Authority | Meaning | Browser consequence |
-|---|---|---|
-| `PRODUCT_SOURCE` | Owned production source | owner + Level-2 consumers; browser only when the direct owner requires it |
-| `DETERMINISTIC_TEST` | Unit/application test below the browser | owner/consumer tests; no browser by itself |
-| `BROWSER_CONTRACT` | Tagged Playwright contract | targeted ownership tags; no Full Browser by itself |
-| `TEST_TOPOLOGY` | Inventory/discovery/topology assertion | exact deployment/topology checks; no Full Browser by itself |
-| `SHARED_VERIFICATION` | Resolver, CI, config, or shared harness | `GLOBAL`; Full Browser escalation |
-| `GRAPH_BLIND_RUNTIME` | Dynamic/unknown runtime composition | conservative owner/browser expansion; Full Browser only when policy explicitly requires it |
+| Authority             | Meaning                                 | Browser consequence                                                                        |
+| --------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `PRODUCT_SOURCE`      | Owned production source                 | owner + Level-2 consumers; browser only when the direct owner requires it                  |
+| `DETERMINISTIC_TEST`  | Unit/application test below the browser | owner/consumer tests; no browser by itself                                                 |
+| `BROWSER_CONTRACT`    | Tagged Playwright contract              | targeted ownership tags; no Full Browser by itself                                         |
+| `TEST_TOPOLOGY`       | Inventory/discovery/topology assertion  | exact deployment/topology checks; no Full Browser by itself                                |
+| `SHARED_VERIFICATION` | Resolver, CI, config, or shared harness | `GLOBAL`; Full Browser escalation                                                          |
+| `GRAPH_BLIND_RUNTIME` | Dynamic/unknown runtime composition     | conservative owner/browser expansion; Full Browser only when policy explicitly requires it |
 
 Audit-required packages added by PR-T2:
 
@@ -146,6 +154,7 @@ execution plan:
   "consumerTests": [{ "workspace": "@web-three-city/game", "files": [], "mode": "package" }],
   "typechecks": ["@web-three-city/traffic-core", "@web-three-city/game"],
   "deploymentChecks": false,
+  "lintFiles": ["packages/traffic-core/src/graph.ts"],
   "browser": { "mode": "targeted", "tags": ["@traffic"], "fullBrowserRequired": false },
   "exactHead": { "baseSha": "...", "headSha": "..." }
 }
@@ -158,11 +167,12 @@ as executable plus argument arrays; paths are never interpolated into a shell
 command. `--skip-browser` is used by Lean so Browser remains the sole owner of
 Playwright execution.
 
-Lean computes the plan with a full-depth/equivalent base checkout, executes
-owner/consumer/typecheck/deployment work while retaining `pnpm check` as the
-rollout safety net, and packages the plan with the exact Game/Terrain Lab
-artifact. Browser reads the plan and runs targeted tags or explicit Full
-Browser. The Browser job removes the downloaded plan before clean-worktree
+The plan job uses a full-depth/equivalent base checkout and publishes the exact
+owner/consumer/typecheck/deployment/browser plan. The non-browser lanes consume
+that artifact independently; Lean aggregates their status without rerunning them
+through `pnpm check`. When browser evidence is required, `browser_build` packages
+the plan with the exact Game/Terrain Lab artifact. Browser reads the plan and runs
+targeted tags or explicit Full Browser. The Browser job removes the downloaded plan before clean-worktree
 verification.
 
 ## Tests
@@ -178,7 +188,7 @@ PR-T2 preserves all existing authority:
 - No production behavior changed.
 - No gameplay/runtime logic changed.
 - No Playwright tests migrated, removed, or reduced by this resolver change.
-- Existing worker, retry, and timeout policy remains unchanged. PR-T4 changes only the affected execution selection/artifact flow; `pnpm check` and the Lean artifact remain the repository safety net.
+- Existing worker, retry, and timeout policy remains unchanged. CI topology remediation changes only affected lane scheduling and artifact ownership; `pnpm check` remains the Level 3 local/finalization gate, while the normal PR aggregate is the exact affected lane set.
 - `pnpm verify`, `pnpm verify:full`, Lean CI artifact flow, deterministic browser
   verification, clean-worktree evidence, and release-gate discipline unchanged.
 

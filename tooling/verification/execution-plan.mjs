@@ -106,6 +106,7 @@ export function buildAffectedExecutionPlan(resolution, changedFiles, exactHead) 
     consumerTests: buildConsumerTests(resolution, entries),
     typechecks: buildTypechecks(resolution),
     deploymentChecks: Boolean(resolution?.deploymentRequired),
+    lintFiles: normalizedFiles,
     browser: buildBrowserPlan(resolution),
     exactHead: { baseSha: exactHead.baseSha, headSha: exactHead.headSha },
     changedFiles: normalizedFiles,

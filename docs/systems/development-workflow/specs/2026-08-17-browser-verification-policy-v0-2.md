@@ -4,6 +4,12 @@
 **System:** Development Workflow  
 **Date:** 2026-08-17
 
+**Execution-topology note:** CI-R1–CI-R6 later implemented the affected-plan
+fan-out and exact artifact ownership described in the current [CI Topology
+Remediation Verification](../verification/2026-08-23-ci-topology-remediation.md)
+handoff. The policy below remains the browser-scope decision; its earlier
+serialized Lean-to-Browser artifact wording is superseded by that handoff.
+
 ## Problem
 
 The unfiltered Chromium browser suite is a high-cost release regression surface. On PR #79 it contains 144 tests and a representative CI run took roughly 31 minutes with one worker. Re-running that suite after small fixes turned Full Browser into a debugger rather than a release gate, producing slow feedback without materially improving root-cause isolation.
@@ -37,8 +43,8 @@ Uncertainty alone should first expand targeted affected subsets. Escalate to Ful
 
 ### CI topology
 
-- **Lean CI** remains the mandatory PR CI owner and runs `pnpm check`.
-- **Full Browser CI** remains dependent on Lean artifacts and does not repeat Lean-owned verification.
+- **Lean CI** remains the mandatory aggregate for independent affected non-browser lanes and does not rerun them through `pnpm check`.
+- **Browser CI** depends on the exact Game/Terrain Lab artifact produced by `browser_build`; it does not wait for or consume the Lean aggregate and does not repeat Lean-owned verification.
 - Pull requests run Full Browser only when labeled `full-ci`.
 - Manual `workflow_dispatch` runs Full Browser.
 - A nightly scheduled run executes the full browser authority off the default branch so broad regression coverage is retained without blocking every PR.

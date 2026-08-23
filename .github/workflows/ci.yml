@@ -10,93 +10,282 @@ on:
     - cron: '0 18 * * *'
   workflow_dispatch:
 
-permissions:
-  contents: read
-
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  lean:
-    name: Lean CI
+  plan:
+    name: Classify affected verification
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    permissions:
+      contents: read
+    timeout-minutes: 10
+    outputs:
+      mode: ${{ steps.plan.outputs.mode }}
+      grep: ${{ steps.plan.outputs.grep }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           fetch-depth: 0
-      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+      - name: Compute affected verification plan
+        id: plan
+        run: |
+          trap 'rm -f .ci-event.json' EXIT
+          cp "$GITHUB_EVENT_PATH" .ci-event.json
+          node tooling/verify-affected.mjs --github-event --output affected-verification-plan.json --plan-only --json
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const evidence = JSON.parse(fs.readFileSync('affected-verification-plan.json', 'utf8'));
+          const browser = evidence.plan?.browser;
+          if (!browser) throw new Error('affected-plan:missing-browser-plan');
+          const event = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'));
+          const explicitFull = ['workflow_dispatch', 'schedule'].includes(process.env.GITHUB_EVENT_NAME)
+            || event.pull_request?.labels?.some(({ name }) => name === 'full-ci') === true;
+          const mode = explicitFull || browser.fullBrowserRequired ? 'full' : browser.mode;
+          if (mode === 'targeted' && browser.tags.length === 0) {
+            throw new Error('affected-plan:targeted-browser-missing-tags');
+          }
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `mode=${mode}\n`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `grep=${browser.tags.join('|')}\n`);
+          NODE
+      - name: Upload affected verification plan
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: affected-plan
+          path: affected-verification-plan.json
+          if-no-files-found: error
+
+  lint:
+    name: Changed-file lint
+    needs: plan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
         with:
           version: 10.13.1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
-      - name: Compute affected verification plan
-        env:
-          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before || 'HEAD~1' }}
-          HEAD_SHA: ${{ github.sha }}
-        run: node tooling/verify-affected.mjs --base "$BASE_SHA" --head "$HEAD_SHA" --output affected-verification-plan.json --skip-browser
-      - run: pnpm check
-      - name: Archive lean build outputs
-        run: |
-          tar -czf lean-builds.tar.gz apps/game/dist apps/terrain-lab/dist affected-verification-plan.json
-          rm affected-verification-plan.json
-      - name: Upload lean build outputs
-        uses: actions/upload-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
-          name: lean-builds
-          path: lean-builds.tar.gz
+          name: affected-plan
+      - name: Run changed-file lint lane
+        run: node tooling/verify-affected.mjs --plan-file affected-verification-plan.json --lane lint --skip-browser
+
+  tests:
+    name: Related owner tests
+    needs: plan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: affected-plan
+      - name: Run affected owner tests
+        run: node tooling/verify-affected.mjs --plan-file affected-verification-plan.json --lane owner-tests --skip-browser
+
+  consumers:
+    name: Affected consumer tests
+    needs: plan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: affected-plan
+      - name: Run affected consumer tests
+        run: node tooling/verify-affected.mjs --plan-file affected-verification-plan.json --lane consumer-tests --skip-browser
+
+  typecheck:
+    name: Affected typecheck
+    needs: plan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: affected-plan
+      - name: Run affected typechecks
+        run: node tooling/verify-affected.mjs --plan-file affected-verification-plan.json --lane typecheck --skip-browser
+
+  deployment:
+    name: Deployment contracts
+    needs: plan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: affected-plan
+      - name: Run affected deployment checks
+        run: node tooling/verify-affected.mjs --plan-file affected-verification-plan.json --lane deployment --skip-browser
+
+  browser_build:
+    name: Browser build artifact
+    needs: plan
+    if: needs.plan.result == 'success' && needs.plan.outputs.mode != 'none'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 20
+    outputs:
+      mode: ${{ needs.plan.outputs.mode }}
+      grep: ${{ needs.plan.outputs.grep }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: affected-plan
+      - name: Build exact Browser artifact
+        run: |
+          test -s affected-verification-plan.json
+          pnpm build:browser
+          tar -czf browser-builds.tar.gz apps/game/dist apps/terrain-lab/dist affected-verification-plan.json
+          rm affected-verification-plan.json
+      - name: Upload exact Browser build artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: browser-builds
+          path: browser-builds.tar.gz
           if-no-files-found: error
+
+  lean:
+    name: Lean CI
+    needs: [lint, tests, consumers, typecheck, deployment]
+    if: >-
+      always() &&
+      needs.lint.result == 'success' &&
+      needs.tests.result == 'success' &&
+      needs.consumers.result == 'success' &&
+      needs.typecheck.result == 'success' &&
+      needs.deployment.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 5
+    steps:
+      - name: Aggregate affected verification lanes
+        run: echo "Affected non-browser verification lanes passed."
 
   browser:
     name: Browser verification
-    needs: lean
+    needs: browser_build
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'schedule' ||
-      github.event_name == 'pull_request'
+      needs.browser_build.result == 'success' &&
+      needs.browser_build.outputs.mode == 'targeted'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     timeout-minutes: 35
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
         with:
           version: 10.13.1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
-      - name: Download lean build outputs
-        uses: actions/download-artifact@v4
+      - name: Download exact Browser build outputs
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
-          name: lean-builds
-      - name: Restore lean build outputs
+          name: browser-builds
+      - name: Restore exact Browser build outputs
         run: |
-          tar -xzf lean-builds.tar.gz
+          tar -xzf browser-builds.tar.gz
           test -d apps/game/dist
           test -d apps/terrain-lab/dist
           test -s affected-verification-plan.json
-          rm lean-builds.tar.gz
+          rm browser-builds.tar.gz
       - name: Resolve affected verification plan
         id: plan
-        env:
-          EXPLICIT_FULL: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'full-ci')) }}
         run: |
           node - <<'NODE'
           const fs = require('node:fs');
           const evidence = JSON.parse(fs.readFileSync('affected-verification-plan.json', 'utf8'));
           const browser = evidence.plan?.browser;
           if (!browser) throw new Error('affected-plan:missing-browser-plan');
-          const explicitFull = process.env.EXPLICIT_FULL === 'true';
-          const mode = explicitFull || browser.fullBrowserRequired ? 'full' : browser.mode;
-          if (mode === 'targeted' && browser.tags.length === 0) {
+          if (browser.fullBrowserRequired || browser.mode !== 'targeted' || browser.tags.length === 0) {
             throw new Error('affected-plan:targeted-browser-missing-tags');
           }
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, `mode=${mode}\n`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, 'mode=targeted\n');
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `grep=${browser.tags.join('|')}\n`);
           NODE
       - run: ./node_modules/.bin/playwright install chromium
@@ -106,17 +295,83 @@ jobs:
         env:
           GREP: ${{ steps.plan.outputs.grep }}
         run: ./node_modules/.bin/playwright test --grep "$GREP" --project=chromium
-      - name: Run planned Full Browser verification
-        if: steps.plan.outputs.mode == 'full'
-        run: pnpm test:browser:only
       - name: Remove affected verification plan artifact
         if: always()
         run: rm -f affected-verification-plan.json
       - run: node tooling/verify-clean-worktree.mjs
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
           name: browser-evidence
+          path: |
+            playwright-report
+            test-results
+            affected-verification-plan.json
+          if-no-files-found: ignore
+
+  browser_full:
+    name: Full Browser shard ${{ matrix.shard }}/2
+    needs: browser_build
+    if: >-
+      needs.browser_build.result == 'success' &&
+      needs.browser_build.outputs.mode == 'full'
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
+        with:
+          version: 10.13.1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Download exact Browser build outputs
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: browser-builds
+      - name: Restore exact Browser build outputs
+        run: |
+          tar -xzf browser-builds.tar.gz
+          test -d apps/game/dist
+          test -d apps/terrain-lab/dist
+          test -s affected-verification-plan.json
+          rm browser-builds.tar.gz
+      - name: Confirm Full Browser mode
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const evidence = JSON.parse(fs.readFileSync('affected-verification-plan.json', 'utf8'));
+          const browser = evidence.plan?.browser;
+          if (!browser) throw new Error('affected-plan:missing-browser-plan');
+          if (!Array.isArray(browser.tags) || typeof browser.fullBrowserRequired !== 'boolean') {
+            throw new Error('affected-plan:invalid-browser-plan');
+          }
+          NODE
+      - run: ./node_modules/.bin/playwright install chromium
+      - name: Run Full Browser spec shard
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: ./node_modules/.bin/playwright test --project=chromium --workers=1 --shard="${SHARD}/2"
+      - name: Remove affected verification plan artifact
+        if: always()
+        run: rm -f affected-verification-plan.json
+      - name: Verify clean worktree
+        if: always()
+        run: node tooling/verify-clean-worktree.mjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: browser-evidence-shard-${{ matrix.shard }}
           path: |
             playwright-report
             test-results

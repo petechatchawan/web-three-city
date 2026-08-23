@@ -27,12 +27,34 @@ function packageTestCommand(target, kind) {
   };
 }
 
+function buildLintCommands(plan) {
+  const files = plan.lintFiles ?? [];
+  const prettierFiles = files.filter((file) => /\.(?:ts|js|yml|yaml)$/.test(file));
+  const eslintFiles = files.filter((file) => /\.(?:[cm]?js|[cm]?ts)$/.test(file));
+  const commands = [];
+  if (prettierFiles.length > 0) {
+    commands.push({
+      kind: 'lint',
+      executable: 'pnpm',
+      args: ['exec', 'prettier', '--check', ...prettierFiles],
+    });
+  }
+  if (eslintFiles.length > 0) {
+    commands.push({
+      kind: 'lint',
+      executable: 'pnpm',
+      args: ['exec', 'eslint', ...eslintFiles],
+    });
+  }
+  return commands;
+}
+
 /**
  * Convert an affected execution plan to explicit executable/argument tuples.
  * No command is interpolated into a shell string.
  */
-export function buildExecutionCommands(plan) {
-  const commands = [];
+export function buildExecutionCommands(plan, { includeBrowser = true } = {}) {
+  const commands = buildLintCommands(plan);
   for (const target of plan.ownerTests ?? [])
     commands.push(packageTestCommand(target, 'owner-test'));
   for (const target of plan.consumerTests ?? [])
@@ -52,7 +74,7 @@ export function buildExecutionCommands(plan) {
     });
   }
 
-  if (plan.browser?.mode === 'targeted') {
+  if (includeBrowser && plan.browser?.mode === 'targeted') {
     const tags = plan.browser.tags.join('|');
     if (!tags) throw new Error('targeted browser execution requires at least one ownership tag');
     commands.push({
@@ -60,7 +82,7 @@ export function buildExecutionCommands(plan) {
       executable: 'pnpm',
       args: ['exec', 'playwright', 'test', '--grep', tags, '--project=chromium'],
     });
-  } else if (plan.browser?.mode === 'full') {
+  } else if (includeBrowser && plan.browser?.mode === 'full') {
     commands.push({
       kind: 'browser',
       executable: 'pnpm',
@@ -81,8 +103,13 @@ export async function runCommand({
 }
 
 export async function runExecutionPlan(plan, options = {}) {
-  const commands = buildExecutionCommands(plan).filter(
-    (command) => !options.skipBrowser || command.kind !== 'browser',
+  const selectedKinds = options.kinds ? new Set(options.kinds) : null;
+  const includeBrowser =
+    !options.skipBrowser && (!selectedKinds || selectedKinds.has('browser'));
+  const commands = buildExecutionCommands(plan, { includeBrowser }).filter(
+    (command) =>
+      (!options.skipBrowser || command.kind !== 'browser') &&
+      (!selectedKinds || selectedKinds.has(command.kind)),
   );
   const results = [];
   for (const command of commands) {

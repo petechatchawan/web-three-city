@@ -4,7 +4,10 @@ import type { WorldConfig } from '@web-three-city/world-core';
 import * as THREE from 'three';
 import { createRoadGeometry } from './geometry-adapter.js';
 import { createRoadMaterials } from './material-factory.js';
+import { mergeRoadCellMeshes } from './road-geometry.js';
 import type { RoadMeshData } from './road-mesh-data.js';
+
+const RENDER_PAGE_CHUNK_SPAN = 2;
 
 export interface RoadPresentationSource {
   buildChunk(
@@ -26,6 +29,32 @@ function sortedChunks(chunks: readonly ChunkCoord[]): readonly ChunkCoord[] {
   );
 }
 
+function pageCoord(chunk: ChunkCoord): ChunkCoord {
+  return {
+    x: Math.floor(chunk.x / RENDER_PAGE_CHUNK_SPAN) * RENDER_PAGE_CHUNK_SPAN,
+    z: Math.floor(chunk.z / RENDER_PAGE_CHUNK_SPAN) * RENDER_PAGE_CHUNK_SPAN,
+  };
+}
+
+function pageKey(page: ChunkCoord): string {
+  return `${page.x}:${page.z}`;
+}
+
+function pageCoords(config: WorldConfig): readonly ChunkCoord[] {
+  const pages = new Map<string, ChunkCoord>();
+  for (const chunk of allChunkCoords(config)) {
+    const page = pageCoord(chunk);
+    pages.set(pageKey(page), page);
+  }
+  return sortedChunks([...pages.values()]);
+}
+
+function chunksInPage(page: ChunkCoord, config: WorldConfig): readonly ChunkCoord[] {
+  return allChunkCoords(config).filter(
+    (chunk) => pageCoord(chunk).x === page.x && pageCoord(chunk).z === page.z,
+  );
+}
+
 function disposeObject(object: THREE.Object3D): void {
   object.traverse((candidate) => {
     if (candidate instanceof THREE.Mesh) candidate.geometry.dispose();
@@ -39,7 +68,8 @@ export class RoadChunkPresentation {
   readonly #config: WorldConfig;
   readonly #materials = createRoadMaterials();
   readonly #root = new THREE.Group();
-  readonly #chunks = new Map<string, THREE.Object3D>();
+  readonly #pages = new Map<string, THREE.Object3D>();
+  readonly #chunkToPage = new Map<string, string>();
   #disposed = false;
 
   constructor(scene: THREE.Scene, source: RoadPresentationSource, config: WorldConfig) {
@@ -54,19 +84,23 @@ export class RoadChunkPresentation {
     this.#assertUsable();
     const staged = new Map<string, THREE.Object3D>();
     try {
-      for (const chunk of allChunkCoords(this.#config)) {
-        staged.set(chunkKey(chunk), this.#buildChunkObject(roads, environment, chunk));
+      for (const page of pageCoords(this.#config)) {
+        staged.set(pageKey(page), this.#buildPageObject(roads, environment, page));
       }
     } catch (error) {
       for (const object of staged.values()) disposeObject(object);
       throw error;
     }
 
-    const previous = [...this.#chunks.values()];
+    const previous = [...this.#pages.values()];
     for (const object of staged.values()) this.#root.add(object);
     for (const object of previous) this.#root.remove(object);
-    this.#chunks.clear();
-    for (const [key, object] of staged) this.#chunks.set(key, object);
+    this.#pages.clear();
+    for (const [key, object] of staged) this.#pages.set(key, object);
+    this.#chunkToPage.clear();
+    for (const chunk of allChunkCoords(this.#config)) {
+      this.#chunkToPage.set(chunkKey(chunk), pageKey(pageCoord(chunk)));
+    }
     for (const object of previous) disposeObject(object);
   }
 
@@ -77,12 +111,18 @@ export class RoadChunkPresentation {
   ): void {
     this.#assertUsable();
     const ordered = sortedChunks(chunks);
+    const pages = new Map<string, ChunkCoord>();
+    for (const chunk of ordered) {
+      const key = chunkKey(chunk);
+      const owningPage = this.#chunkToPage.get(key);
+      if (owningPage === undefined) throw new Error(`road-presentation:missing-chunk:${key}`);
+      pages.set(owningPage, pageCoord(chunk));
+    }
     const replacements = new Map<string, THREE.Object3D>();
     try {
-      for (const chunk of ordered) {
-        const key = chunkKey(chunk);
-        if (!this.#chunks.has(key)) throw new Error(`road-presentation:missing-chunk:${key}`);
-        replacements.set(key, this.#buildChunkObject(roads, environment, chunk));
+      for (const [key, page] of pages) {
+        if (!this.#pages.has(key)) throw new Error(`road-presentation:missing-page:${key}`);
+        replacements.set(key, this.#buildPageObject(roads, environment, page));
       }
     } catch (error) {
       for (const object of replacements.values()) disposeObject(object);
@@ -91,10 +131,10 @@ export class RoadChunkPresentation {
 
     const previous: THREE.Object3D[] = [];
     for (const [key, replacement] of replacements) {
-      const old = this.#chunks.get(key)!;
+      const old = this.#pages.get(key)!;
       this.#root.add(replacement);
       this.#root.remove(old);
-      this.#chunks.set(key, replacement);
+      this.#pages.set(key, replacement);
       previous.push(old);
     }
     for (const object of previous) disposeObject(object);
@@ -102,7 +142,8 @@ export class RoadChunkPresentation {
 
   getChunkObject(chunk: ChunkCoord): THREE.Object3D {
     this.#assertUsable();
-    const object = this.#chunks.get(chunkKey(chunk));
+    const owningPage = this.#chunkToPage.get(chunkKey(chunk));
+    const object = owningPage === undefined ? undefined : this.#pages.get(owningPage);
     if (object === undefined) throw new Error(`road-presentation:missing-chunk:${chunkKey(chunk)}`);
     return object;
   }
@@ -111,8 +152,9 @@ export class RoadChunkPresentation {
     if (this.#disposed) return;
     this.#disposed = true;
     this.#scene.remove(this.#root);
-    for (const object of this.#chunks.values()) disposeObject(object);
-    this.#chunks.clear();
+    for (const object of this.#pages.values()) disposeObject(object);
+    this.#pages.clear();
+    this.#chunkToPage.clear();
     this.#root.clear();
     this.#materials.committed.dispose();
     this.#materials.buildValidPreview.dispose();
@@ -120,14 +162,18 @@ export class RoadChunkPresentation {
     this.#materials.invalidMarker.dispose();
   }
 
-  #buildChunkObject(
+  #buildPageObject(
     roads: RoadSnapshot,
     environment: RoadPlacementEnvironment,
-    chunk: ChunkCoord,
+    page: ChunkCoord,
   ): THREE.Object3D {
     const group = new THREE.Group();
-    group.name = `road-chunk:${chunkKey(chunk)}`;
-    const data = this.#source.buildChunk(roads, environment, chunk);
+    group.name = `road-page:${pageKey(page)}`;
+    const data = mergeRoadCellMeshes(
+      chunksInPage(page, this.#config).map((chunk) =>
+        this.#source.buildChunk(roads, environment, chunk),
+      ),
+    );
     if (data.positions.length > 0) {
       group.add(new THREE.Mesh(createRoadGeometry(data), this.#materials.committed));
     }

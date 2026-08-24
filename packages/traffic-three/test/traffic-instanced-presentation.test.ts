@@ -72,6 +72,16 @@ describe('traffic-three instanced presentation', () => {
     pool.dispose();
   });
 
+  it('supports one bounded old/new materialization overlap during camera reconciliation', () => {
+    const pool = new TrafficVehiclePool();
+    for (let index = 0; index < 300; index += 1) pool.acquire(vehicleInput(index));
+    for (let index = 300; index < 600; index += 1) pool.acquire(vehicleInput(index));
+
+    expect(pool.createdCount).toBe(600);
+    expect(pool.root.children.filter((child) => child instanceof InstancedMesh)).toHaveLength(2);
+    pool.dispose();
+  });
+
   it('preserves identity, independent transforms, and deterministic vehicle appearance per slot', () => {
     const pool = new TrafficVehiclePool();
     const first = pool.acquire(vehicleInput(1));

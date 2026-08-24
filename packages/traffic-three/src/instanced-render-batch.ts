@@ -9,7 +9,9 @@ import {
 } from 'three';
 import type { TrafficVisualScalePolicy } from './visual-scale-policy.js';
 
-const DEFAULT_INSTANCE_CAPACITY = 300;
+// Reconciliation can acquire the next camera selection before the previous
+// selection is released. Keep that overlap bounded at two policy-sized sets.
+const DEFAULT_INSTANCE_CAPACITY = 600;
 const HIDDEN_MATRIX = new Matrix4().makeScale(0, 0, 0);
 
 export interface TrafficInstancedRenderSet {

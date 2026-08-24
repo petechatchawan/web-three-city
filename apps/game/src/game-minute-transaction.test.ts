@@ -1,13 +1,23 @@
 import {
+  createBuildingSnapshot,
+  type ConstructionBuildingInstance,
+} from '@web-three-city/building-core';
+import {
   createInitialSimulationSnapshot,
   createSimulationSnapshot,
 } from '@web-three-city/simulation-core';
 import { createFoundationRciRegistries } from '@web-three-city/rci-core';
+import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { describe, expect, it } from 'vitest';
 import { createApplicationFixture } from '../test/application-fixtures.js';
-import { CommittedWorldStore, createCommittedWorld } from './application/committed-world.js';
+import {
+  CommittedWorldStore,
+  createCommittedWorld,
+  createCommittedWorldFromDomainState,
+} from './application/committed-world.js';
 import { DefaultWorldTransactionCoordinator } from './application/world-transaction-coordinator.js';
 import {
+  commitGameMinuteTransaction,
   executeGameMinuteTransaction,
   planGameMinuteTransaction,
 } from './game-minute-transaction.js';
@@ -21,6 +31,43 @@ function worldAtMinute(absoluteGameMinute: number) {
       absoluteGameMinute,
       growthSequence: base.simulation.growthSequence,
     }),
+  });
+}
+
+function worldAtGrowthCompletion() {
+  const base = createApplicationFixture({ withCommercialBuilding: true });
+  const [activeBuilding] = base.buildings.instances;
+  if (activeBuilding === undefined || activeBuilding.lifecycle !== 'active') {
+    throw new Error('test:expected-active-building');
+  }
+
+  const construction: ConstructionBuildingInstance = {
+    ...activeBuilding,
+    lifecycle: 'construction',
+    constructionStartedAtTick: 8,
+    constructionCompletesAtTick: 9,
+  };
+  const buildings = createBuildingSnapshot(
+    { revision: base.buildings.revision, instances: [construction] },
+    WORLD_CONFIG,
+  );
+  const simulation = createSimulationSnapshot({
+    revision: 539,
+    absoluteGameMinute: 8 * 60 + 59,
+    growthSequence: base.simulation.growthSequence,
+  });
+
+  return createCommittedWorldFromDomainState({
+    revision: base.revision,
+    terrain: base.terrain,
+    roads: base.roads,
+    zones: base.zones,
+    buildings,
+    simulation,
+    rci: base.rci,
+    economy: base.economy,
+    mobility: base.mobility,
+    traffic: base.traffic,
   });
 }
 
@@ -78,5 +125,34 @@ describe('Game minute transaction', () => {
     expect(committed.world.simulation.absoluteGameMinute).toBe(9 * 60);
     expect(committed.world.simulation.revision).toBe(60);
     expect(plan.rciReceipt).toMatchObject({ beforeAbsoluteTick: 8, afterAbsoluteTick: 9 });
+  });
+
+  it('reconciles static environment provenance when Growth completes at 09:00', () => {
+    const before = worldAtGrowthCompletion();
+    const coordinator = new DefaultWorldTransactionCoordinator({
+      worldStore: new CommittedWorldStore(before),
+    });
+    const plan = planGameMinuteTransaction({
+      world: coordinator.snapshot(),
+      registries: createFoundationRciRegistries(),
+    });
+
+    expect(plan.invalidReason).toBeNull();
+    expect(plan.valid).toBe(true);
+
+    const committed = commitGameMinuteTransaction(coordinator, plan);
+    expect(committed.status).toBe('committed');
+    if (committed.status !== 'committed') return;
+
+    const after = committed.world;
+    expect(after.buildings.revision).toBeGreaterThan(before.buildings.revision);
+    expect(after.environments.zone.occupancyRevision).toBe(after.buildings.revision);
+    expect(after.environments.building.terrainRevision).toBe(after.terrain.revision);
+    expect(after.environments.building.waterSourceTerrainRevision).toBe(
+      after.water.sourceTerrainRevision,
+    );
+    expect(after.environments.building.roadRevision).toBe(after.roads.revision);
+    expect(after.environments.building.zoneRevision).toBe(after.zones.revision);
+    expect(after.traffic.graphSourceBuildingRevision).toBe(after.buildings.revision);
   });
 });

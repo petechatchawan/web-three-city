@@ -16,6 +16,7 @@ import {
   commitTrafficTransportTransaction,
   planTrafficTransportTransaction,
 } from './traffic-transport-transaction.js';
+import type { RoadTrafficSourceProjectionProvider } from './road-traffic-source-provider.js';
 
 export interface TemporalPublicationControllerOptions {
   readonly coordinator: WorldTransactionCoordinator;
@@ -27,6 +28,7 @@ export interface TemporalPublicationControllerOptions {
   readonly completePresentation: WorldPresentationPort;
   readonly presentationSuppressed: () => boolean;
   readonly adoptCommittedWorld: (world: CommittedWorld) => void;
+  readonly roadTrafficSourceProvider?: RoadTrafficSourceProjectionProvider;
 }
 
 export interface TemporalPublicationController {
@@ -57,6 +59,9 @@ function commitGameMinute(
       world: current,
       registries: options.registries,
       reservedCells: options.reservedCells(),
+      ...(options.roadTrafficSourceProvider === undefined
+        ? {}
+        : { roadTrafficSourceProvider: options.roadTrafficSourceProvider }),
       ...(input?.automaticGrowth === undefined ? {} : { automaticGrowth: input.automaticGrowth }),
     });
     if (!plan.valid)

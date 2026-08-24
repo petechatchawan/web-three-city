@@ -6,6 +6,22 @@ import { createTrafficGraphCache } from './traffic-graph-cache.js';
 const bootstrapSource = readFileSync(resolve(process.cwd(), 'src/game-bootstrap.ts'), 'utf8');
 
 describe('Traffic graph authority cache', () => {
+  it('wires one shared road projection provider into authority and subscriber paths', () => {
+    const minuteSource = readFileSync(
+      resolve(process.cwd(), 'src/game-minute-transaction.ts'),
+      'utf8',
+    );
+    const presentationSource = readFileSync(
+      resolve(process.cwd(), 'src/traffic-runtime-presentation.ts'),
+      'utf8',
+    );
+
+    expect(minuteSource).toContain('RoadTrafficSourceProjectionProvider');
+    expect(presentationSource).toContain('RoadTrafficSourceProjectionProvider');
+    expect(bootstrapSource).toContain('createRoadTrafficSourceProjectionProvider');
+    expect(bootstrapSource).toContain('roadTrafficSourceProvider');
+  });
+
   it('reuses the prepared graph across transport quanta until static authority changes', () => {
     expect(bootstrapSource).toMatch(/createTrafficGraphCache/);
     expect(bootstrapSource).toMatch(/trafficGraphCache\.get/);

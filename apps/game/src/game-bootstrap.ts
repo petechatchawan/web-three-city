@@ -102,8 +102,11 @@ import {
 import { createBuildingWorldOccupancy } from './building-world-occupancy.js';
 import { createGameInput, type GameRenderViewport } from './game-input.js';
 import { dispatchGameTransactionState } from './game-tool-events.js';
-import { createRoadTrafficSourceProjectionFromEnvironment } from './traffic-source-projection.js';
 import { createTrafficGraphCache } from './traffic-graph-cache.js';
+import {
+  createRoadTrafficSourceProjectionProvider,
+  type RoadTrafficSourceProjectionProvider,
+} from './road-traffic-source-provider.js';
 import type { GameToolMode } from './game-tool-mode.js';
 import type { GameTerraformInvalidReason } from './terraform-occupancy-guard.js';
 import {
@@ -196,12 +199,12 @@ function rebuildSelection(
 
 const trafficGraphCache = createTrafficGraphCache<TrafficGraph>();
 
-function combinedTrafficGraphForWorld(world: CommittedWorld): TrafficGraph {
+function combinedTrafficGraphForWorld(
+  world: CommittedWorld,
+  roadTrafficSourceProvider: RoadTrafficSourceProjectionProvider,
+): TrafficGraph {
   return trafficGraphCache.get(world.roads, world.environments.building, world.buildings, () => {
-    const roads = createRoadTrafficSourceProjectionFromEnvironment(
-      world.roads,
-      world.environments.building,
-    );
+    const roads = roadTrafficSourceProvider.get(world.roads, world.environments.building);
     const buildingRevision = world.buildings.revision;
     const vehicle = Object.freeze({
       ...deriveVehicleTrafficGraph(roads),
@@ -390,7 +393,16 @@ function statusForTerraformReason(
   return 'Terraform rejected';
 }
 
-export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
+export interface GameBootstrapOptions {
+  readonly roadTrafficSourceProvider?: RoadTrafficSourceProjectionProvider;
+}
+
+export function bootstrapGame(
+  host: GameBootstrapHost,
+  options: GameBootstrapOptions = {},
+): GameRuntime {
+  const roadTrafficSourceProvider =
+    options.roadTrafficSourceProvider ?? createRoadTrafficSourceProjectionProvider();
   const generated = generateCoastalTerrain({ seed: CURATED_SEED, config: WORLD_CONFIG });
   if (!generated.ok) throw new Error(`game:generation-failed:${generated.error.code}`);
   const initialWaterDerivationStart = performance.now();
@@ -682,13 +694,14 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
   const temporalPublication = createTemporalPublicationController({
     coordinator: transactionCoordinator,
     registries: rciRegistries,
-    graphForWorld: combinedTrafficGraphForWorld,
+    graphForWorld: (world) => combinedTrafficGraphForWorld(world, roadTrafficSourceProvider),
     reservedCells: () => inputRef.current?.getBackgroundGrowthReservations() ?? Object.freeze([]),
     intermediatePresentation: noOpPresentation,
     finalDynamicPresentation: noOpPresentation,
     completePresentation: completeWorldPresentation,
     presentationSuppressed: () => presentationSuppressedForTest,
     adoptCommittedWorld,
+    roadTrafficSourceProvider,
   });
 
   type DomainOverrides = Partial<Omit<CommittedDomainState, 'revision'>>;

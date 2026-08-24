@@ -16,10 +16,11 @@ import {
   type TrafficPresentationAgent,
   type TrafficPresentationSnapshot,
 } from './traffic-presentation-projection.js';
+import { createBuildingTrafficAccessProjection } from './traffic-source-projection.js';
 import {
-  createBuildingTrafficAccessProjection,
-  createRoadTrafficSourceProjectionFromEnvironment,
-} from './traffic-source-projection.js';
+  createRoadTrafficSourceProjectionProvider,
+  type RoadTrafficSourceProjectionProvider,
+} from './road-traffic-source-provider.js';
 import type { InspectTarget } from './ui/inspect/inspect-target.js';
 
 export interface TrafficRuntimeCameraAnchor {
@@ -74,6 +75,7 @@ function insideCell(position: Readonly<{ x: number; z: number }>, cell: CellCoor
 export class TrafficRuntimePresentation {
   readonly #presentation: TrafficPresentation;
   readonly #overlay: TrafficInformationViewOverlay;
+  readonly #roadTrafficSourceProvider: RoadTrafficSourceProjectionProvider;
   #latestWorld: CommittedWorld | null = null;
   #snapshot: TrafficPresentationSnapshot | null = null;
   #snapshotDirty = false;
@@ -81,7 +83,11 @@ export class TrafficRuntimePresentation {
   #frameIndex = 0;
   #cameraAnchor: TrafficRuntimeCameraAnchor = Object.freeze({ x: 0, z: 0 });
 
-  constructor(scene: Scene) {
+  constructor(
+    scene: Scene,
+    roadTrafficSourceProvider: RoadTrafficSourceProjectionProvider = createRoadTrafficSourceProjectionProvider(),
+  ) {
+    this.#roadTrafficSourceProvider = roadTrafficSourceProvider;
     this.#presentation = new TrafficPresentation(
       scene,
       GAME_TRAFFIC_PRESENTATION_POLICY,
@@ -92,10 +98,7 @@ export class TrafficRuntimePresentation {
 
   synchronize(world: CommittedWorld): void {
     this.#latestWorld = world;
-    const roads = createRoadTrafficSourceProjectionFromEnvironment(
-      world.roads,
-      world.environments.building,
-    );
+    const roads = this.#roadTrafficSourceProvider.get(world.roads, world.environments.building);
     const buildingAccess = createBuildingTrafficAccessProjection(
       world.buildings,
       world.roads,

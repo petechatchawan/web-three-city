@@ -160,9 +160,7 @@ function synchronizeCommittedWorld(
 
 function advanceRuntimeEvent(event: SimulationRuntimeEvent): void {
   if (event.type === 'game-minute') {
-    runtime.advanceGameMinute({ automaticGrowth: automaticGrowthEnabled });
-  } else {
-    runtime.advanceTransportQuantum();
+    runtime.advanceTemporalMinute({ automaticGrowth: automaticGrowthEnabled });
   }
 }
 

@@ -34,6 +34,7 @@ This system is an architecture and enforcement boundary. It does not own gamepla
 - Building content is fenced by deterministic fingerprint for RCI planning; Building changes reconcile dwelling/workplace inventory before publication.
 - Interactive Terraform/Road/Zone/Building mutations and foreground/background simulation changes publish through the committed-world seam before presentation.
 - `PresentationCoordinator` owns ordered full-world adapter synchronization, incremental/no-op publication ports, and committed-world rebuild recovery without owning domain, tool, or Undo state.
+- `TemporalPublicationController` keeps the five automatic minute/quanta authority commits ordered and revision-visible while coalescing external presentation/adoption at the application boundary; public single-step commands remain legacy per-commit seams.
 - Normal Game verification includes both `apps/game/src/**/*.test.ts` and `apps/game/test/**/*.test.ts`, with repository contracts binding the physical inventory to Vitest discovery.
 - Browser tests carry grep-compatible ownership tags while the unfiltered Chromium project remains the release authority; deterministic fixture construction is centralized behind the reviewed browser fixture seam.
 - CI keeps Lean as the verification/build owner, uploads exact Game/Terrain Lab build outputs, and makes the Browser job consume those artifacts instead of rerunning Lean verification/builds.
@@ -98,6 +99,7 @@ The Architecture and Infrastructure program introduces no Save wire-schema or pe
 - Full-world presentation recovery rebuilds every registered derived adapter from one committed-world snapshot through `PresentationCoordinator`.
 - Incremental/background presentation callbacks do not own or mutate active tool and Undo authority.
 - Tick ordering, fixed-point arithmetic, Save migration, and browser determinism remain unchanged unless an ADR explicitly replaces a rule.
+- Automatic temporal presentation compares the pre-batch committed world with the final post-Q4 world; dynamic-only batches skip full static synchronization, while static changes perform one full synchronization before one final adoption/notification.
 
 ## Extension Points
 

@@ -12,8 +12,7 @@ describe('GameRuntime committed-world authority', () => {
     );
     expect(mainSource).toMatch(/runtime\.snapshot\(\)/);
     expect(mainSource).toMatch(/runtime\.subscribeCommittedWorld/);
-    expect(mainSource).toMatch(/runtime\.advanceGameMinute/);
-    expect(mainSource).toMatch(/runtime\.advanceTransportQuantum/);
+    expect(mainSource).toMatch(/runtime\.advanceTemporalMinute/);
     expect(mainSource).toMatch(/runtime\.savePayload\(\)/);
   });
 
@@ -22,6 +21,7 @@ describe('GameRuntime committed-world authority', () => {
     expect(bootstrapSource).toMatch(/subscribeCommittedWorld/);
     expect(bootstrapSource).toMatch(/advanceGameMinute/);
     expect(bootstrapSource).toMatch(/advanceTransportQuantum/);
+    expect(bootstrapSource).toMatch(/advanceTemporalMinute/);
     expect(bootstrapSource).toMatch(/savePayload/);
   });
 
@@ -35,17 +35,15 @@ describe('GameRuntime committed-world authority', () => {
     expect(bootstrapSource).toMatch(/snapshotForTest\(\): CommittedWorld/);
   });
 
-  it('adopts automatic calendar and transport publications for committed-world subscribers', () => {
-    const calendarSection = bootstrapSource.slice(
-      bootstrapSource.indexOf('const advanceGameMinute'),
-      bootstrapSource.indexOf('const advanceTransportQuantum'),
-    );
-    const transportSection = bootstrapSource.slice(
-      bootstrapSource.indexOf('const advanceTransportQuantum'),
+  it('routes the temporal minute through one coalesced orchestration boundary', () => {
+    expect(mainSource).toMatch(/runtime\.advanceTemporalMinute/);
+    const temporalSection = bootstrapSource.slice(
+      bootstrapSource.indexOf('const advanceTemporalMinute'),
       bootstrapSource.indexOf('const resetSimulationForTest'),
     );
 
-    expect(calendarSection).toMatch(/adoptCommittedWorld\(publication\.world\)/);
-    expect(transportSection).toMatch(/adoptCommittedWorld\(publication\.world\)/);
+    expect(temporalSection).toMatch(/temporalPublication\.advanceTemporalMinute/);
+    expect(bootstrapSource).toMatch(/createTemporalPublicationController/);
+    expect(bootstrapSource).toMatch(/adoptCommittedWorld/);
   });
 });

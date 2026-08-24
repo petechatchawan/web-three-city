@@ -119,14 +119,7 @@ import { guardTerraformPlanWithOccupancy } from './terraform-occupancy-guard.js'
 import { guardZonePlanWithBuildings, type GameZoneInvalidReason } from './zone-building-guard.js';
 import { executeGameWorldTick } from './game-world-tick.js';
 import { GameWorldStateStore } from './game-world-state.js';
-import {
-  commitGameMinuteTransaction,
-  planGameMinuteTransaction,
-} from './game-minute-transaction.js';
-import {
-  commitTrafficTransportTransaction,
-  planTrafficTransportTransaction,
-} from './traffic-transport-transaction.js';
+import { createTemporalPublicationController } from './temporal-publication-controller.js';
 import { type EconomyPolicyUiResult, type EconomyTaxPolicy } from './economy-budget-hud.js';
 import type { GameBootstrapHost, GameViewportLayout, QualityLevel } from './game-ui.js';
 
@@ -159,6 +152,7 @@ export interface GameRuntime {
   advanceLogicalTick(input: Readonly<{ automaticGrowth: boolean }>): CommittedWorld;
   advanceGameMinute(input?: Readonly<{ automaticGrowth?: boolean }>): CommittedWorld;
   advanceTransportQuantum(): CommittedWorld;
+  advanceTemporalMinute(input?: Readonly<{ automaticGrowth?: boolean }>): CommittedWorld;
   setPresentationSuppressed(suppressed: boolean): void;
   rebuildPresentationForTest(): CommittedWorld;
   resetSimulationForTest(): CommittedWorld;
@@ -440,6 +434,7 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
       advanceLogicalTick: () => unavailableWorld.snapshot(),
       advanceGameMinute: () => unavailableWorld.snapshot(),
       advanceTransportQuantum: () => unavailableWorld.snapshot(),
+      advanceTemporalMinute: () => unavailableWorld.snapshot(),
       setPresentationSuppressed: () => undefined,
       rebuildPresentationForTest: () => unavailableWorld.snapshot(),
       resetSimulationForTest: () => unavailableWorld.snapshot(),
@@ -684,6 +679,17 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
     transactionCoordinator,
   });
   const undoCoordinator = new UndoCoordinator({ transactionCoordinator });
+  const temporalPublication = createTemporalPublicationController({
+    coordinator: transactionCoordinator,
+    registries: rciRegistries,
+    graphForWorld: combinedTrafficGraphForWorld,
+    reservedCells: () => inputRef.current?.getBackgroundGrowthReservations() ?? Object.freeze([]),
+    intermediatePresentation: noOpPresentation,
+    finalDynamicPresentation: noOpPresentation,
+    completePresentation: completeWorldPresentation,
+    presentationSuppressed: () => presentationSuppressedForTest,
+    adoptCommittedWorld,
+  });
 
   type DomainOverrides = Partial<Omit<CommittedDomainState, 'revision'>>;
   const publishCommittedDomain = (
@@ -1021,62 +1027,15 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
     return transactionCoordinator.snapshot();
   };
 
-  const advanceGameMinute = (
-    input: Readonly<{ automaticGrowth?: boolean }> = {},
-  ): CommittedWorld => {
-    const current = transactionCoordinator.snapshotForTransaction();
-    try {
-      const plan = planGameMinuteTransaction({
-        world: current,
-        registries: rciRegistries,
-        reservedCells: inputRef.current?.getBackgroundGrowthReservations() ?? Object.freeze([]),
-        ...(input.automaticGrowth === undefined ? {} : { automaticGrowth: input.automaticGrowth }),
-      });
-      if (!plan.valid) return transactionCoordinator.snapshot();
-      const publication = commitGameMinuteTransaction(
-        transactionCoordinator,
-        plan,
-        presentationSuppressedForTest ? noOpPresentation : undefined,
-        presentationSuppressedForTest,
-      );
-      if (publication.status === 'committed') {
-        adoptCommittedWorld(publication.world);
-        return publication.world;
-      }
-      return transactionCoordinator.snapshot();
-    } catch {
-      return transactionCoordinator.snapshot();
-    }
-  };
+  const advanceGameMinute = (input: Readonly<{ automaticGrowth?: boolean }> = {}): CommittedWorld =>
+    temporalPublication.advanceGameMinute(input);
 
-  const advanceTransportQuantum = (): CommittedWorld => {
-    const current = transactionCoordinator.snapshotForTransaction();
-    const traffic = current.traffic as unknown as {
-      readonly schemaVersion: number;
-    };
-    if (traffic.schemaVersion !== 2) return transactionCoordinator.snapshot();
-    try {
-      const plan = planTrafficTransportTransaction({
-        world: current,
-        mobility: current.mobility,
-        traffic: current.traffic as never,
-        graph: combinedTrafficGraphForWorld(current),
-      });
-      const publication = commitTrafficTransportTransaction(
-        transactionCoordinator,
-        plan,
-        presentationSuppressedForTest ? noOpPresentation : undefined,
-        presentationSuppressedForTest,
-      );
-      if (publication.status === 'committed') {
-        adoptCommittedWorld(publication.world);
-        return publication.world;
-      }
-      return transactionCoordinator.snapshot();
-    } catch {
-      return transactionCoordinator.snapshot();
-    }
-  };
+  const advanceTransportQuantum = (): CommittedWorld =>
+    temporalPublication.advanceTransportQuantum();
+
+  const advanceTemporalMinute = (
+    input: Readonly<{ automaticGrowth?: boolean }> = {},
+  ): CommittedWorld => temporalPublication.advanceTemporalMinute(input);
 
   const resetSimulationForTest = (): CommittedWorld => {
     const publication = publishCommittedDomain(
@@ -1439,6 +1398,7 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
     advanceLogicalTick,
     advanceGameMinute,
     advanceTransportQuantum,
+    advanceTemporalMinute,
     setPresentationSuppressed,
     rebuildPresentationForTest,
     resetSimulationForTest,

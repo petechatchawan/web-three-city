@@ -15,7 +15,11 @@ import {
   type CommittedWorld,
 } from './application/committed-world.js';
 import { fingerprintCommittedWorld } from './application/committed-world-fingerprint.js';
-import { DefaultWorldTransactionCoordinator } from './application/world-transaction-coordinator.js';
+import {
+  DefaultWorldTransactionCoordinator,
+  type WorldTransactionCoordinator,
+} from './application/world-transaction-coordinator.js';
+import { createTemporalPublicationController } from './temporal-publication-controller.js';
 import {
   commitGameMinuteTransaction,
   planGameMinuteTransaction,
@@ -26,6 +30,7 @@ import {
 } from './traffic-transport-transaction.js';
 
 type PublicationMode = 'legacy-per-commit' | 'reference-coalesced';
+type A2PublicationMode = 'legacy-per-commit' | 'coalesced';
 
 interface PresentationCounters {
   authorityCommitCount: number;
@@ -37,6 +42,13 @@ interface PresentationCounters {
 interface ScenarioResult {
   readonly world: CommittedWorld;
   readonly counters: PresentationCounters;
+}
+
+interface A2CadenceCounters {
+  authorityPublishCount: number;
+  completePresentationCount: number;
+  fullStaticSyncCount: number;
+  externalNotifyCount: number;
 }
 
 function worldAtMinute(absoluteGameMinute: number): CommittedWorld {
@@ -231,6 +243,158 @@ function expectSemanticParity(legacy: ScenarioResult, coalesced: ScenarioResult)
   expect(environmentProvenance(legacy.world)).toEqual(environmentProvenance(coalesced.world));
 }
 
+function staticAuthorityChanged(before: CommittedWorld, after: CommittedWorld): boolean {
+  return (
+    JSON.stringify(
+      canonical({
+        terrain: before.terrain,
+        water: before.water,
+        roads: before.roads,
+        zones: before.zones,
+        buildings: before.buildings,
+        environments: environmentProvenance(before),
+      }),
+    ) !==
+    JSON.stringify(
+      canonical({
+        terrain: after.terrain,
+        water: after.water,
+        roads: after.roads,
+        zones: after.zones,
+        buildings: after.buildings,
+        environments: environmentProvenance(after),
+      }),
+    )
+  );
+}
+
+function countingCoordinator(
+  before: CommittedWorld,
+  counters: A2CadenceCounters,
+  completePresentation: {
+    synchronize(world: CommittedWorld): void;
+    rebuildFromCommitted(world: CommittedWorld): void;
+  },
+): WorldTransactionCoordinator {
+  const delegate = new DefaultWorldTransactionCoordinator({
+    worldStore: new CommittedWorldStore(before),
+    presentation: completePresentation,
+  });
+  return {
+    snapshot: () => delegate.snapshot(),
+    snapshotForTransaction: () => delegate.snapshotForTransaction(),
+    publish(plan) {
+      counters.authorityPublishCount += 1;
+      return delegate.publish(plan);
+    },
+    publishForTransaction(plan) {
+      counters.authorityPublishCount += 1;
+      return delegate.publishForTransaction(plan);
+    },
+    replaceFromDecodedWorld(world) {
+      return delegate.replaceFromDecodedWorld(world);
+    },
+  };
+}
+
+function runPublicationCadence(
+  before: CommittedWorld,
+  mode: A2PublicationMode,
+): {
+  readonly before: CommittedWorld;
+  readonly world: CommittedWorld;
+  readonly counters: A2CadenceCounters;
+} {
+  const counters: A2CadenceCounters = {
+    authorityPublishCount: 0,
+    completePresentationCount: 0,
+    fullStaticSyncCount: 0,
+    externalNotifyCount: 0,
+  };
+  const completePresentation = {
+    synchronize(world: CommittedWorld) {
+      counters.completePresentationCount += 1;
+      counters.fullStaticSyncCount += 1;
+      void world;
+    },
+    rebuildFromCommitted(world: CommittedWorld) {
+      counters.completePresentationCount += 1;
+      counters.fullStaticSyncCount += 1;
+      void world;
+    },
+  };
+  const finalDynamicPresentation = {
+    synchronize(world: CommittedWorld) {
+      counters.completePresentationCount += 1;
+      void world;
+    },
+    rebuildFromCommitted(world: CommittedWorld) {
+      counters.completePresentationCount += 1;
+      void world;
+    },
+  };
+  const intermediatePresentation = {
+    synchronize(world: CommittedWorld) {
+      void world;
+    },
+    rebuildFromCommitted(world: CommittedWorld) {
+      void world;
+    },
+  };
+  const coordinator = countingCoordinator(before, counters, completePresentation);
+  const batchStart = coordinator.snapshotForTransaction();
+  const notifyCommittedWorld = (world: CommittedWorld): void => {
+    void world;
+    counters.externalNotifyCount += 1;
+  };
+  const controller = createTemporalPublicationController({
+    coordinator,
+    registries: createFoundationRciRegistries(),
+    graphForWorld: emptyTrafficGraph,
+    reservedCells: () => Object.freeze([]),
+    intermediatePresentation,
+    finalDynamicPresentation,
+    completePresentation,
+    presentationSuppressed: () => false,
+    adoptCommittedWorld: notifyCommittedWorld,
+  });
+
+  let world: CommittedWorld;
+  if (mode === 'legacy-per-commit') {
+    world = controller.advanceGameMinute();
+    for (let quantum = 0; quantum < 4; quantum += 1) {
+      world = controller.advanceTransportQuantum();
+    }
+  } else {
+    world = controller.advanceTemporalMinute();
+  }
+
+  return Object.freeze({ before: batchStart, world, counters });
+}
+
+function expectedA2Cadence(
+  mode: A2PublicationMode,
+  before: CommittedWorld,
+  after: CommittedWorld,
+): A2CadenceCounters & { readonly worldRevisionDelta: number } {
+  if (mode === 'legacy-per-commit') {
+    return {
+      authorityPublishCount: 5,
+      worldRevisionDelta: 5,
+      completePresentationCount: 5,
+      fullStaticSyncCount: 5,
+      externalNotifyCount: 5,
+    };
+  }
+  return {
+    authorityPublishCount: 5,
+    worldRevisionDelta: 5,
+    completePresentationCount: 1,
+    fullStaticSyncCount: staticAuthorityChanged(before, after) ? 1 : 0,
+    externalNotifyCount: 1,
+  };
+}
+
 describe('temporal publication parity', () => {
   it.each([
     ['dynamic-only minute', worldAtMinute(8 * 60 + 58)],
@@ -252,5 +416,22 @@ describe('temporal publication parity', () => {
       noOpPresentationCount: 4,
       externalNotifyCount: 1,
     });
+  });
+});
+
+describe('temporal publication cadence contract', () => {
+  it.each([
+    ['legacy-per-commit', 'dynamic-only minute', worldAtMinute(8 * 60 + 58)],
+    ['coalesced', 'dynamic-only minute', worldAtMinute(8 * 60 + 58)],
+    ['legacy-per-commit', '08:59→09:00 Growth completion', worldAtGrowthCompletion()],
+    ['coalesced', '08:59→09:00 Growth completion', worldAtGrowthCompletion()],
+  ] as const)('%s / %s matches A2 cadence contract', (mode, _scenario, before) => {
+    const actual = runPublicationCadence(before, mode);
+    const expected = expectedA2Cadence(mode, actual.before, actual.world);
+
+    expect({
+      ...actual.counters,
+      worldRevisionDelta: actual.world.revision - actual.before.revision,
+    }).toEqual(expected);
   });
 });

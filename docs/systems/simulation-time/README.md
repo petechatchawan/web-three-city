@@ -28,7 +28,7 @@ Own deterministic in-game time, calendar derivation, tick planning/commit, time-
 - Revision, `absoluteGameMinute`, and Building growth sequence persist across Save/Load.
 - `apps/game` has a minute-boundary transaction that stages macro-hour work, Mobility due boundaries, and a coherent world candidate before publication.
 - Traffic uses a subordinate four-quanta-per-game-minute cursor; minute and transport-quantum publication are separate atomic transaction classes.
-- Every committed automatic minute or transport publication is adopted by the Game runtime before UI and presentation subscribers are notified; deterministic test-time batching suppresses those notifications until its final rebuild.
+- The automatic runtime advances one temporal minute as five ordered atomic authority commits (`GameMinute → Q1 → Q2 → Q3 → Q4`), suppresses intermediate presentation, then performs one final dynamic/full presentation choice, adopts the final world, and notifies committed-world subscribers once. Public single-step GameMinute and transport-quantum commands retain legacy per-commit publication semantics for parity/debug callers.
 
 ## Ownership and State
 
@@ -40,8 +40,9 @@ Own deterministic in-game time, calendar derivation, tick planning/commit, time-
 2. Each completed simulated second requests a game-minute boundary according to the selected speed.
 3. The minute transaction derives whether a macro-hour boundary is crossed and runs Building/RCI/Economy only when due.
 4. Mobility resolves due schedule boundaries at the new game minute; Traffic admission/progression then occurs in its own ordered transport quanta.
-5. The application validates the complete staged world and publishes one atomic world revision per transaction.
-6. Time HUD and RCI HUD derive values from committed state.
+5. The automatic temporal orchestration commits the minute and four quanta in order, validates each complete staged world, and publishes one atomic world revision per transaction.
+6. Only the final world is presented/adopted externally; full static synchronization occurs only when static authority changed between the pre-batch and final worlds.
+7. Time HUD and RCI HUD derive values from committed state.
 
 ## Integrations
 
@@ -85,7 +86,7 @@ No seasonal calendar, leap years, offline progress, general event scheduler, var
 
 - Core: `packages/simulation-core/src/contracts.ts`, `calendar.ts`, `simulation-mutation.ts`, `serialization.ts`
 - Runtime: `apps/game/src/simulation-runtime.ts`
-- Atomic orchestration: `apps/game/src/game-minute-transaction.ts`, `traffic-transport-transaction.ts`
+- Atomic orchestration: `apps/game/src/game-minute-transaction.ts`, `traffic-transport-transaction.ts`, `temporal-publication-controller.ts`
 - UI: `apps/game/src/game-time-ui.ts`, `game-time-presentation.ts`
 - Related systems: [Buildings](../buildings/README.md), [RCI](../rci/README.md), [Citizen Mobility](../citizen-mobility/README.md), [Traffic](../traffic/README.md), [World](../world/README.md)
 - [ADR-0001 — Minute calendar with derived macro-hour compatibility](adrs/0001-minute-calendar-macro-hour-compatibility.md)

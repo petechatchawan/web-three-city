@@ -44,6 +44,17 @@ Own authoritative Road occupancy and Road definition identity, deterministic str
 - Feed Traffic profiles where Local / Collector / Arterial have increasing free-flow speed and capacity while Road remains the authority for definition identity and carriageway width.
 - Support Traffic-derived left-hand directional lane paths whose visual offset follows the committed Road width without turning lane geometry into Road state.
 
+### Render-page batching
+
+The local PR #83 remediation keeps logical Road chunks as the authority,
+dirty/rebuild ownership, interaction unit, and persistence boundary. Committed
+Road presentation groups neighboring logical chunks into deterministic `2×2`
+render pages and merges the existing chunk-derived `RoadMeshData` for each
+page. A dirty logical chunk rebuilds only its owning page; multiple dirty
+chunks in one page are coalesced, and unaffected page identities/resources are
+retained. Render pages are presentation-only and are never persisted or used
+as Road authority.
+
 ## Ownership and State
 
 `RoadSnapshot.definitionCodes` and Road revision are authoritative. One byte-sized definition code exists per world cell. Road definition IDs/codes are catalog authority; connection masks, cell views, meshes, lane geometry, preview geometry, Road-access projections, Traffic graphs, Traffic lane paths, motion curves, and vehicle transforms are derived.

@@ -88,6 +88,18 @@ Roads + Buildings + Simulation + Citizen Mobility
 - pooled pedestrian/vehicle materialization, spatial indexing, deterministic caps, and LOD where every materialized agent resolves to a real Citizen-linked trip;
 - Citizen/Vehicle Inspect projections and the localized Traffic Information View consuming committed state without mutating Traffic authority.
 
+### Render submission remediation
+
+The local PR #83 remediation keeps Traffic authority, logical active trips,
+materialization caps, trip identity, and motion semantics unchanged while
+batching presentation submissions. Vehicle body/roof and pedestrian body/head
+are owned by bounded shared `InstancedMesh` batches; logical pooled handles
+retain inspection and motion identity, while instance slots carry transforms
+and deterministic appearance. Camera reconciliation permits one bounded
+overlap of old and new policy-sized selections, and the presentation owner
+disposes shared render resources exactly once. This changes render submission
+cardinality, not Traffic state or visual-agent policy.
+
 Flow policy v1 keeps zero-load time equal to free-flow and adds monotonic delay only when load exceeds edge capacity or queue wait exists. Ordinary congestion never reroutes an active trip; only topology/destination invalidation invokes recovery.
 
 ## vNext Integration Status and Handoff

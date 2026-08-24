@@ -89,6 +89,11 @@ export interface CommittedWorldCreationOptions {
    * immutable snapshots; dynamic Mobility/Traffic state is still cloned.
    */
   readonly reuseStaticFrom?: CommittedWorld;
+  /**
+   * Internal transaction-only reuse for already immutable dynamic snapshots.
+   * Public publication continues to defensively clone these subtrees.
+   */
+  readonly reuseDynamicFrom?: CommittedWorld;
 }
 
 function assertApplicationRevision(revision: number): void {
@@ -184,6 +189,7 @@ export function createCommittedWorld(
     throw new RangeError('committed-world:invalid-economy');
   }
   const reusable = options.reuseStaticFrom;
+  const dynamicReusable = options.reuseDynamicFrom;
   const reuseStatic =
     reusable !== undefined &&
     complete.terrain === reusable.terrain &&
@@ -235,7 +241,15 @@ export function createCommittedWorld(
         { revision: complete.buildings.revision, instances: complete.buildings.instances },
         WORLD_CONFIG,
       );
-  const simulation = createSimulationSnapshot(complete.simulation);
+  const reuseDynamic =
+    dynamicReusable !== undefined &&
+    complete.simulation === dynamicReusable.simulation &&
+    complete.economy === dynamicReusable.economy &&
+    complete.mobility === dynamicReusable.mobility &&
+    complete.traffic === dynamicReusable.traffic;
+  const simulation = reuseDynamic
+    ? dynamicReusable.simulation
+    : createSimulationSnapshot(complete.simulation);
   const mobility = createMobilitySnapshot(complete.mobility);
   // Traffic V2 is introduced at the Game transaction seam ahead of the Save-schema cutover.
   // Keep the declared application compatibility shape until the later persistence migration.
@@ -265,9 +279,9 @@ export function createCommittedWorld(
     buildings,
     simulation,
     rci: complete.rci,
-    economy: cloneEconomySnapshot(complete.economy),
-    mobility,
-    traffic,
+    economy: reuseDynamic ? dynamicReusable.economy : cloneEconomySnapshot(complete.economy),
+    mobility: reuseDynamic ? dynamicReusable.mobility : mobility,
+    traffic: reuseDynamic ? dynamicReusable.traffic : traffic,
     environments,
   });
   rememberMobilityTrafficState(world.rci, world.mobility, world.traffic);

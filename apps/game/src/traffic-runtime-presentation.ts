@@ -21,6 +21,10 @@ import {
   createRoadTrafficSourceProjectionProvider,
   type RoadTrafficSourceProjectionProvider,
 } from './road-traffic-source-provider.js';
+import {
+  createTrafficModeGraphProvider,
+  type TrafficModeGraphProvider,
+} from './traffic-mode-graph-provider.js';
 import type { InspectTarget } from './ui/inspect/inspect-target.js';
 
 export interface TrafficRuntimeCameraAnchor {
@@ -76,6 +80,7 @@ export class TrafficRuntimePresentation {
   readonly #presentation: TrafficPresentation;
   readonly #overlay: TrafficInformationViewOverlay;
   readonly #roadTrafficSourceProvider: RoadTrafficSourceProjectionProvider;
+  readonly #trafficModeGraphProvider: TrafficModeGraphProvider;
   #latestWorld: CommittedWorld | null = null;
   #snapshot: TrafficPresentationSnapshot | null = null;
   #snapshotDirty = false;
@@ -86,8 +91,10 @@ export class TrafficRuntimePresentation {
   constructor(
     scene: Scene,
     roadTrafficSourceProvider: RoadTrafficSourceProjectionProvider = createRoadTrafficSourceProjectionProvider(),
+    trafficModeGraphProvider: TrafficModeGraphProvider = createTrafficModeGraphProvider(),
   ) {
     this.#roadTrafficSourceProvider = roadTrafficSourceProvider;
+    this.#trafficModeGraphProvider = trafficModeGraphProvider;
     this.#presentation = new TrafficPresentation(
       scene,
       GAME_TRAFFIC_PRESENTATION_POLICY,
@@ -99,6 +106,7 @@ export class TrafficRuntimePresentation {
   synchronize(world: CommittedWorld): void {
     this.#latestWorld = world;
     const roads = this.#roadTrafficSourceProvider.get(world.roads, world.environments.building);
+    const trafficGraphs = this.#trafficModeGraphProvider.get(roads, world.buildings.revision);
     const buildingAccess = createBuildingTrafficAccessProjection(
       world.buildings,
       world.roads,
@@ -108,6 +116,7 @@ export class TrafficRuntimePresentation {
       traffic: world.traffic,
       roads,
       buildingAccess,
+      trafficGraphs,
     });
     this.#snapshotDirty = true;
     if (this.#overlay.active) this.#overlay.update(world);

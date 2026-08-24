@@ -215,10 +215,15 @@ function prepareCandidate(
   plan: WorldPublication,
   current: CommittedWorld,
   staticValidationCache: StaticWorldValidationCache,
+  reusePreparedDynamic: boolean,
 ): CommittedWorld | null {
   try {
-    const candidate = createCommittedWorld(plan.nextWorld, { reuseStaticFrom: current });
-    if (memoizedFingerprintCommittedWorld(candidate) !== plan.nextFingerprint) return null;
+    const candidate = createCommittedWorld(plan.nextWorld, {
+      reuseStaticFrom: current,
+      ...(reusePreparedDynamic ? { reuseDynamicFrom: plan.nextWorld } : {}),
+    });
+    const candidateFingerprint = memoizedFingerprintCommittedWorld(candidate);
+    if (candidateFingerprint !== plan.nextFingerprint) return null;
     const validateStaticAuthority = staticValidationCache.shouldValidate(candidate);
     if (!validCandidate(candidate, { validateStaticAuthority })) return null;
     return candidate;
@@ -288,7 +293,12 @@ export class DefaultWorldTransactionCoordinator implements WorldTransactionCoord
     if (plan.nextFingerprint !== candidateFingerprint) {
       return rejected(readCurrent(), 'world:stale-content');
     }
-    const candidate = prepareCandidate(plan, current, this.#staticValidationCache);
+    const candidate = prepareCandidate(
+      plan,
+      current,
+      this.#staticValidationCache,
+      !copyResultWorld,
+    );
     if (candidate === null) return rejected(readCurrent(), 'world:invalid-candidate');
     try {
       this.#worldStore.replacePrepared(current.revision, candidate);

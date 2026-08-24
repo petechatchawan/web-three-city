@@ -17,6 +17,7 @@ import {
   planTrafficTransportTransaction,
 } from './traffic-transport-transaction.js';
 import type { RoadTrafficSourceProjectionProvider } from './road-traffic-source-provider.js';
+import type { TrafficModeGraphProvider } from './traffic-mode-graph-provider.js';
 
 export interface TemporalPublicationControllerOptions {
   readonly coordinator: WorldTransactionCoordinator;
@@ -29,6 +30,7 @@ export interface TemporalPublicationControllerOptions {
   readonly presentationSuppressed: () => boolean;
   readonly adoptCommittedWorld: (world: CommittedWorld) => void;
   readonly roadTrafficSourceProvider?: RoadTrafficSourceProjectionProvider;
+  readonly trafficModeGraphProvider?: TrafficModeGraphProvider;
 }
 
 export interface TemporalPublicationController {
@@ -62,6 +64,9 @@ function commitGameMinute(
       ...(options.roadTrafficSourceProvider === undefined
         ? {}
         : { roadTrafficSourceProvider: options.roadTrafficSourceProvider }),
+      ...(options.trafficModeGraphProvider === undefined
+        ? {}
+        : { trafficModeGraphProvider: options.trafficModeGraphProvider }),
       ...(input?.automaticGrowth === undefined ? {} : { automaticGrowth: input.automaticGrowth }),
     });
     if (!plan.valid)

@@ -31,6 +31,7 @@ import {
 import { createTrafficRecoveryReleaseFixture } from './traffic-recovery-release-fixture.js';
 import { TrafficRuntimePresentation } from './traffic-runtime-presentation.js';
 import { createRoadTrafficSourceProjectionProvider } from './road-traffic-source-provider.js';
+import { createTrafficModeGraphProvider } from './traffic-mode-graph-provider.js';
 import { mountCityUi } from './ui/city-ui-runtime.js';
 
 interface GameTimeTestApi {
@@ -89,13 +90,18 @@ if (rootElement === null) throw new Error('game:missing-root');
 const root: HTMLElement = rootElement;
 const host = renderGameCanvas(root);
 const roadTrafficSourceProvider = createRoadTrafficSourceProjectionProvider();
-const runtime = bootstrapGame(host, { roadTrafficSourceProvider });
+const trafficModeGraphProvider = createTrafficModeGraphProvider();
+const runtime = bootstrapGame(host, { roadTrafficSourceProvider, trafficModeGraphProvider });
 const rciRegistries = createFoundationRciRegistries();
 const trafficScene = latestBuildingPresentationScene();
 const trafficRuntime =
   trafficScene === null
     ? null
-    : new TrafficRuntimePresentation(trafficScene, roadTrafficSourceProvider);
+    : new TrafficRuntimePresentation(
+        trafficScene,
+        roadTrafficSourceProvider,
+        trafficModeGraphProvider,
+      );
 
 const bindings = new AbortController();
 const automatedBrowser = navigator.webdriver === true;

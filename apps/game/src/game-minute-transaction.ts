@@ -47,6 +47,7 @@ import {
   createRoadTrafficSourceProjectionProvider,
   type RoadTrafficSourceProjectionProvider,
 } from './road-traffic-source-provider.js';
+import type { TrafficModeGraphProvider } from './traffic-mode-graph-provider.js';
 import type {
   WorldPresentationPort,
   WorldPublicationResult,
@@ -286,13 +287,14 @@ function planMacroHourConsumers(
   };
 }
 
-export function planGameMinuteTransaction(
+function planGameMinuteTransactionCore(
   input: Readonly<{
     world: CommittedWorld;
     registries: RciDefinitionRegistries;
     reservedCells?: readonly CellCoord[];
     automaticGrowth?: boolean;
     roadTrafficSourceProvider?: RoadTrafficSourceProjectionProvider;
+    trafficModeGraphProvider?: TrafficModeGraphProvider;
   }>,
 ): GameMinuteTransactionPlan {
   const { world } = input;
@@ -331,6 +333,7 @@ export function planGameMinuteTransaction(
       buildings,
       macroHourTransition.afterMacroHourIndex,
     );
+    const roadSource = roadTrafficSourceProvider.get(world.roads, world.environments.building);
     const mobilityTraffic = planMobilityTrafficTick({
       mobilityBefore: world.mobility,
       trafficBefore: trafficV1View(
@@ -341,13 +344,16 @@ export function planGameMinuteTransaction(
       simulationAfter: simulation,
       advanceTraffic: false,
       trafficSource: Object.freeze({
-        roads: roadTrafficSourceProvider.get(world.roads, world.environments.building),
+        roads: roadSource,
         buildingAccess: createBuildingTrafficAccessProjection(
           buildings,
           world.roads,
           world.environments.building,
         ),
       }),
+      ...(input.trafficModeGraphProvider === undefined
+        ? {}
+        : { trafficModeGraphProvider: input.trafficModeGraphProvider }),
     });
     const rciProjection = createRciProjection(
       rci,
@@ -427,6 +433,19 @@ export function planGameMinuteTransaction(
   }
 }
 
+export function planGameMinuteTransaction(
+  input: Readonly<{
+    world: CommittedWorld;
+    registries: RciDefinitionRegistries;
+    reservedCells?: readonly CellCoord[];
+    automaticGrowth?: boolean;
+    roadTrafficSourceProvider?: RoadTrafficSourceProjectionProvider;
+    trafficModeGraphProvider?: TrafficModeGraphProvider;
+  }>,
+): GameMinuteTransactionPlan {
+  return planGameMinuteTransactionCore(input);
+}
+
 export function commitGameMinuteTransaction(
   coordinator: WorldTransactionCoordinator,
   plan: GameMinuteTransactionPlan,
@@ -454,6 +473,7 @@ export function executeGameMinuteTransaction(
     registries: RciDefinitionRegistries;
     reservedCells?: readonly CellCoord[];
     roadTrafficSourceProvider?: RoadTrafficSourceProjectionProvider;
+    trafficModeGraphProvider?: TrafficModeGraphProvider;
   }>,
 ): WorldPublicationResult {
   const plan = planGameMinuteTransaction({
@@ -463,6 +483,9 @@ export function executeGameMinuteTransaction(
     ...(input.roadTrafficSourceProvider === undefined
       ? {}
       : { roadTrafficSourceProvider: input.roadTrafficSourceProvider }),
+    ...(input.trafficModeGraphProvider === undefined
+      ? {}
+      : { trafficModeGraphProvider: input.trafficModeGraphProvider }),
   });
   return commitGameMinuteTransaction(input.coordinator, plan);
 }

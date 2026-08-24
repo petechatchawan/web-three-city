@@ -16,6 +16,7 @@ import {
   type TrafficRouteSegment,
 } from '@web-three-city/traffic-three';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
+import type { TrafficModeGraphs } from './traffic-mode-graph-provider.js';
 
 const TRAFFIC_Q_PER_METER = 1_000;
 const TRAFFIC_CELL_METERS = 8;
@@ -97,8 +98,16 @@ function graphsFor(
   input: Readonly<{
     roads: RoadTrafficSourceProjection;
     buildingAccess: BuildingTrafficAccessProjection;
+    trafficGraphs?: TrafficModeGraphs;
   }>,
 ): Readonly<{ walk: TrafficGraph; drive: TrafficGraph; combined: TrafficGraph }> {
+  if (input.trafficGraphs !== undefined) {
+    return Object.freeze({
+      walk: input.trafficGraphs.pedestrian,
+      drive: input.trafficGraphs.vehicle,
+      combined: input.trafficGraphs.combined,
+    });
+  }
   const walk = withBuildingRevision(
     derivePedestrianTrafficGraph(input.roads),
     input.buildingAccess.buildingRevision,
@@ -300,6 +309,7 @@ export function createTrafficPresentationSnapshot(
     traffic: TrafficSnapshotV1;
     roads: RoadTrafficSourceProjection;
     buildingAccess: BuildingTrafficAccessProjection;
+    trafficGraphs?: TrafficModeGraphs;
   }>,
 ): TrafficPresentationSnapshot {
   const graphs = graphsFor(input);

@@ -13,11 +13,7 @@ import {
   FOUNDATION_ECONOMY_RULES,
 } from '@web-three-city/economy-core';
 import { createFoundationRciRegistries, createInitialRciSnapshot } from '@web-three-city/rci-core';
-import {
-  derivePedestrianTrafficGraph,
-  deriveVehicleTrafficGraph,
-  type TrafficGraph,
-} from '@web-three-city/traffic-core';
+import { type TrafficGraph } from '@web-three-city/traffic-core';
 import {
   deriveMacroHourIndex,
   createInitialSimulationSnapshot,
@@ -107,6 +103,10 @@ import {
   createRoadTrafficSourceProjectionProvider,
   type RoadTrafficSourceProjectionProvider,
 } from './road-traffic-source-provider.js';
+import {
+  createTrafficModeGraphProvider,
+  type TrafficModeGraphProvider,
+} from './traffic-mode-graph-provider.js';
 import type { GameToolMode } from './game-tool-mode.js';
 import type { GameTerraformInvalidReason } from './terraform-occupancy-guard.js';
 import {
@@ -202,35 +202,11 @@ const trafficGraphCache = createTrafficGraphCache<TrafficGraph>();
 function combinedTrafficGraphForWorld(
   world: CommittedWorld,
   roadTrafficSourceProvider: RoadTrafficSourceProjectionProvider,
+  trafficModeGraphProvider: TrafficModeGraphProvider,
 ): TrafficGraph {
   return trafficGraphCache.get(world.roads, world.environments.building, world.buildings, () => {
     const roads = roadTrafficSourceProvider.get(world.roads, world.environments.building);
-    const buildingRevision = world.buildings.revision;
-    const vehicle = Object.freeze({
-      ...deriveVehicleTrafficGraph(roads),
-      sourceBuildingRevision: buildingRevision,
-    });
-    const pedestrian = Object.freeze({
-      ...derivePedestrianTrafficGraph(roads),
-      sourceBuildingRevision: buildingRevision,
-    });
-    const nodes = new Map(
-      [...vehicle.nodes, ...pedestrian.nodes].map((node) => [node.nodeId, node]),
-    );
-    return Object.freeze({
-      sourceRoadRevision: world.roads.revision,
-      sourceBuildingRevision: buildingRevision,
-      nodes: Object.freeze(
-        [...nodes.values()].sort((first, second) =>
-          first.nodeId < second.nodeId ? -1 : first.nodeId > second.nodeId ? 1 : 0,
-        ),
-      ),
-      edges: Object.freeze(
-        [...vehicle.edges, ...pedestrian.edges].sort((first, second) =>
-          first.edgeId < second.edgeId ? -1 : first.edgeId > second.edgeId ? 1 : 0,
-        ),
-      ),
-    });
+    return trafficModeGraphProvider.get(roads, world.buildings.revision).combined;
   });
 }
 
@@ -395,6 +371,7 @@ function statusForTerraformReason(
 
 export interface GameBootstrapOptions {
   readonly roadTrafficSourceProvider?: RoadTrafficSourceProjectionProvider;
+  readonly trafficModeGraphProvider?: TrafficModeGraphProvider;
 }
 
 export function bootstrapGame(
@@ -403,6 +380,8 @@ export function bootstrapGame(
 ): GameRuntime {
   const roadTrafficSourceProvider =
     options.roadTrafficSourceProvider ?? createRoadTrafficSourceProjectionProvider();
+  const trafficModeGraphProvider =
+    options.trafficModeGraphProvider ?? createTrafficModeGraphProvider();
   const generated = generateCoastalTerrain({ seed: CURATED_SEED, config: WORLD_CONFIG });
   if (!generated.ok) throw new Error(`game:generation-failed:${generated.error.code}`);
   const initialWaterDerivationStart = performance.now();
@@ -694,7 +673,8 @@ export function bootstrapGame(
   const temporalPublication = createTemporalPublicationController({
     coordinator: transactionCoordinator,
     registries: rciRegistries,
-    graphForWorld: (world) => combinedTrafficGraphForWorld(world, roadTrafficSourceProvider),
+    graphForWorld: (world) =>
+      combinedTrafficGraphForWorld(world, roadTrafficSourceProvider, trafficModeGraphProvider),
     reservedCells: () => inputRef.current?.getBackgroundGrowthReservations() ?? Object.freeze([]),
     intermediatePresentation: noOpPresentation,
     finalDynamicPresentation: noOpPresentation,
@@ -702,6 +682,7 @@ export function bootstrapGame(
     presentationSuppressed: () => presentationSuppressedForTest,
     adoptCommittedWorld,
     roadTrafficSourceProvider,
+    trafficModeGraphProvider,
   });
 
   type DomainOverrides = Partial<Omit<CommittedDomainState, 'revision'>>;

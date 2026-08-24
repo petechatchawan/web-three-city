@@ -22,6 +22,36 @@ describe('Traffic graph authority cache', () => {
     expect(bootstrapSource).toContain('roadTrafficSourceProvider');
   });
 
+  it('shares prepared mode graphs across minute planning and quantum composition', () => {
+    const minuteSource = readFileSync(
+      resolve(process.cwd(), 'src/game-minute-transaction.ts'),
+      'utf8',
+    );
+    const mobilitySource = readFileSync(
+      resolve(process.cwd(), 'src/mobility-traffic-tick.ts'),
+      'utf8',
+    );
+
+    expect(minuteSource).toContain('TrafficModeGraphProvider');
+    expect(mobilitySource).toContain('trafficGraphs');
+    expect(bootstrapSource).toContain('createTrafficModeGraphProvider');
+  });
+
+  it('passes the same prepared mode graphs into Traffic presentation', () => {
+    const presentationSource = readFileSync(
+      resolve(process.cwd(), 'src/traffic-presentation-projection.ts'),
+      'utf8',
+    );
+    const runtimePresentationSource = readFileSync(
+      resolve(process.cwd(), 'src/traffic-runtime-presentation.ts'),
+      'utf8',
+    );
+
+    expect(presentationSource).toContain('trafficGraphs');
+    expect(runtimePresentationSource).toContain('TrafficModeGraphProvider');
+    expect(runtimePresentationSource).toContain('createTrafficModeGraphProvider');
+  });
+
   it('reuses the prepared graph across transport quanta until static authority changes', () => {
     expect(bootstrapSource).toMatch(/createTrafficGraphCache/);
     expect(bootstrapSource).toMatch(/trafficGraphCache\.get/);

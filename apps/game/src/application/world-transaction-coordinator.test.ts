@@ -220,4 +220,28 @@ describe('WorldTransactionCoordinator', () => {
     expect(synchronized).toEqual([1]);
     expect(recovered).toEqual([1]);
   });
+
+  it('retains prepared immutable dynamic snapshots on internal temporal publish', () => {
+    const initial = createApplicationFixture();
+    const next = createApplicationFixture({ applicationRevision: 1 });
+    const coordinator = new DefaultWorldTransactionCoordinator({
+      worldStore: new CommittedWorldStore(initial),
+    });
+
+    const result = coordinator.publishForTransaction({
+      baseRevision: initial.revision,
+      baseFingerprint: fingerprintCommittedWorld(initial),
+      nextWorld: next,
+      nextFingerprint: fingerprintCommittedWorld(next),
+    });
+
+    expect(result.status).toBe('committed');
+    if (result.status === 'committed') {
+      expect(result.world.simulation).toBe(next.simulation);
+      expect(result.world.rci).toBe(next.rci);
+      expect(result.world.economy).toBe(next.economy);
+      expect(result.world.mobility).toBe(next.mobility);
+      expect(result.world.traffic).toBe(next.traffic);
+    }
+  });
 });

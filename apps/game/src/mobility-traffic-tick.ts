@@ -26,6 +26,7 @@ import {
   type TrafficSnapshotV1,
   type TrafficSnapshotV2,
 } from '@web-three-city/traffic-core';
+import type { TrafficModeGraphProvider, TrafficModeGraphs } from './traffic-mode-graph-provider.js';
 
 export interface TrafficJourneyDepartureReceipt extends Readonly<Record<string, unknown>> {
   readonly kind: 'departure';
@@ -182,6 +183,8 @@ export function planMobilityTrafficTick(
       roads: RoadTrafficSourceProjection;
       buildingAccess: BuildingTrafficAccessProjection;
     }>;
+    trafficGraphs?: TrafficModeGraphs;
+    trafficModeGraphProvider?: TrafficModeGraphProvider;
   }>,
 ): MobilityTrafficTickResult {
   const trafficBefore = trafficV1View(
@@ -213,15 +216,18 @@ export function planMobilityTrafficTick(
   }
 
   const buildingRevision = input.trafficSource.buildingAccess.buildingRevision;
-  const vehicleGraph = withBuildingRevision(
-    deriveVehicleTrafficGraph(input.trafficSource.roads),
-    buildingRevision,
-  );
-  const pedestrianGraph = withBuildingRevision(
-    derivePedestrianTrafficGraph(input.trafficSource.roads),
-    buildingRevision,
-  );
-  const transportGraph = combinedGraph(pedestrianGraph, vehicleGraph);
+  const trafficGraphs =
+    input.trafficGraphs ??
+    (input.trafficModeGraphProvider === undefined
+      ? undefined
+      : input.trafficModeGraphProvider.get(input.trafficSource.roads, buildingRevision));
+  const vehicleGraph =
+    trafficGraphs?.vehicle ??
+    withBuildingRevision(deriveVehicleTrafficGraph(input.trafficSource.roads), buildingRevision);
+  const pedestrianGraph =
+    trafficGraphs?.pedestrian ??
+    withBuildingRevision(derivePedestrianTrafficGraph(input.trafficSource.roads), buildingRevision);
+  const transportGraph = trafficGraphs?.combined ?? combinedGraph(pedestrianGraph, vehicleGraph);
   const accessPairs = deriveBuildingAccessNodes(
     input.trafficSource.buildingAccess,
     vehicleGraph,

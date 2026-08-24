@@ -5,7 +5,13 @@ import {
   FOUNDATION_ECONOMY_RULES,
 } from '@web-three-city/economy-core';
 import { createInitialRciSnapshot } from '@web-three-city/rci-core';
-import { createEmptyRoadSnapshot, type RoadSnapshot } from '@web-three-city/road-core';
+import {
+  BASIC_ROAD_CODE,
+  EMPTY_ROAD_CODE,
+  createEmptyRoadSnapshot,
+  createRoadSnapshot,
+  type RoadSnapshot,
+} from '@web-three-city/road-core';
 import {
   createInitialSimulationSnapshot,
   createSimulationSnapshot,
@@ -27,12 +33,15 @@ import { createZonePlacementEnvironment } from '../zone-placement-environment.js
 import {
   CommittedWorldStore,
   createCommittedWorld,
+  createCommittedWorldFromDomainState,
   type CommittedWorldInput,
 } from './committed-world.js';
 import {
   fingerprintCommittedWorld,
   memoizedFingerprintCommittedWorld,
 } from './committed-world-fingerprint.js';
+
+const CELL_COUNT = WORLD_CONFIG.mapWidth * WORLD_CONFIG.mapHeight;
 
 function sourceWorld(revision = 0): CommittedWorldInput {
   const terrain = createTerrainMap({
@@ -263,5 +272,103 @@ describe('CommittedWorldStore', () => {
     expect(next.buildings).toBe(initial.buildings);
     expect(next.environments).toBe(initial.environments);
     expect(next.simulation).not.toBe(initial.simulation);
+  });
+
+  it('shares only immutable road projection inputs across defensive reads', () => {
+    const store = new CommittedWorldStore(createCommittedWorld(sourceWorld(0)));
+    const first = store.snapshot();
+    const second = store.snapshot();
+
+    expect(second.roads).toBe(first.roads);
+    expect(second.environments.building).toBe(first.environments.building);
+    expect(second.terrain).not.toBe(first.terrain);
+    expect(second.water).not.toBe(first.water);
+    expect(second.zones).not.toBe(first.zones);
+    expect(second.buildings).not.toBe(first.buildings);
+    expect(second.environments).not.toBe(first.environments);
+    expect(Object.isFrozen(second.roads)).toBe(true);
+    expect(Object.isFrozen(second.environments.building)).toBe(true);
+
+    const exposedCodes = first.roads.definitionCodes;
+    exposedCodes[0] = BASIC_ROAD_CODE;
+    expect(store.snapshot().roads.definitionCodes[0]).toBe(EMPTY_ROAD_CODE);
+  });
+
+  it('replaces shared road projection inputs when road authority changes', () => {
+    const initial = createCommittedWorld(sourceWorld(0));
+    const store = new CommittedWorldStore(initial);
+    const nextCodes = initial.roads.definitionCodes;
+    nextCodes[0] = BASIC_ROAD_CODE;
+    const next = createCommittedWorldFromDomainState({
+      revision: initial.revision + 1,
+      terrain: initial.terrain,
+      zones: initial.zones,
+      buildings: initial.buildings,
+      simulation: initial.simulation,
+      rci: initial.rci,
+      economy: initial.economy,
+      mobility: initial.mobility,
+      traffic: createEmptyTrafficSnapshot({
+        roadRevision: initial.roads.revision + 1,
+        buildingRevision: initial.buildings.revision,
+      }),
+      roads: createRoadSnapshot(
+        {
+          width: initial.roads.width,
+          height: initial.roads.height,
+          revision: initial.roads.revision + 1,
+          definitionCodes: nextCodes,
+        },
+        WORLD_CONFIG,
+      ),
+    });
+
+    const before = store.snapshot();
+    store.replace(0, next);
+    const after = store.snapshot();
+
+    expect(after.roads).not.toBe(before.roads);
+    expect(after.roads.revision).toBe(before.roads.revision + 1);
+    expect(after.roads.definitionCodes[0]).toBe(BASIC_ROAD_CODE);
+    expect(after.environments.building).not.toBe(before.environments.building);
+  });
+
+  it('does not reuse a read identity for different static content at the same revision', () => {
+    const base = createCommittedWorld(sourceWorld(0));
+    const firstCodes = new Uint8Array(CELL_COUNT);
+    const secondCodes = new Uint8Array(CELL_COUNT);
+    secondCodes[0] = BASIC_ROAD_CODE;
+    const loadedWorld = (definitionCodes: Uint8Array) =>
+      createCommittedWorldFromDomainState({
+        revision: base.revision,
+        terrain: base.terrain,
+        zones: base.zones,
+        buildings: base.buildings,
+        simulation: base.simulation,
+        rci: base.rci,
+        economy: base.economy,
+        mobility: base.mobility,
+        traffic: createEmptyTrafficSnapshot({
+          roadRevision: 7,
+          buildingRevision: base.buildings.revision,
+        }),
+        roads: createRoadSnapshot(
+          {
+            width: WORLD_CONFIG.mapWidth,
+            height: WORLD_CONFIG.mapHeight,
+            revision: 7,
+            definitionCodes,
+          },
+          WORLD_CONFIG,
+        ),
+      });
+    const firstStore = new CommittedWorldStore(loadedWorld(firstCodes));
+    const secondStore = new CommittedWorldStore(loadedWorld(secondCodes));
+
+    const first = firstStore.snapshot();
+    const second = secondStore.snapshot();
+    expect(second.roads.revision).toBe(first.roads.revision);
+    expect(second.roads).not.toBe(first.roads);
+    expect(second.roads.definitionCodes[0]).not.toBe(first.roads.definitionCodes[0]);
   });
 });

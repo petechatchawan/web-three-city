@@ -155,6 +155,14 @@ function cloneWaterSnapshot(input: WaterSnapshot): WaterSnapshot {
 function cloneForRead(world: CommittedWorld): CommittedWorld {
   const pendingMobilityTraffic = recallMobilityTrafficState(world.rci);
   const clone = createCommittedWorld(world);
+  const readWorld = Object.freeze({
+    ...clone,
+    roads: world.roads,
+    environments: Object.freeze({
+      ...clone.environments,
+      building: world.environments.building,
+    }),
+  });
   if (pendingMobilityTraffic !== null) {
     rememberMobilityTrafficState(
       world.rci,
@@ -162,7 +170,7 @@ function cloneForRead(world: CommittedWorld): CommittedWorld {
       pendingMobilityTraffic.traffic,
     );
   }
-  return clone;
+  return readWorld;
 }
 
 export function createCommittedWorld(

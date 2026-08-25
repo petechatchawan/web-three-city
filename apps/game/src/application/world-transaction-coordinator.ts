@@ -225,7 +225,8 @@ function prepareCandidate(
     const candidateFingerprint = memoizedFingerprintCommittedWorld(candidate);
     if (candidateFingerprint !== plan.nextFingerprint) return null;
     const validateStaticAuthority = staticValidationCache.shouldValidate(candidate);
-    if (!validCandidate(candidate, { validateStaticAuthority })) return null;
+    const valid = validCandidate(candidate, { validateStaticAuthority });
+    if (!valid) return null;
     return candidate;
   } catch {
     return null;

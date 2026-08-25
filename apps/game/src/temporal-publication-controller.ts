@@ -100,11 +100,12 @@ function commitTransportQuantum(
     };
   }
   try {
+    const graph = options.graphForWorld(current);
     const plan = planTrafficTransportTransaction({
       world: current,
       mobility: current.mobility,
       traffic: current.traffic as never,
-      graph: options.graphForWorld(current),
+      graph,
     });
     return commitTrafficTransportTransaction(
       options.coordinator,

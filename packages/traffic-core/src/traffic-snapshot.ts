@@ -12,6 +12,8 @@ import { createTrafficTimeCursor, type TrafficTimeCursor } from './transport-tim
 export const TRAFFIC_SCHEMA_VERSION = 1 as const;
 export const TRAFFIC_POLICY_VERSION = 1 as const;
 
+const CANONICAL_TRAFFIC_V2_SNAPSHOTS = new WeakSet<object>();
+
 export interface TrafficSnapshotV1 {
   readonly schemaVersion: 1;
   readonly revision: number;
@@ -91,6 +93,7 @@ export function createEmptyTrafficSnapshot(
 }
 
 export function createTrafficSnapshotV2(input: TrafficSnapshotV2): TrafficSnapshotV2 {
+  if (CANONICAL_TRAFFIC_V2_SNAPSHOTS.has(input)) return input;
   if (input.schemaVersion !== 2 || input.policyVersion !== TRAFFIC_POLICY_VERSION) {
     throw new TrafficContractError('traffic:invalid-state');
   }
@@ -150,7 +153,7 @@ export function createTrafficSnapshotV2(input: TrafficSnapshotV2): TrafficSnapsh
       throw new TrafficContractError('traffic:duplicate-trip');
     }
   }
-  return Object.freeze({
+  const snapshot = Object.freeze({
     schemaVersion: 2,
     revision: input.revision,
     policyVersion: TRAFFIC_POLICY_VERSION,
@@ -159,4 +162,6 @@ export function createTrafficSnapshotV2(input: TrafficSnapshotV2): TrafficSnapsh
     timeCursor,
     activeTrips: Object.freeze(activeTrips),
   });
+  CANONICAL_TRAFFIC_V2_SNAPSHOTS.add(snapshot);
+  return snapshot;
 }

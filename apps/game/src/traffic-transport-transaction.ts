@@ -79,11 +79,13 @@ export function planTrafficTransportTransaction(
     mobility,
     traffic,
   }) as CommittedWorld;
+  const baseFingerprint = memoizedFingerprintCommittedWorld(input.world);
+  const nextFingerprint = memoizedFingerprintCommittedWorld(nextWorld);
   return Object.freeze({
     baseWorldRevision: input.world.revision,
-    baseFingerprint: memoizedFingerprintCommittedWorld(input.world),
+    baseFingerprint,
     nextWorld,
-    nextFingerprint: memoizedFingerprintCommittedWorld(nextWorld),
+    nextFingerprint,
   });
 }
 

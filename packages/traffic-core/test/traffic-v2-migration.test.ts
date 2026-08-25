@@ -160,6 +160,12 @@ function v1Snapshot(activeTrips: readonly ActiveTransportTrip[]): TrafficSnapsho
 }
 
 describe('TrafficSaveV2 migration', () => {
+  it('reuses an already canonical immutable V2 snapshot', () => {
+    const snapshot = trafficCore.createTrafficSnapshotV2(v2Snapshot());
+
+    expect(trafficCore.createTrafficSnapshotV2(snapshot)).toBe(snapshot);
+  });
+
   it('round-trips exact authoritative cursor, phase, progress, access, queue, traversal, and reservation facts', () => {
     expect(typeof api.encodeTrafficSaveV2).toBe('function');
     expect(typeof api.decodeTrafficSaveV2).toBe('function');

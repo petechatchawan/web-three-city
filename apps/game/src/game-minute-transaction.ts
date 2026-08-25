@@ -28,7 +28,6 @@ import {
 } from '@web-three-city/simulation-core';
 import { WORLD_CONFIG, type CellCoord } from '@web-three-city/world-core';
 import {
-  createTrafficSnapshot,
   createTrafficSnapshotV2,
   type ActiveTransportTripV2,
   type TrafficSnapshotV1,
@@ -55,39 +54,6 @@ import type {
 } from './application/world-transaction-coordinator.js';
 
 const DEFAULT_ROAD_TRAFFIC_SOURCE_PROVIDER = createRoadTrafficSourceProjectionProvider();
-
-function trafficV1View(traffic: TrafficSnapshotV1 | TrafficSnapshotV2): TrafficSnapshotV1 {
-  if (traffic.schemaVersion === 1) return createTrafficSnapshot(traffic);
-  return createTrafficSnapshot({
-    schemaVersion: 1,
-    revision: traffic.revision,
-    policyVersion: traffic.policyVersion,
-    graphSourceRoadRevision: traffic.graphSourceRoadRevision,
-    graphSourceBuildingRevision: traffic.graphSourceBuildingRevision,
-    activeTrips: traffic.activeTrips.map((trip) => ({
-      tripId: trip.tripId,
-      citizenId: trip.citizenId,
-      mode: trip.mode,
-      originBuildingId: trip.originBuildingId,
-      destinationBuildingId: trip.destinationBuildingId,
-      routeEdgeIds: trip.routeEdgeIds,
-      routeGraphRevision: trip.routeGraphRevision,
-      segmentIndex: trip.segmentIndex,
-      progressQ: trip.progressQ,
-      lastStableNodeId: trip.lastStableNodeId,
-      queuedMovement:
-        trip.queuedMovement === null
-          ? null
-          : {
-              fromEdgeId: trip.queuedMovement.fromEdgeId,
-              toEdgeId: trip.queuedMovement.toEdgeId,
-              arrivedAtGameSecond: Math.floor(trip.queuedMovement.arrivedAtTransportSecond / 4),
-            },
-      status: trip.status,
-      failureReason: trip.failureReason,
-    })),
-  });
-}
 
 function trafficV2AtMinute(
   input: Readonly<{
@@ -336,9 +302,7 @@ function planGameMinuteTransactionCore(
     const roadSource = roadTrafficSourceProvider.get(world.roads, world.environments.building);
     const mobilityTraffic = planMobilityTrafficTick({
       mobilityBefore: world.mobility,
-      trafficBefore: trafficV1View(
-        world.traffic as unknown as TrafficSnapshotV1 | TrafficSnapshotV2,
-      ),
+      trafficBefore: world.traffic as unknown as TrafficSnapshotV1 | TrafficSnapshotV2,
       citizensAfter: citizens,
       simulationBefore: world.simulation,
       simulationAfter: simulation,
@@ -415,13 +379,15 @@ function planGameMinuteTransactionCore(
             mobility: mobilityTraffic.mobility,
             traffic,
           });
+    const baseFingerprint = memoizedFingerprintCommittedWorld(world);
+    const nextFingerprint = memoizedFingerprintCommittedWorld(nextWorld);
     return Object.freeze({
       valid: true,
       invalidReason: null,
       baseWorldRevision: world.revision,
-      baseFingerprint: memoizedFingerprintCommittedWorld(world),
+      baseFingerprint,
       nextWorld,
-      nextFingerprint: memoizedFingerprintCommittedWorld(nextWorld),
+      nextFingerprint,
       buildingReceipt,
       rciReceipt,
       rciDemandContributions,

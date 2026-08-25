@@ -54,6 +54,11 @@ export const FOUNDATION_MOBILITY_SCHEDULE_POLICY_V2: FoundationMobilityScheduleP
     workStartBucketWeights: Object.freeze([15, 30, 35, 20]) as readonly [15, 30, 35, 20],
   });
 
+const DERIVED_SCHEDULE_CACHE = new WeakMap<
+  object,
+  WeakMap<object, Map<string, readonly DueMobilityBoundary[]>>
+>();
+
 function assertDayIndex(dayIndex: number): void {
   if (!Number.isSafeInteger(dayIndex) || dayIndex < 0) {
     throw new MobilityContractError('mobility:invalid-time');
@@ -218,8 +223,29 @@ export function deriveCitizenScheduleForDay(
 ): readonly DueMobilityBoundary[] {
   assertMobilityId(citizen.citizenId);
   assertDayIndex(dayIndex);
+  assertScheduleSeedVersion(scheduleSeedVersion);
+  const canReuse = Object.isFrozen(citizen) && Object.isFrozen(policy);
+  let byPolicy: WeakMap<object, Map<string, readonly DueMobilityBoundary[]>> | undefined;
+  let byDay: Map<string, readonly DueMobilityBoundary[]> | undefined;
+  const cacheKey = `${dayIndex}|${scheduleSeedVersion}`;
+  if (canReuse) {
+    byPolicy = DERIVED_SCHEDULE_CACHE.get(citizen);
+    if (byPolicy === undefined) {
+      byPolicy = new WeakMap();
+      DERIVED_SCHEDULE_CACHE.set(citizen, byPolicy);
+    }
+    byDay = byPolicy.get(policy);
+    if (byDay === undefined) {
+      byDay = new Map();
+      byPolicy.set(policy, byDay);
+    }
+    const cached = byDay.get(cacheKey);
+    if (cached !== undefined) return cached;
+  }
   if (!citizen.present || citizen.homeBuildingId === null || citizen.workBuildingId === null) {
-    return Object.freeze([]);
+    const emptySchedule = Object.freeze([]);
+    byDay?.set(cacheKey, emptySchedule);
+    return emptySchedule;
   }
   const workStart = commuteDepartureGameMinuteForCitizen(
     citizen.citizenId,
@@ -234,7 +260,7 @@ export function deriveCitizenScheduleForDay(
         policy.workDurationMinutes +
         v2ReturnJitterMinutes(citizen.citizenId, dayIndex, scheduleSeedVersion)
       : workStart + policy.workDurationMinutes;
-  return Object.freeze([
+  const schedule = Object.freeze([
     Object.freeze({
       citizenId: citizen.citizenId,
       atGameMinute: workStart,
@@ -246,4 +272,6 @@ export function deriveCitizenScheduleForDay(
       nextActivity: 'Home' as const,
     }),
   ]);
+  byDay?.set(cacheKey, schedule);
+  return schedule;
 }

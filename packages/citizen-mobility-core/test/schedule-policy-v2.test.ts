@@ -66,6 +66,22 @@ describe('Mobility schedule policy V2', () => {
     }
   });
 
+  it('reuses frozen schedule derivations for the same immutable Citizen and day', () => {
+    expect(deriveCitizenScheduleForDay(citizen, 0)).toBe(deriveCitizenScheduleForDay(citizen, 0));
+  });
+
+  it('reuses an empty schedule for an immutable Citizen without commute endpoints', () => {
+    const ineligibleCitizen = Object.freeze({
+      ...citizen,
+      homeBuildingId: null,
+      workBuildingId: null,
+    });
+
+    expect(deriveCitizenScheduleForDay(ineligibleCitizen, 0)).toBe(
+      deriveCitizenScheduleForDay(ineligibleCitizen, 0),
+    );
+  });
+
   it('does not let Citizen array iteration order change a V2 schedule', () => {
     const citizens = Object.freeze([
       citizen,

@@ -8,6 +8,12 @@ import {
 } from '../src/index.js';
 
 describe('MobilitySnapshotV1', () => {
+  it('reuses an already canonical immutable snapshot', () => {
+    const snapshot = createEmptyMobilitySnapshot();
+
+    expect(createMobilitySnapshot(snapshot)).toBe(snapshot);
+  });
+
   it('keeps one canonical sorted Citizen authority and stable fingerprint', () => {
     const snapshot = createMobilitySnapshot({
       schemaVersion: 1,

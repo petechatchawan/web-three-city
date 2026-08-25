@@ -174,7 +174,7 @@ export function isTrafficJourneyDepartureReceipt(
 export function planMobilityTrafficTick(
   input: Readonly<{
     mobilityBefore: MobilitySnapshotV1;
-    trafficBefore: TrafficSnapshotV1;
+    trafficBefore: TrafficSnapshotV1 | TrafficSnapshotV2;
     citizensAfter: readonly PresentCitizenMobilityProjection[];
     simulationBefore: SimulationSnapshot;
     simulationAfter: SimulationSnapshot;
@@ -237,15 +237,23 @@ export function planMobilityTrafficTick(
     accessPairs.map((access) => [access.buildingInstanceId, access] as const),
   );
 
-  const rebasedTrafficBefore = createTrafficSnapshot({
-    ...trafficBefore,
-    graphSourceRoadRevision: input.trafficSource.roads.roadRevision,
-    graphSourceBuildingRevision: buildingRevision,
-  });
-  const previousCostField = createTrafficProjection({
-    snapshot: rebasedTrafficBefore,
-    graph: transportGraph,
-  }).nextCostField;
+  const rebasedTrafficBefore =
+    trafficBefore.graphSourceRoadRevision === input.trafficSource.roads.roadRevision &&
+    trafficBefore.graphSourceBuildingRevision === buildingRevision
+      ? trafficBefore
+      : createTrafficSnapshot({
+          ...trafficBefore,
+          graphSourceRoadRevision: input.trafficSource.roads.roadRevision,
+          graphSourceBuildingRevision: buildingRevision,
+        });
+  let previousCostField: ReturnType<typeof createTrafficProjection>['nextCostField'] | undefined;
+  const getPreviousCostField = (): ReturnType<typeof createTrafficProjection>['nextCostField'] => {
+    previousCostField ??= createTrafficProjection({
+      snapshot: rebasedTrafficBefore,
+      graph: transportGraph,
+    }).nextCostField;
+    return previousCostField;
+  };
 
   const reconciled = reconcileMobilityCitizens({
     snapshot: input.mobilityBefore,
@@ -274,6 +282,22 @@ export function planMobilityTrafficTick(
   // its start and let the one-active-trip checks select only the current
   // desired activity. This is catch-up, not historical trip replay: each
   // citizen can still produce at most one request in this transaction.
+  const activeTripIds = new Set(
+    input.mobilityBefore.trips
+      .filter((trip) => trip.status === 'Active')
+      .map((trip) => trip.tripId),
+  );
+  const mobilityStateByCitizenId = new Map(
+    input.mobilityBefore.citizenStates.map((state) => [state.citizenId, state] as const),
+  );
+  const citizensEligibleForCatchUp = input.citizensAfter.filter((citizen) => {
+    const state = mobilityStateByCitizenId.get(citizen.citizenId);
+    return (
+      state?.activeTripId === null ||
+      state?.activeTripId === undefined ||
+      !activeTripIds.has(state.activeTripId)
+    );
+  });
   const boundaries =
     scheduledBoundaries.length > 0
       ? scheduledBoundaries
@@ -283,7 +307,7 @@ export function planMobilityTrafficTick(
             (typeof scheduledBoundaries)[number]
           >();
           for (const boundary of collectDueMobilityBoundaries({
-            citizens: input.citizensAfter,
+            citizens: citizensEligibleForCatchUp,
             fromGameMinuteExclusive: -1,
             toGameMinuteInclusive: toMinute,
           })) {
@@ -314,7 +338,7 @@ export function planMobilityTrafficTick(
       graph: transportGraph,
       elapsedSeconds,
       intervalStartGameSecond: currentGameSecond,
-      costField: previousCostField,
+      costField: getPreviousCostField(),
     });
     traffic = progressed.snapshot;
     trafficReceipts.push(Object.freeze({ kind: 'progress', ...progressed.receipt }));
@@ -368,7 +392,7 @@ export function planMobilityTrafficTick(
               destinationDriveAccessNodeId: destination.driveAccessNodeId,
               pedestrianGraph,
               vehicleGraph,
-              previousTrafficCostField: previousCostField,
+              previousTrafficCostField: getPreviousCostField(),
             });
       const mobilityCandidates = candidates.map((candidate) =>
         Object.freeze({

@@ -14,6 +14,22 @@ import { createTrafficReleaseFixture } from './traffic-release-fixture.js';
 import { decodeWorldSave } from './world-save.js';
 
 describe('Citizen Mobility & Traffic release fixture', () => {
+  it('reuses the immutable citizen projection within the same macro-hour source', () => {
+    const fixture = createTrafficReleaseFixture();
+    const first = createPresentCitizenMobilityProjection(
+      fixture.world.rci,
+      fixture.world.buildings,
+      9,
+    );
+    const second = createPresentCitizenMobilityProjection(
+      fixture.world.rci,
+      fixture.world.buildings,
+      9,
+    );
+
+    expect(second).toBe(first);
+  });
+
   it('round-trips through WorldSaveV7 with real RCI Home/Work references intact', () => {
     const fixture = createTrafficReleaseFixture();
     const decoded = decodeWorldSave(fixture.save, WORLD_CONFIG);

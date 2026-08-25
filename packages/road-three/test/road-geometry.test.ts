@@ -121,63 +121,101 @@ function boundaryVertices(mesh: RoadMeshData, axis: 'x' | 'z', value: number): r
   return Object.freeze([...vertices].sort());
 }
 
+function projectedArea(mesh: RoadMeshData): number {
+  let area = 0;
+  for (let index = 0; index < mesh.indices.length; index += 3) {
+    const first = mesh.indices[index]! * 3;
+    const second = mesh.indices[index + 1]! * 3;
+    const third = mesh.indices[index + 2]! * 3;
+    const ax = mesh.positions[first]!;
+    const az = mesh.positions[first + 2]!;
+    const bx = mesh.positions[second]!;
+    const bz = mesh.positions[second + 2]!;
+    const cx = mesh.positions[third]!;
+    const cz = mesh.positions[third + 2]!;
+    area += Math.abs(ax * (bz - cz) + bx * (cz - az) + cx * (az - bz)) / 2;
+  }
+  return area;
+}
+
+function expectedRoadFootprintArea(connections: RoadConnectionMask): number {
+  const width = BASIC_ROAD_DEFINITION.width;
+  const armLength = (WORLD_CONFIG.cellSize - width) / 2;
+  const connectionCount = [ROAD_NORTH, ROAD_EAST, ROAD_SOUTH, ROAD_WEST].filter(
+    (direction) => (connections & direction) !== 0,
+  ).length;
+  return width * width + connectionCount * width * armLength;
+}
+
 const GOLDENS = [
-  ['isolated', 0, 'flat', 'b44a68f52ff50bd95e11a02d4d1658a6dc818edf38e43c4b647c3e64b94977b6'],
+  ['isolated', 0, 'flat', 2, 'b44a68f52ff50bd95e11a02d4d1658a6dc818edf38e43c4b647c3e64b94977b6'],
   [
     'end-north',
     ROAD_NORTH,
     'flat',
-    '06ac03eb4450848f8d41af5d959ce17ecf0c957e37543a0c1d4f1a7f35421669',
+    2,
+    '3646b167fd02e7576044714b83610dc6559e276a4cd315212f590b20923916a8',
   ],
   [
     'straight-ns',
     ROAD_NORTH | ROAD_SOUTH,
     'flat',
-    '0d91801306a40dcc74333608a5f5034a90b122aa9fba86372207209b24b121c2',
+    2,
+    'f6ce92090ac2fb74ecc6c7077cba00e84a9fe590dccf91bdc983d892544ea01a',
   ],
   [
     'corner-ne',
     ROAD_NORTH | ROAD_EAST,
     'flat',
-    '97bf1b210be1cb960fbeb7943d2338fb68ebc71b7bc7c985a1269a170cecb5a3',
+    4,
+    '2a407791cac8679f91c1972afbededdf67a2dc895e9ea956fba4dfb8621c2e6a',
   ],
   [
     't-nes',
     ROAD_NORTH | ROAD_EAST | ROAD_SOUTH,
     'flat',
-    '66672bbf993b0389d24212c711529d9e969fada8285101ad0cd56d3ab272975b',
+    4,
+    '35c5990a665a369ec312a63d7a654fea1c205afad02338d93d520d83b9fde67f',
   ],
   [
     'four-way',
     ROAD_NORTH | ROAD_EAST | ROAD_SOUTH | ROAD_WEST,
     'flat',
-    'bf1179b40dbfefae6391c9c3deb456dbabaa5e6543a26fbfdd833c56c4b97378',
+    6,
+    '4677ddfc5607edb1419dd381764a5b771c7123d08aa946a344728c43baafdd6d',
   ],
   [
     'ramp-ns',
     ROAD_NORTH | ROAD_SOUTH,
     'ramp-north',
-    'c0b1acdbe03d3c5933b5565151b2c294331aac12c7367ff1d2794b39df912912',
+    2,
+    '99e7d920374b604e41619f430a1959e3de46dfbfa397c838fe111e3e4b593bf7',
   ],
   [
     'ramp-ew',
     ROAD_EAST | ROAD_WEST,
     'ramp-east',
-    '28c2a551a23b7dd8cdf7406323b9430c40e469e54cd8acb5a2b539877675e986',
+    2,
+    'e7d2d59e15a23e35e4f5b32d798fc0ad9dbef38f4901c56a63bcaf9650bd3baa',
   ],
 ] as const;
 
 describe('road geometry', () => {
-  it.each(GOLDENS)('builds stable %s geometry', (_name, mask, shape, expectedHash) => {
-    const cell = { x: 4, z: 7 };
-    const first = buildRoadCellMesh(view(cell, mask, shape), WORLD_CONFIG);
-    const second = buildRoadCellMesh(view(cell, mask, shape), WORLD_CONFIG);
+  it.each(GOLDENS)(
+    'builds stable, triangle-bounded %s geometry',
+    (_name, mask, shape, expectedTriangles, expectedHash) => {
+      const cell = { x: 4, z: 7 };
+      const first = buildRoadCellMesh(view(cell, mask, shape), WORLD_CONFIG);
+      const second = buildRoadCellMesh(view(cell, mask, shape), WORLD_CONFIG);
 
-    expectValidMesh(first, cell);
-    expect(first.positions).toEqual(second.positions);
-    expect(first.indices).toEqual(second.indices);
-    expect(geometryHash(first)).toBe(expectedHash);
-  });
+      expectValidMesh(first, cell);
+      expect(first.triangleCount).toBe(expectedTriangles);
+      expect(projectedArea(first)).toBeCloseTo(expectedRoadFootprintArea(mask), 5);
+      expect(first.positions).toEqual(second.positions);
+      expect(first.indices).toEqual(second.indices);
+      expect(geometryHash(first)).toBe(expectedHash);
+    },
+  );
 
   it('aligns exact shared-edge ports for Flat neighbors', () => {
     const west = buildRoadCellMesh(view({ x: 4, z: 4 }, ROAD_EAST), WORLD_CONFIG);

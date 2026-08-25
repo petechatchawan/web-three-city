@@ -43,8 +43,10 @@ export function planTrafficTransportTransaction(
       : input.traffic;
   let mobility = input.mobility;
   let mobilitySettlementFailed = false;
+  let removedTerminalTrip = false;
   const activeTrips = advanced.activeTrips.filter((trip) => {
     if (trip.status === 'Active') return true;
+    removedTerminalTrip = true;
     try {
       mobility = settleMobilityTrip({
         snapshot: mobility,
@@ -62,7 +64,7 @@ export function planTrafficTransportTransaction(
     return false;
   });
   const traffic =
-    advanced.schemaVersion === 2
+    advanced.schemaVersion === 2 && removedTerminalTrip
       ? createTrafficSnapshotV2({
           ...advanced,
           activeTrips: activeTrips as TrafficSnapshotV2['activeTrips'],

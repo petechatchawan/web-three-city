@@ -2,6 +2,7 @@ import { Group } from 'three';
 import {
   addTrafficInstancedRenderSet,
   createPedestrianInstancedRenderSet,
+  type TrafficSpatialRenderPolicy,
   type TrafficInstancedRenderSet,
 } from './instanced-render-batch.js';
 import { TrafficPedestrianAgent, type TrafficPedestrianVisualInput } from './pedestrian-agent.js';
@@ -19,11 +20,13 @@ export class TrafficPedestrianPool {
   #createdCount = 0;
   #reuseCount = 0;
   #disposed = false;
-  #renderSetAttached = false;
 
-  constructor(scalePolicy: TrafficVisualScalePolicy = FOUNDATION_TRAFFIC_VISUAL_SCALE_POLICY) {
+  constructor(
+    scalePolicy: TrafficVisualScalePolicy = FOUNDATION_TRAFFIC_VISUAL_SCALE_POLICY,
+    renderPolicy?: TrafficSpatialRenderPolicy,
+  ) {
     this.#scalePolicy = scalePolicy;
-    this.#renderSet = createPedestrianInstancedRenderSet(scalePolicy);
+    this.#renderSet = createPedestrianInstancedRenderSet(scalePolicy, renderPolicy);
     this.root.name = 'traffic-pedestrian-root';
     addTrafficInstancedRenderSet(this.root, this.#renderSet);
   }
@@ -38,6 +41,10 @@ export class TrafficPedestrianPool {
 
   get reuseCount(): number {
     return this.#reuseCount;
+  }
+
+  renderDebugSnapshot() {
+    return this.#renderSet.debugSnapshot();
   }
 
   has(tripId: string): boolean {
@@ -94,10 +101,6 @@ export class TrafficPedestrianPool {
   #createAgent(): TrafficPedestrianAgent {
     const created = new TrafficPedestrianAgent(this.#scalePolicy, this.#renderSet);
     this.root.add(created.object);
-    if (!this.#renderSetAttached) {
-      addTrafficInstancedRenderSet(this.root, this.#renderSet);
-      this.#renderSetAttached = true;
-    }
     this.#createdCount += 1;
     return created;
   }

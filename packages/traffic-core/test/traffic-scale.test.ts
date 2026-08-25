@@ -17,6 +17,8 @@ type ScaleApi = Readonly<{
       arbitrationResourceChecks: number;
       graphMetadataBuildCount: number;
       graphMetadataReuseCount: number;
+      flowTripVisits: number;
+      flowEdgeVisits: number;
     }>;
   }>;
   TrafficGraphMetadataCache: new () => unknown;
@@ -29,6 +31,13 @@ type ScaleApi = Readonly<{
     }>,
   ) => Readonly<{ snapshot: import('../src/index.js').TrafficSnapshotV2 }>;
   fingerprintTrafficSnapshot: (snapshot: import('../src/index.js').TrafficSnapshotV2) => string;
+  createTrafficEdgeProjections: (
+    input: Readonly<{
+      graph: TrafficGraph;
+      trips: readonly ActiveTransportTrip[];
+      scaleInstrumentation: ReturnType<ScaleApi['createTrafficScaleInstrumentation']>;
+    }>,
+  ) => readonly unknown[];
 }>;
 
 const scaleApi = trafficCore as unknown as ScaleApi;
@@ -95,6 +104,28 @@ function scaleSnapshot() {
   });
 }
 
+function flowScaleTrips(): readonly ActiveTransportTrip[] {
+  return Object.freeze(
+    Array.from({ length: SCALE_TRIP_COUNT }, (_, index) =>
+      Object.freeze({
+        tripId: `flow-trip-${String(index).padStart(5, '0')}`,
+        citizenId: `flow-citizen-${String(index).padStart(5, '0')}`,
+        mode: 'Drive' as const,
+        originBuildingId: 'home',
+        destinationBuildingId: 'work',
+        routeEdgeIds: Object.freeze([`edge-${index + 1}`]),
+        routeGraphRevision: 20,
+        segmentIndex: 0,
+        progressQ: 100_000,
+        lastStableNodeId: `node-${index + 1}`,
+        queuedMovement: null,
+        status: 'Active' as const,
+        failureReason: null,
+      }),
+    ),
+  );
+}
+
 const graph: TrafficGraph = Object.freeze({
   sourceRoadRevision: 1,
   sourceBuildingRevision: 1,
@@ -147,6 +178,24 @@ describe('Traffic production scale', () => {
     expect(projection[0]?.activeTripCount).toBe(5_000);
     expect(JSON.stringify(snapshot)).not.toContain('Object3D');
     expect(JSON.stringify(snapshot)).not.toContain('camera');
+  });
+
+  it('projects dense-graph Traffic flow with one trip pass and one edge pass', () => {
+    const instrumentation = scaleApi.createTrafficScaleInstrumentation();
+    const trips = flowScaleTrips();
+    const graph = scaleGraph();
+
+    const projection = scaleApi.createTrafficEdgeProjections({
+      graph,
+      trips,
+      scaleInstrumentation: instrumentation,
+    });
+
+    expect(projection).toHaveLength(graph.edges.length);
+    expect(instrumentation.snapshot()).toMatchObject({
+      flowTripVisits: trips.length,
+      flowEdgeVisits: graph.edges.length,
+    });
   });
 
   it('keeps 5,000 authoritative lane checks and arbitration work below all-pairs work', () => {

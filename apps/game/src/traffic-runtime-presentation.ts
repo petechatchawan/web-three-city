@@ -1,5 +1,6 @@
 import { BASIC_ROAD_DEFINITION } from '@web-three-city/road-core';
 import {
+  FOUNDATION_TRAFFIC_SPATIAL_RENDER_POLICY,
   FOUNDATION_TRAFFIC_PRESENTATION_POLICY,
   createTrafficVisualScalePolicy,
   sampleRouteEdgePosition,
@@ -50,6 +51,12 @@ export const GAME_TRAFFIC_VISUAL_SCALE_POLICY = createTrafficVisualScalePolicy(
   BASIC_ROAD_DEFINITION.width,
 );
 
+export const GAME_TRAFFIC_SPATIAL_RENDER_POLICY = Object.freeze({
+  ...FOUNDATION_TRAFFIC_SPATIAL_RENDER_POLICY,
+  minimumWorldY: WORLD_CONFIG.dioramaBaseY - WORLD_CONFIG.heightStep,
+  maximumWorldY: WORLD_CONFIG.maxHeightLevel * WORLD_CONFIG.heightStep + WORLD_CONFIG.heightStep,
+});
+
 function cellCenter(cell: CellCoord): TrafficRuntimeCameraAnchor {
   return Object.freeze({
     x: (cell.x + 0.5) * WORLD_CONFIG.cellSize - (WORLD_CONFIG.mapWidth * WORLD_CONFIG.cellSize) / 2,
@@ -99,6 +106,7 @@ export class TrafficRuntimePresentation {
       scene,
       GAME_TRAFFIC_PRESENTATION_POLICY,
       GAME_TRAFFIC_VISUAL_SCALE_POLICY,
+      GAME_TRAFFIC_SPATIAL_RENDER_POLICY,
     );
     this.#overlay = new TrafficInformationViewOverlay(scene);
   }
@@ -117,6 +125,7 @@ export class TrafficRuntimePresentation {
       roads,
       buildingAccess,
       trafficGraphs,
+      includeTrafficFlow: false,
     });
     this.#snapshotDirty = true;
     if (this.#overlay.active) this.#overlay.update(world);

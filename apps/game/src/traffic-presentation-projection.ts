@@ -192,6 +192,12 @@ function roadCellKey(x: number, z: number): string {
   return `${x},${z}`;
 }
 
+type RoadCellLookup = ReadonlyMap<string, RoadTrafficSourceProjection['cells'][number]>;
+
+function roadCellLookup(roads: RoadTrafficSourceProjection): RoadCellLookup {
+  return new Map(roads.cells.map((cell) => [roadCellKey(cell.x, cell.z), cell] as const));
+}
+
 function roadCellCoordForDriveNode(nodeId: string): Readonly<{ x: number; z: number }> {
   const match = /^drive:(\d+),(\d+)$/.exec(nodeId);
   if (match === null) throw new Error('traffic-presentation:invalid-drive-node');
@@ -200,9 +206,8 @@ function roadCellCoordForDriveNode(nodeId: string): Readonly<{ x: number; z: num
 
 function driveLaneOffsetQ(
   edge: Readonly<{ fromNodeId: string; toNodeId: string }>,
-  roads: RoadTrafficSourceProjection,
+  cells: RoadCellLookup,
 ): number {
-  const cells = new Map(roads.cells.map((cell) => [roadCellKey(cell.x, cell.z), cell] as const));
   const fromCoord = roadCellCoordForDriveNode(edge.fromNodeId);
   const toCoord = roadCellCoordForDriveNode(edge.toNodeId);
   const fromCell = cells.get(roadCellKey(fromCoord.x, fromCoord.z));
@@ -221,6 +226,7 @@ function driveLaneOffsetQ(
 function routeProjectionForGraph(
   input: Readonly<{
     roads: RoadTrafficSourceProjection;
+    roadCells: RoadCellLookup;
     graph: TrafficGraph;
     mode: 'Walk' | 'Drive';
     routeEdgeIds: readonly string[];
@@ -238,7 +244,7 @@ function routeProjectionForGraph(
   const laneOffsetsQ = input.routeEdgeIds.map((edgeId) => {
     const edge = edgeById.get(edgeId);
     if (edge === undefined) throw new Error('traffic-presentation:missing-drive-edge');
-    return driveLaneOffsetQ(edge, input.roads);
+    return driveLaneOffsetQ(edge, input.roadCells);
   });
   const directed = deriveDirectedLanePath(centerline, { laneOffsetsQ });
   return Object.freeze({
@@ -286,6 +292,101 @@ function routeDistanceForProgress(
   );
 }
 
+function routeProjectionForAgent(
+  input: Readonly<{
+    mode: 'Walk' | 'Drive';
+    roads: RoadTrafficSourceProjection;
+    roadCells: RoadCellLookup;
+    graph: TrafficGraph;
+    routeEdgeIds: readonly string[];
+  }>,
+  cache: Map<string, TrafficPresentationRouteProjection>,
+): TrafficPresentationRouteProjection {
+  const key = `${input.mode}:${input.routeEdgeIds.join('\u0000')}`;
+  const cached = cache.get(key);
+  if (cached !== undefined) return cached;
+  const route = routeProjectionForGraph(input);
+  cache.set(key, route);
+  return route;
+}
+
+function projectPresentationAgents(
+  input: Readonly<{
+    traffic: TrafficSnapshotV1;
+    roads: RoadTrafficSourceProjection;
+    roadCells: RoadCellLookup;
+    graphs: Readonly<{ walk: TrafficGraph; drive: TrafficGraph }>;
+    routeProjectionCache: Map<string, TrafficPresentationRouteProjection>;
+  }>,
+): readonly TrafficPresentationAgent[] {
+  const edgeByGraph = Object.freeze({
+    walk: new Map(input.graphs.walk.edges.map((edge) => [edge.edgeId, edge] as const)),
+    drive: new Map(input.graphs.drive.edges.map((edge) => [edge.edgeId, edge] as const)),
+  });
+  const nodeByGraph = Object.freeze({
+    walk: new Map(input.graphs.walk.nodes.map((node) => [node.nodeId, node] as const)),
+    drive: new Map(input.graphs.drive.nodes.map((node) => [node.nodeId, node] as const)),
+  });
+  const agents = input.traffic.activeTrips.flatMap((trip) => {
+    if (trip.status !== 'Active') return [];
+    const graphKey = trip.mode === 'Walk' ? 'walk' : 'drive';
+    const edgeById = edgeByGraph[graphKey];
+    const nodeById = nodeByGraph[graphKey];
+    const routeEdgeId = trip.routeEdgeIds[trip.segmentIndex];
+    if (routeEdgeId === undefined) return [];
+    const currentEdge = edgeById.get(routeEdgeId);
+    if (currentEdge === undefined) return [];
+    const fromNode = nodeById.get(currentEdge.fromNodeId);
+    const toNode = nodeById.get(currentEdge.toNodeId);
+    if (fromNode === undefined || toNode === undefined) return [];
+    const route = routeProjectionForAgent(
+      {
+        roads: input.roads,
+        roadCells: input.roadCells,
+        graph: graphKey === 'walk' ? input.graphs.walk : input.graphs.drive,
+        mode: trip.mode,
+        routeEdgeIds: trip.routeEdgeIds,
+      },
+      input.routeProjectionCache,
+    );
+    const endpoints = sourceEdgeEndpoints(route, routeEdgeId);
+    const routeDistanceMillimeters = routeDistanceForProgress(route, routeEdgeId, trip.progressQ);
+    if (endpoints === null || routeDistanceMillimeters === null) return [];
+    const tripWithAuthority = trip as unknown as Readonly<{
+      driveMovementPhase?: string;
+      entryReservationResourceIds?: readonly string[];
+      activeNodeTraversal?: Readonly<{ reservedResourceIds: readonly string[] }>;
+    }>;
+    return [
+      Object.freeze({
+        tripId: trip.tripId,
+        citizenId: trip.citizenId,
+        mode: trip.mode,
+        routeEdgeId,
+        progressQ: trip.progressQ,
+        queued: trip.queuedMovement !== null,
+        from: endpoints.from,
+        to: endpoints.to,
+        turn: null,
+        routeSegments: route.segments,
+        routeDistanceMillimeters,
+        ...(tripWithAuthority.driveMovementPhase === undefined
+          ? {}
+          : { driveMovementPhase: tripWithAuthority.driveMovementPhase }),
+        reservationResourceIds: Object.freeze([
+          ...(tripWithAuthority.entryReservationResourceIds ?? []),
+          ...(tripWithAuthority.activeNodeTraversal?.reservedResourceIds ?? []),
+        ]),
+      }),
+    ];
+  });
+  return Object.freeze(
+    agents.sort((first, second) =>
+      first.tripId < second.tripId ? -1 : first.tripId > second.tripId ? 1 : 0,
+    ),
+  );
+}
+
 export function createTrafficPresentationRouteSegments(
   input: Readonly<{
     roads: RoadTrafficSourceProjection;
@@ -295,9 +396,11 @@ export function createTrafficPresentationRouteSegments(
   }>,
 ): readonly TrafficPresentationRouteSegment[] {
   const graphs = graphsFor(input);
+  const roadCells = roadCellLookup(input.roads);
   const graph = input.mode === 'Walk' ? graphs.walk : graphs.drive;
   return routeProjectionForGraph({
     roads: input.roads,
+    roadCells,
     graph,
     mode: input.mode,
     routeEdgeIds: input.routeEdgeIds,
@@ -310,62 +413,26 @@ export function createTrafficPresentationSnapshot(
     roads: RoadTrafficSourceProjection;
     buildingAccess: BuildingTrafficAccessProjection;
     trafficGraphs?: TrafficModeGraphs;
+    includeTrafficFlow?: boolean;
   }>,
 ): TrafficPresentationSnapshot {
   const graphs = graphsFor(input);
-  const logicalTripById = new Map(
-    input.traffic.activeTrips.map((trip) => [trip.tripId, trip] as const),
-  );
-  const projection = createTrafficProjection({ snapshot: input.traffic, graph: graphs.combined });
-  const agents = projection.agents.flatMap((agent) => {
-    const logicalTrip = logicalTripById.get(agent.tripId);
-    const routeEdgeIds = logicalTrip?.routeEdgeIds ?? Object.freeze([agent.routeEdgeId]);
-    const graph = agent.mode === 'Walk' ? graphs.walk : graphs.drive;
-    const route = routeProjectionForGraph({
-      roads: input.roads,
-      graph,
-      mode: agent.mode,
-      routeEdgeIds,
-    });
-    const endpoints = sourceEdgeEndpoints(route, agent.routeEdgeId);
-    const routeDistanceMillimeters = routeDistanceForProgress(
-      route,
-      agent.routeEdgeId,
-      agent.progressQ,
-    );
-    if (endpoints === null || routeDistanceMillimeters === null) return [];
-    const tripWithAuthority = logicalTrip as unknown as
-      | Readonly<{
-          driveMovementPhase?: string;
-          entryReservationResourceIds?: readonly string[];
-          activeNodeTraversal?: Readonly<{ reservedResourceIds: readonly string[] }>;
-        }>
-      | undefined;
-    return [
-      Object.freeze({
-        ...agent,
-        from: endpoints.from,
-        to: endpoints.to,
-        turn: null,
-        routeSegments: route.segments,
-        routeDistanceMillimeters,
-        ...(tripWithAuthority?.driveMovementPhase === undefined
-          ? {}
-          : { driveMovementPhase: tripWithAuthority.driveMovementPhase }),
-        ...(tripWithAuthority === undefined
-          ? {}
-          : {
-              reservationResourceIds: Object.freeze([
-                ...(tripWithAuthority.entryReservationResourceIds ?? []),
-                ...(tripWithAuthority.activeNodeTraversal?.reservedResourceIds ?? []),
-              ]),
-            }),
-      }),
-    ];
+  const roadCells = roadCellLookup(input.roads);
+  const routeProjectionCache = new Map<string, TrafficPresentationRouteProjection>();
+  const agents = projectPresentationAgents({
+    traffic: input.traffic,
+    roads: input.roads,
+    roadCells,
+    graphs,
+    routeProjectionCache,
   });
+  const flowProjection =
+    input.includeTrafficFlow === false
+      ? null
+      : createTrafficProjection({ snapshot: input.traffic, graph: graphs.combined });
   return Object.freeze({
     trafficRevision: input.traffic.revision,
     agents: Object.freeze(agents),
-    edges: projection.edges,
+    edges: flowProjection?.edges ?? Object.freeze([]),
   });
 }

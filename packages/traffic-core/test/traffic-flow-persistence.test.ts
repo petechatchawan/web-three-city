@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 import {
   advanceTrafficSnapshot,
   applyRouteRecovery,
+  compareTrafficId,
   createActiveTransportTrip,
   createEmptyTrafficSnapshot,
   createTrafficEdgeProjections,
   createTrafficSnapshot,
+  projectTrafficEdgeFlow,
   decodeTrafficSaveV1,
   encodeTrafficSaveV1,
   fingerprintTrafficSnapshot,
@@ -86,6 +88,29 @@ function trip(id: string): ActiveTransportTrip {
 }
 
 describe('Traffic flow and persistence', () => {
+  it('matches the per-edge reference projection exactly for mixed active and queued state', () => {
+    const queued = Object.freeze({
+      ...trip('queued'),
+      queuedMovement: Object.freeze({
+        fromEdgeId: 'ab',
+        toEdgeId: 'bc',
+        arrivedAtGameSecond: 100,
+      }),
+    });
+    const terminal = Object.freeze({
+      ...trip('terminal'),
+      status: 'Arrived' as const,
+    });
+    const trips = Object.freeze([trip('active-b'), terminal, queued, trip('active-a')]);
+    const expected = Object.freeze(
+      graph.edges
+        .map((edge) => projectTrafficEdgeFlow(edge, trips))
+        .sort((first, second) => compareTrafficId(first.edgeId, second.edgeId)),
+    );
+
+    expect(createTrafficEdgeProjections({ graph, trips })).toEqual(expected);
+  });
+
   it('does not advance committed Traffic revision while no trips are active', () => {
     const snapshot = createEmptyTrafficSnapshot({ roadRevision: 1, buildingRevision: 1 });
     const result = advanceTrafficSnapshot({

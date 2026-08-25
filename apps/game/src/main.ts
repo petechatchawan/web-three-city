@@ -70,6 +70,7 @@ interface TrafficTestApi {
     readonly mobility: ReturnType<ReturnType<typeof bootstrapGame>['snapshot']>['mobility'];
     readonly traffic: ReturnType<ReturnType<typeof bootstrapGame>['snapshot']>['traffic'];
     readonly presentation: ReturnType<TrafficRuntimePresentation['debugSnapshot']> | null;
+    readonly render: ReturnType<ReturnType<typeof bootstrapGame>['renderStatsForTest']>;
   }>;
   readonly installReleaseFixture: () => TrafficReleaseFixtureSummary;
   readonly installRoadRecoveryFixture: () => TrafficRecoveryFixtureSummary;
@@ -295,6 +296,7 @@ timeWindow.__WEB_THREE_CITY_TRAFFIC__ = Object.freeze({
       mobility: world.mobility,
       traffic: world.traffic,
       presentation: trafficRuntime?.debugSnapshot() ?? null,
+      render: runtime.renderStatsForTest(),
     });
   },
   installReleaseFixture(): TrafficReleaseFixtureSummary {

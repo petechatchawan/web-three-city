@@ -1,6 +1,7 @@
 export * from './cubic-motion-curve.js';
 export * from './directed-lane-path.js';
 export * from './intersection-lane-connector.js';
+export * from './instanced-render-batch.js';
 export * from './materialization-policy.js';
 export * from './pedestrian-agent.js';
 export * from './pedestrian-appearance.js';

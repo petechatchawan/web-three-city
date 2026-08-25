@@ -7,7 +7,7 @@ import { createRoadMaterials } from './material-factory.js';
 import { mergeRoadCellMeshes } from './road-geometry.js';
 import type { RoadMeshData } from './road-mesh-data.js';
 
-const RENDER_PAGE_CHUNK_SPAN = 2;
+const RENDER_PAGE_CHUNK_SPAN = 4;
 
 export interface RoadPresentationSource {
   buildChunk(
@@ -175,7 +175,10 @@ export class RoadChunkPresentation {
       ),
     );
     if (data.positions.length > 0) {
-      group.add(new THREE.Mesh(createRoadGeometry(data), this.#materials.committed));
+      const mesh = new THREE.Mesh(createRoadGeometry(data), this.#materials.committed);
+      mesh.name = `road-page-surface:${pageKey(page)}`;
+      mesh.frustumCulled = true;
+      group.add(mesh);
     }
     return group;
   }

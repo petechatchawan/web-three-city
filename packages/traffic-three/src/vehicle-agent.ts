@@ -13,6 +13,7 @@ import {
 import type {
   TrafficInstancedRenderHandle,
   TrafficInstancedRenderSet,
+  TrafficRenderTier,
 } from './instanced-render-batch.js';
 
 export interface TrafficVehicleTurnInput {
@@ -31,6 +32,7 @@ export interface TrafficVehicleVisualInput {
   readonly from: TrafficWorldPointQ;
   readonly to: TrafficWorldPointQ;
   readonly turn?: TrafficVehicleTurnInput | null;
+  readonly tier?: TrafficRenderTier;
 }
 
 export class TrafficVehicleAgent {
@@ -96,6 +98,7 @@ export class TrafficVehicleAgent {
   }
 
   updateSourceState(input: TrafficVehicleVisualInput): void {
+    if (input.tier !== undefined) this.setRenderTier(input.tier);
     const turn = input.turn ?? null;
     const position =
       turn === null
@@ -117,6 +120,11 @@ export class TrafficVehicleAgent {
 
   setVisualState(queued: boolean, turning: boolean): void {
     this.object.userData.trafficVisualState = queued ? 'Stop' : turning ? 'Turn' : 'Drive';
+  }
+
+  setRenderTier(tier: TrafficRenderTier): void {
+    this.#renderHandle?.setTier(tier);
+    this.object.userData.trafficLodTier = tier;
   }
 
   release(): void {
@@ -146,7 +154,7 @@ export class TrafficVehicleAgent {
     if (this.#tripId !== null) throw new Error('traffic-three:vehicle-bind-active');
     const appearance = vehicleAppearanceForTrip(input.tripId, input.citizenId);
     if (this.#renderSet !== null) {
-      this.#renderHandle = this.#renderSet.acquire((slot) => {
+      this.#renderHandle = this.#renderSet.acquire(input.tier ?? 'Near', (slot) => {
         this.object.userData.trafficRenderSlot = slot ?? undefined;
       });
       this.#renderHandle.setColors(appearance.bodyColor, 0x9da9b0);

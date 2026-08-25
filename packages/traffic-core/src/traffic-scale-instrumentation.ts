@@ -5,6 +5,8 @@ export interface TrafficScaleWorkSnapshot {
   readonly arbitrationResourceChecks: number;
   readonly graphMetadataBuildCount: number;
   readonly graphMetadataReuseCount: number;
+  readonly flowTripVisits: number;
+  readonly flowEdgeVisits: number;
 }
 
 /**
@@ -18,6 +20,8 @@ export class TrafficScaleInstrumentation {
   #arbitrationResourceChecks = 0;
   #graphMetadataBuildCount = 0;
   #graphMetadataReuseCount = 0;
+  #flowTripVisits = 0;
+  #flowEdgeVisits = 0;
 
   recordLaneBucketTripWrite(): void {
     this.#laneBucketTripWrites += 1;
@@ -43,6 +47,14 @@ export class TrafficScaleInstrumentation {
     this.#graphMetadataReuseCount += 1;
   }
 
+  recordFlowTripVisit(): void {
+    this.#flowTripVisits += 1;
+  }
+
+  recordFlowEdgeVisit(): void {
+    this.#flowEdgeVisits += 1;
+  }
+
   snapshot(): TrafficScaleWorkSnapshot {
     return Object.freeze({
       laneBucketTripWrites: this.#laneBucketTripWrites,
@@ -51,6 +63,8 @@ export class TrafficScaleInstrumentation {
       arbitrationResourceChecks: this.#arbitrationResourceChecks,
       graphMetadataBuildCount: this.#graphMetadataBuildCount,
       graphMetadataReuseCount: this.#graphMetadataReuseCount,
+      flowTripVisits: this.#flowTripVisits,
+      flowEdgeVisits: this.#flowEdgeVisits,
     });
   }
 }

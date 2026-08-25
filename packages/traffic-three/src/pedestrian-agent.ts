@@ -19,6 +19,7 @@ import {
 import type {
   TrafficInstancedRenderHandle,
   TrafficInstancedRenderSet,
+  TrafficRenderTier,
 } from './instanced-render-batch.js';
 
 export interface TrafficPedestrianVisualInput {
@@ -29,6 +30,7 @@ export interface TrafficPedestrianVisualInput {
   readonly queued: boolean;
   readonly from: TrafficWorldPointQ;
   readonly to: TrafficWorldPointQ;
+  readonly tier?: TrafficRenderTier;
 }
 
 export class TrafficPedestrianAgent {
@@ -83,6 +85,7 @@ export class TrafficPedestrianAgent {
   }
 
   updateSourceState(input: TrafficPedestrianVisualInput): void {
+    if (input.tier !== undefined) this.setRenderTier(input.tier);
     const position = sampleRouteEdgePosition(input.from, input.to, input.progressQ);
     this.setTransform(position, headingRadians(input.from, input.to));
     this.object.userData.routeEdgeId = input.routeEdgeId;
@@ -97,6 +100,11 @@ export class TrafficPedestrianAgent {
 
   setVisualState(queued: boolean): void {
     this.object.userData.trafficVisualState = queued ? 'Idle' : 'Walk';
+  }
+
+  setRenderTier(tier: TrafficRenderTier): void {
+    this.#renderHandle?.setTier(tier);
+    this.object.userData.trafficLodTier = tier;
   }
 
   release(): void {
@@ -126,7 +134,7 @@ export class TrafficPedestrianAgent {
     if (this.#tripId !== null) throw new Error('traffic-three:pedestrian-bind-active');
     const appearance = pedestrianAppearanceForCitizen(input.citizenId);
     if (this.#renderSet !== null) {
-      this.#renderHandle = this.#renderSet.acquire((slot) => {
+      this.#renderHandle = this.#renderSet.acquire(input.tier ?? 'Near', (slot) => {
         this.object.userData.trafficRenderSlot = slot ?? undefined;
       });
       this.#renderHandle.setColors(appearance.clothingColor, appearance.accentColor);

@@ -6,6 +6,7 @@ import {
   type TrafficFlowPolicyV1,
 } from './traffic-flow.js';
 import type { TrafficSnapshotV1 } from './traffic-snapshot.js';
+import type { TrafficScaleInstrumentation } from './traffic-scale-instrumentation.js';
 
 export interface TrafficAgentProjection {
   readonly tripId: string;
@@ -28,12 +29,16 @@ export function createTrafficProjection(
     snapshot: TrafficSnapshotV1;
     graph: TrafficGraph;
     flowPolicy?: TrafficFlowPolicyV1;
+    scaleInstrumentation?: TrafficScaleInstrumentation;
   }>,
 ): TrafficProjection {
   const edges = createTrafficEdgeProjections({
     graph: input.graph,
     trips: input.snapshot.activeTrips,
     ...(input.flowPolicy === undefined ? {} : { policy: input.flowPolicy }),
+    ...(input.scaleInstrumentation === undefined
+      ? {}
+      : { scaleInstrumentation: input.scaleInstrumentation }),
   });
   const agents = input.snapshot.activeTrips
     .filter((trip) => trip.status === 'Active')

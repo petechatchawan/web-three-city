@@ -56,13 +56,13 @@ describe('RoadChunkPresentation render pages', () => {
     presentation.loadAll(createEmptyRoadSnapshot(WORLD_CONFIG), environment);
 
     const pages = committedPages(scene);
-    expect(pages).toHaveLength(16);
+    expect(pages).toHaveLength(4);
     expect(pages.every((page) => page.name.startsWith('road-page:'))).toBe(true);
     expect(presentation.getChunkObject({ x: 0, z: 0 })).toBe(
-      presentation.getChunkObject({ x: 1, z: 1 }),
+      presentation.getChunkObject({ x: 3, z: 3 }),
     );
     expect(presentation.getChunkObject({ x: 0, z: 0 })).not.toBe(
-      presentation.getChunkObject({ x: 2, z: 0 }),
+      presentation.getChunkObject({ x: 4, z: 0 }),
     );
 
     presentation.dispose();
@@ -77,7 +77,13 @@ describe('RoadChunkPresentation render pages', () => {
     expect(page.children).toHaveLength(1);
     const mesh = page.children[0];
     expect(mesh).toBeInstanceOf(THREE.Mesh);
-    expect((mesh as THREE.Mesh).geometry.getAttribute('position').count).toBe(12);
+    const committed = mesh as THREE.Mesh;
+    expect(committed.geometry.getAttribute('position').count).toBe(48);
+    expect(committed.material).toBeInstanceOf(THREE.MeshBasicMaterial);
+    expect((committed.material as THREE.MeshBasicMaterial).side).toBe(THREE.FrontSide);
+    expect(committed.frustumCulled).toBe(true);
+    expect(committed.geometry.boundingBox).not.toBeNull();
+    expect(committed.geometry.boundingSphere).not.toBeNull();
 
     presentation.dispose();
   });
@@ -98,9 +104,9 @@ describe('RoadChunkPresentation render pages', () => {
       { x: 0, z: 0 },
     ]);
 
-    expect(calls).toEqual(['0:0', '1:0', '0:1', '1:1']);
+    expect(calls).toHaveLength(16);
     expect(presentation.getChunkObject({ x: 0, z: 0 })).not.toBe(firstPage);
-    expect(presentation.getChunkObject({ x: 1, z: 1 })).toBe(
+    expect(presentation.getChunkObject({ x: 3, z: 3 })).toBe(
       presentation.getChunkObject({ x: 0, z: 0 }),
     );
     expect(presentation.getChunkObject({ x: 4, z: 0 })).toBe(unaffectedPage);
@@ -119,10 +125,10 @@ describe('RoadChunkPresentation render pages', () => {
 
     presentation.rebuildDirty(roads, environment, [
       { x: 0, z: 0 },
-      { x: 2, z: 0 },
+      { x: 4, z: 0 },
     ]);
 
-    expect(calls).toHaveLength(8);
+    expect(calls).toHaveLength(32);
     expect(presentation.getChunkObject({ x: 4, z: 4 })).toBe(unchanged);
     presentation.dispose();
   });

@@ -146,6 +146,13 @@ export type CommittedWorldSubscriber = (
 export type WorldSelectionSubscriber = (cell: CellCoord) => void;
 export type InformationViewKey = 'grid' | 'zoning' | null;
 
+export interface GameRenderStatsForTest {
+  readonly calls: number;
+  readonly triangles: number;
+  readonly roadPageCount: number;
+  readonly roadRenderableCount: number;
+}
+
 export interface GameRuntime {
   snapshot(): CommittedWorld;
   /** Read-only test seam; callers must not retain or mutate the internal world. */
@@ -173,6 +180,8 @@ export interface GameRuntime {
   resetCamera(): void;
   toggleGrid(): void;
   setQuality(quality: QualityLevel): void;
+  /** Read-only render counters for browser performance evidence. */
+  renderStatsForTest(): GameRenderStatsForTest;
   undo(): void;
   dispose(): void;
 }
@@ -446,6 +455,12 @@ export function bootstrapGame(
       resetCamera: () => undefined,
       toggleGrid: () => undefined,
       setQuality: () => undefined,
+      renderStatsForTest: () => ({
+        calls: 0,
+        triangles: 0,
+        roadPageCount: 0,
+        roadRenderableCount: 0,
+      }),
       undo: () => undefined,
       dispose(): void {
         subscribers.clear();
@@ -1358,6 +1373,22 @@ export function bootstrapGame(
     animationFrame = window.requestAnimationFrame(render);
   };
 
+  const renderStatsForTest = (): GameRenderStatsForTest => {
+    const roadRoot = scene.getObjectByName('road-committed-root');
+    let roadRenderableCount = 0;
+    if (roadRoot !== undefined) {
+      roadRoot.traverse((object) => {
+        if (object instanceof THREE.Mesh) roadRenderableCount += 1;
+      });
+    }
+    return Object.freeze({
+      calls: renderer.info.render.calls,
+      triangles: renderer.info.render.triangles,
+      roadPageCount: roadRoot?.children.length ?? 0,
+      roadRenderableCount,
+    });
+  };
+
   host.setUndoAvailable(false);
   host.setStatus('Ready');
   render();
@@ -1410,6 +1441,7 @@ export function bootstrapGame(
     resetCamera,
     toggleGrid,
     setQuality: applyQuality,
+    renderStatsForTest,
     undo: undoLatest,
     dispose,
   };

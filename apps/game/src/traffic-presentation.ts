@@ -16,6 +16,8 @@ import {
   type PreparedTrafficRoute,
   type TrafficPedestrianAgent,
   type TrafficPresentationPolicy,
+  type TrafficRenderDebugSnapshot,
+  type TrafficSpatialRenderPolicy,
   type TrafficVehicleAgent,
   type TrafficVisualScalePolicy,
   type VehicleKinematicsState,
@@ -150,6 +152,18 @@ function isTurningMovement(value: string | undefined): boolean {
   return value === 'turn-left' || value === 'turn-right';
 }
 
+function combineRenderDebug(
+  pedestrians: TrafficRenderDebugSnapshot,
+  vehicles: TrafficRenderDebugSnapshot,
+): TrafficRenderDebugSnapshot {
+  return Object.freeze({
+    occupiedRegionCount: Math.max(pedestrians.occupiedRegionCount, vehicles.occupiedRegionCount),
+    nearInstanceCount: pedestrians.nearInstanceCount + vehicles.nearInstanceCount,
+    midInstanceCount: pedestrians.midInstanceCount + vehicles.midInstanceCount,
+    renderableBatchCount: pedestrians.renderableBatchCount + vehicles.renderableBatchCount,
+  });
+}
+
 export class TrafficPresentation {
   readonly #pedestrians: TrafficPedestrianPool;
   readonly #vehicles: TrafficVehiclePool;
@@ -175,10 +189,11 @@ export class TrafficPresentation {
     scene: Scene,
     policy: TrafficPresentationPolicy = FOUNDATION_TRAFFIC_PRESENTATION_POLICY,
     visualScalePolicy: TrafficVisualScalePolicy = FOUNDATION_TRAFFIC_VISUAL_SCALE_POLICY,
+    renderPolicy?: TrafficSpatialRenderPolicy,
   ) {
     this.#policy = policy;
-    this.#pedestrians = new TrafficPedestrianPool(visualScalePolicy);
-    this.#vehicles = new TrafficVehiclePool(visualScalePolicy);
+    this.#pedestrians = new TrafficPedestrianPool(visualScalePolicy, renderPolicy);
+    this.#vehicles = new TrafficVehiclePool(visualScalePolicy, renderPolicy);
     scene.add(this.#pedestrians.root, this.#vehicles.root);
   }
 
@@ -296,8 +311,10 @@ export class TrafficPresentation {
             queued: agent.queued,
             from: agent.from,
             to: agent.to,
+            tier: selected.tier,
           });
         }
+        visual.setRenderTier(selected.tier);
         visual.object.userData.routeEdgeId = agent.routeEdgeId;
         visual.object.userData.trafficLodTier = selected.tier;
         visual.setVisualState(agent.queued);
@@ -331,8 +348,10 @@ export class TrafficPresentation {
           from: agent.from,
           to: agent.to,
           turn: agent.turn,
+          tier: selected.tier,
         });
       }
+      visual.setRenderTier(selected.tier);
       visual.object.userData.routeEdgeId = agent.routeEdgeId;
       visual.object.userData.trafficLodTier = selected.tier;
       const motion = this.#reconcileVehicleMotion(
@@ -401,6 +420,10 @@ export class TrafficPresentation {
               reservationResourceIds: Object.freeze([...(agent.reservationResourceIds ?? [])]),
             }),
           ),
+      ),
+      render: combineRenderDebug(
+        this.#pedestrians.renderDebugSnapshot(),
+        this.#vehicles.renderDebugSnapshot(),
       ),
     });
   }
@@ -527,6 +550,10 @@ export class TrafficPresentation {
       frameSampleCount: this.#frameSampleCount,
       preparedRouteCount: this.#preparedRouteCount,
       lastFrameTimestampMs: this.#lastFrameTimestampMs,
+      render: combineRenderDebug(
+        this.#pedestrians.renderDebugSnapshot(),
+        this.#vehicles.renderDebugSnapshot(),
+      ),
     });
   }
 

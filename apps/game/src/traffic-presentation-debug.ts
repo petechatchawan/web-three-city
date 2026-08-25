@@ -1,3 +1,5 @@
+import type { TrafficRenderDebugSnapshot } from '@web-three-city/traffic-three';
+
 export interface TrafficPresentationDebugSnapshot {
   readonly trafficRevision: number;
   readonly logicalActiveTrips: number;
@@ -21,6 +23,7 @@ export interface TrafficPresentationDebugSnapshot {
     readonly driveMovementPhase: string;
     readonly reservationResourceIds: readonly string[];
   }>[];
+  readonly render: TrafficRenderDebugSnapshot;
 }
 
 export const EMPTY_TRAFFIC_PRESENTATION_DEBUG: TrafficPresentationDebugSnapshot = Object.freeze({
@@ -42,4 +45,10 @@ export const EMPTY_TRAFFIC_PRESENTATION_DEBUG: TrafficPresentationDebugSnapshot 
   preparedRouteCount: 0,
   lastFrameTimestampMs: -1,
   canonicalActiveDrives: Object.freeze([]),
+  render: Object.freeze({
+    occupiedRegionCount: 0,
+    nearInstanceCount: 0,
+    midInstanceCount: 0,
+    renderableBatchCount: 0,
+  }),
 });

@@ -33,6 +33,17 @@ Behavior/public-contract changes update their living system README in the same i
 
 The Level 2 table in `AGENTS.md` is conservative verification policy, not the architectural dependency graph. Workspace dependency changes that alter consumers must update that table in the same PR. Current package manifests remain the factual input used to review the map.
 
+## Verification Infrastructure Foundation (PR-T2)
+
+PR-T2 adds a deterministic changed-source impact resolver under `tooling/verification/`
+and a `pnpm verify:impact` preview command. It answers "from these changed files, what
+verification must run?" with a fail-safe escalation model. It does not migrate, remove,
+or reduce any Playwright/browser coverage, and does not change CI gate execution,
+workers, retries, or browser configuration. See
+[Verification Infrastructure Model](verification-model.md) for the risk classification,
+ownership model, escalation rules, and non-goals. The foundation is the basis for
+PR-T3 Browser Classification / Migration.
+
 ## Current Limitations / Deferred
 
 v0.2 intentionally does not:

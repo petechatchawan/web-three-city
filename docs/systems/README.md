@@ -51,7 +51,7 @@ Git does not retain empty directories. Create a subdirectory when its first arti
 | [Citizen Mobility](citizen-mobility/README.md) | Implemented — v0.1 release candidate | `citizen-mobility-core`; `apps/game` orchestration | `MobilitySaveV1` / `WorldSaveV7` |
 | [Traffic](traffic/README.md) | Implemented — v0.1 release candidate | `traffic-core`, `traffic-three`; `apps/game` orchestration | `TrafficSaveV1` / `WorldSaveV7` |
 | [City UI](city-ui/README.md) | Implemented | `apps/game` presentation | None; session-only presentation state |
-| [Development Workflow](development-workflow/README.md) | Implemented | root configuration, `.github/`, `AGENTS.md`, development docs | Git-tracked configuration and documentation |
+| [Development Workflow](development-workflow/README.md) | Implemented | root configuration, `.github/`, `AGENTS.md`, development docs, `tooling/verification/` impact resolver | Git-tracked configuration and documentation |
 | [Architecture & Infrastructure](architecture-infrastructure/README.md) | Implemented, CLOSED / PASS | repository architecture, application orchestration, verification infrastructure | Git-tracked configuration and documentation |
 | [Documentation](documentation/README.md) | Implemented on this branch | repository documentation | Git history |
 

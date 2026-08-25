@@ -22,11 +22,12 @@
     "test": "pnpm -r --if-present test",
     "test:watch": "pnpm -r --if-present test:watch",
     "test:coverage": "pnpm -r --if-present test:coverage",
-    "test:deployment": "node --test tooling/architecture-boundary.test.mjs tooling/test-topology.test.mjs tooling/ci-topology.test.mjs tooling/development-workflow.test.mjs tooling/compose-vercel-output.test.mjs tooling/bootstrap-vercel-project.test.mjs tooling/verification-scripts.test.mjs tooling/verify-clean-worktree.test.mjs",
+    "test:deployment": "node --test tooling/architecture-boundary.test.mjs tooling/test-topology.test.mjs tooling/ci-topology.test.mjs tooling/development-workflow.test.mjs tooling/compose-vercel-output.test.mjs tooling/bootstrap-vercel-project.test.mjs tooling/verification-scripts.test.mjs tooling/verify-clean-worktree.test.mjs tooling/verification-resolver.test.mjs",
     "test:browser": "pnpm build:browser && playwright test",
     "test:browser:only": "playwright test",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm provenance:check && pnpm test:deployment && pnpm test && pnpm build",
     "verify": "pnpm check",
+    "verify:impact": "node tooling/verify-impact.mjs",
     "verify:full": "pnpm install --frozen-lockfile && pnpm verify && pnpm exec playwright install chromium && pnpm test:browser:only && node tooling/verify-clean-worktree.mjs"
   },
   "devDependencies": {

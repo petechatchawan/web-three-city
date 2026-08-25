@@ -42,6 +42,21 @@ describe('WorldTransactionCoordinator', () => {
     expect(cache.shouldValidate(changedStaticWorld)).toBe(true);
   });
 
+  it('forks validated static authority for an atomic batch without mutating the source cache', () => {
+    const initial = createApplicationFixture();
+    const changedStaticWorld = createApplicationFixture({ applicationRevision: 1 });
+    const cache = new StaticWorldValidationCache();
+    cache.markValidated(initial);
+
+    const batchCache = cache.fork();
+    expect(batchCache.shouldValidate(initial)).toBe(false);
+    expect(batchCache.shouldValidate(changedStaticWorld)).toBe(true);
+
+    batchCache.markValidated(changedStaticWorld);
+    expect(batchCache.shouldValidate(changedStaticWorld)).toBe(false);
+    expect(cache.shouldValidate(changedStaticWorld)).toBe(true);
+  });
+
   it('rejects stale content without changing committed authority', () => {
     const initial = createApplicationFixture();
     const store = new CommittedWorldStore(initial);

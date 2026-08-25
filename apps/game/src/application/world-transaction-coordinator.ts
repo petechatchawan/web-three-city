@@ -104,6 +104,12 @@ function sameStaticAuthority(first: CommittedWorld, second: CommittedWorld): boo
 export class StaticWorldValidationCache {
   #validatedWorld: CommittedWorld | null = null;
 
+  fork(): StaticWorldValidationCache {
+    const fork = new StaticWorldValidationCache();
+    fork.#validatedWorld = this.#validatedWorld;
+    return fork;
+  }
+
   shouldValidate(world: CommittedWorld): boolean {
     return this.#validatedWorld === null || !sameStaticAuthority(this.#validatedWorld, world);
   }
@@ -296,7 +302,7 @@ export class DefaultWorldTransactionCoordinator implements WorldTransactionCoord
 
     let current = original;
     const candidates: CommittedWorld[] = [];
-    const batchValidationCache = new StaticWorldValidationCache();
+    const batchValidationCache = this.#staticValidationCache.fork();
     for (const plan of plans) {
       const currentFingerprint = fingerprintCommittedWorld(current);
       const staleReason = publicationStaleReason(plan, current, currentFingerprint);
@@ -309,6 +315,9 @@ export class DefaultWorldTransactionCoordinator implements WorldTransactionCoord
         return rejected(this.#worldStore.snapshot(), 'world:invalid-candidate');
       }
       candidates.push(candidate);
+      // The next quantum reuses this candidate's immutable static authority. Mark it
+      // immediately so Q1–Q4 do not repeat the full map-wide static validation pass.
+      batchValidationCache.markValidated(candidate);
       current = candidate;
     }
 

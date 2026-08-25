@@ -1,6 +1,6 @@
 # Production Rendering Rewrite v1 Verification
 
-Status: **STRUCTURAL GREEN; METAL RELEASE RETEST REQUIRED**
+Status: **STRUCTURAL GREEN; METAL PERFORMANCE GATE NOT PASSING**
 Date: 2026-08-25
 Branch: `feat/motion-junction-realism-v1`
 Source-tested SHA: `346b4a93a2d724cc2a0c95297743979c0c9935dc`
@@ -26,13 +26,12 @@ Documentation closure: docs-only commit after the source-tested SHA
 - `pnpm --filter @web-three-city/road-three test`: 9 files, 40/40 GREEN.
 - `pnpm --filter @web-three-city/road-three typecheck`: GREEN.
 - focused 5,000-trip Game fixture: 1/1 GREEN.
-- focused rerun of four initially resource-contended Game files: 4 files,
-  17/17 GREEN.
 - sequential full Game: 98 files, 401/401 GREEN; typecheck GREEN.
 - `pnpm --filter @web-three-city/terrain-lab typecheck`: GREEN.
 - targeted structural Chromium release fixture: 1/1 GREEN (fresh run after
   the source checkpoint).
-- targeted Chromium Traffic commute + Road visibility: 3/3 GREEN (1.2m).
+- targeted Chromium `@traffic|@road`: 60 passed, 1 skipped (2.3m); the
+  skipped test is the Metal-only release floor.
 - browser-test typecheck and Game/Terrain Lab production builds: GREEN.
 - ESLint, Prettier check, and `git diff --check`: GREEN.
 
@@ -47,10 +46,14 @@ against budgets of `2/2/4/4/6/2`; GREEN passes the budgets, deterministic
 goldens, projected-footprint area, shared-port, full `road-three` 40/40, Road
 visibility pixels, and affected Game 401/401 checks.
 
-The first parallel full-Game run produced five 5-second timeouts while several
-package/typecheck jobs competed for the same host. The same four files passed
-17/17 in isolation, and the sequential full Game suite then passed 396/396;
-there was no assertion-level regression.
+The unfiltered Full Browser closure run used one worker and 149 tests. It
+finished with 132 passed, 16 failed, and 1 skipped. The 16 failures were
+reproduced in representative groups on the remote baseline `eec1eb2`:
+Growth/save timing and save-localStorage failures, the existing Build Road /
+Local Street context expectation mismatch, and zoning terrain-projection
+failures. They are therefore recorded as pre-existing baseline failures, not
+as new Traffic/Road rendering regressions. The current source-owned targeted
+Traffic/Road browser subset remains GREEN.
 
 ## Release authority status
 
@@ -126,23 +129,40 @@ Road density, pixel ratio, shadows, or release threshold was changed to conceal
 the failure. The approved presentation rewrite does not authorize remediation
 of the temporal authority hotspot.
 
-Final release measurement has not yet been admitted. The explicit Metal
-authority runs on this M4 were performed while unrelated user-owned Chrome,
-VS Code, Zed, and WindowServer processes were active; host load was above the
-10 logical CPUs. Three paused windows reported p95 `66.7ms`, `50.4ms`, and
-`50.1ms`, with `>100ms` counts `17`, `3`, and `4`. These samples cannot
-establish application PASS or FAIL. SwiftShader remains correctness authority,
-not product-performance authority. The agent did not terminate user-owned
-processes or average contaminated runs into a PASS.
+The explicit Metal authority run used the corrected Playwright backend
+selection (`WEB_THREE_CITY_ANGLE_BACKEND=metal`) with three fresh paused and
+three fresh x1 samples, 600 measured frames per sample, 5,000 logical trips,
+and one worker. It ran while user-owned Chrome/VS Code/Zed/WindowServer
+processes remained active, so it is host-contended and not admitted as a
+device-quality verdict. The observed samples were:
+
+| Mode | p50 | p95 | max | `>100ms` | revision/game-minute delta |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| paused 1 | 16.7ms | 33.4ms* | 50.1ms | 0 | 0 / 0 |
+| paused 2 | 16.7ms | 33.4ms* | 50.0ms | 0 | 0 / 0 |
+| paused 3 | 16.8ms | 33.7ms | 67.2ms | 0 | 0 / 0 |
+| x1 1 | 17.4ms | 34.3ms | 433.3ms | 21 | +135 / +27 |
+| x1 2 | 33.1ms | 34.3ms | 450.0ms | 25 | +165 / +33 |
+| x1 3 | 33.2ms | 50.0ms | 533.2ms | 26 | +175 / +35 |
+
+`*` is numerically just over `33.4` because of raw rAF floating-point
+precision (`33.400000000001...`); the release assertion intentionally did not
+round it. The x1 samples independently violate both the unchanged p95 floor
+and the no-recurring-`>100ms` criterion. The official policy is therefore:
+SwiftShader is correctness/structural authority; M4/Metal is the product
+performance authority; this host-contended run is evidence for retest, not a
+PASS and not a basis for another renderer rewrite.
 
 Consequently:
 
-- paused/x1 Metal `p95 <= 33.4ms`: **NOT ESTABLISHED**;
-- recurring `>100ms` criterion: **NOT ESTABLISHED for x1**;
+- paused/x1 Metal `p95 <= 33.4ms`: **NOT PASSING / uncontended retest still
+  required**;
+- recurring `>100ms` criterion: **FAIL in the recorded x1 run; device-quality
+  attribution is not admitted because the host was contended**;
 - `pnpm check`: **GREEN** at source SHA `346b4a9`;
 - default SwiftShader structural browser evidence: **GREEN**;
-- push, exact-head CI, Sonar, and Owner Visual retest: **BLOCKED pending
-  uncontended Metal release evidence**.
+- push, exact-head CI, Sonar, and Owner Visual retest: **BLOCKED pending a
+  quiet/uncontended Metal release run and explicit gate disposition**.
 
 ## Required final run
 

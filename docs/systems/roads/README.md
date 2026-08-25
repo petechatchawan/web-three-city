@@ -48,12 +48,20 @@ Own authoritative Road occupancy and Road definition identity, deterministic str
 
 The local PR #83 remediation keeps logical Road chunks as the authority,
 dirty/rebuild ownership, interaction unit, and persistence boundary. Committed
-Road presentation groups neighboring logical chunks into deterministic `2×2`
+Road presentation groups neighboring logical chunks into deterministic `4×4`
 render pages and merges the existing chunk-derived `RoadMeshData` for each
 page. A dirty logical chunk rebuilds only its owning page; multiple dirty
 chunks in one page are coalesced, and unaffected page identities/resources are
 retained. Render pages are presentation-only and are never persisted or used
-as Road authority.
+as Road authority. Production Rendering Rewrite v1 keeps that topology and
+uses a shared unlit vertex-color committed material plus deterministic page geometry
+bounds/frustum culling. Because Road Core accepts only flat cells or
+axis-aligned ramps that follow the Road topology, committed cell geometry emits
+one planar spine plus only the necessary non-overlapping arms. This preserves
+the exact Terrain-sampled footprint while avoiding redundant coplanar
+subdivision. Preview ownership and Road authority remain unchanged. SwiftShader
+browser evidence is used for deterministic Road correctness; the product frame
+budget is evaluated separately on the selected M4/Metal performance authority.
 
 ## Ownership and State
 

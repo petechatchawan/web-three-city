@@ -104,6 +104,21 @@ of old and new policy-sized selections, and the presentation owner disposes
 shared render resources exactly once. This changes render submission
 cardinality, not Traffic state or visual-agent policy.
 
+Production Rendering Rewrite v1 partitions those packed instances into
+deterministic spatial Near/Mid region batches. Near agents preserve the
+existing multipart appearance while Mid agents use one bounded low-cost
+archetype; shared unlit vertex-color geometry/material resources and region bounds permit
+frustum culling without changing Traffic identity or materialization policy.
+The Game render path derives active agents directly and omits unused Traffic
+edge-flow projection, while Traffic Inspect keeps full edge-flow projection by
+default. The approved design and current release-authority evidence are
+recorded in [the v1 specification](specs/2026-08-25-production-rendering-rewrite-v1.md)
+and [verification record](verification/2026-08-25-production-rendering-rewrite-v1.md).
+Default SwiftShader browser runs are correctness/structural evidence; the
+414×896 product frame budget is admitted only from an explicitly selected M4
+Metal run. The current local Metal samples were host-contended and remain
+RETEST REQUIRED rather than PASS.
+
 Flow policy v1 keeps zero-load time equal to free-flow and adds monotonic delay only when load exceeds edge capacity or queue wait exists. Ordinary congestion never reroutes an active trip; only topology/destination invalidation invokes recovery.
 
 ## vNext Integration Status and Handoff
@@ -147,6 +162,10 @@ The transport-quantum graph/topology cache is now part of the bounded performanc
 ## Performance Contract
 
 - Logical scale gate: at least 20,000 Citizens and 5,000 concurrent trips.
+- Traffic edge-flow projection indexes active current-edge load and queued
+  Drive delay in one trip pass, then projects graph edges in one edge pass.
+  Deterministic scale instrumentation locks this to `O(trips + edges)` work;
+  the previous per-edge full-trip scans are not an acceptable production path.
 - Materialized target budgets: up to 300 pedestrians, up to 300 vehicles, normal full-detail combined target 400–500 agents.
 - No per-frame scan of all Citizens or world trips.
 - Prepared curve controls and arc-length tables are built outside RAF; RAF performs elapsed-time kinematics, prepared-path sampling, visual headway constraint derivation over the bounded materialized vehicle set, and transforms only.
@@ -165,5 +184,7 @@ The transport-quantum graph/topology cache is now part of the bounded performanc
 - [Road Lane & Vehicle Life Realism v1](../roads/specs/2026-08-17-road-lane-vehicle-life-realism-v1.md)
 - [Motion & Junction Realism v1](../roads/specs/2026-08-19-motion-junction-realism-v1.md)
 - [Motion & Junction Realism v1 TDD plan](../roads/tdd/2026-08-19-motion-junction-realism-v1.md)
+- [Production Rendering Rewrite v1](specs/2026-08-25-production-rendering-rewrite-v1.md)
+- [Production Rendering Rewrite v1 TDD plan](tdd/2026-08-25-production-rendering-rewrite-v1.md)
 
 PR3.1 release verification covers cubic turn continuity, curve-aware route sampling, presentation acceleration/deceleration/turn-speed behavior, route-aware anti-overlap headway including per-frame real-kinematics regression, visual completion before arrival de-materialization, 30/60/120 FPS tolerance, simple curved Road markings, canonical-trip-preserving Road upgrades, targeted `@road|@traffic` browser ownership, clean worktree, Sonar, and owner-controlled 414×896 visual acceptance. Exact run/artifact IDs are recorded on PR #83 rather than this living document.

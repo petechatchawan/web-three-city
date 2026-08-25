@@ -1,6 +1,6 @@
 # Development Workflow System
 
-**Status:** Implemented — Browser Verification Policy v0.2<br>
+**Status:** Implemented — Browser Verification Policy v0.2; Testing Architecture vNext audit complete / not implemented<br>
 **System:** Development Workflow  
 **Primary ownership:** repository root configuration, `.github/`, `AGENTS.md`, and development documentation  
 **Persistence:** Git-tracked repository configuration and documentation only
@@ -29,9 +29,13 @@ Lean CI remains the normal mandatory PR CI owner and produces the exact Game/Ter
 
 Behavior/public-contract changes update their living system README in the same implementation PR. Required living docs are complete before exact-head verification; post-run CI identifiers belong in the PR body/comment when no tree mutation is required.
 
+Testing Architecture vNext is currently **audit-only**. PR-T1 records the baseline, browser-authority classification, measured cost, and migration invariants. It does not yet change scripts, test placement, selective execution, Playwright configuration, CI, or production behavior.
+
 ## Static Map Maintenance
 
 The Level 2 table in `AGENTS.md` is conservative verification policy, not the architectural dependency graph. Workspace dependency changes that alter consumers must update that table in the same PR. Current package manifests remain the factual input used to review the map.
+
+PR-T1 found that the current static map has not yet been extended with owner rows for the existing Citizen Mobility and Traffic packages. Testing Architecture vNext must reconcile this drift before automated changed-source selection becomes authoritative; the migration must expand safety coverage rather than use the stale map as an excuse to select less verification.
 
 ## Current Limitations / Deferred
 
@@ -45,15 +49,19 @@ v0.2 intentionally does not:
 - change Playwright worker/retry/timeout policy as part of this verification-policy change;
 - change gameplay/runtime behavior, Save formats, or package ownership boundaries.
 
+Testing Architecture vNext additionally remains **not implemented** until a later approved PR. In particular, `vitest related`, graph-risk classification, browser-authority profiles, Vitest Browser Mode evaluation, and coverage migration are future work.
+
 ## Documentation Authority
 
 1. Normative execution policy: [`AGENTS.md`](../../../AGENTS.md)
-2. Current approved design: [Browser Verification Policy v0.2](specs/2026-08-17-browser-verification-policy-v0-2.md)
-3. Current TDD implementation plan: [Browser Verification Policy v0.2 Implementation Plan](tdd/2026-08-17-browser-verification-policy-v0-2.md)
-4. Historical v0.1 design: [Development Workflow System Improvement v0.1](specs/2026-08-07-development-workflow-system-improvement-v0-1.md)
-5. Historical v0.1 TDD plan: [Development Workflow System Improvement v0.1 Implementation Plan](tdd/2026-08-07-development-workflow-system-improvement-v0-1.md)
-6. Stable v0.1 verification record: [Development Workflow System Improvement v0.1 Verification](verification/2026-08-07-development-workflow-system-improvement-v0-1.md)
-7. Human workflow overview: [`docs/development-workflow.md`](../../development-workflow.md)
-8. System registry: [`docs/systems/README.md`](../README.md)
+2. Testing Architecture vNext PR-T1 formal audit: [Test Architecture vNext — Formal Audit](specs/2026-08-21-test-architecture-vnext-formal-audit.md)
+3. Testing Architecture vNext baseline evidence: [PR-T1 Baseline Evidence](verification/2026-08-21-test-architecture-vnext-baseline.md)
+4. Current implemented design: [Browser Verification Policy v0.2](specs/2026-08-17-browser-verification-policy-v0-2.md)
+5. Current implemented TDD plan: [Browser Verification Policy v0.2 Implementation Plan](tdd/2026-08-17-browser-verification-policy-v0-2.md)
+6. Historical v0.1 design: [Development Workflow System Improvement v0.1](specs/2026-08-07-development-workflow-system-improvement-v0-1.md)
+7. Historical v0.1 TDD plan: [Development Workflow System Improvement v0.1 Implementation Plan](tdd/2026-08-07-development-workflow-system-improvement-v0-1.md)
+8. Stable v0.1 verification record: [Development Workflow System Improvement v0.1 Verification](verification/2026-08-07-development-workflow-system-improvement-v0-1.md)
+9. Human workflow overview: [`docs/development-workflow.md`](../../development-workflow.md)
+10. System registry: [`docs/systems/README.md`](../README.md)
 
-The v0.1 documents remain historical design/execution records. v0.2 changes verification topology and policy; it does not redesign gameplay/runtime contracts.
+The v0.1 documents remain historical design/execution records. Browser Verification Policy v0.2 remains the implemented authority until Testing Architecture vNext is separately approved and implemented.

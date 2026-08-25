@@ -95,9 +95,13 @@ materialization caps, trip identity, and motion semantics unchanged while
 batching presentation submissions. Vehicle body/roof and pedestrian body/head
 are owned by bounded shared `InstancedMesh` batches; logical pooled handles
 retain inspection and motion identity, while instance slots carry transforms
-and deterministic appearance. Camera reconciliation permits one bounded
-overlap of old and new policy-sized selections, and the presentation owner
-disposes shared render resources exactly once. This changes render submission
+and deterministic appearance. Backing capacity is storage only: each batch's
+render count equals its packed active-agent count. Releasing a non-final slot
+moves the last active slot into the hole and updates the moved logical handle,
+so inactive capacity is never submitted while inspection identity, transform,
+and appearance remain stable. Camera reconciliation permits one bounded overlap
+of old and new policy-sized selections, and the presentation owner disposes
+shared render resources exactly once. This changes render submission
 cardinality, not Traffic state or visual-agent policy.
 
 Flow policy v1 keeps zero-load time equal to free-flow and adds monotonic delay only when load exceeds edge capacity or queue wait exists. Ordinary congestion never reroutes an active trip; only topology/destination invalidation invokes recovery.

@@ -5,7 +5,9 @@ import type { CommittedWorld } from './application/committed-world.js';
 import { staticPresentationNeedsRebuild } from './application/static-presentation-refresh.js';
 import type {
   WorldPresentationPort,
+  WorldPublication,
   WorldPublicationResult,
+  WorldPublicationRejection,
   WorldTransactionCoordinator,
 } from './application/world-transaction-coordinator.js';
 import {
@@ -33,14 +35,65 @@ export interface TemporalPublicationControllerOptions {
   readonly trafficModeGraphProvider?: TrafficModeGraphProvider;
 }
 
+export type TemporalPhase = 'game-minute' | 'quantum-1' | 'quantum-2' | 'quantum-3' | 'quantum-4';
+export type TemporalAdvanceFailureReason =
+  WorldPublicationRejection | 'traffic:planning-error' | 'game-minute:invalid-plan';
+
+export interface TemporalPhaseReceipt {
+  readonly phase: TemporalPhase;
+  readonly beforeRevision: number;
+  readonly afterRevision: number;
+}
+
+export type TemporalAdvanceResult =
+  | Readonly<{
+      status: 'committed';
+      beforeGameMinute: number;
+      afterGameMinute: number;
+      beforeRevision: number;
+      afterRevision: number;
+      phaseReceipts: readonly [
+        TemporalPhaseReceipt,
+        TemporalPhaseReceipt,
+        TemporalPhaseReceipt,
+        TemporalPhaseReceipt,
+        TemporalPhaseReceipt,
+      ];
+      world: CommittedWorld;
+    }>
+  | Readonly<{
+      status: 'rejected';
+      phase: TemporalPhase;
+      reason: TemporalAdvanceFailureReason;
+      beforeGameMinute: number;
+      beforeRevision: number;
+      world: CommittedWorld;
+    }>;
+
 export interface TemporalPublicationController {
   advanceGameMinute(input?: Readonly<{ automaticGrowth?: boolean }>): CommittedWorld;
   advanceTransportQuantum(): CommittedWorld;
-  advanceTemporalMinute(input?: Readonly<{ automaticGrowth?: boolean }>): CommittedWorld;
+  advanceTemporalMinute(input?: Readonly<{ automaticGrowth?: boolean }>): TemporalAdvanceResult;
 }
 
 function rejectedWorld(coordinator: WorldTransactionCoordinator): CommittedWorld {
   return coordinator.snapshot();
+}
+
+function rejectedTemporal(
+  before: CommittedWorld,
+  coordinator: WorldTransactionCoordinator,
+  phase: TemporalPhase,
+  reason: TemporalAdvanceFailureReason,
+): TemporalAdvanceResult {
+  return Object.freeze({
+    status: 'rejected' as const,
+    phase,
+    reason,
+    beforeGameMinute: before.simulation.absoluteGameMinute,
+    beforeRevision: before.revision,
+    world: coordinator.snapshot(),
+  });
 }
 
 function commitPresentation(
@@ -173,20 +226,119 @@ export function createTemporalPublicationController(
 
   const advanceTemporalMinute = (
     input: Readonly<{ automaticGrowth?: boolean }> = {},
-  ): CommittedWorld => {
+  ): TemporalAdvanceResult => {
     const before = options.coordinator.snapshotForTransaction();
     const intermediatePresentation = options.intermediatePresentation;
-    const minute = commitGameMinute(options, input, intermediatePresentation, true);
-    if (minute.status !== 'committed') return rejectedWorld(options.coordinator);
-    for (let quantum = 0; quantum < 4; quantum += 1) {
-      const transport = commitTransportQuantum(options, intermediatePresentation, true);
-      if (transport.status !== 'committed') return rejectedWorld(options.coordinator);
+    let minutePlan: ReturnType<typeof planGameMinuteTransaction>;
+    try {
+      minutePlan = planGameMinuteTransaction({
+        world: before,
+        registries: options.registries,
+        reservedCells: options.reservedCells(),
+        ...(options.roadTrafficSourceProvider === undefined
+          ? {}
+          : { roadTrafficSourceProvider: options.roadTrafficSourceProvider }),
+        ...(options.trafficModeGraphProvider === undefined
+          ? {}
+          : { trafficModeGraphProvider: options.trafficModeGraphProvider }),
+        ...(input.automaticGrowth === undefined ? {} : { automaticGrowth: input.automaticGrowth }),
+      });
+    } catch {
+      return rejectedTemporal(
+        before,
+        options.coordinator,
+        'game-minute',
+        'game-minute:invalid-plan',
+      );
     }
-    const finalWorld = options.coordinator.snapshotForTransaction();
+    if (!minutePlan.valid) {
+      return rejectedTemporal(
+        before,
+        options.coordinator,
+        'game-minute',
+        'game-minute:invalid-plan',
+      );
+    }
+    const publications: WorldPublication[] = [
+      {
+        baseRevision: minutePlan.baseWorldRevision,
+        baseFingerprint: minutePlan.baseFingerprint,
+        nextWorld: minutePlan.nextWorld,
+        nextFingerprint: minutePlan.nextFingerprint,
+        presentation: intermediatePresentation,
+      },
+    ];
+    let current = minutePlan.nextWorld;
+    for (let quantum = 0; quantum < 4; quantum += 1) {
+      const traffic = current.traffic as unknown as { readonly schemaVersion: number };
+      if (traffic.schemaVersion !== 2) {
+        return rejectedTemporal(
+          before,
+          options.coordinator,
+          `quantum-${quantum + 1}` as TemporalPhase,
+          'world:invalid-candidate',
+        );
+      }
+      let transportPlan;
+      try {
+        transportPlan = planTrafficTransportTransaction({
+          world: current,
+          mobility: current.mobility,
+          traffic: current.traffic as never,
+          graph: options.graphForWorld(current),
+        });
+      } catch {
+        return rejectedTemporal(
+          before,
+          options.coordinator,
+          `quantum-${quantum + 1}` as TemporalPhase,
+          'traffic:planning-error',
+        );
+      }
+      publications.push({
+        baseRevision: transportPlan.baseWorldRevision,
+        baseFingerprint: transportPlan.baseFingerprint,
+        nextWorld: transportPlan.nextWorld,
+        nextFingerprint: transportPlan.nextFingerprint,
+        presentation: intermediatePresentation,
+      });
+      current = transportPlan.nextWorld;
+    }
+    const batch = options.coordinator.publishBatchForTransaction(publications);
+    if (batch.status !== 'committed') {
+      return rejectedTemporal(before, options.coordinator, 'quantum-4', batch.reason);
+    }
+    const finalWorld = batch.world;
     synchronizeFinalPresentation(options, before, finalWorld);
     const externallyVisibleFinal = options.coordinator.snapshot();
     options.adoptCommittedWorld(externallyVisibleFinal);
-    return externallyVisibleFinal;
+    const phases: readonly TemporalPhase[] = [
+      'game-minute',
+      'quantum-1',
+      'quantum-2',
+      'quantum-3',
+      'quantum-4',
+    ];
+    const phaseReceipts = publications.map((publication, index) => ({
+      phase: phases[index]!,
+      beforeRevision: publication.baseRevision,
+      afterRevision: publication.nextWorld.revision,
+    })) as [
+      TemporalPhaseReceipt,
+      TemporalPhaseReceipt,
+      TemporalPhaseReceipt,
+      TemporalPhaseReceipt,
+      TemporalPhaseReceipt,
+    ];
+    return Object.freeze({
+      status: 'committed' as const,
+      beforeGameMinute: before.simulation.absoluteGameMinute,
+      afterGameMinute: externallyVisibleFinal.simulation.absoluteGameMinute,
+      beforeRevision: before.revision,
+      afterRevision: externallyVisibleFinal.revision,
+      phaseReceipts: Object.freeze(phaseReceipts),
+      world: externallyVisibleFinal,
+    });
   };
 
   return Object.freeze({

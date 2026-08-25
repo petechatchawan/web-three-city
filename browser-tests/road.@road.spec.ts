@@ -325,7 +325,7 @@ test('Terraform touching one Road cell invalidates Preview and rejects the whole
   expect(after.road.undoKind).toBe('road');
 });
 
-test('WorldSaveV7 restores Roads and legacy Terrain saves migrate to empty Roads', async ({
+test('WorldSaveV8 restores Roads and legacy Terrain saves migrate to empty Roads', async ({
   page,
 }) => {
   await openGame(page);

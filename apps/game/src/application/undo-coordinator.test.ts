@@ -46,6 +46,11 @@ describe('UndoCoordinator', () => {
         world: before,
         reason: 'world:stale-content' as const,
       }),
+      publishBatchForTransaction: () => ({
+        status: 'rejected' as const,
+        world: before,
+        reason: 'world:stale-content' as const,
+      }),
       publish: () => ({
         status: 'rejected' as const,
         world: before,

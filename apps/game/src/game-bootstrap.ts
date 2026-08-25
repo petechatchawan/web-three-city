@@ -122,7 +122,10 @@ import { guardTerraformPlanWithOccupancy } from './terraform-occupancy-guard.js'
 import { guardZonePlanWithBuildings, type GameZoneInvalidReason } from './zone-building-guard.js';
 import { executeGameWorldTick } from './game-world-tick.js';
 import { GameWorldStateStore } from './game-world-state.js';
-import { createTemporalPublicationController } from './temporal-publication-controller.js';
+import {
+  createTemporalPublicationController,
+  type TemporalAdvanceResult,
+} from './temporal-publication-controller.js';
 import { type EconomyPolicyUiResult, type EconomyTaxPolicy } from './economy-budget-hud.js';
 import type { GameBootstrapHost, GameViewportLayout, QualityLevel } from './game-ui.js';
 
@@ -162,7 +165,7 @@ export interface GameRuntime {
   advanceLogicalTick(input: Readonly<{ automaticGrowth: boolean }>): CommittedWorld;
   advanceGameMinute(input?: Readonly<{ automaticGrowth?: boolean }>): CommittedWorld;
   advanceTransportQuantum(): CommittedWorld;
-  advanceTemporalMinute(input?: Readonly<{ automaticGrowth?: boolean }>): CommittedWorld;
+  advanceTemporalMinute(input?: Readonly<{ automaticGrowth?: boolean }>): TemporalAdvanceResult;
   setPresentationSuppressed(suppressed: boolean): void;
   rebuildPresentationForTest(): CommittedWorld;
   resetSimulationForTest(): CommittedWorld;
@@ -434,7 +437,17 @@ export function bootstrapGame(
       advanceLogicalTick: () => unavailableWorld.snapshot(),
       advanceGameMinute: () => unavailableWorld.snapshot(),
       advanceTransportQuantum: () => unavailableWorld.snapshot(),
-      advanceTemporalMinute: () => unavailableWorld.snapshot(),
+      advanceTemporalMinute: () => {
+        const world = unavailableWorld.snapshot();
+        return Object.freeze({
+          status: 'rejected' as const,
+          phase: 'game-minute' as const,
+          reason: 'game-minute:invalid-plan' as const,
+          beforeGameMinute: world.simulation.absoluteGameMinute,
+          beforeRevision: world.revision,
+          world,
+        });
+      },
       setPresentationSuppressed: () => undefined,
       rebuildPresentationForTest: () => unavailableWorld.snapshot(),
       resetSimulationForTest: () => unavailableWorld.snapshot(),
@@ -1044,7 +1057,20 @@ export function bootstrapGame(
 
   const advanceTemporalMinute = (
     input: Readonly<{ automaticGrowth?: boolean }> = {},
-  ): CommittedWorld => temporalPublication.advanceTemporalMinute(input);
+  ): TemporalAdvanceResult => {
+    const before = transactionCoordinator.snapshotForTransaction();
+    const result = temporalPublication.advanceTemporalMinute(input);
+    if (
+      result.status === 'committed' &&
+      result.world.buildings.revision !== before.buildings.revision
+    ) {
+      // Keep the existing browser evidence meaning: one count per accepted
+      // automatic building evaluation, independent of the five authority
+      // commits inside the temporal minute batch.
+      buildingCommitCount += 1;
+    }
+    return result;
+  };
 
   const resetSimulationForTest = (): CommittedWorld => {
     const publication = publishCommittedDomain(

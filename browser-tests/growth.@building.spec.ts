@@ -14,7 +14,7 @@ import { GAME_URL, clickGameMenuAction } from './helpers/interaction.js';
 
 test.describe.configure({ timeout: 60_000 });
 
-const SAVE_KEY = 'web-three-city:world-save:v7';
+const SAVE_KEY = 'web-three-city:world-save:v8';
 
 async function openGrowthGame(page: import('@playwright/test').Page): Promise<void> {
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -132,37 +132,7 @@ test('automatic Growth preserves the active Zoning tool and in-progress stroke',
     )
     .toBe(true);
 
-  await page.evaluate(() => {
-    const timeWindow = window as Window & {
-      __WEB_THREE_CITY_TIME__?: {
-        setSpeed(speed: 'paused' | 'normal' | 'fast' | 'faster'): void;
-      };
-    };
-    timeWindow.__WEB_THREE_CITY_TIME__?.setSpeed('faster');
-  });
-  await expect(page.locator('[data-simulation-speed="faster"]')).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
-  await expect
-    .poll(async () => (await readTimeSnapshot(page)).simulation.absoluteTick, {
-      timeout: 5_000,
-    })
-    .toBeGreaterThanOrEqual(12);
-  await page.evaluate(() => {
-    const timeWindow = window as Window & {
-      __WEB_THREE_CITY_TIME__?: {
-        setSpeed(speed: 'paused' | 'normal' | 'fast' | 'faster'): void;
-      };
-    };
-    timeWindow.__WEB_THREE_CITY_TIME__?.setSpeed('paused');
-  });
-  await expect(page.locator('[data-simulation-speed="paused"]')).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
-
-  const snapshot = await readTimeSnapshot(page);
+  const snapshot = await stepLogicalTicks(page, 4);
   expect(snapshot.simulation.absoluteTick).toBeGreaterThanOrEqual(12);
   expect(snapshot.simulation.growthSequence).toBeGreaterThanOrEqual(1);
   expect(snapshot.buildingCount).toBeGreaterThanOrEqual(1);
@@ -197,7 +167,7 @@ test('automatic Growth preserves the active Zoning tool and in-progress stroke',
   await expect(page.locator('.city-tool-context-name')).toHaveText('Industrial');
 });
 
-test('persists WorldSaveV7 and loads paused at the exact logical tick', async ({ page }) => {
+test('persists WorldSaveV8 and loads paused at the exact logical tick', async ({ page }) => {
   await openGrowthGame(page);
   await prepareBuildingFixtureWorld(page);
   await stepLogicalTicks(page, 4);
@@ -206,18 +176,27 @@ test('persists WorldSaveV7 and loads paused at the exact logical tick', async ({
   const saved = await page.evaluate((key) => localStorage.getItem(key), SAVE_KEY);
   const parsed = JSON.parse(saved ?? '{}') as {
     readonly schemaVersion?: number;
-    readonly simulation?: { readonly absoluteTick?: number; readonly growthSequence?: number };
+    readonly simulation?: {
+      readonly schemaVersion?: number;
+      readonly absoluteGameMinute?: number;
+      readonly absoluteTick?: number;
+      readonly growthSequence?: number;
+    };
     readonly buildings?: { readonly schemaVersion?: number };
     readonly rci?: { readonly schemaVersion?: number };
     readonly mobility?: { readonly schemaVersion?: number };
     readonly traffic?: { readonly schemaVersion?: number };
   };
-  expect(parsed.schemaVersion).toBe(7);
-  expect(parsed.simulation).toMatchObject({ absoluteTick: 12, growthSequence: 1 });
+  expect(parsed.schemaVersion).toBe(8);
+  expect(parsed.simulation).toMatchObject({
+    schemaVersion: 3,
+    absoluteGameMinute: 12 * 60,
+    growthSequence: 1,
+  });
   expect(parsed.buildings?.schemaVersion).toBe(2);
   expect(parsed.rci?.schemaVersion).toBe(1);
-  expect(parsed.mobility?.schemaVersion).toBe(1);
-  expect(parsed.traffic?.schemaVersion).toBe(1);
+  expect(parsed.mobility?.schemaVersion).toBe(2);
+  expect(parsed.traffic?.schemaVersion).toBe(2);
 
   await stepLogicalTicks(page, 3);
   await clickGameMenuAction(page, 'Load world');

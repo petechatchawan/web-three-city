@@ -164,6 +164,29 @@ describe('automatic Building Growth tick', () => {
     expect(result.receipt.startedInstanceIds).toEqual(['building:growth:1']);
   });
 
+  it('starts Growth when 11:59 crosses into 12:00', () => {
+    const buildings = createEmptyBuildingSnapshot(CONFIG);
+    const simulation = createSimulationSnapshot({
+      revision: 0,
+      absoluteGameMinute: 11 * 60 + 59,
+      growthSequence: 0,
+    });
+    const plan = planBuildingGrowthTick({
+      buildings,
+      simulation,
+      macroHourTransition: macroHourTransition(11 * 60 + 59, 12 * 60),
+      environment: environment(),
+      config: CONFIG,
+    });
+
+    expect(plan.valid).toBe(true);
+    expect(plan.proposedInstances).toHaveLength(1);
+    expect(plan.proposedInstances[0]?.lifecycle).toBe('construction');
+    expect(plan.proposedInstances[0]).toMatchObject({
+      constructionStartedAtTick: 12,
+    });
+  });
+
   it('advances an idle non-evaluation tick without changing Buildings', () => {
     const buildings = createEmptyBuildingSnapshot(CONFIG);
     const simulation = createSimulationSnapshot({

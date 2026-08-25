@@ -21,6 +21,24 @@ Tests from an older runtime SHA cannot be attributed to newer source.
 
 ## Required automated evidence
 
+### Local Phase 1 implementation checkpoint
+
+The current working-tree implementation has completed the local RED/GREEN
+loop for the Phase 1 boundary fix. The runtime source was still uncommitted
+when this checkpoint was recorded; the exact committed source SHA belongs in
+the final PR evidence.
+
+- Game: `98` files, `406/406` tests GREEN; Game typecheck GREEN.
+- `simulation-core`: `5` files, `15/15` tests GREEN.
+- `building-core`: `14` files, `36/36` tests GREEN.
+- `building-three`: `3` files, `5/5` tests GREEN.
+- Repository deployment/topology tests: `60/60` GREEN; inventory is `406` Game tests.
+- `pnpm check`: GREEN, including format, lint, workspace typecheck, browser-test typecheck, provenance, deployment tests, all workspace tests, and build.
+- Targeted Browser command used:
+  `pnpm exec playwright test --project=chromium --workers=1 --retries=0 browser-tests/growth.@building.spec.ts browser-tests/growth-reservation.@building.spec.ts browser-tests/building.@building@smoke.spec.ts browser-tests/rci.@rci@smoke.spec.ts browser-tests/economy.@rci@interaction@smoke.spec.ts browser-tests/city-ui-dialogs.@rci@interaction.spec.ts browser-tests/game.@interaction@smoke.spec.ts browser-tests/water.@water.spec.ts browser-tests/zoning.@zoning.spec.ts browser-tests/citizen-mobility-traffic-save-load.@traffic@release.spec.ts browser-tests/citizen-mobility-traffic-road-recovery.@traffic@road@release.spec.ts`
+  completed `37/37` GREEN with one worker and no retries.
+- Full Browser release closure and Owner Visual acceptance remain pending.
+
 ### Focused correctness
 
 - Building lifecycle macro-hour API tests GREEN.

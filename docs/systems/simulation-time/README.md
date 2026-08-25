@@ -1,6 +1,6 @@
 # Simulation Time System
 
-**Status:** Implemented — minute-authority core and Game transaction integration are complete; release/owner verification remains open<br>
+**Status:** Implemented — Phase 1 temporal authority/fail-stop integration is local GREEN; release/owner verification remains open<br>
 **Primary ownership:** `packages/simulation-core`, `apps/game/src/simulation-runtime.ts`, and time HUD integration  
 **Persistence:** `SimulationSaveV3` inside `WorldSaveV8`; V1/V2 hour saves migrate explicitly
 
@@ -28,7 +28,8 @@ Own deterministic in-game time, calendar derivation, tick planning/commit, time-
 - Revision, `absoluteGameMinute`, and Building growth sequence persist across Save/Load.
 - `apps/game` has a minute-boundary transaction that stages macro-hour work, Mobility due boundaries, and a coherent world candidate before publication.
 - Traffic uses a subordinate four-quanta-per-game-minute cursor; minute and transport-quantum publication are separate atomic transaction classes.
-- The automatic runtime advances one temporal minute as five ordered atomic authority commits (`GameMinute → Q1 → Q2 → Q3 → Q4`), suppresses intermediate presentation, then performs one final dynamic/full presentation choice, adopts the final world, and notifies committed-world subscribers once. Public single-step GameMinute and transport-quantum commands retain legacy per-commit publication semantics for parity/debug callers.
+- The automatic runtime advances one temporal minute as five ordered authority phases (`GameMinute → Q1 → Q2 → Q3 → Q4`), validates the complete candidate chain before installing it as one internal batch, suppresses intermediate presentation, then performs one final dynamic/full presentation choice, adopts the final world, and notifies committed-world subscribers once. Public single-step GameMinute and transport-quantum commands retain legacy per-commit publication semantics for parity/debug callers.
+- A rejected temporal phase leaves the original world/minute/revision unchanged, pauses playback with a typed failure, clears the real-time accumulator, and cannot silently retry on later frames.
 
 ## Ownership and State
 
@@ -40,7 +41,7 @@ Own deterministic in-game time, calendar derivation, tick planning/commit, time-
 2. Each completed simulated second requests a game-minute boundary according to the selected speed.
 3. The minute transaction derives whether a macro-hour boundary is crossed and runs Building/RCI/Economy only when due.
 4. Mobility resolves due schedule boundaries at the new game minute; Traffic admission/progression then occurs in its own ordered transport quanta.
-5. The automatic temporal orchestration commits the minute and four quanta in order, validates each complete staged world, and publishes one atomic world revision per transaction.
+5. The automatic temporal orchestration plans the minute and four quanta in order, validates all five complete staged worlds, then installs the five contiguous authority revisions in one internal batch.
 6. Only the final world is presented/adopted externally; full static synchronization occurs only when static authority changed between the pre-batch and final worlds.
 7. Time HUD and RCI HUD derive values from committed state.
 
@@ -72,7 +73,8 @@ flowchart LR
 - Paused runtime emits no automatic minute boundaries; Step emits one minute only while paused.
 - Frame rate and callback batching do not change committed domain results.
 - Save/load/resume must match continuous execution from the same committed minute and Traffic cursor.
-- A failed Building, RCI, Economy, Mobility, or Traffic stage prevents publication of the staged Simulation snapshot.
+- A failed Building, RCI, Economy, Mobility, or Traffic stage prevents publication of every staged Simulation snapshot in that temporal minute.
+- Accepted minute: `absoluteGameMinute +1`, world revision `+5`, five ordered phase receipts. Rejected minute: minute/revision unchanged, no external presentation/notification, playback fail-stop.
 
 ## Extension Points
 

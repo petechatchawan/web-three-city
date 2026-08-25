@@ -1,10 +1,12 @@
 import {
   buildingDefinitionForId,
+  isBuildingConstructionCompleteAtMacroHour,
   occupiedCellsForBuilding,
   resolveBuildingFrontage,
 } from '@web-three-city/building-core';
 import { createFoundationRciRegistries, validateRciSnapshot } from '@web-three-city/rci-core';
 import { roadCellPolicyInvalidReason, roadOccupiedAt } from '@web-three-city/road-core';
+import { deriveMacroHourIndex } from '@web-three-city/simulation-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { zoneCellPolicyInvalidReason, zoneOccupiedAt } from '@web-three-city/zone-core';
 import { createZonePlacementEnvironment } from '../zone-placement-environment.js';
@@ -56,6 +58,8 @@ export interface WorldTransactionCoordinator {
   publish(plan: WorldPublication): WorldPublicationResult;
   /** Internal stepping path; result.world must not escape authority-owned code. */
   publishForTransaction(plan: WorldPublication): WorldPublicationResult;
+  /** Internal atomic temporal batch; no candidate may escape to observers before all validate. */
+  publishBatchForTransaction(plans: readonly WorldPublication[]): WorldPublicationResult;
   replaceFromDecodedWorld(world: DecodedWorldState): WorldPublicationResult;
 }
 
@@ -116,7 +120,10 @@ function validBuildingInstance(
 ): boolean {
   if (
     instance.lifecycle === 'construction' &&
-    instance.constructionCompletesAtTick <= world.simulation.absoluteGameMinute
+    isBuildingConstructionCompleteAtMacroHour(
+      instance,
+      deriveMacroHourIndex(world.simulation.absoluteGameMinute),
+    )
   ) {
     return false;
   }
@@ -281,6 +288,41 @@ export class DefaultWorldTransactionCoordinator implements WorldTransactionCoord
 
   publishForTransaction(plan: WorldPublication): WorldPublicationResult {
     return this.#publish(plan, false);
+  }
+
+  publishBatchForTransaction(plans: readonly WorldPublication[]): WorldPublicationResult {
+    const original = this.#worldStore.committedForTransaction();
+    if (plans.length !== 5) return rejected(this.#worldStore.snapshot(), 'world:invalid-candidate');
+
+    let current = original;
+    const candidates: CommittedWorld[] = [];
+    const batchValidationCache = new StaticWorldValidationCache();
+    for (const plan of plans) {
+      const currentFingerprint = fingerprintCommittedWorld(current);
+      const staleReason = publicationStaleReason(plan, current, currentFingerprint);
+      if (staleReason !== null) return rejected(this.#worldStore.snapshot(), staleReason);
+      if (plan.nextFingerprint !== fingerprintCommittedWorld(plan.nextWorld)) {
+        return rejected(this.#worldStore.snapshot(), 'world:stale-content');
+      }
+      const candidate = prepareCandidate(plan, current, batchValidationCache, true);
+      if (candidate === null) {
+        return rejected(this.#worldStore.snapshot(), 'world:invalid-candidate');
+      }
+      candidates.push(candidate);
+      current = candidate;
+    }
+
+    try {
+      this.#worldStore.replacePreparedBatch(original.revision, candidates);
+      this.#staticValidationCache.markValidated(current);
+    } catch {
+      return rejected(this.#worldStore.snapshot(), 'world:invalid-candidate');
+    }
+    return Object.freeze({
+      status: 'committed' as const,
+      world: current,
+      presentation: Object.freeze({ status: 'synchronized' as const }),
+    });
   }
 
   #publish(plan: WorldPublication, copyResultWorld: boolean): WorldPublicationResult {

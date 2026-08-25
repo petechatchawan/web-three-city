@@ -1,6 +1,6 @@
 import {
   buildingDefinitionForId,
-  constructionProgressAtTick,
+  constructionProgressAtMacroHour,
   occupiedCellsForBuilding,
   rotatedBuildingFootprint,
   type BuildingSnapshot,
@@ -15,18 +15,23 @@ import { createBuildingMaterials, type BuildingMaterials } from './material-fact
 import { createBuildingPrototype } from './prototype-factory.js';
 
 export type BuildingElevationResolver = (cell: CellCoord) => number;
-type BuildingPresentationReload = (snapshot: BuildingSnapshot, absoluteTick: number) => void;
+type BuildingPresentationReload = (snapshot: BuildingSnapshot, macroHourIndex: number) => void;
 
-let defaultAbsoluteTick = 8;
+let defaultMacroHourIndex = 8;
 let latestSnapshot: BuildingSnapshot | null = null;
 let latestPresentationReload: BuildingPresentationReload | null = null;
 let latestScene: THREE.Scene | null = null;
 
-export function setBuildingPresentationAbsoluteTick(absoluteTick: number): void {
-  if (!Number.isSafeInteger(absoluteTick) || absoluteTick < 0) {
-    throw new RangeError('building-presentation:invalid-tick');
+export function setBuildingPresentationMacroHourIndex(macroHourIndex: number): void {
+  if (!Number.isSafeInteger(macroHourIndex) || macroHourIndex < 0) {
+    throw new RangeError('building-presentation:invalid-macro-hour');
   }
-  defaultAbsoluteTick = absoluteTick;
+  defaultMacroHourIndex = macroHourIndex;
+}
+
+/** @deprecated Pass a derived macro-hour index to setBuildingPresentationMacroHourIndex. */
+export function setBuildingPresentationAbsoluteTick(absoluteTick: number): void {
+  setBuildingPresentationMacroHourIndex(absoluteTick);
 }
 
 export function latestPresentedBuildingSnapshot(): BuildingSnapshot | null {
@@ -40,7 +45,7 @@ export function latestBuildingPresentationScene(): THREE.Scene | null {
 
 export function reloadLatestBuildingPresentation(): void {
   if (latestPresentationReload !== null && latestSnapshot !== null) {
-    latestPresentationReload(latestSnapshot, defaultAbsoluteTick);
+    latestPresentationReload(latestSnapshot, defaultMacroHourIndex);
   }
 }
 
@@ -50,8 +55,8 @@ export class BuildingPresentation {
   readonly #elevationAt: BuildingElevationResolver;
   readonly #materials: BuildingMaterials;
   readonly #root = new THREE.Group();
-  readonly #reloadLatest: BuildingPresentationReload = (snapshot, absoluteTick) => {
-    this.load(snapshot, absoluteTick);
+  readonly #reloadLatest: BuildingPresentationReload = (snapshot, macroHourIndex) => {
+    this.load(snapshot, macroHourIndex);
   };
   #disposed = false;
 
@@ -79,7 +84,7 @@ export class BuildingPresentation {
     }
   }
 
-  load(snapshot: BuildingSnapshot, absoluteTick = defaultAbsoluteTick): void {
+  load(snapshot: BuildingSnapshot, macroHourIndex = defaultMacroHourIndex): void {
     if (this.#disposed) throw new Error('building-presentation:disposed');
     latestSnapshot = snapshot;
     this.clear();
@@ -101,7 +106,9 @@ export class BuildingPresentation {
               footprintWidth: definition.footprintWidth,
               footprintDepth: definition.footprintDepth,
               prototypeHeight: definition.prototypeHeight,
-              phase: constructionVisualPhase(constructionProgressAtTick(instance, absoluteTick)),
+              phase: constructionVisualPhase(
+                constructionProgressAtMacroHour(instance, macroHourIndex),
+              ),
               materials: this.#materials,
             })
           : createBuildingPrototype(instance, this.#materials, this.#config);
@@ -109,7 +116,7 @@ export class BuildingPresentation {
       group.userData.lifecycle = instance.lifecycle;
       if (instance.lifecycle === 'construction') {
         group.userData.constructionPhase = constructionVisualPhase(
-          constructionProgressAtTick(instance, absoluteTick),
+          constructionProgressAtMacroHour(instance, macroHourIndex),
         );
         group.scale.setScalar(this.#config.cellSize);
       }

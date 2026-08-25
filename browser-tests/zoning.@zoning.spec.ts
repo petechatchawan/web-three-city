@@ -24,7 +24,7 @@ import {
   type TerrainCellScreenPoint,
 } from './helpers/interaction.js';
 
-const SAVE_KEY = 'web-three-city:world-save:v7';
+const SAVE_KEY = 'web-three-city:world-save:v8';
 const TERRAIN = GAME_TERRAIN;
 const WATER = GAME_WATER;
 const ROAD_ENVIRONMENT = ROAD_PLACEMENT_ENVIRONMENT;
@@ -54,8 +54,10 @@ function add(cell: CellCoord, direction: CellCoord, distance: number): CellCoord
 function fixture(): ZoningFixture {
   const emptyRoads = createEmptyRoadSnapshot(WORLD_CONFIG);
   const emptyZones = createEmptyZoneSnapshot(WORLD_CONFIG);
-  for (let z = 8; z < WORLD_CONFIG.mapHeight - 8; z += 1) {
-    for (let x = 8; x < WORLD_CONFIG.mapWidth - 8; x += 1) {
+  // Keep the deterministic fixture clear of the fixed HUD overlays at the
+  // top and bottom of the expanded Game viewport.
+  for (let z = 16; z < WORLD_CONFIG.mapHeight - 16; z += 1) {
+    for (let x = 16; x < WORLD_CONFIG.mapWidth - 16; x += 1) {
       const road = Object.freeze({ x, z });
       const roadPlan = planRoadMutation(
         emptyRoads,
@@ -173,7 +175,7 @@ async function paint(
   await expect(page.getByTestId('tool-context-status')).toHaveText('Zone painted');
 }
 
-test('paints R/C/I at committed-Road depths 1–3 and round-trips WorldSaveV7', async ({ page }) => {
+test('paints R/C/I at committed-Road depths 1–3 and round-trips WorldSaveV8', async ({ page }) => {
   test.setTimeout(60_000);
   await openGame(page);
   const points = await locate(page, [
@@ -204,12 +206,12 @@ test('paints R/C/I at committed-Road depths 1–3 and round-trips WorldSaveV7', 
   const saved = await page.evaluate((key) => localStorage.getItem(key), SAVE_KEY);
   expect(JSON.parse(saved ?? '{}')).toMatchObject({
     kind: 'world-save',
-    schemaVersion: 7,
+    schemaVersion: 8,
     zones: { schemaVersion: 1 },
     buildings: { schemaVersion: 2, instances: [] },
     rci: { schemaVersion: 1 },
-    mobility: { schemaVersion: 1 },
-    traffic: { schemaVersion: 1 },
+    mobility: { schemaVersion: 2 },
+    traffic: { schemaVersion: 2 },
   });
 
   await openBuildCategory(page, 'zones');

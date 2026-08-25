@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { openBuildCategory, openGameMenu, waitForCityUi } from './helpers/city-ui.js';
 import { GAME_URL, clickGameMenuAction, readEvidence } from './helpers/interaction.js';
 
-const SAVE_KEY = 'web-three-city:world-save:v7';
+const SAVE_KEY = 'web-three-city:world-save:v8';
 
 async function waitForReady(page: import('@playwright/test').Page): Promise<void> {
   await page.goto(GAME_URL);
@@ -72,11 +72,11 @@ test('changes quality and round-trips world save data', async ({ page }) => {
   expect(saved).not.toBeNull();
   expect(JSON.parse(saved ?? '{}')).toMatchObject({
     kind: 'world-save',
-    schemaVersion: 7,
+    schemaVersion: 8,
     buildings: { schemaVersion: 2 },
     rci: { kind: 'rci-save', schemaVersion: 1 },
-    mobility: { schemaVersion: 1 },
-    traffic: { schemaVersion: 1 },
+    mobility: { schemaVersion: 2 },
+    traffic: { schemaVersion: 2 },
   });
 
   await openGameMenu(page);
@@ -180,7 +180,7 @@ test('exposes one Build entry and closes the picker after concrete tool selectio
   await page.getByRole('button', { name: 'Build Road', exact: true }).click();
   await expect(page.getByTestId('build-picker')).toBeHidden();
   await expect(page.getByTestId('tool-context-toggle')).toBeVisible();
-  await expect(page.locator('.city-tool-context-name')).toHaveText('Build Road');
+  await expect(page.locator('.city-tool-context-name')).toHaveText('Local Street');
 
   await openBuildCategory(page, 'zones');
   await page.getByRole('button', { name: 'Residential', exact: true }).click();

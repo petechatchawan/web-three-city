@@ -14,7 +14,9 @@ function collectAdvanceEvents(
   realDeltaMilliseconds: number,
 ): readonly SimulationRuntimeEvent[] {
   const events: SimulationRuntimeEvent[] = [];
-  runtime.advance(realDeltaMilliseconds, (event) => events.push(event));
+  runtime.advance(realDeltaMilliseconds, (event) => {
+    events.push(event);
+  });
   return events;
 }
 
@@ -22,7 +24,11 @@ function collectStepEvents(
   runtime: ReturnType<typeof createSimulationRuntime>,
 ): readonly SimulationRuntimeEvent[] {
   const events: SimulationRuntimeEvent[] = [];
-  expect(runtime.step((event) => events.push(event))).toBe(true);
+  expect(
+    runtime.step((event) => {
+      events.push(event);
+    }),
+  ).toBe(true);
   return events;
 }
 
@@ -47,7 +53,11 @@ describe('Simulation runtime', () => {
     expect(collectStepEvents(runtime)).toEqual(ONE_GAME_MINUTE_EVENTS);
     runtime.setSpeed('normal');
     const events: SimulationRuntimeEvent[] = [];
-    expect(runtime.step((event) => events.push(event))).toBe(false);
+    expect(
+      runtime.step((event) => {
+        events.push(event);
+      }),
+    ).toBe(false);
     expect(events).toEqual([]);
   });
 
@@ -64,9 +74,13 @@ describe('Simulation runtime', () => {
   it('retains unprocessed elapsed minutes for bounded later-frame draining', () => {
     const runtime = createSimulationRuntime('normal');
     const events: SimulationRuntimeEvent[] = [];
-    runtime.advance(10_000, (event) => events.push(event));
+    runtime.advance(10_000, (event) => {
+      events.push(event);
+    });
     while (runtime.getState().accumulatedMilliseconds >= 1000) {
-      runtime.advance(0, (event) => events.push(event));
+      runtime.advance(0, (event) => {
+        events.push(event);
+      });
     }
     expect(events).toEqual(Array.from({ length: 10 }, () => ONE_GAME_MINUTE_EVENTS).flat());
   });
@@ -76,5 +90,24 @@ describe('Simulation runtime', () => {
     collectAdvanceEvents(runtime, 250);
     runtime.resetAfterVisibilityChange();
     expect(runtime.getState().accumulatedMilliseconds).toBe(0);
+  });
+
+  it('pauses and clears accumulated time when a temporal minute is rejected', () => {
+    const runtime = createSimulationRuntime('normal');
+    const rejectedHandler = ((event: SimulationRuntimeEvent) => {
+      if (event.type === 'game-minute') return false;
+      return undefined;
+    }) as unknown as Parameters<typeof runtime.advance>[1];
+
+    runtime.advance(750, rejectedHandler);
+    runtime.advance(250, rejectedHandler);
+
+    expect(runtime.getState()).toMatchObject({
+      speed: 'paused',
+      accumulatedMilliseconds: 0,
+      status: 'paused-world-rejected',
+    });
+    expect(runtime.getState().failure).toMatchObject({ kind: 'world-rejected' });
+    expect(runtime.advance(10_000, rejectedHandler)).toBe(0);
   });
 });

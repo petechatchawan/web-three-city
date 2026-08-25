@@ -14,26 +14,47 @@ export type SimulationRuntimeEvent =
   | Readonly<{ readonly type: 'game-minute' }>
   | Readonly<{ readonly type: 'transport-quantum'; readonly ordinal: 1 | 2 | 3 | 4 }>;
 
+export interface SimulationRuntimeFailure {
+  readonly kind: 'world-rejected';
+  readonly phase?: string;
+  readonly reason?: string;
+}
+
+export type SimulationRuntimeEventResult =
+  | void
+  | boolean
+  | Readonly<{ readonly accepted: boolean; readonly failure?: SimulationRuntimeFailure }>;
+
+export type SimulationRuntimeEventHandler = (
+  event: SimulationRuntimeEvent,
+) => SimulationRuntimeEventResult;
+
+export type SimulationRuntimeStatus = 'running' | 'paused' | 'paused-world-rejected';
+
 export interface SimulationRuntimeState {
   readonly speed: SimulationSpeed;
   readonly accumulatedMilliseconds: number;
+  readonly status: SimulationRuntimeStatus;
+  readonly failure: SimulationRuntimeFailure | null;
 }
 
 export interface SimulationRuntime {
   getState(): SimulationRuntimeState;
   setSpeed(speed: SimulationSpeed): void;
-  advance(realDeltaMilliseconds: number, onEvent: (event: SimulationRuntimeEvent) => void): number;
-  step(onEvent: (event: SimulationRuntimeEvent) => void): boolean;
+  advance(realDeltaMilliseconds: number, onEvent: SimulationRuntimeEventHandler): number;
+  step(onEvent: SimulationRuntimeEventHandler): boolean;
   resetAfterVisibilityChange(): void;
 }
 
 export function createSimulationRuntime(initialSpeed: SimulationSpeed): SimulationRuntime {
   let speed = initialSpeed;
   let accumulatedMilliseconds = 0;
+  let status: SimulationRuntimeStatus = initialSpeed === 'paused' ? 'paused' : 'running';
+  let failure: SimulationRuntimeFailure | null = null;
 
   return Object.freeze({
     getState(): SimulationRuntimeState {
-      return Object.freeze({ speed, accumulatedMilliseconds });
+      return Object.freeze({ speed, accumulatedMilliseconds, status, failure });
     },
     setSpeed(nextSpeed: SimulationSpeed): void {
       if (!(nextSpeed in SPEED_MULTIPLIER)) {
@@ -41,11 +62,10 @@ export function createSimulationRuntime(initialSpeed: SimulationSpeed): Simulati
       }
       speed = nextSpeed;
       accumulatedMilliseconds = 0;
+      status = nextSpeed === 'paused' ? 'paused' : 'running';
+      failure = null;
     },
-    advance(
-      realDeltaMilliseconds: number,
-      onEvent: (event: SimulationRuntimeEvent) => void,
-    ): number {
+    advance(realDeltaMilliseconds: number, onEvent: SimulationRuntimeEventHandler): number {
       if (!Number.isFinite(realDeltaMilliseconds) || realDeltaMilliseconds < 0) {
         throw new RangeError('simulation-runtime:invalid-delta');
       }
@@ -60,15 +80,30 @@ export function createSimulationRuntime(initialSpeed: SimulationSpeed): Simulati
         emitted < MAX_GAME_MINUTES_PER_ADVANCE
       ) {
         accumulatedMilliseconds -= GAME_MINUTE_MILLISECONDS;
-        emitGameMinute(onEvent);
+        const accepted = emitGameMinute(onEvent);
         emitted += 1;
+        if (!accepted.accepted) {
+          speed = 'paused';
+          status = 'paused-world-rejected';
+          accumulatedMilliseconds = 0;
+          failure = accepted.failure;
+          break;
+        }
       }
       return emitted;
     },
-    step(onEvent: (event: SimulationRuntimeEvent) => void): boolean {
+    step(onEvent: SimulationRuntimeEventHandler): boolean {
       if (speed !== 'paused') return false;
-      emitGameMinute(onEvent);
-      return true;
+      const accepted = emitGameMinute(onEvent);
+      if (accepted.accepted) {
+        status = 'paused';
+        failure = null;
+      } else {
+        status = 'paused-world-rejected';
+        failure = accepted.failure;
+        accumulatedMilliseconds = 0;
+      }
+      return accepted.accepted;
     },
     resetAfterVisibilityChange(): void {
       accumulatedMilliseconds = 0;
@@ -76,14 +111,36 @@ export function createSimulationRuntime(initialSpeed: SimulationSpeed): Simulati
   });
 }
 
-function emitGameMinute(onEvent: (event: SimulationRuntimeEvent) => void): void {
-  onEvent(Object.freeze({ type: 'game-minute' }));
-  for (let ordinal = 1; ordinal <= TRANSPORT_QUANTA_PER_GAME_MINUTE; ordinal += 1) {
-    onEvent(
-      Object.freeze({
-        type: 'transport-quantum',
-        ordinal: ordinal as 1 | 2 | 3 | 4,
-      }),
-    );
+function eventResult(result: SimulationRuntimeEventResult): {
+  readonly accepted: boolean;
+  readonly failure: SimulationRuntimeFailure | null;
+} {
+  if (result === false) return { accepted: false, failure: { kind: 'world-rejected' } };
+  if (result === undefined || result === true) {
+    return { accepted: true, failure: null };
   }
+  return {
+    accepted: result.accepted,
+    failure: result.failure ?? (result.accepted ? null : { kind: 'world-rejected' }),
+  };
+}
+
+function emitGameMinute(onEvent: SimulationRuntimeEventHandler): {
+  readonly accepted: boolean;
+  readonly failure: SimulationRuntimeFailure | null;
+} {
+  const minute = eventResult(onEvent(Object.freeze({ type: 'game-minute' })));
+  if (!minute.accepted) return minute;
+  for (let ordinal = 1; ordinal <= TRANSPORT_QUANTA_PER_GAME_MINUTE; ordinal += 1) {
+    const quantum = eventResult(
+      onEvent(
+        Object.freeze({
+          type: 'transport-quantum',
+          ordinal: ordinal as 1 | 2 | 3 | 4,
+        }),
+      ),
+    );
+    if (!quantum.accepted) return quantum;
+  }
+  return { accepted: true, failure: null };
 }

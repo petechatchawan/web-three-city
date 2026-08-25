@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { waitForCityUi } from './helpers/city-ui.js';
 import { GAME_URL, clickGameMenuAction } from './helpers/interaction.js';
 
-const SAVE_KEY = 'web-three-city:world-save:v7';
+const SAVE_KEY = 'web-three-city:world-save:v8';
 
 async function waitForReady(page: import('@playwright/test').Page): Promise<void> {
   await page.setViewportSize({ width: 414, height: 896 });
@@ -45,7 +45,7 @@ test('applies typed tax policy and round-trips the committed Economy save', asyn
   await clickGameMenuAction(page, 'Save world');
   const saved = await page.evaluate((key) => localStorage.getItem(key), SAVE_KEY);
   expect(JSON.parse(saved ?? '{}')).toMatchObject({
-    schemaVersion: 7,
+    schemaVersion: 8,
     economy: {
       schemaVersion: 1,
       taxPolicy: { residentialBp: 800 },

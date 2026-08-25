@@ -291,6 +291,10 @@ function countingCoordinator(
       counters.authorityPublishCount += 1;
       return delegate.publishForTransaction(plan);
     },
+    publishBatchForTransaction(plans) {
+      counters.authorityPublishCount += plans.length;
+      return delegate.publishBatchForTransaction(plans);
+    },
     replaceFromDecodedWorld(world) {
       return delegate.replaceFromDecodedWorld(world);
     },
@@ -366,7 +370,9 @@ function runPublicationCadence(
       world = controller.advanceTransportQuantum();
     }
   } else {
-    world = controller.advanceTemporalMinute();
+    const result = controller.advanceTemporalMinute();
+    if (result.status !== 'committed') throw new Error(`test:temporal-rejected:${result.reason}`);
+    world = result.world;
   }
 
   return Object.freeze({ before: batchStart, world, counters });
@@ -433,5 +439,55 @@ describe('temporal publication cadence contract', () => {
       ...actual.counters,
       worldRevisionDelta: actual.world.revision - actual.before.revision,
     }).toEqual(expected);
+  });
+
+  it('does not publish any phase when a later transport quantum rejects', () => {
+    const before = worldAtMinute(8 * 60 + 58);
+    const counters: A2CadenceCounters = {
+      authorityPublishCount: 0,
+      completePresentationCount: 0,
+      fullStaticSyncCount: 0,
+      externalNotifyCount: 0,
+    };
+    const completePresentation = {
+      synchronize() {
+        counters.completePresentationCount += 1;
+      },
+      rebuildFromCommitted() {
+        counters.completePresentationCount += 1;
+      },
+    };
+    const coordinator = countingCoordinator(before, counters, completePresentation);
+    let graphCalls = 0;
+    const controller = createTemporalPublicationController({
+      coordinator,
+      registries: createFoundationRciRegistries(),
+      graphForWorld: (world) => {
+        graphCalls += 1;
+        if (graphCalls === 2) throw new Error('test:q2-rejected');
+        return emptyTrafficGraph(world);
+      },
+      reservedCells: () => Object.freeze([]),
+      intermediatePresentation: completePresentation,
+      finalDynamicPresentation: completePresentation,
+      completePresentation,
+      presentationSuppressed: () => false,
+      adoptCommittedWorld: () => {
+        counters.externalNotifyCount += 1;
+      },
+    });
+
+    const result = controller.advanceTemporalMinute();
+
+    expect(result.status).toBe('rejected');
+    if (result.status !== 'rejected') return;
+    expect(result.phase).toBe('quantum-2');
+    expect(result.reason).toBe('traffic:planning-error');
+    expect(result.beforeRevision).toBe(before.revision);
+    expect(result.world.revision).toBe(before.revision);
+    expect(result.world.simulation.absoluteGameMinute).toBe(before.simulation.absoluteGameMinute);
+    expect(counters.authorityPublishCount).toBe(0);
+    expect(counters.completePresentationCount).toBe(0);
+    expect(counters.externalNotifyCount).toBe(0);
   });
 });

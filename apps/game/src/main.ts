@@ -4,22 +4,26 @@ import './ui/city-ui.css';
 import './ui/m6-3-figma.css';
 import './ui/m6-3-fidelity-remediation.css';
 import './ui/m6-4-mobile-declutter.css';
-import { constructionProgressAtTick } from '@web-three-city/building-core';
+import { constructionProgressAtMacroHour } from '@web-three-city/building-core';
 import {
   constructionVisualPhase,
   latestBuildingPresentationScene,
   reloadLatestBuildingPresentation,
-  setBuildingPresentationAbsoluteTick,
+  setBuildingPresentationMacroHourIndex,
 } from '@web-three-city/building-three';
 import { createFoundationRciRegistries } from '@web-three-city/rci-core';
-import type { SimulationSpeed } from '@web-three-city/simulation-core';
+import { deriveMacroHourIndex, type SimulationSpeed } from '@web-three-city/simulation-core';
 import type { TerraformBrushSize } from '@web-three-city/terrain-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { writeBrowserWorldSaveFixture } from './browser-world-save-fixture.js';
 import { bootstrapGame } from './game-bootstrap.js';
 import { renderGameCanvas } from './game-ui.js';
 import { bindGameKeyboardShortcuts } from './game-keyboard-shortcuts.js';
-import { createSimulationRuntime, type SimulationRuntimeEvent } from './simulation-runtime.js';
+import {
+  createSimulationRuntime,
+  type SimulationRuntimeEvent,
+  type SimulationRuntimeEventResult,
+} from './simulation-runtime.js';
 import { dispatchGameToolCancel } from './game-tool-events.js';
 import { bindGameToolContext } from './game-tool-context-bridge.js';
 import type { GameToolMode } from './game-tool-mode.js';
@@ -134,17 +138,17 @@ const simulationRuntime = createSimulationRuntime('paused');
 let previousFrameTimestamp: number | null = null;
 let frameRequest = 0;
 let suppressPresentationSync = false;
+let lastTemporalFailureKey: string | null = null;
 const phaseByInstance = new Map<string, string>();
 
 function refreshConstructionPhaseIfNeeded(world = runtime.snapshot()): void {
   let changed = false;
+  const macroHourIndex = deriveMacroHourIndex(world.simulation.absoluteGameMinute);
   const next = new Map<string, string>();
   for (const instance of world.buildings.instances) {
     const phase =
       instance.lifecycle === 'construction'
-        ? constructionVisualPhase(
-            constructionProgressAtTick(instance, world.simulation.absoluteGameMinute),
-          )
+        ? constructionVisualPhase(constructionProgressAtMacroHour(instance, macroHourIndex))
         : 'active';
     next.set(instance.instanceId, phase);
     if (phaseByInstance.get(instance.instanceId) !== phase) changed = true;
@@ -164,29 +168,53 @@ function synchronizeCommittedWorld(
     setSimulationSpeed('paused');
     simulationRuntime.resetAfterVisibilityChange();
   }
-  setBuildingPresentationAbsoluteTick(world.simulation.absoluteGameMinute);
+  setBuildingPresentationMacroHourIndex(deriveMacroHourIndex(world.simulation.absoluteGameMinute));
   refreshConstructionPhaseIfNeeded(world);
   trafficRuntime?.synchronize(world);
   cityUi.update(world);
 }
 
-function advanceRuntimeEvent(event: SimulationRuntimeEvent): void {
+function advanceRuntimeEvent(event: SimulationRuntimeEvent): SimulationRuntimeEventResult {
   if (event.type === 'game-minute') {
-    runtime.advanceTemporalMinute({ automaticGrowth: automaticGrowthEnabled });
+    const result = runtime.advanceTemporalMinute({ automaticGrowth: automaticGrowthEnabled });
+    if (result.status === 'rejected') {
+      const failureKey = `${result.phase}:${result.reason}`;
+      if (lastTemporalFailureKey !== failureKey) {
+        lastTemporalFailureKey = failureKey;
+        cityUi.toolContextSheet.setStatus('Simulation paused: world update rejected');
+        console.warn('Simulation paused: world update rejected', {
+          phase: result.phase,
+          reason: result.reason,
+        });
+      }
+      cityUi.setSimulationSpeed('paused');
+      return {
+        accepted: false,
+        failure: {
+          kind: 'world-rejected',
+          phase: result.phase,
+          reason: result.reason,
+        },
+      };
+    }
+    return { accepted: true };
   }
+  return { accepted: true };
 }
 
 function setSimulationSpeed(speed: SimulationSpeed): void {
   simulationRuntime.setSpeed(speed);
+  if (speed !== 'paused') lastTemporalFailureKey = null;
   cityUi.setSimulationSpeed(speed);
 }
 
 function resetSimulationForTest(): void {
   setSimulationSpeed('paused');
+  lastTemporalFailureKey = null;
   simulationRuntime.resetAfterVisibilityChange();
   phaseByInstance.clear();
   const world = runtime.resetSimulationForTest();
-  setBuildingPresentationAbsoluteTick(world.simulation.absoluteGameMinute);
+  setBuildingPresentationMacroHourIndex(deriveMacroHourIndex(world.simulation.absoluteGameMinute));
   refreshConstructionPhaseIfNeeded(world);
   trafficRuntime?.synchronize(world);
 }
@@ -263,7 +291,9 @@ const unsubscribeWorldSelection = runtime.subscribeWorldSelection((cell) => {
 const initialWorld = runtime.snapshot();
 trafficRuntime?.synchronize(initialWorld);
 cityUi.update(initialWorld);
-setBuildingPresentationAbsoluteTick(initialWorld.simulation.absoluteGameMinute);
+setBuildingPresentationMacroHourIndex(
+  deriveMacroHourIndex(initialWorld.simulation.absoluteGameMinute),
+);
 refreshConstructionPhaseIfNeeded(initialWorld);
 
 const timeWindow = window as GameTimeWindow;

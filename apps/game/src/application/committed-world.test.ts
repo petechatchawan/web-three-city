@@ -294,6 +294,25 @@ describe('CommittedWorldStore', () => {
     expect(store.snapshot().roads.definitionCodes[0]).toBe(EMPTY_ROAD_CODE);
   });
 
+  it('installs a prepared batch only when every revision is contiguous', () => {
+    const store = new CommittedWorldStore(sourceWorld(0));
+    const validCandidates = [1, 2, 3, 4, 5].map((revision) =>
+      createCommittedWorld(sourceWorld(revision)),
+    );
+
+    expect(() => store.replacePreparedBatch(0, validCandidates)).not.toThrow();
+    expect(store.snapshot().revision).toBe(5);
+
+    const invalidStore = new CommittedWorldStore(sourceWorld(0));
+    const invalidCandidates = [1, 3, 4, 5, 6].map((revision) =>
+      createCommittedWorld(sourceWorld(revision)),
+    );
+    expect(() => invalidStore.replacePreparedBatch(0, invalidCandidates)).toThrow(
+      'committed-world:invalid-batch',
+    );
+    expect(invalidStore.snapshot().revision).toBe(0);
+  });
+
   it('replaces shared road projection inputs when road authority changes', () => {
     const initial = createCommittedWorld(sourceWorld(0));
     const store = new CommittedWorldStore(initial);

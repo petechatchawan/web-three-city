@@ -59,13 +59,33 @@ export function validateBuildingLifecycle(instance: AuthoritativeBuildingInstanc
   }
 }
 
+export function isBuildingConstructionCompleteAtMacroHour(
+  instance: ConstructionBuildingInstance,
+  macroHourIndex: number,
+): boolean {
+  if (!validTick(macroHourIndex)) {
+    throw new RangeError('building-lifecycle:invalid-macro-hour');
+  }
+  return instance.constructionCompletesAtTick <= macroHourIndex;
+}
+
+export function constructionProgressAtMacroHour(
+  instance: ConstructionBuildingInstance,
+  macroHourIndex: number,
+): number {
+  if (!validTick(macroHourIndex)) {
+    throw new RangeError('building-lifecycle:invalid-macro-hour');
+  }
+  const duration = instance.constructionCompletesAtTick - instance.constructionStartedAtTick;
+  return Math.max(0, Math.min(1, (macroHourIndex - instance.constructionStartedAtTick) / duration));
+}
+
+/** @deprecated Use constructionProgressAtMacroHour with a derived macro-hour index. */
 export function constructionProgressAtTick(
   instance: ConstructionBuildingInstance,
-  absoluteTick: number,
+  macroHourIndex: number,
 ): number {
-  if (!validTick(absoluteTick)) throw new RangeError('building-lifecycle:invalid-tick');
-  const duration = instance.constructionCompletesAtTick - instance.constructionStartedAtTick;
-  return Math.max(0, Math.min(1, (absoluteTick - instance.constructionStartedAtTick) / duration));
+  return constructionProgressAtMacroHour(instance, macroHourIndex);
 }
 
 export function activateCompletedBuilding(

@@ -313,6 +313,18 @@ export class CommittedWorldStore {
     this.#world = next;
   }
 
+  replacePreparedBatch(expectedRevision: number, candidates: readonly CommittedWorld[]): void {
+    if (candidates.length === 0) throw new Error('committed-world:empty-batch');
+    if (expectedRevision !== this.#world.revision)
+      throw new Error('committed-world:stale-revision');
+    let revision = expectedRevision;
+    for (const candidate of candidates) {
+      revision += 1;
+      if (candidate.revision !== revision) throw new Error('committed-world:invalid-batch');
+    }
+    this.#world = candidates[candidates.length - 1]!;
+  }
+
   replace(expectedRevision: number, next: CommittedWorldInput): CommittedWorld {
     if (expectedRevision !== this.#world.revision)
       throw new Error('committed-world:stale-revision');

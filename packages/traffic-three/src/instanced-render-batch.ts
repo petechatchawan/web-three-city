@@ -17,21 +17,69 @@ const HIDDEN_MATRIX = new Matrix4().makeScale(0, 0, 0);
 export interface TrafficInstancedRenderSet {
   readonly primary: InstancedMesh;
   readonly secondary: InstancedMesh;
-  allocate(): number;
-  update(slot: number, matrix: Matrix4): void;
-  setColors(slot: number, primaryHex: number, secondaryHex: number): void;
-  hide(slot: number): void;
+  acquire(onSlotChanged: (slot: number | null) => void): TrafficInstancedRenderHandle;
   dispose(): void;
+}
+
+export interface TrafficInstancedRenderHandle {
+  readonly slot: number;
+  update(matrix: Matrix4): void;
+  setColors(primaryHex: number, secondaryHex: number): void;
+  release(): void;
+}
+
+class OwnedTrafficInstancedRenderHandle implements TrafficInstancedRenderHandle {
+  readonly #owner: OwnedTrafficInstancedRenderSet;
+  readonly #onSlotChanged: (slot: number | null) => void;
+  #slot: number | null;
+
+  constructor(
+    owner: OwnedTrafficInstancedRenderSet,
+    slot: number,
+    onSlotChanged: (slot: number | null) => void,
+  ) {
+    this.#owner = owner;
+    this.#slot = slot;
+    this.#onSlotChanged = onSlotChanged;
+    this.#onSlotChanged(slot);
+  }
+
+  get slot(): number {
+    if (this.#slot === null) throw new RangeError('traffic-three:invalid-instance-handle');
+    return this.#slot;
+  }
+
+  update(matrix: Matrix4): void {
+    this.#owner.update(this, matrix);
+  }
+
+  setColors(primaryHex: number, secondaryHex: number): void {
+    this.#owner.setColors(this, primaryHex, secondaryHex);
+  }
+
+  release(): void {
+    this.#owner.release(this);
+  }
+
+  relocate(slot: number): void {
+    this.#slot = slot;
+    this.#onSlotChanged(slot);
+  }
+
+  deactivate(): void {
+    this.#slot = null;
+    this.#onSlotChanged(null);
+  }
 }
 
 class OwnedTrafficInstancedRenderSet implements TrafficInstancedRenderSet {
   readonly primary: InstancedMesh;
   readonly secondary: InstancedMesh;
   readonly #capacity: number;
-  readonly #allocated = new Set<number>();
+  readonly #active: OwnedTrafficInstancedRenderHandle[] = [];
+  readonly #matrix = new Matrix4();
   readonly #primaryColor = new Color();
   readonly #secondaryColor = new Color();
-  #nextSlot = 0;
   #disposed = false;
 
   constructor(input: {
@@ -55,65 +103,112 @@ class OwnedTrafficInstancedRenderSet implements TrafficInstancedRenderSet {
     );
     this.primary.name = input.primary.name;
     this.secondary.name = input.secondary.name;
-    for (let slot = 0; slot < this.#capacity; slot += 1) {
-      this.primary.setMatrixAt(slot, HIDDEN_MATRIX);
-      this.secondary.setMatrixAt(slot, HIDDEN_MATRIX);
-    }
-    this.primary.instanceMatrix.needsUpdate = true;
-    this.secondary.instanceMatrix.needsUpdate = true;
+    this.primary.count = 0;
+    this.secondary.count = 0;
   }
 
-  allocate(): number {
+  acquire(onSlotChanged: (slot: number | null) => void): TrafficInstancedRenderHandle {
     this.#assertUsable();
-    if (this.#nextSlot >= this.#capacity) {
+    if (this.#active.length >= this.#capacity) {
       throw new RangeError('traffic-three:instance-capacity-exceeded');
     }
-    const slot = this.#nextSlot;
-    this.#nextSlot += 1;
-    this.#allocated.add(slot);
-    this.hide(slot);
-    return slot;
+    const slot = this.#active.length;
+    const handle = new OwnedTrafficInstancedRenderHandle(this, slot, onSlotChanged);
+    this.#active.push(handle);
+    this.primary.setMatrixAt(slot, HIDDEN_MATRIX);
+    this.secondary.setMatrixAt(slot, HIDDEN_MATRIX);
+    this.#publishMatrixChange();
+    this.#publishCount();
+    return handle;
   }
 
-  update(slot: number, matrix: Matrix4): void {
-    this.#assertSlot(slot);
+  update(handle: OwnedTrafficInstancedRenderHandle, matrix: Matrix4): void {
+    const slot = this.#slotFor(handle);
     this.primary.setMatrixAt(slot, matrix);
     this.secondary.setMatrixAt(slot, matrix);
-    this.primary.instanceMatrix.needsUpdate = true;
-    this.secondary.instanceMatrix.needsUpdate = true;
+    this.#publishMatrixChange();
   }
 
-  setColors(slot: number, primaryHex: number, secondaryHex: number): void {
-    this.#assertSlot(slot);
+  setColors(
+    handle: OwnedTrafficInstancedRenderHandle,
+    primaryHex: number,
+    secondaryHex: number,
+  ): void {
+    const slot = this.#slotFor(handle);
     this.#primaryColor.setHex(primaryHex);
     this.#secondaryColor.setHex(secondaryHex);
     this.primary.setColorAt(slot, this.#primaryColor);
     this.secondary.setColorAt(slot, this.#secondaryColor);
-    if (this.primary.instanceColor !== null) this.primary.instanceColor.needsUpdate = true;
-    if (this.secondary.instanceColor !== null) this.secondary.instanceColor.needsUpdate = true;
+    this.#publishColorChange();
   }
 
-  hide(slot: number): void {
-    this.#assertSlot(slot);
-    this.primary.setMatrixAt(slot, HIDDEN_MATRIX);
-    this.secondary.setMatrixAt(slot, HIDDEN_MATRIX);
-    this.primary.instanceMatrix.needsUpdate = true;
-    this.secondary.instanceMatrix.needsUpdate = true;
+  release(handle: OwnedTrafficInstancedRenderHandle): void {
+    const slot = this.#slotFor(handle);
+    const lastSlot = this.#active.length - 1;
+    const moved = this.#active[lastSlot]!;
+    if (slot !== lastSlot) {
+      this.#copySlot(lastSlot, slot);
+      this.#active[slot] = moved;
+      moved.relocate(slot);
+    }
+    this.#active.pop();
+    handle.deactivate();
+    this.#publishCount();
   }
 
   dispose(): void {
     if (this.#disposed) return;
     this.#disposed = true;
+    for (const handle of this.#active) handle.deactivate();
+    this.#active.length = 0;
+    this.primary.count = 0;
+    this.secondary.count = 0;
     this.primary.geometry.dispose();
     this.secondary.geometry.dispose();
     (this.primary.material as MeshStandardMaterial).dispose();
     (this.secondary.material as MeshStandardMaterial).dispose();
-    this.#allocated.clear();
   }
 
-  #assertSlot(slot: number): void {
+  #slotFor(handle: OwnedTrafficInstancedRenderHandle): number {
     this.#assertUsable();
-    if (!this.#allocated.has(slot)) throw new RangeError('traffic-three:invalid-instance-slot');
+    const slot = handle.slot;
+    if (this.#active[slot] !== handle) {
+      throw new RangeError('traffic-three:invalid-instance-handle');
+    }
+    return slot;
+  }
+
+  #copySlot(source: number, target: number): void {
+    this.primary.getMatrixAt(source, this.#matrix);
+    this.primary.setMatrixAt(target, this.#matrix);
+    this.secondary.getMatrixAt(source, this.#matrix);
+    this.secondary.setMatrixAt(target, this.#matrix);
+    this.#publishMatrixChange();
+
+    if (this.primary.instanceColor !== null) {
+      this.primary.getColorAt(source, this.#primaryColor);
+      this.primary.setColorAt(target, this.#primaryColor);
+    }
+    if (this.secondary.instanceColor !== null) {
+      this.secondary.getColorAt(source, this.#secondaryColor);
+      this.secondary.setColorAt(target, this.#secondaryColor);
+    }
+    this.#publishColorChange();
+  }
+
+  #publishCount(): void {
+    this.primary.count = this.#active.length;
+    this.secondary.count = this.#active.length;
+  }
+
+  #publishMatrixChange(): void {
+    this.primary.instanceMatrix.needsUpdate = true;
+    this.secondary.instanceMatrix.needsUpdate = true;
+  }
+
+  #publishColorChange(): void {
+    if (this.primary.instanceColor !== null) this.primary.instanceColor.needsUpdate = true;
+    if (this.secondary.instanceColor !== null) this.secondary.instanceColor.needsUpdate = true;
   }
 
   #assertUsable(): void {

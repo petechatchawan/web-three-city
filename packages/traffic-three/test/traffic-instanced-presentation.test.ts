@@ -45,6 +45,30 @@ function translation(mesh: InstancedMesh, slot: number): readonly [number, numbe
 }
 
 describe('traffic-three instanced presentation', () => {
+  it('renders only active Traffic instances while retaining bounded backing capacity', () => {
+    const vehicles = new TrafficVehiclePool();
+    for (let index = 0; index < 50; index += 1) vehicles.acquire(vehicleInput(index));
+    const vehicleBody = batch(vehicles.root, 'traffic-vehicle-body-batch');
+    const vehicleRoof = batch(vehicles.root, 'traffic-vehicle-roof-batch');
+
+    expect(vehicleBody.instanceMatrix.count).toBe(600);
+    expect(vehicleRoof.instanceMatrix.count).toBe(600);
+    expect(vehicleBody.count).toBe(50);
+    expect(vehicleRoof.count).toBe(50);
+
+    const pedestrians = new TrafficPedestrianPool();
+    for (let index = 0; index < 10; index += 1) pedestrians.acquire(pedestrianInput(index));
+    const pedestrianBody = batch(pedestrians.root, 'traffic-pedestrian-body-batch');
+    const pedestrianHead = batch(pedestrians.root, 'traffic-pedestrian-head-batch');
+
+    expect(pedestrianBody.instanceMatrix.count).toBe(600);
+    expect(pedestrianHead.instanceMatrix.count).toBe(600);
+    expect(pedestrianBody.count).toBe(10);
+    expect(pedestrianHead.count).toBe(10);
+    vehicles.dispose();
+    pedestrians.dispose();
+  });
+
   it('keeps vehicle render submissions bounded as visible vehicle count grows', () => {
     const pool = new TrafficVehiclePool();
     for (let index = 0; index < 24; index += 1) pool.acquire(vehicleInput(index));
@@ -76,9 +100,68 @@ describe('traffic-three instanced presentation', () => {
     const pool = new TrafficVehiclePool();
     for (let index = 0; index < 300; index += 1) pool.acquire(vehicleInput(index));
     for (let index = 300; index < 600; index += 1) pool.acquire(vehicleInput(index));
+    const body = batch(pool.root, 'traffic-vehicle-body-batch');
 
     expect(pool.createdCount).toBe(600);
     expect(pool.root.children.filter((child) => child instanceof InstancedMesh)).toHaveLength(2);
+    expect(body.count).toBe(600);
+    expect(() => pool.acquire(vehicleInput(600))).toThrowError(
+      'traffic-three:instance-capacity-exceeded',
+    );
+
+    pool.retainOnly(new Set(Array.from({ length: 300 }, (_, index) => `drive-${index + 300}`)));
+
+    const retainedSlots = Array.from(
+      { length: 300 },
+      (_, index) => pool.get(`drive-${index + 300}`)!.renderSlot,
+    ).sort((first, second) => first! - second!);
+    expect(pool.activeCount).toBe(300);
+    expect(body.count).toBe(300);
+    expect(retainedSlots).toEqual(Array.from({ length: 300 }, (_, index) => index));
+    pool.dispose();
+  });
+
+  it('compacts a released vehicle hole without changing moved identity, transform, or appearance', () => {
+    const pool = new TrafficVehiclePool();
+    const first = pool.acquire(vehicleInput(1));
+    const released = pool.acquire(vehicleInput(2));
+    const third = pool.acquire(vehicleInput(3));
+    const moved = pool.acquire(vehicleInput(4));
+    const body = batch(pool.root, 'traffic-vehicle-body-batch');
+    const roof = batch(pool.root, 'traffic-vehicle-roof-batch');
+    const beforeSlot = moved.renderSlot;
+    const beforeBodyTranslation = translation(body, beforeSlot!);
+    const beforeRoofTranslation = translation(roof, beforeSlot!);
+    const beforeBodyColor = new Color();
+    const beforeRoofColor = new Color();
+    body.getColorAt(beforeSlot!, beforeBodyColor);
+    roof.getColorAt(beforeSlot!, beforeRoofColor);
+
+    pool.release('drive-2');
+
+    expect(body.count).toBe(3);
+    expect(roof.count).toBe(3);
+    expect(first.renderSlot).toBe(0);
+    expect(moved.renderSlot).toBe(1);
+    expect(moved.object.userData.trafficRenderSlot).toBe(1);
+    expect(third.renderSlot).toBe(2);
+    expect(pool.get('drive-4')).toBe(moved);
+    expect(translation(body, moved.renderSlot!)).toEqual(beforeBodyTranslation);
+    expect(translation(roof, moved.renderSlot!)).toEqual(beforeRoofTranslation);
+    const movedBodyColor = new Color();
+    const movedRoofColor = new Color();
+    body.getColorAt(moved.renderSlot!, movedBodyColor);
+    roof.getColorAt(moved.renderSlot!, movedRoofColor);
+    expect(movedBodyColor.getHex()).toBe(beforeBodyColor.getHex());
+    expect(movedRoofColor.getHex()).toBe(beforeRoofColor.getHex());
+
+    released.setTransform(released.object.position.clone().setX(111), 0);
+    expect(translation(body, moved.renderSlot!)).toEqual(beforeBodyTranslation);
+
+    const firstBefore = translation(body, first.renderSlot!);
+    moved.setTransform(moved.object.position.clone().setX(99), 0);
+    expect(translation(body, moved.renderSlot!)[0]).toBe(99);
+    expect(translation(body, first.renderSlot!)).toEqual(firstBefore);
     pool.dispose();
   });
 
@@ -116,7 +199,7 @@ describe('traffic-three instanced presentation', () => {
     pool.dispose();
   });
 
-  it('preserves deterministic pedestrian appearance and hides/reuses a released slot without leakage', () => {
+  it('preserves deterministic pedestrian appearance and reuses compacted capacity without leakage', () => {
     const pool = new TrafficPedestrianPool();
     const first = pool.acquire(pedestrianInput(1));
     const slot = first.object.userData.trafficRenderSlot;
@@ -126,9 +209,8 @@ describe('traffic-three instanced presentation', () => {
     expect(color.getHex()).toBe(pedestrianAppearanceForCitizen('citizen-walk-1').clothingColor);
 
     pool.release('walk-1');
-    const hidden = new Matrix4();
-    body.getMatrixAt(slot, hidden);
-    expect(hidden.determinant()).toBe(0);
+    expect(body.count).toBe(0);
+    expect(batch(pool.root, 'traffic-pedestrian-head-batch').count).toBe(0);
 
     const reused = pool.acquire({ ...pedestrianInput(2), progressQ: 750_000 });
     expect(reused.object.userData).toMatchObject({

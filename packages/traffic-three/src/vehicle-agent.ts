@@ -10,7 +10,10 @@ import {
   FOUNDATION_TRAFFIC_VISUAL_SCALE_POLICY,
   type TrafficVisualScalePolicy,
 } from './visual-scale-policy.js';
-import type { TrafficInstancedRenderSet } from './instanced-render-batch.js';
+import type {
+  TrafficInstancedRenderHandle,
+  TrafficInstancedRenderSet,
+} from './instanced-render-batch.js';
 
 export interface TrafficVehicleTurnInput {
   readonly previous: TrafficWorldPointQ;
@@ -36,7 +39,7 @@ export class TrafficVehicleAgent {
   readonly #roof: Mesh | null;
   readonly #scalePolicy: TrafficVisualScalePolicy;
   readonly #renderSet: TrafficInstancedRenderSet | null;
-  readonly #renderSlot: number | null;
+  #renderHandle: TrafficInstancedRenderHandle | null = null;
   #tripId: string | null = null;
 
   constructor(
@@ -45,7 +48,6 @@ export class TrafficVehicleAgent {
   ) {
     this.#scalePolicy = scalePolicy;
     this.#renderSet = renderSet;
-    this.#renderSlot = renderSet?.allocate() ?? null;
     this.object.name = 'traffic-vehicle-agent';
     if (renderSet === null) {
       const bodyHeight = scalePolicy.vehicleHeightWorldUnits * 0.55;
@@ -85,7 +87,7 @@ export class TrafficVehicleAgent {
   }
 
   get renderSlot(): number | null {
-    return this.#renderSlot;
+    return this.#renderHandle?.slot ?? null;
   }
 
   assign(input: TrafficVehicleVisualInput): void {
@@ -119,9 +121,8 @@ export class TrafficVehicleAgent {
 
   release(): void {
     this.object.visible = false;
-    if (this.#renderSet !== null && this.#renderSlot !== null) {
-      this.#renderSet.hide(this.#renderSlot);
-    }
+    this.#renderHandle?.release();
+    this.#renderHandle = null;
     this.object.userData.trafficAgentKind = undefined;
     this.object.userData.tripId = undefined;
     this.object.userData.citizenId = undefined;
@@ -132,6 +133,8 @@ export class TrafficVehicleAgent {
   }
 
   dispose(): void {
+    this.#renderHandle?.release();
+    this.#renderHandle = null;
     if (this.#body === null || this.#roof === null) return;
     this.#body.geometry.dispose();
     this.#roof.geometry.dispose();
@@ -142,8 +145,11 @@ export class TrafficVehicleAgent {
   #bind(input: TrafficVehicleVisualInput): void {
     if (this.#tripId !== null) throw new Error('traffic-three:vehicle-bind-active');
     const appearance = vehicleAppearanceForTrip(input.tripId, input.citizenId);
-    if (this.#renderSet !== null && this.#renderSlot !== null) {
-      this.#renderSet.setColors(this.#renderSlot, appearance.bodyColor, 0x9da9b0);
+    if (this.#renderSet !== null) {
+      this.#renderHandle = this.#renderSet.acquire((slot) => {
+        this.object.userData.trafficRenderSlot = slot ?? undefined;
+      });
+      this.#renderHandle.setColors(appearance.bodyColor, 0x9da9b0);
     } else {
       (this.#body!.material as MeshStandardMaterial).color.setHex(appearance.bodyColor);
       (this.#roof!.material as MeshStandardMaterial).color.setHex(0x9da9b0);
@@ -159,15 +165,14 @@ export class TrafficVehicleAgent {
     this.object.userData.trafficAgentKind = 'vehicle';
     this.object.userData.tripId = input.tripId;
     this.object.userData.citizenId = input.citizenId;
-    this.object.userData.trafficRenderSlot = this.#renderSlot;
     this.#tripId = input.tripId;
     this.object.visible = true;
     this.#syncRenderTransform();
   }
 
   #syncRenderTransform(): void {
-    if (this.#renderSet === null || this.#renderSlot === null) return;
+    if (this.#renderHandle === null) return;
     this.object.updateMatrix();
-    this.#renderSet.update(this.#renderSlot, this.object.matrix);
+    this.#renderHandle.update(this.object.matrix);
   }
 }

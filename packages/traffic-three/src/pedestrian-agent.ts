@@ -16,7 +16,10 @@ import {
   FOUNDATION_TRAFFIC_VISUAL_SCALE_POLICY,
   type TrafficVisualScalePolicy,
 } from './visual-scale-policy.js';
-import type { TrafficInstancedRenderSet } from './instanced-render-batch.js';
+import type {
+  TrafficInstancedRenderHandle,
+  TrafficInstancedRenderSet,
+} from './instanced-render-batch.js';
 
 export interface TrafficPedestrianVisualInput {
   readonly tripId: string;
@@ -34,7 +37,7 @@ export class TrafficPedestrianAgent {
   readonly #head: Mesh | null;
   readonly #scalePolicy: TrafficVisualScalePolicy;
   readonly #renderSet: TrafficInstancedRenderSet | null;
-  readonly #renderSlot: number | null;
+  #renderHandle: TrafficInstancedRenderHandle | null = null;
   #tripId: string | null = null;
 
   constructor(
@@ -43,7 +46,6 @@ export class TrafficPedestrianAgent {
   ) {
     this.#scalePolicy = scalePolicy;
     this.#renderSet = renderSet;
-    this.#renderSlot = renderSet?.allocate() ?? null;
     this.object.name = 'traffic-pedestrian-agent';
     if (renderSet === null) {
       const headDiameter = scalePolicy.pedestrianWidthWorldUnits * 0.72;
@@ -72,7 +74,7 @@ export class TrafficPedestrianAgent {
   }
 
   get renderSlot(): number | null {
-    return this.#renderSlot;
+    return this.#renderHandle?.slot ?? null;
   }
 
   assign(input: TrafficPedestrianVisualInput): void {
@@ -99,9 +101,8 @@ export class TrafficPedestrianAgent {
 
   release(): void {
     this.object.visible = false;
-    if (this.#renderSet !== null && this.#renderSlot !== null) {
-      this.#renderSet.hide(this.#renderSlot);
-    }
+    this.#renderHandle?.release();
+    this.#renderHandle = null;
     this.object.userData.trafficAgentKind = undefined;
     this.object.userData.tripId = undefined;
     this.object.userData.citizenId = undefined;
@@ -112,6 +113,8 @@ export class TrafficPedestrianAgent {
   }
 
   dispose(): void {
+    this.#renderHandle?.release();
+    this.#renderHandle = null;
     if (this.#body === null || this.#head === null) return;
     this.#body.geometry.dispose();
     this.#head.geometry.dispose();
@@ -122,8 +125,11 @@ export class TrafficPedestrianAgent {
   #bind(input: TrafficPedestrianVisualInput): void {
     if (this.#tripId !== null) throw new Error('traffic-three:pedestrian-bind-active');
     const appearance = pedestrianAppearanceForCitizen(input.citizenId);
-    if (this.#renderSet !== null && this.#renderSlot !== null) {
-      this.#renderSet.setColors(this.#renderSlot, appearance.clothingColor, appearance.accentColor);
+    if (this.#renderSet !== null) {
+      this.#renderHandle = this.#renderSet.acquire((slot) => {
+        this.object.userData.trafficRenderSlot = slot ?? undefined;
+      });
+      this.#renderHandle.setColors(appearance.clothingColor, appearance.accentColor);
     } else {
       (this.#body!.material as MeshStandardMaterial).color.setHex(appearance.clothingColor);
       (this.#head!.material as MeshStandardMaterial).color.setHex(appearance.accentColor);
@@ -139,15 +145,14 @@ export class TrafficPedestrianAgent {
     this.object.userData.trafficAgentKind = 'citizen';
     this.object.userData.tripId = input.tripId;
     this.object.userData.citizenId = input.citizenId;
-    this.object.userData.trafficRenderSlot = this.#renderSlot;
     this.#tripId = input.tripId;
     this.object.visible = true;
     this.#syncRenderTransform();
   }
 
   #syncRenderTransform(): void {
-    if (this.#renderSet === null || this.#renderSlot === null) return;
+    if (this.#renderHandle === null) return;
     this.object.updateMatrix();
-    this.#renderSet.update(this.#renderSlot, this.object.matrix);
+    this.#renderHandle.update(this.object.matrix);
   }
 }

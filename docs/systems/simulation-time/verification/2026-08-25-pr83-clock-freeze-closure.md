@@ -43,16 +43,22 @@ as implementation-history context.
 
 ### Final Phase 1 source-tested closure
 
-The final runtime source-tested SHA is
-`d0d09620f8ae61481b32ce4c2a56aa77c7651f95`. All automated results in this
-section were freshly run against that exact source candidate.
+The final runtime/test source-tested SHA is
+`0eaad05e067c944d64ca2ff1171b0a2d2f26e644`. The preceding production source candidate was
+`d0d09620f8ae61481b32ce4c2a56aa77c7651f95`; the intervening commit is a
+browser-test-only verification-budget adjustment. It does not change
+production behavior, browser worker topology, retries, or assertions.
 
-- Game: `98` files, `407/407` tests GREEN; Game typecheck GREEN.
-- `pnpm verify`: GREEN, including formatting, lint, workspace and browser
+- At `0eaad05e067c944d64ca2ff1171b0a2d2f26e644`, `pnpm check`: GREEN, including formatting, lint, workspace and browser
   typechecks, provenance, deployment/topology (`60/60`), all workspace tests,
   and application builds.
+- At `0eaad05e067c944d64ca2ff1171b0a2d2f26e644`, Game: `98` files, `407/407` tests GREEN; Game typecheck GREEN.
+- At `0eaad05e067c944d64ca2ff1171b0a2d2f26e644`, the serial targeted browser reproduction covering the two
+  previously budget-limited suites completed `4/4` GREEN with one worker and
+  one retry budget.
 - Full Browser: `149` tests, `148` passed, `1` skipped, `0` failed, using one
-  clean final run. The skipped test is the explicit performance-authority
+  clean local run at the preceding production source candidate. The skipped
+  test is the explicit performance-authority
   test, gated to `WEB_THREE_CITY_PERFORMANCE_AUTHORITY=metal`; the default
   Chromium run used SwiftShader and therefore does not claim Metal release
   performance.
@@ -67,9 +73,10 @@ section were freshly run against that exact source candidate.
 
 The final source candidate includes the narrow follow-up fixes required by
 fresh verification: the deterministic zoning fixture avoids the fixed HUD,
-and temporal batch validation forks the existing validated static-authority
-cache and marks each staged candidate so Q1–Q4 do not repeat map-wide static
-validation.
+temporal batch validation forks the existing validated static-authority cache
+and marks each staged candidate so Q1–Q4 do not repeat map-wide static
+validation, and the two long-running serial browser suites have scoped
+timeouts calibrated from the exact-head CI timeout/flakiness evidence.
 
 ### Focused correctness
 

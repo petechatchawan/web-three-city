@@ -90,3 +90,9 @@ No seasonal calendar, leap years, offline progress, general event scheduler, var
 - UI: `apps/game/src/game-time-ui.ts`, `game-time-presentation.ts`
 - Related systems: [Buildings](../buildings/README.md), [RCI](../rci/README.md), [Citizen Mobility](../citizen-mobility/README.md), [Traffic](../traffic/README.md), [World](../world/README.md)
 - [ADR-0001 — Minute calendar with derived macro-hour compatibility](adrs/0001-minute-calendar-macro-hour-compatibility.md)
+- Approved phased design: [Temporal Authority Standard v1](specs/2026-08-25-temporal-authority-standard-v1.md)
+- Phase 1 execution: [PR #83 Clock Freeze and Atomic Temporal Minute](tdd/2026-08-25-pr83-clock-freeze-atomic-minute.md)
+- Successor execution index: [Temporal Authority Delivery](tdd/2026-08-25-temporal-authority-execution-index.md)
+- [ADR-0002 — Atomic Temporal Minute Publication](adrs/0002-atomic-temporal-minute-publication.md)
+- [ADR-0003 — Explicit Temporal Units](adrs/0003-explicit-temporal-units.md)
+- [ADR-0004 — Simulation Calendar and Playback Standard](adrs/0004-simulation-calendar-playback-standard.md) remains proposed and deferred.

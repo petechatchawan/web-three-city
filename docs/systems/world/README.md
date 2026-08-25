@@ -106,3 +106,4 @@ The atomic store composes Simulation, Buildings, RCI, Economy, Mobility, and Tra
 - Atomic state: `apps/game/src/game-world-state.ts`
 - Tick orchestration: `apps/game/src/game-world-tick.ts`
 - Related systems: [Terrain](../terrain/README.md), [Water](../water/README.md), [Roads](../roads/README.md), [Zoning](../zoning/README.md), [Buildings](../buildings/README.md), [Simulation Time](../simulation-time/README.md), [RCI](../rci/README.md), [Citizen Mobility](../citizen-mobility/README.md), [Traffic](../traffic/README.md)
+- Accepted successor design: [ADR-0001 — WorldSaveV9 Temporal Unit Migration](adrs/0001-world-save-v9-temporal-unit-migration.md). Implementation remains deferred and does not alter the current writer in PR #83.

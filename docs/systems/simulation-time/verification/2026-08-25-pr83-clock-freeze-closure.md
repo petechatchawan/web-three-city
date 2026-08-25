@@ -23,21 +23,53 @@ Tests from an older runtime SHA cannot be attributed to newer source.
 
 ### Local Phase 1 implementation checkpoint
 
-The current working-tree implementation has completed the local RED/GREEN
-loop for the Phase 1 boundary fix. The runtime source was still uncommitted
-when this checkpoint was recorded; the exact committed source SHA belongs in
-the final PR evidence.
+The initial local checkpoint recorded completion of the RED/GREEN loop for
+the Phase 1 boundary fix. The final committed source candidate and closure
+evidence are recorded below; the earlier checkpoint counts are retained here
+as implementation-history context.
 
-- Game: `98` files, `406/406` tests GREEN; Game typecheck GREEN.
+- Historical first-GREEN checkpoint: Game `98` files, `406/406` tests GREEN;
+  Game typecheck GREEN.
 - `simulation-core`: `5` files, `15/15` tests GREEN.
 - `building-core`: `14` files, `36/36` tests GREEN.
 - `building-three`: `3` files, `5/5` tests GREEN.
-- Repository deployment/topology tests: `60/60` GREEN; inventory is `406` Game tests.
+- Historical repository deployment/topology tests: `60/60` GREEN; inventory
+  was `406` Game tests.
 - `pnpm check`: GREEN, including format, lint, workspace typecheck, browser-test typecheck, provenance, deployment tests, all workspace tests, and build.
 - Targeted Browser command used:
   `pnpm exec playwright test --project=chromium --workers=1 --retries=0 browser-tests/growth.@building.spec.ts browser-tests/growth-reservation.@building.spec.ts browser-tests/building.@building@smoke.spec.ts browser-tests/rci.@rci@smoke.spec.ts browser-tests/economy.@rci@interaction@smoke.spec.ts browser-tests/city-ui-dialogs.@rci@interaction.spec.ts browser-tests/game.@interaction@smoke.spec.ts browser-tests/water.@water.spec.ts browser-tests/zoning.@zoning.spec.ts browser-tests/citizen-mobility-traffic-save-load.@traffic@release.spec.ts browser-tests/citizen-mobility-traffic-road-recovery.@traffic@road@release.spec.ts`
-  completed `37/37` GREEN with one worker and no retries.
-- Full Browser release closure and Owner Visual acceptance remain pending.
+  completed `37/37` GREEN with one worker and no retries at the earlier
+  checkpoint.
+
+### Final Phase 1 source-tested closure
+
+The final runtime source-tested SHA is
+`d0d09620f8ae61481b32ce4c2a56aa77c7651f95`. All automated results in this
+section were freshly run against that exact source candidate.
+
+- Game: `98` files, `407/407` tests GREEN; Game typecheck GREEN.
+- `pnpm verify`: GREEN, including formatting, lint, workspace and browser
+  typechecks, provenance, deployment/topology (`60/60`), all workspace tests,
+  and application builds.
+- Full Browser: `149` tests, `148` passed, `1` skipped, `0` failed, using one
+  clean final run. The skipped test is the explicit performance-authority
+  test, gated to `WEB_THREE_CITY_PERFORMANCE_AUTHORITY=metal`; the default
+  Chromium run used SwiftShader and therefore does not claim Metal release
+  performance.
+- Focused temporal/coordinator regression: `17/17` passed.
+- Focused zoning visual regression: `1/1` passed.
+- Focused Growth visual regression: `1/1` passed after preserving the
+  validated static-authority cache across the five-phase batch.
+- The final Full Browser run covered the affected browser boundary and
+  completed with the Growth and zoning visual evidence tests GREEN.
+- The final automated closure does not replace the human 414×896 Owner
+  Visual checklist below; Owner Visual acceptance remains pending.
+
+The final source candidate includes the narrow follow-up fixes required by
+fresh verification: the deterministic zoning fixture avoids the fixed HUD,
+and temporal batch validation forks the existing validated static-authority
+cache and marks each staged candidate so Q1–Q4 do not repeat map-wide static
+validation.
 
 ### Focused correctness
 
@@ -59,7 +91,10 @@ Record command, total, passed, failed, skipped, and exact failure classification
 
 At 414×896 Chromium, record targeted `@building|@rci|@traffic|@interaction` results. Verify Zone placement, Automatic Growth, crossing both reported boundaries, x1/x2/x4 continuation, UI leaving `Applying change`, and rejection fail-stop behavior.
 
-Because this delivery closes PR #83 across an application-wide temporal boundary, record `pnpm verify`, `pnpm verify:full`, clean-worktree, and Sonar results at the exact pushed SHA.
+Because this delivery closes PR #83 across an application-wide temporal
+boundary, record `pnpm verify`, `pnpm verify:full`, clean-worktree, and Sonar
+results at the exact pushed SHA. The local final Full Browser equivalent is
+recorded above; exact-head remote CI and Sonar remain post-push evidence.
 
 ## Owner Visual checklist
 

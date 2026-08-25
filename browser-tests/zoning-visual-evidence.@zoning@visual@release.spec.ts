@@ -56,8 +56,9 @@ function findFixture(): ZoningVisualFixture {
   const emptyRoads = createEmptyRoadSnapshot(WORLD_CONFIG);
   const emptyZones = createEmptyZoneSnapshot(WORLD_CONFIG);
 
-  for (let z = 8; z < WORLD_CONFIG.mapHeight - 8; z += 1) {
-    for (let x = 8; x < WORLD_CONFIG.mapWidth - 8; x += 1) {
+  // Keep every projected interaction point clear of the fixed landscape HUD.
+  for (let z = 16; z < WORLD_CONFIG.mapHeight - 16; z += 1) {
+    for (let x = 16; x < WORLD_CONFIG.mapWidth - 16; x += 1) {
       const road = Object.freeze({ x, z });
       const roadPlan = planRoadMutation(
         emptyRoads,

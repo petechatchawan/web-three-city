@@ -8,7 +8,11 @@ import { clickToolUndo, openBuildCategory, waitForCityUi } from './helpers/city-
 import { prepareDeterministicGrowthClock, stepLogicalTicks } from './helpers/growth-fixture.js';
 import { GAME_URL, clickGameMenuAction, readEvidence } from './helpers/interaction.js';
 
-test.describe.configure({ timeout: 60_000 });
+// The long authority/save scenario can exceed the default budget after the
+// serial browser suite has exercised several WebGL-heavy pages. Keep the
+// expanded budget scoped to this owner suite; it does not change retries or
+// the browser worker topology.
+test.describe.configure({ timeout: 90_000 });
 
 const SAVE_KEY = 'web-three-city:world-save:v8';
 const EXPECTED_DEFINITION_IDS = Object.freeze([

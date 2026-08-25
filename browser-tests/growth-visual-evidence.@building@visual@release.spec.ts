@@ -4,8 +4,11 @@ import { waitForCityUi } from './helpers/city-ui.js';
 import { prepareDeterministicGrowthClock, stepLogicalTicks } from './helpers/growth-fixture.js';
 import { GAME_URL } from './helpers/interaction.js';
 
-// Hosted Chromium visual capture has a measured ~66s floor on current runners.
-test.describe.configure({ timeout: 90_000 });
+// Serial full-browser CI can spend over 90s in the deterministic 64-hour
+// Growth advance after earlier WebGL-heavy cases. Keep this budget local to
+// the long-running visual evidence spec; assertions, workers, and retries are
+// unchanged.
+test.describe.configure({ timeout: 120_000 });
 
 test('captures Construction phases, variety, and canonical mobile time controls', async ({
   page,

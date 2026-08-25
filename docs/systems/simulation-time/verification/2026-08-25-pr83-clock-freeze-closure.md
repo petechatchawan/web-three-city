@@ -44,18 +44,19 @@ as implementation-history context.
 ### Final Phase 1 source-tested closure
 
 The final runtime/test source-tested SHA is
-`0eaad05e067c944d64ca2ff1171b0a2d2f26e644`. The preceding production source candidate was
-`d0d09620f8ae61481b32ce4c2a56aa77c7651f95`; the intervening commit is a
-browser-test-only verification-budget adjustment. It does not change
-production behavior, browser worker topology, retries, or assertions.
+`2b2cab263ea658cf2c2b9310e5ff929230309e07`. The preceding production source
+candidate was `d0d09620f8ae61481b32ce4c2a56aa77c7651f95`; the commits after it
+are browser-test-only verification-budget adjustments and one documentation
+reconciliation. They do not change production behavior, browser worker
+topology, retries, or assertions.
 
-- At `0eaad05e067c944d64ca2ff1171b0a2d2f26e644`, `pnpm check`: GREEN, including formatting, lint, workspace and browser
+- At `2b2cab263ea658cf2c2b9310e5ff929230309e07`, `pnpm check`: GREEN, including formatting, lint, workspace and browser
   typechecks, provenance, deployment/topology (`60/60`), all workspace tests,
   and application builds.
-- At `0eaad05e067c944d64ca2ff1171b0a2d2f26e644`, Game: `98` files, `407/407` tests GREEN; Game typecheck GREEN.
-- At `0eaad05e067c944d64ca2ff1171b0a2d2f26e644`, the serial targeted browser reproduction covering the two
-  previously budget-limited suites completed `4/4` GREEN with one worker and
-  one retry budget.
+- At `2b2cab263ea658cf2c2b9310e5ff929230309e07`, Game: `98` files, `407/407` tests GREEN; Game typecheck GREEN.
+- At `2b2cab263ea658cf2c2b9310e5ff929230309e07`, the serial targeted browser
+  reproduction covering the Building smoke, Building visual, and Growth visual
+  suites completed `5/5` GREEN with one worker and one retry budget.
 - Full Browser: `149` tests, `148` passed, `1` skipped, `0` failed, using one
   clean local run at the preceding production source candidate. The skipped
   test is the explicit performance-authority
@@ -71,11 +72,17 @@ production behavior, browser worker topology, retries, or assertions.
 - The final automated closure does not replace the human 414×896 Owner
   Visual checklist below; Owner Visual acceptance remains pending.
 
+The exact-head targeted run `32885768470` passed Lean CI but failed one
+Building visual evidence case after `138` browser tests because
+`stepLogicalTicks` exceeded that suite's default `60s` budget in the serial
+CI suite. The final source candidate raises only that visual suite budget to
+`120s`; no worker, retry, assertion, or production behavior changed.
+
 The final source candidate includes the narrow follow-up fixes required by
 fresh verification: the deterministic zoning fixture avoids the fixed HUD,
 temporal batch validation forks the existing validated static-authority cache
 and marks each staged candidate so Q1–Q4 do not repeat map-wide static
-validation, and the two long-running serial browser suites have scoped
+validation, and the three long-running serial browser suites have scoped
 timeouts calibrated from the exact-head CI timeout/flakiness evidence.
 
 ### Focused correctness

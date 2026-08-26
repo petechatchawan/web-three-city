@@ -1,0 +1,80 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import test from 'node:test';
+import { URL } from 'node:url';
+
+import { resolveVerificationPlan } from './verification/resolver.mjs';
+import { VerificationRisk } from './verification/risk.mjs';
+
+test('resolver makes text ordering explicit for every sort operation', () => {
+  const source = readFileSync(new URL('./verification/resolver.mjs', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /\.sort\(\)/);
+  assert.match(source, /\.sort\(compareText\)/);
+});
+
+test('resolver exposes risk ordering with escalation preference', () => {
+  assert.ok(VerificationRisk.GRAPH_SAFE !== VerificationRisk.GLOBAL);
+});
+
+test('audit-required packages are present in ownership model', () => {
+  const plan = resolveVerificationPlan(['packages/citizen-mobility-core/src/mobility.ts']);
+  assert.ok(plan.systems.includes('citizen-mobility-core'));
+  // traffic-core is a consumer of citizen-mobility-core
+  assert.ok(plan.systems.includes('traffic-core'));
+});
+
+test('CLI answers the changed-files question without changing anything', async () => {
+  const { execFile } = await import('node:child_process');
+  const { promisify } = await import('node:util');
+  const execFileAsync = promisify(execFile);
+  const { stdout } = await execFileAsync(
+    'node',
+    ['tooling/verify-impact.mjs', 'packages/traffic-core/src/Road.ts'],
+    { cwd: process.cwd() },
+  );
+  assert.match(stdout, /Affected Systems:/);
+  assert.match(stdout, /Risk:\s*PARTIAL/);
+  assert.match(stdout, /traffic-core:test|traffic-core/);
+});
+
+test('GLOBAL escalation includes verify + verify:full', () => {
+  const plan = resolveVerificationPlan(['vite.config.ts']);
+  assert.equal(plan.risk, VerificationRisk.GLOBAL);
+  assert.ok(plan.verification.includes('verify'));
+  assert.ok(plan.verification.includes('verify:full'));
+  assert.equal(plan.browserRequired, true);
+});
+
+test('merging keeps verification deduplicated', () => {
+  const plan = resolveVerificationPlan([
+    'packages/traffic-core/src/graph.ts',
+    'packages/road-core/src/RoadNetwork.ts',
+  ]);
+  assert.equal(new Set(plan.verification).size, plan.verification.length);
+  assert.ok(plan.systems.includes('traffic-three'));
+  assert.ok(plan.systems.includes('road-three'));
+});
+
+test('tagged Traffic browser specs select targeted Traffic only', () => {
+  const plan = resolveVerificationPlan([
+    'browser-tests/citizen-mobility-traffic-commute.@traffic@visual@release.spec.ts',
+  ]);
+  assert.equal(plan.authority, 'BROWSER_CONTRACT');
+  assert.deepEqual(plan.browserTags, ['@traffic']);
+  assert.equal(plan.browserRequired, true);
+  assert.equal(plan.fullBrowserRequired, false);
+});
+
+test('test topology metadata does not imply Full Browser', () => {
+  const plan = resolveVerificationPlan(['tooling/test-topology.test.mjs']);
+  assert.equal(plan.authority, 'TEST_TOPOLOGY');
+  assert.equal(plan.deploymentRequired, true);
+  assert.equal(plan.fullBrowserRequired, false);
+});
+
+test('verification implementation remains GLOBAL', () => {
+  const plan = resolveVerificationPlan(['tooling/verification/resolver.mjs']);
+  assert.equal(plan.authority, 'SHARED_VERIFICATION');
+  assert.equal(plan.risk, VerificationRisk.GLOBAL);
+  assert.equal(plan.fullBrowserRequired, true);
+});

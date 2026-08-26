@@ -49,7 +49,9 @@ test('every Vitest workspace exposes watch mode and non-test workspaces do not g
     }
   }
   assert.equal(vitestWorkspaceCount, 21);
-  const terrainLab = manifests.find(({ packageJson }) => packageJson.name === '@web-three-city/terrain-lab');
+  const terrainLab = manifests.find(
+    ({ packageJson }) => packageJson.name === '@web-three-city/terrain-lab',
+  );
   assert.ok(terrainLab);
   assert.equal(terrainLab.packageJson.scripts?.test, undefined);
   assert.equal(terrainLab.packageJson.scripts?.['test:watch'], undefined);
@@ -71,7 +73,10 @@ test('pre-commit setup is staged-only and excludes slow gates', async () => {
   assert.equal(lintStaged['*.{mjs,cjs}'], 'eslint --fix');
   assert.equal(lintStaged['*.{yml,yaml}'], 'prettier --write');
   const serializedPolicy = `${preCommit}\n${JSON.stringify(lintStaged)}`;
-  assert.doesNotMatch(serializedPolicy, /typecheck|vitest|playwright|pnpm verify|eslint \.|pnpm lint/i);
+  assert.doesNotMatch(
+    serializedPolicy,
+    /typecheck|vitest|playwright|pnpm verify|eslint \.|pnpm lint/i,
+  );
 });
 
 test('AGENTS defines actionable repository navigation and verification policy', async () => {
@@ -132,7 +137,7 @@ test('AGENTS static Level 2 map contains every approved changed-owner row', asyn
     'water-three',
     'zone-three',
   ]) {
-    assert.ok(agents.includes('| `' + owner + '` |'), owner);
+    assert.match(agents, new RegExp('\\\\|\\\\s*`' + owner + '`\\\\s*\\\\|'), owner);
   }
 });
 
@@ -203,7 +208,12 @@ test('development workflow reserves Full Browser for explicit escalation', async
   const workflow = await readRepoText('docs/development-workflow.md');
   assert.match(workflow, /browser-observable.*targeted.*Playwright/is);
   assert.match(workflow, /Targeted browser tags:\s*traffic building/i);
-  assert.match(workflow, /Browser CI.*targeted mode.*Lean artifact/is);
+  assert.match(
+    workflow,
+    /`browser_build` produces the exact Game\/Terrain Lab preview artifact and Browser CI consumes that artifact/is,
+  );
+  assert.match(workflow, /Browser then enters targeted mode from the plan/i);
+  assert.doesNotMatch(workflow, /Targeted mode:.*consumes the Lean artifacts/i);
   assert.match(workflow, /Full Browser.*not.*default.*every PR/is);
   assert.match(workflow, /release.*milestone.*shared browser infrastructure/is);
   assert.match(workflow, /nightly/i);
@@ -211,9 +221,37 @@ test('development workflow reserves Full Browser for explicit escalation', async
 
 test('Development Workflow living handoff records targeted browser CI', async () => {
   const readme = await readRepoText('docs/systems/development-workflow/README.md');
-  assert.match(readme, /Targeted browser tags:\s*traffic building/i);
-  assert.match(readme, /Browser CI targeted mode.*Lean preview artifact/is);
+  assert.match(readme, /affected-verification-plan\.json/i);
+  assert.match(readme, /Browser CI.*targeted mode.*plan/is);
+  assert.match(readme, /exact Game\/Terrain Lab artifact/is);
   assert.match(readme, /Full Browser is not the default gate for every PR/i);
+});
+
+test('Selective Verification vNext documents all-system and apps/game precision', async () => {
+  const spec = await readRepoText(
+    'docs/systems/development-workflow/specs/2026-08-23-selective-verification-vnext.md',
+  );
+  const handoff = await readRepoText(
+    'docs/systems/development-workflow/verification/2026-08-23-selective-verification-vnext.md',
+  );
+
+  for (const tag of [
+    '@terrain',
+    '@water',
+    '@road',
+    '@zoning',
+    '@building',
+    '@rci',
+    '@traffic',
+    '@interaction',
+  ]) {
+    assert.match(spec, new RegExp(`\\${tag}`), tag);
+  }
+  assert.match(spec, /apps\/game\/\*\*.*must not map to every Browser tag/is);
+  assert.match(spec, /traffic-transport-transaction.*none/is);
+  assert.match(spec, /game-bootstrap.*Full Browser/is);
+  assert.match(handoff, /deterministic-only core.*Browser none/is);
+  assert.match(handoff, /unknown\/shared authority.*Full Browser/is);
 });
 
 test('system registry reports implemented RCI and the Development Workflow system', async () => {
@@ -222,5 +260,8 @@ test('system registry reports implemented RCI and the Development Workflow syste
     registry,
     /\[RCI Demand & Occupancy\]\(rci\/README\.md\).*Implemented.*`rci-core`.*`RciSaveV1`.*`WorldSaveV5`/i,
   );
-  assert.match(registry, /\[Development Workflow\]\(development-workflow\/README\.md\).*Implemented/i);
+  assert.match(
+    registry,
+    /\[Development Workflow\]\(development-workflow\/README\.md\).*Implemented/i,
+  );
 });

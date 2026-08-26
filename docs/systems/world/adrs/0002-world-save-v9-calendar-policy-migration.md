@@ -1,17 +1,17 @@
 # ADR-0002: WorldSaveV9 Temporal and Calendar Policy Migration
 
-**Status:** Proposed — successor design; legacy calendar continuity policy pending owner confirmation  
+**Status:** Accepted  
 **Date:** `2026-08-26`  
 **System:** `world`  
-**Supersedes when accepted:** ADR-0001 WorldSaveV9 Temporal Unit Migration
+**Supersedes:** ADR-0001 WorldSaveV9 Temporal Unit Migration
 
 ## Context
 
-ADR-0001 intentionally kept the legacy calendar mapping unchanged in WorldSaveV9 and deferred any compressed-calendar cutover to a later schema/policy decision. The successor Temporal Authority & Simulation Clock Standard v1 now intends to deliver explicit temporal units and the compressed calendar as one coordinated migration.
+WorldSaveV8 persists `absoluteGameMinute` under the legacy 24-hour/day, 30-day/month projection. The successor calendar interprets one 24-hour Simulation Cycle as one calendar month and 12 cycles as one year.
 
-WorldSaveV8 persists `absoluteGameMinute` under the legacy 24-hour/day, 30-day/month projection. The successor calendar interprets one 24-hour simulation cycle as one calendar month. A raw V8 `absoluteGameMinute` can therefore preserve timeline position or preserve the old displayed date, but not both automatically.
+Preserving a legacy displayed date would require remapping the canonical world clock, changing schedule position. Preserving canonical authority 1:1 changes only how the old timestamp is labeled by the new calendar. RCI additionally uses legacy 360-day/year age semantics, so blindly migrating every RCI Tick field 1:1 would make citizens approximately 30x older under the new year length.
 
-## Proposed Decision
+## Decision
 
 WorldSaveV9 becomes the canonical writer after cutover and composes:
 
@@ -24,62 +24,87 @@ MobilitySaveV3
 TrafficSaveV3
 ```
 
-The world envelope identifies temporal semantics and calendar interpretation once, without wrapping every timestamp:
+The world envelope carries:
 
 ```text
 temporalStandardVersion = 1
 calendarPolicyVersion   = 1
 ```
 
-The V9 reader validates these discriminators and rejects unknown values. Runtime temporal fields use semantically explicit names and validated integer representation.
+Reader compatibility remains V1–V9. Writer authority becomes V9 only. Unknown temporal/calendar discriminators reject the whole Save.
 
-Reader compatibility remains V1–V9. Writer authority becomes V9 only.
+### Canonical time continuity
 
-## Legacy Unit Migration
+V8 `AbsoluteGameMinute` migrates **1:1**. The new calendar reprojects that authority; a legacy save may therefore display a different month/year after first migration. The canonical clock is not remapped merely to preserve the old 30-day-calendar label.
 
-- Simulation V1/V2 `absoluteTick` is an hourly cursor and migrates using checked `* 60` to `AbsoluteGameMinute`.
-- Building lifecycle `*AtTick` and `*Ticks` represent macro hours and migrate 1:1 to explicit macro-hour fields.
-- RCI and Economy generic Tick fields migrate 1:1 only after golden historical tests prove each field's macro-hour meaning.
-- Mobility GameMinute values migrate 1:1 to `AbsoluteGameMinute`.
-- Traffic V2 TransportSecond values migrate 1:1 to `AbsoluteTransportSecond`; legacy conversion paths move behind explicit codec helpers.
+### Domain migration rules
 
-## Pending Calendar Continuity Decision
+- Simulation V1/V2 `absoluteTick` is an hourly cursor and migrates with checked `*60` to `AbsoluteGameMinute`.
+- Building lifecycle Tick fields represent macro hours and migrate 1:1.
+- Economy operational settlement Tick fields migrate 1:1 after golden field proof.
+- Mobility GameMinute values migrate 1:1.
+- Traffic V2 transport-second values migrate 1:1.
+- RCI fields are **classification-driven**, not blanket 1:1.
 
-Choose exactly one policy before V9 production implementation:
+RCI age-origin state such as `bornAtTick` uses a checked age-preserving cutover relative to the current macro hour:
 
-### A. Authority continuity — recommended
+```text
+legacy year = 8640 macro hours
+new year    =  288 macro hours
 
-Preserve legacy `AbsoluteGameMinute` 1:1. Domain timeline continuation remains deterministic. On first load under V9 the displayed month/year is projected using the new compressed policy and may differ from the legacy label.
+legacyElapsed = currentMacroHour - legacyBornMacroHour
+newElapsed    = floor(legacyElapsed * 288 / 8640)
+newBorn       = currentMacroHour - newElapsed
+```
 
-### B. Display-calendar continuity
+This preserves whole age-years, age-band, monotonic ordering, and proportional fractional-year position while canonical `AbsoluteGameMinute` remains unchanged. Historical event points, relationship/membership timestamps, cycle counters, and durations follow their separately proven semantic classification; they are not automatically age-scaled.
 
-Apply a one-time checked authority remap so the new compressed projection represents the closest equivalent legacy displayed calendar position. This requires explicit parity tests for Building, RCI, Economy, Mobility, and Traffic because schedule position changes.
+## Persistence Shape
 
-The migration must never infer a policy from numeric shape or silently reinterpret an old save without a tested rule.
+New V9 timestamps remain validated integers with semantically explicit property names. The envelope-level policy versions avoid allocating `{value, unit}` wrappers for high-cardinality RCI records.
+
+Raw historical numeric values may be converted only inside trusted codec/migration boundaries using owning temporal constructors/helpers.
 
 ## Consequences
 
 ### Positive
 
-- V9 unambiguously identifies both temporal units and calendar interpretation.
-- High-cardinality records remain compact integers rather than `{value, unit}` wrappers.
-- Old save semantics are handled at one trusted migration boundary.
+- One canonical world timeline survives migration unchanged.
+- V9 unambiguously identifies temporal and calendar interpretation.
+- Existing citizen ages do not jump during the calendar cutover.
+- High-cardinality saves remain compact.
+- Future calendar policies cannot silently reinterpret V9.
 
 ### Negative
 
-- Calendar cutover makes legacy continuity a product decision, not a codec-only rename.
-- Six domain codecs plus the world envelope need new migration/round-trip evidence.
-- Option B is substantially riskier because it changes absolute timeline position.
+- Legacy displayed calendar labels intentionally change.
+- RCI migration is field-sensitive and requires more golden evidence than a blanket rename.
+- Six domain codecs plus the world envelope need coordinated migration tests.
+
+## Alternatives Considered
+
+### Remap `AbsoluteGameMinute` to preserve legacy displayed date
+Rejected because it changes the canonical schedule position for Building, RCI, Economy, Mobility, and Traffic.
+
+### Migrate all RCI Tick fields 1:1
+Rejected because age-bearing state would be reinterpreted against a year 30x shorter.
+
+### Keep V8 writer
+Rejected because persisted semantics would remain ambiguous.
+
+### Per-record `{value, unit}` wrappers
+Rejected due to RCI cardinality and redundant unit metadata.
 
 ## Enforcement
 
-- Golden V1–V8 fixtures.
-- Unit-discriminator and calendar-policy rejection tests.
-- Uninterrupted-versus-save/load continuation at `N:59 -> N+1:00`.
-- Construction-in-progress, RCI, Economy, Mobility, and Traffic continuation tests.
-- V9 writer tests assert no ambiguous legacy temporal field names remain.
-- V9 is not implemented until the owner selects A or B.
+- Golden V1–V8 fixtures with field-semantic assertions.
+- V8 -> V9 tests proving `AbsoluteGameMinute` 1:1.
+- RCI age-origin tests for newborn, child, working-age, senior, fractional year, ordering, and invalid future/unsafe timestamps.
+- Building/Economy/Mobility/Traffic continuation tests.
+- Save at `N:59`, load, cross `N+1:00`, compare deterministic authority outcomes.
+- V9 writer tests assert semantic field names and valid policy discriminators.
+- Browser Save/load evidence for migrated V8 and fresh V9 cities.
 
 ## Supersession
 
-Once the continuity policy is explicitly approved, this ADR becomes Accepted and supersedes ADR-0001. ADR-0001 remains the record of the earlier decision to keep calendar mapping unchanged in the initial V9 proposal.
+This ADR supersedes ADR-0001. ADR-0001 remains the record of the earlier proposal that kept legacy calendar mapping unchanged.

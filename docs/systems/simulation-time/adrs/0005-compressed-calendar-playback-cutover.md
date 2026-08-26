@@ -1,17 +1,17 @@
 # ADR-0005: Compressed Calendar and Playback Cutover
 
-**Status:** Proposed — successor design approved; two migration policies require owner reconfirmation  
+**Status:** Accepted  
 **Date:** `2026-08-26`  
 **System:** `simulation-time`  
-**Supersedes when accepted:** ADR-0004 proposal
+**Supersedes:** ADR-0004 proposal
 
 ## Context
 
-ADR-0004 intentionally deferred the compressed calendar/playback decision while PR #83 stabilized the existing temporal system. PR #83 is now merged and closed. The successor Temporal Authority & Simulation Clock Standard v1 adopts the compressed city-builder calendar as the target product model.
+ADR-0004 deferred compressed calendar/playback while PR #83 stabilized temporal authority. The merged runtime currently advances nominally at 1.0/0.5/0.25 real seconds per GameMinute at x1/x2/x4. The earlier 3.0/1.5/0.75 proposal is therefore three times slower than the merged runtime and conflicts with the product direction.
 
-The audit found one material discrepancy: the merged runtime currently advances nominally at 1.0/0.5/0.25 real seconds per GameMinute at x1/x2/x4, while the previously proposed standard is 3.0/1.5/0.75. The proposed table is therefore three times slower than the current scheduler, despite owner feedback that current x4 already feels slow.
+The successor also needs a calendar that makes month/year progression observable without introducing another mutable world clock.
 
-## Proposed Decision
+## Decision
 
 Calendar mapping:
 
@@ -21,64 +21,78 @@ Calendar mapping:
 12 Months      = 1 Calendar Year
 ```
 
-`AbsoluteGameMinute` remains the sole mutable world temporal authority. Calendar month/year/clock values are pure projections under a versioned calendar policy.
+`AbsoluteGameMinute` remains the sole mutable world temporal authority. Calendar month/year/clock values are pure projections under `calendarPolicyVersion = 1`.
 
-Playback remains a real-time request policy only. It never modifies domain durations, settlement intervals, construction durations, Mobility schedules, or Traffic authority semantics.
+The 24-hour Simulation Cycle remains the repeating operational cadence for Growth, RCI lifecycle evaluation, Economy settlement, and citizen schedules. Displaying a cycle as a calendar month does not automatically redefine those operational rules as monthly accounting/scheduling policies.
 
-The design baseline proposes:
+Playback remains application-only real-time request policy and retains merged effective pacing:
 
 ```text
-x1 = 3.000s / GameMinute
-x2 = 1.500s / GameMinute
-x4 = 0.750s / GameMinute
+Pause = no automatic minute requests
+x1 = 1.000s / GameMinute
+x2 = 0.500s / GameMinute
+x4 = 0.250s / GameMinute
 ```
 
-but this exact table is gated on explicit owner reconfirmation after comparison with the current nominal 1.0/0.5/0.25 baseline.
+The 3.0/1.5/0.75 table is rejected for this migration. Future faster/slower tuning requires a separate product decision.
+
+At nominal x4:
+
+```text
+1 GameHour       = 15 real seconds
+1 Calendar Month = 6 real minutes
+1 Calendar Year  = 72 real minutes
+```
+
+These are scheduler ratios, not a guarantee of browser frame performance.
 
 ## Required Cutover Semantics
 
-- The 24-hour clock remains the citizen/Traffic daily simulation cycle.
 - Crossing `23:59 -> 00:00` advances the calendar month.
 - Crossing December `23:59 -> 00:00` advances the calendar year.
-- No day counter becomes a second mutable authority.
-- Any monthly/yearly RCI or Economy rule must bind explicitly to the new policy and must not inherit a legacy 30-day assumption accidentally.
-- Performance comparisons use identical pacing; slower playback cannot be used to mask temporal workload regressions.
+- No mutable day/month/year cursor is added.
+- RCI age and annual-rate policy binds to the new 12-cycle calendar year; migration preserves existing citizen age semantics separately from canonical world-time continuity.
+- Operational RCI/Economy/Mobility cycle cadence remains 24 hours unless separately redesigned.
+- Performance comparisons use identical playback pacing; pacing changes cannot mask workload regressions.
 
 ## Consequences
 
 ### Positive
 
-- Month/year progression becomes visible in ordinary play sessions.
-- Calendar, schedule resolution, and playback pacing become separate concepts.
-- All domains derive from one timeline.
+- Month/year progression is visible in ordinary play sessions.
+- Calendar, domain duration, and playback pacing are separate concepts.
+- Existing runtime speed is not accidentally slowed by the migration.
+- All calendar labels still derive from one authority.
 
 ### Negative
 
-- Legacy 30-day/month display semantics require a migration policy.
-- RCI aging/lifecycle and Economy monthly/yearly concepts require explicit review/rebalance.
-- The originally proposed playback table may not satisfy the product goal because it is slower than the merged baseline.
+- Legacy 30-day/month labels change when old saves migrate under the new calendar policy.
+- RCI age/hazard semantics require explicit migration/rebalance rather than a blanket Tick rename.
+- Future true monthly/yearly Economy mechanics need separate policy because the current settlement is operational-cycle based.
 
-## Alternatives
+## Alternatives Considered
 
-### Keep the 30-day/month calendar
+### Keep 30-day/month calendar
+Rejected because it does not achieve the approved compressed city-builder progression.
 
-Rejected by the successor product direction; it does not provide the desired compressed city-builder progression.
+### Adopt 3.0/1.5/0.75 pacing
+Rejected because it is exactly three times slower than the merged runtime.
 
-### Introduce a second mutable month/year clock
+### Introduce a mutable month/year clock
+Rejected because it can diverge from `AbsoluteGameMinute`.
 
-Rejected because it permits divergence from `AbsoluteGameMinute`.
-
-### Change pacing and calendar in one opaque constant patch
-
-Rejected. Calendar mapping is simulation semantics; pacing is real-time UX. Each needs independent tests and explicit evidence.
+### Change calendar and domain durations through one constant
+Rejected because presentation calendar, operational recurrence, and gameplay durations are distinct semantics.
 
 ## Enforcement
 
-- Calendar projection boundary tests, including every hour boundary and month/year rollover.
-- Domain parity/rebalance tests for RCI and Economy.
-- Browser tests for Pause/x1/x2/x4 across multiple hours/months.
-- Exact pacing values require explicit owner confirmation in the successor spec review before production code changes.
+- Calendar boundary tests for hour/month/year rollover.
+- Deterministic runtime tests for exact Pause/x1/x2/x4 minute-request behavior.
+- RCI age/hazard and migration tests.
+- Domain parity tests proving operational 24-hour cycle consumers do not run 30x more/less often.
+- Browser evidence for speed controls and rollover presentation.
+- Owner 414x896 acceptance.
 
 ## Supersession
 
-Upon owner confirmation of the pacing table and legacy-calendar migration policy, this ADR becomes Accepted and supersedes ADR-0004. ADR-0004 remains historical evidence of the previously deferred proposal.
+This ADR supersedes ADR-0004. ADR-0004 remains historical evidence of the deferred proposal and is not implementation authority.

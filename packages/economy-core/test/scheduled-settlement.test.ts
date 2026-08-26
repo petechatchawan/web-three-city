@@ -63,7 +63,58 @@ describe('scheduled municipal settlement', () => {
     expect(result).toMatchObject({
       ok: true,
       status: 'settled',
-      snapshot: { lastDailySettlementTick: 8 },
+      snapshot: {
+        lastDailySettlementTick: 8,
+        treasuryBalanceMinor: 10_004_640,
+        currentPeriod: {
+          taxRevenue: { residentialMinor: 2_100, commercialMinor: 2_100, industrialMinor: 840 },
+          expenses: { roadMaintenanceMinor: 400 },
+        },
+      },
+    });
+  });
+
+  it('keeps the 08:00 settlement cadence at one settlement per 24-hour cycle', () => {
+    const afterEight = economy.settleScheduledEconomy(
+      initial(8),
+      {
+        beforeTick: 8,
+        afterTick: 9,
+        macroHourTransition: {
+          beforeAbsoluteGameMinute: 8 * 60,
+          afterAbsoluteGameMinute: 9 * 60,
+          beforeMacroHourIndex: 8,
+          afterMacroHourIndex: 9,
+          crossed: true,
+        },
+        calendar: { year: 1, month: 1, day: 1, hour: 9 },
+        ...projections,
+      },
+      rules,
+    );
+    expect(afterEight).toEqual({ ok: true, status: 'not-due', snapshot: initial(8) });
+
+    const nextCycle = economy.settleScheduledEconomy(
+      initial(8),
+      {
+        beforeTick: 31,
+        afterTick: 32,
+        macroHourTransition: {
+          beforeAbsoluteGameMinute: 31 * 60,
+          afterAbsoluteGameMinute: 32 * 60,
+          beforeMacroHourIndex: 31,
+          afterMacroHourIndex: 32,
+          crossed: true,
+        },
+        calendar: { year: 1, month: 1, day: 2, hour: 8 },
+        ...projections,
+      },
+      rules,
+    );
+    expect(nextCycle).toMatchObject({
+      ok: true,
+      status: 'settled',
+      snapshot: { lastDailySettlementTick: 32, treasuryBalanceMinor: 10_004_640 },
     });
   });
 

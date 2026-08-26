@@ -74,7 +74,7 @@ topology, retries, or assertions.
 
 ### Current local closure candidate
 
-The current source-tested candidate is `9db33b5ef5ed37c80605467e7ac4a144dcd55a88`.
+The current source-tested candidate is `8c318b16dab6427b8178947517fe3ead49d13148`.
 The documentation-only follow-up commit is intentionally separate from this
 source-tested SHA.
 
@@ -87,7 +87,9 @@ source-tested SHA.
   `11:59 → 12:00` and `23:59 → 00:00` with Automatic Growth enabled, verifies
   continued time progression, Growth creation, and the committed-world
   revision invariant `delta = elapsed game minutes × 5`.
-- Full Growth browser suite: `6/6` passed.
+- Full Growth browser suite: `6/6` passed. The boundary assertion now accepts
+  a runtime sample that has advanced past the exact boundary while polling;
+  this avoids treating legitimate `12:02`/`00:02` observations as failures.
 - Affected targeted Browser command
   `pnpm exec playwright test --grep '@building|@rci|@traffic|@interaction' --project=chromium --workers=1`:
   `74` passed, `1` skipped, `0` failed. The skipped case is the explicit
@@ -96,7 +98,8 @@ source-tested SHA.
 - `pnpm verify`: GREEN. This included format, lint, workspace/browser
   typecheck, provenance, deployment contracts (`102/102`), all workspace
   tests (Game `407/407`), and builds.
-- `pnpm verify:full`: clean install, verification, and Full Browser completed
+- `pnpm verify:full`: the preceding clean install, verification, and Full
+  Browser run completed
   with `149/150` passed, `1` skipped, `0` failed. The final local clean-worktree
   check was blocked only by the two preserved user-owned untracked plan files;
   the browser-inventory contract change is committed in `9db33b5`.
@@ -104,7 +107,15 @@ source-tested SHA.
   workstation uses Node `20.20.2` while the repository declares Node `>=22`;
   no test or build failure was attributed to that warning.
 
-The exact-head targeted run `32885768470` passed Lean CI but failed one
+The first exact-head run for the previous source candidate (`32936084319`)
+passed every Lean/affected lane and one Full Browser shard, but failed the
+new boundary regression after `73` browser tests because
+`expect.poll` required the exact `12:00` value while the runtime had already
+reached `12:02`. The current source candidate replaces that exact-value
+assertion with a boundary-crossed assertion; the exact-head CI rerun is the
+authoritative final result.
+
+The earlier exact-head targeted run `32885768470` passed Lean CI but failed one
 Building visual evidence case after `138` browser tests because
 `stepLogicalTicks` exceeded that suite's default `60s` budget in the serial
 CI suite. The final source candidate raises only that visual suite budget to

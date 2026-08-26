@@ -18,6 +18,41 @@
 - Do not change WorldSaveV8 writer output in T1.
 - Do not change `GameMinute -> Q1 -> Q2 -> Q3 -> Q4` or revision `+5` semantics.
 - Do not push intentional RED.
+- **Selective Verification is the baseline verification authority for T1.** Run the repository affected-plan resolver against the exact T1 base/head before broadening verification manually.
+- Never suppress a resolver escalation. If a T1 change is classified as shared verification/configuration authority, honor its GLOBAL / Full Browser requirement.
+
+## Selective Verification Baseline
+
+Capture the exact implementation base before the first RED edit:
+
+```bash
+T1_BASE_SHA=$(git rev-parse HEAD)
+git status --short --branch
+git rev-parse HEAD
+pnpm test:deployment
+```
+
+`T1_BASE_SHA` is the immutable comparison base for the whole T1 implementation branch. After each locally GREEN commit, publish the affected plan locally first:
+
+```bash
+pnpm verify:affected -- --base "$T1_BASE_SHA" --head HEAD --plan-only --json
+```
+
+Then execute the selected deterministic lanes before broader gates:
+
+```bash
+pnpm verify:affected -- --base "$T1_BASE_SHA" --head HEAD --skip-browser
+```
+
+Rules:
+
+1. Treat the resolver output as the minimum owner/consumer verification set; do not replace it with a manually smaller test list.
+2. Focused RED/GREEN tests still run first for the task being implemented.
+3. For ordinary `simulation-core` source/test changes, expect affected verification to select Simulation and conservative consumers without inventing Browser work.
+4. T1 Task 3 changes repository verification authority (`package.json` plus architecture tooling). The existing resolver classifies `package.json` and shared verification/configuration paths as GLOBAL and therefore requires Full Browser. **This escalation is expected and must be honored at the final GREEN candidate.** Selective Verification remains the baseline because it is the mechanism that decides the escalation.
+5. `pnpm check` remains mandatory before the first non-force push even when affected verification is GREEN.
+6. Never push RED to obtain CI feedback. GitHub Actions verifies a locally GREEN exact HEAD; it is not the first debugger.
+7. Do not modify Selective Verification topology/resolver behavior as part of T1 merely to reduce the selected test set. Any Selective Verification vNext work remains a separate change.
 
 ---
 
@@ -72,7 +107,14 @@ pnpm --filter @web-three-city/simulation-core typecheck
 ```
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Run Selective GREEN checkpoint**
+
+```bash
+pnpm verify:affected -- --base "$T1_BASE_SHA" --head HEAD --plan-only --json
+pnpm verify:affected -- --base "$T1_BASE_SHA" --head HEAD --skip-browser
+```
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add packages/simulation-core/src/temporal-units.ts packages/simulation-core/src/index.ts packages/simulation-core/test/temporal-units.test.ts
@@ -104,6 +146,8 @@ export function deriveMacroHourTransition(before: AbsoluteGameMinute, after: Abs
 ```bash
 pnpm --filter @web-three-city/simulation-core test
 pnpm --filter @web-three-city/simulation-core typecheck
+pnpm verify:affected -- --base "$T1_BASE_SHA" --head HEAD --plan-only --json
+pnpm verify:affected -- --base "$T1_BASE_SHA" --head HEAD --skip-browser
 ```
 - [ ] **Step 5: Commit** with `feat(simulation): type game-minute authority`.
 
@@ -126,11 +170,14 @@ node --test tooling/temporal-unit-boundary.test.mjs
 ```
 Expected: FAIL until scanner rules exist.
 - [ ] **Step 3: Implement scanner and add it to `test:deployment`**. The scanner must report file/line and stable violation category.
-- [ ] **Step 4: Run GREEN**:
+- [ ] **Step 4: Run GREEN and confirm resolver escalation**:
 ```bash
 node --test tooling/temporal-unit-boundary.test.mjs tooling/architecture-boundary.test.mjs
 pnpm test:deployment
+pnpm verify:affected -- --base "$T1_BASE_SHA" --head HEAD --plan-only --json
+pnpm verify:affected -- --base "$T1_BASE_SHA" --head HEAD --skip-browser
 ```
+Expected Selective result after `package.json` is changed: GLOBAL/shared-verification escalation with Full Browser required for final closure. Do not weaken classification to avoid this.
 - [ ] **Step 5: Commit** with `test(architecture): enforce temporal unit boundaries`.
 
 ### Task 4: Migrate Game application compile seam without semantic change
@@ -153,14 +200,30 @@ pnpm test:deployment
 pnpm --filter @web-three-city/game exec vitest run src/game-minute-transaction.test.ts src/temporal-publication.test.ts src/simulation-runtime.test.ts
 ```
 - [ ] **Step 3: Replace raw simulation boundary arithmetic with named helpers**. Do not touch Building/RCI/Economy/Mobility/Traffic domain public fields yet; use explicit boundary adapters at the app seam.
-- [ ] **Step 4: Run GREEN plus deployment architecture**:
+- [ ] **Step 4: Run GREEN plus Selective/deployment architecture**:
 ```bash
 pnpm --filter @web-three-city/game test
 pnpm test:deployment
+pnpm verify:affected -- --base "$T1_BASE_SHA" --head HEAD --plan-only --json
+pnpm verify:affected -- --base "$T1_BASE_SHA" --head HEAD --skip-browser
 pnpm check
 ```
 - [ ] **Step 5: Commit** with `refactor(game): adopt explicit temporal authority types`.
 
 ## T1 Exit Gate
 
-T1 is complete only when simulation-core, Game affected tests, architecture tooling, and `pnpm check` are GREEN, current calendar values are unchanged, runtime still nominally uses `1000ms` base with `1/2/4` multipliers, WorldSaveV8 output is unchanged, and the tracked worktree is clean. Do not start calendar or domain semantic migration in this PR.
+T1 is complete only when:
+
+- simulation-core focused/owner tests are GREEN;
+- Game affected tests are GREEN;
+- temporal architecture tooling and `pnpm test:deployment` are GREEN;
+- the Selective Verification plan has been generated from exact `T1_BASE_SHA...HEAD` and all selected deterministic lanes are GREEN;
+- any resolver escalation caused by shared verification/configuration changes is honored, including Full Browser when selected;
+- `pnpm check` is GREEN;
+- current calendar values are unchanged;
+- runtime still nominally uses `1000ms` base with `1/2/4` multipliers;
+- WorldSaveV8 output is unchanged;
+- `git diff --check` passes and the tracked worktree is clean;
+- only then may a non-force GREEN candidate be pushed for exact-head CI/Sonar verification.
+
+Do not start calendar or domain semantic migration in this PR.

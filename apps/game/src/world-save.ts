@@ -1,9 +1,13 @@
 import {
   createEmptyMobilitySnapshot,
   decodeMobilitySaveV1,
+  decodeMobilitySaveV2,
   encodeMobilitySaveV1,
+  encodeMobilitySaveV2,
+  migrateMobilitySaveV1ToV2,
   reconcileMobilityCitizens,
   type MobilitySaveV1,
+  type MobilitySaveV2,
   type MobilitySnapshotV1,
 } from '@web-three-city/citizen-mobility-core';
 import {
@@ -24,23 +28,32 @@ import {
 } from '@web-three-city/rci-core';
 import {
   decodeSimulationSaveV2,
-  deriveGameCalendar,
+  decodeSimulationSaveV3,
+  deriveGameCalendarFromGameMinute,
+  deriveMacroHourIndex,
   encodeSimulationSaveV1,
   encodeSimulationSaveV2,
+  encodeSimulationSaveV3,
   type SimulationSaveV2,
+  type SimulationSaveV3,
 } from '@web-three-city/simulation-core';
 import {
   createEmptyTrafficSnapshot,
   decodeTrafficSaveV1,
+  decodeTrafficSaveV2,
   derivePedestrianTrafficGraph,
   deriveVehicleTrafficGraph,
   encodeTrafficSaveV1,
+  encodeTrafficSaveV2,
+  migrateTrafficSaveV1ToV2,
   type TrafficGraph,
   type TrafficSaveV1,
+  type TrafficSaveV2,
   type TrafficSnapshotV1,
+  type TrafficSnapshotV2,
 } from '@web-three-city/traffic-core';
 import { deriveWaterSnapshot } from '@web-three-city/water-core';
-import { err, ok, type Result, type WorldConfig } from '@web-three-city/world-core';
+import { err, ok, WORLD_CONFIG, type Result, type WorldConfig } from '@web-three-city/world-core';
 import { createBuildingDevelopmentEnvironment } from './building-development-environment.js';
 import { createPresentCitizenMobilityProjection } from './mobility-source-projection.js';
 import {
@@ -78,6 +91,16 @@ export interface WorldSaveV7 extends Omit<WorldSaveV6, 'schemaVersion'> {
   readonly schemaVersion: 7;
   readonly mobility: MobilitySaveV1;
   readonly traffic: TrafficSaveV1;
+}
+
+export interface WorldSaveV8 extends Omit<
+  WorldSaveV7,
+  'schemaVersion' | 'simulation' | 'mobility' | 'traffic'
+> {
+  readonly schemaVersion: 8;
+  readonly simulation: SimulationSaveV3;
+  readonly mobility: MobilitySaveV2;
+  readonly traffic: TrafficSaveV2;
 }
 
 export interface DecodedWorldState extends legacy.DecodedWorldState {
@@ -151,9 +174,59 @@ export function encodeWorldSaveV7(
   });
 }
 
+export function encodeWorldSaveV8(
+  terrain: Parameters<typeof encodeWorldSaveV7>[0],
+  roads: Parameters<typeof encodeWorldSaveV7>[1],
+  zones: Parameters<typeof encodeWorldSaveV7>[2],
+  buildings: Parameters<typeof encodeWorldSaveV7>[3],
+  simulation: Parameters<typeof encodeWorldSaveV7>[4],
+  rci: RciSnapshot,
+  economy: EconomySnapshotV1,
+  mobility: MobilitySnapshotV1,
+  traffic: TrafficSnapshotV1 | TrafficSnapshotV2,
+): WorldSaveV8 {
+  const trafficGraph = trafficValidationGraph(
+    {
+      terrain,
+      roads,
+      zones,
+      buildings,
+      simulation,
+      rci,
+      economy,
+      mobility,
+      traffic: traffic as TrafficSnapshotV1,
+    } as DecodedWorldState,
+    WORLD_CONFIG,
+  );
+  if (trafficGraph === null) throw new RangeError('world-save:invalid-traffic');
+  const currentTraffic =
+    (traffic as { schemaVersion: number }).schemaVersion === 2
+      ? (traffic as TrafficSnapshotV2)
+      : migrateTrafficSaveV1ToV2({
+          snapshot: traffic as TrafficSnapshotV1,
+          graph: trafficGraph,
+          legacyCurrentGameSecond: simulation.absoluteGameMinute,
+          timeCursor: Object.freeze({
+            sourceGameMinute: simulation.absoluteGameMinute,
+            completedTransportQuantaWithinMinute: 0,
+            absoluteTransportSecond: simulation.absoluteGameMinute * 4,
+            temporalPolicyVersion: 1,
+          }),
+        });
+  return Object.freeze({
+    ...encodeWorldSaveV6(terrain, roads, zones, buildings, simulation, rci, economy),
+    schemaVersion: 8,
+    simulation: encodeSimulationSaveV3(simulation),
+    mobility: encodeMobilitySaveV2(mobility),
+    traffic: encodeTrafficSaveV2(currentTraffic),
+  });
+}
+
 function migratedEconomy(simulation: legacy.DecodedWorldState['simulation']): EconomySnapshotV1 {
-  const calendar = deriveGameCalendar(simulation.absoluteTick);
-  const dayStart = simulation.absoluteTick - calendar.hour;
+  const macroHourIndex = deriveMacroHourIndex(simulation.absoluteGameMinute);
+  const calendar = deriveGameCalendarFromGameMinute(simulation.absoluteGameMinute);
+  const dayStart = macroHourIndex - calendar.hour;
   const latestBoundary = Math.max(0, calendar.hour >= 8 ? dayStart + 8 : dayStart - 16);
   return createInitialEconomySnapshot(
     { year: calendar.year, month: calendar.month, latestDailySettlementTick: latestBoundary },
@@ -164,11 +237,15 @@ function migratedEconomy(simulation: legacy.DecodedWorldState['simulation']): Ec
 function migratedMobility(
   rci: RciSnapshot,
   buildings: DecodedWorldState['buildings'],
-  absoluteTick: number,
+  absoluteGameMinute: number,
 ): MobilitySnapshotV1 {
   return reconcileMobilityCitizens({
     snapshot: createEmptyMobilitySnapshot(),
-    citizens: createPresentCitizenMobilityProjection(rci, buildings, absoluteTick),
+    citizens: createPresentCitizenMobilityProjection(
+      rci,
+      buildings,
+      deriveMacroHourIndex(absoluteGameMinute),
+    ),
   }).snapshot;
 }
 
@@ -248,7 +325,7 @@ function validMobilityTrafficReferences(
 function withMigratedMobilityTraffic(
   base: Omit<DecodedWorldState, 'mobility' | 'traffic'>,
 ): DecodedWorldState {
-  const mobility = migratedMobility(base.rci, base.buildings, base.simulation.absoluteTick);
+  const mobility = migratedMobility(base.rci, base.buildings, base.simulation.absoluteGameMinute);
   return Object.freeze({
     ...base,
     mobility,
@@ -260,6 +337,44 @@ export function decodeWorldSave(
   input: unknown,
   config: WorldConfig,
 ): Result<DecodedWorldState, WorldSaveError> {
+  const isV8 = isRecord(input) && input.kind === 'world-save' && input.schemaVersion === 8;
+  if (isV8) {
+    if (!('simulation' in input) || !('mobility' in input) || !('traffic' in input)) {
+      return err({ code: 'world-save:invalid-schema' });
+    }
+    const decodedSimulation = decodeSimulationSaveV3(input.simulation);
+    if (!decodedSimulation.ok) return err({ code: 'world-save:invalid-simulation' });
+    const v6Envelope = Object.freeze({
+      ...input,
+      schemaVersion: 6,
+      simulation: encodeSimulationSaveV2(decodedSimulation.value),
+    });
+    const upstream = decodeWorldSave(v6Envelope, config);
+    if (!upstream.ok) return upstream;
+    const base = Object.freeze({ ...upstream.value, simulation: decodedSimulation.value });
+    const decodedMobility = decodeMobilitySaveV2(input.mobility);
+    if (!decodedMobility.ok) return err({ code: 'world-save:invalid-mobility' });
+    const graph = trafficValidationGraph(base, config);
+    if (graph === null) return err({ code: 'world-save:invalid-traffic' });
+    const decodedTraffic = decodeTrafficSaveV2(input.traffic, graph);
+    if (!decodedTraffic.ok) return err({ code: 'world-save:invalid-traffic' });
+    if (
+      !validMobilityTrafficReferences(
+        decodedMobility.value,
+        decodedTraffic.value as unknown as TrafficSnapshotV1,
+      )
+    ) {
+      return err({ code: 'world-save:invalid-traffic' });
+    }
+    return ok(
+      Object.freeze({
+        ...base,
+        mobility: decodedMobility.value,
+        traffic: decodedTraffic.value as unknown as TrafficSnapshotV1,
+      }),
+    );
+  }
+
   const isV7 = isRecord(input) && input.kind === 'world-save' && input.schemaVersion === 7;
   if (isV7) {
     const upstreamInput = Object.freeze({ ...input, schemaVersion: 6 });
@@ -276,11 +391,26 @@ export function decodeWorldSave(
     if (!validMobilityTrafficReferences(decodedMobility.value, decodedTraffic.value)) {
       return err({ code: 'world-save:invalid-traffic' });
     }
+    const migratedMobility = decodeMobilitySaveV2(
+      migrateMobilitySaveV1ToV2(input.mobility as MobilitySaveV1),
+    );
+    if (!migratedMobility.ok) return err({ code: 'world-save:invalid-mobility' });
+    const migratedTraffic = migrateTrafficSaveV1ToV2({
+      snapshot: decodedTraffic.value,
+      graph,
+      legacyCurrentGameSecond: upstream.value.simulation.absoluteGameMinute,
+      timeCursor: Object.freeze({
+        sourceGameMinute: upstream.value.simulation.absoluteGameMinute,
+        completedTransportQuantaWithinMinute: 0,
+        absoluteTransportSecond: upstream.value.simulation.absoluteGameMinute * 4,
+        temporalPolicyVersion: 1,
+      }),
+    });
     return ok(
       Object.freeze({
         ...upstream.value,
-        mobility: decodedMobility.value,
-        traffic: decodedTraffic.value,
+        mobility: migratedMobility.value,
+        traffic: migratedTraffic as unknown as TrafficSnapshotV1,
       }),
     );
   }
@@ -309,7 +439,7 @@ export function decodeWorldSave(
   if (!isV6 && !isV5) {
     const rci = createRciMigrationInventory({
       buildings: base.value.buildings,
-      absoluteTick: base.value.simulation.absoluteTick,
+      absoluteTick: deriveMacroHourIndex(base.value.simulation.absoluteGameMinute),
       registries,
     });
     return ok(

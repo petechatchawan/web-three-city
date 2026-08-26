@@ -11,7 +11,8 @@ import { GAME_URL, clickTerrainCell, readEvidence } from './helpers/interaction.
 
 function findValidRoadCell(): CellCoord {
   const roads = createEmptyRoadSnapshot(WORLD_CONFIG);
-  for (let z = 4; z < WORLD_CONFIG.mapHeight - 4; z += 1) {
+  // Keep deterministic Road interaction points below the persistent Landscape HUD.
+  for (let z = 12; z < WORLD_CONFIG.mapHeight - 4; z += 1) {
     for (let x = 4; x < WORLD_CONFIG.mapWidth - 4; x += 1) {
       const cell = Object.freeze({ x, z });
       const plan = planRoadMutation(

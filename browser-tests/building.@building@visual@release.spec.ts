@@ -4,8 +4,10 @@ import { prepareBuildingFixtureWorld } from './helpers/building-fixture.js';
 import { prepareDeterministicGrowthClock, stepLogicalTicks } from './helpers/growth-fixture.js';
 import { GAME_URL, readEvidence } from './helpers/interaction.js';
 
-// Hosted Chromium visual capture has a measured ~35s floor on current runners.
-test.describe.configure({ timeout: 60_000 });
+// Serial CI can spend over 60s advancing the deterministic 40-tick fixture
+// after earlier WebGL-heavy cases. Keep the budget local to this visual
+// evidence spec; assertions, workers, and retries are unchanged.
+test.describe.configure({ timeout: 120_000 });
 
 const EXPECTED_DEFINITION_IDS = Object.freeze([
   'commercial-cafe-1x1',

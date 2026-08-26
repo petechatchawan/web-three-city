@@ -21,7 +21,7 @@ Own versioned Building definitions, authoritative Building instances, determinis
 - Canonical rectangular footprints with quarter-turn rotation.
 - Deterministic compatible-definition selection and Road-frontage resolution.
 - Automatic development evaluation at Simulation hours `00`, `06`, `12`, and `18`.
-- Construction and Active lifecycle with duration based on footprint area.
+- Construction and Active lifecycle with duration based on footprint area; lifecycle timestamps are macro-hour authority values and are never compared directly with absolute game minutes.
 - Stable generated instance IDs through Simulation growth sequence.
 - Building bulldoze that preserves the underlying Zone.
 - Derived occupied cells shared with Road, Zone, and Terraform guards.
@@ -38,12 +38,12 @@ The capacity-profile ID is content metadata only. `building-core` validates its 
 
 ### Automatic growth
 
-1. Plan one Simulation tick.
-2. Complete construction whose completion tick has arrived.
+1. Plan one Simulation minute and derive the macro-hour transition.
+2. Complete construction whose macro-hour completion boundary has arrived.
 3. On a development-evaluation tick, scan eligible zoned placements.
 4. Select one placement deterministically from definition priority, weight, tick, and growth sequence.
-5. Add a construction instance and increment the growth sequence.
-6. Commit Building and Simulation snapshots together.
+5. Add a construction instance with macro-hour lifecycle timestamps and increment the growth sequence.
+6. Commit Building and Simulation snapshots together; the application temporal batch publishes the complete five-phase minute only after all phases validate.
 
 ### Capacity publication
 
@@ -89,6 +89,7 @@ flowchart LR
 - Definition ID/version pairs and capacity-profile references remain stable for the Save that created them.
 - Construction completion occurs no later than the first committed tick at or after its completion tick.
 - Planning is immutable and revision-fenced; stale environments cannot commit.
+- Lifecycle validation and presentation progress derive the current macro-hour before comparing construction boundaries.
 - Background growth must not switch tools, close menus, or cancel player previews.
 - Building never mutates RCI state directly.
 

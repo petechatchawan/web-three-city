@@ -16,6 +16,11 @@ import {
   FOUNDATION_TRAFFIC_VISUAL_SCALE_POLICY,
   type TrafficVisualScalePolicy,
 } from './visual-scale-policy.js';
+import type {
+  TrafficInstancedRenderHandle,
+  TrafficInstancedRenderSet,
+  TrafficRenderTier,
+} from './instanced-render-batch.js';
 
 export interface TrafficPedestrianVisualInput {
   readonly tripId: string;
@@ -25,37 +30,53 @@ export interface TrafficPedestrianVisualInput {
   readonly queued: boolean;
   readonly from: TrafficWorldPointQ;
   readonly to: TrafficWorldPointQ;
+  readonly tier?: TrafficRenderTier;
 }
 
 export class TrafficPedestrianAgent {
   readonly object = new Group();
-  readonly #body: Mesh;
-  readonly #head: Mesh;
+  readonly #body: Mesh | null;
+  readonly #head: Mesh | null;
   readonly #scalePolicy: TrafficVisualScalePolicy;
+  readonly #renderSet: TrafficInstancedRenderSet | null;
+  #renderHandle: TrafficInstancedRenderHandle | null = null;
   #tripId: string | null = null;
 
-  constructor(scalePolicy: TrafficVisualScalePolicy = FOUNDATION_TRAFFIC_VISUAL_SCALE_POLICY) {
+  constructor(
+    scalePolicy: TrafficVisualScalePolicy = FOUNDATION_TRAFFIC_VISUAL_SCALE_POLICY,
+    renderSet: TrafficInstancedRenderSet | null = null,
+  ) {
     this.#scalePolicy = scalePolicy;
+    this.#renderSet = renderSet;
     this.object.name = 'traffic-pedestrian-agent';
-    const headDiameter = scalePolicy.pedestrianWidthWorldUnits * 0.72;
-    const bodyHeight = scalePolicy.pedestrianHeightWorldUnits - headDiameter;
-    this.#body = new Mesh(
-      new BoxGeometry(
-        scalePolicy.pedestrianWidthWorldUnits,
-        bodyHeight,
-        scalePolicy.pedestrianDepthWorldUnits,
-      ),
-      new MeshStandardMaterial(),
-    );
-    this.#body.position.y = bodyHeight / 2;
-    this.#head = new Mesh(new SphereGeometry(headDiameter / 2, 8, 6), new MeshStandardMaterial());
-    this.#head.position.y = bodyHeight + headDiameter / 2;
-    this.object.add(this.#body, this.#head);
+    if (renderSet === null) {
+      const headDiameter = scalePolicy.pedestrianWidthWorldUnits * 0.72;
+      const bodyHeight = scalePolicy.pedestrianHeightWorldUnits - headDiameter;
+      this.#body = new Mesh(
+        new BoxGeometry(
+          scalePolicy.pedestrianWidthWorldUnits,
+          bodyHeight,
+          scalePolicy.pedestrianDepthWorldUnits,
+        ),
+        new MeshStandardMaterial(),
+      );
+      this.#body.position.y = bodyHeight / 2;
+      this.#head = new Mesh(new SphereGeometry(headDiameter / 2, 8, 6), new MeshStandardMaterial());
+      this.#head.position.y = bodyHeight + headDiameter / 2;
+      this.object.add(this.#body, this.#head);
+    } else {
+      this.#body = null;
+      this.#head = null;
+    }
     this.object.visible = false;
   }
 
   get tripId(): string | null {
     return this.#tripId;
+  }
+
+  get renderSlot(): number | null {
+    return this.#renderHandle?.slot ?? null;
   }
 
   assign(input: TrafficPedestrianVisualInput): void {
@@ -64,6 +85,7 @@ export class TrafficPedestrianAgent {
   }
 
   updateSourceState(input: TrafficPedestrianVisualInput): void {
+    if (input.tier !== undefined) this.setRenderTier(input.tier);
     const position = sampleRouteEdgePosition(input.from, input.to, input.progressQ);
     this.setTransform(position, headingRadians(input.from, input.to));
     this.object.userData.routeEdgeId = input.routeEdgeId;
@@ -73,23 +95,35 @@ export class TrafficPedestrianAgent {
   setTransform(position: Vector3, heading: number): void {
     this.object.position.copy(position);
     this.object.rotation.y = heading;
+    this.#syncRenderTransform();
   }
 
   setVisualState(queued: boolean): void {
     this.object.userData.trafficVisualState = queued ? 'Idle' : 'Walk';
   }
 
+  setRenderTier(tier: TrafficRenderTier): void {
+    this.#renderHandle?.setTier(tier);
+    this.object.userData.trafficLodTier = tier;
+  }
+
   release(): void {
     this.object.visible = false;
+    this.#renderHandle?.release();
+    this.#renderHandle = null;
     this.object.userData.trafficAgentKind = undefined;
     this.object.userData.tripId = undefined;
     this.object.userData.citizenId = undefined;
     this.object.userData.routeEdgeId = undefined;
     this.object.userData.trafficVisualState = undefined;
+    this.object.userData.trafficRenderSlot = undefined;
     this.#tripId = null;
   }
 
   dispose(): void {
+    this.#renderHandle?.release();
+    this.#renderHandle = null;
+    if (this.#body === null || this.#head === null) return;
     this.#body.geometry.dispose();
     this.#head.geometry.dispose();
     (this.#body.material as MeshStandardMaterial).dispose();
@@ -99,8 +133,15 @@ export class TrafficPedestrianAgent {
   #bind(input: TrafficPedestrianVisualInput): void {
     if (this.#tripId !== null) throw new Error('traffic-three:pedestrian-bind-active');
     const appearance = pedestrianAppearanceForCitizen(input.citizenId);
-    (this.#body.material as MeshStandardMaterial).color.setHex(appearance.clothingColor);
-    (this.#head.material as MeshStandardMaterial).color.setHex(appearance.accentColor);
+    if (this.#renderSet !== null) {
+      this.#renderHandle = this.#renderSet.acquire(input.tier ?? 'Near', (slot) => {
+        this.object.userData.trafficRenderSlot = slot ?? undefined;
+      });
+      this.#renderHandle.setColors(appearance.clothingColor, appearance.accentColor);
+    } else {
+      (this.#body!.material as MeshStandardMaterial).color.setHex(appearance.clothingColor);
+      (this.#head!.material as MeshStandardMaterial).color.setHex(appearance.accentColor);
+    }
     const variation = this.#scalePolicy.appearanceScaleVariation;
     const scale =
       appearance.bodyVariant === 0
@@ -114,5 +155,12 @@ export class TrafficPedestrianAgent {
     this.object.userData.citizenId = input.citizenId;
     this.#tripId = input.tripId;
     this.object.visible = true;
+    this.#syncRenderTransform();
+  }
+
+  #syncRenderTransform(): void {
+    if (this.#renderHandle === null) return;
+    this.object.updateMatrix();
+    this.#renderHandle.update(this.object.matrix);
   }
 }

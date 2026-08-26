@@ -5,7 +5,10 @@ import {
   FOUNDATION_ECONOMY_RULES,
 } from '@web-three-city/economy-core';
 import { createRoadSnapshot } from '@web-three-city/road-core';
-import { createInitialSimulationSnapshot } from '@web-three-city/simulation-core';
+import {
+  createInitialSimulationSnapshot,
+  deriveMacroHourIndex,
+} from '@web-three-city/simulation-core';
 import { createTerrainMap } from '@web-three-city/terrain-core';
 import { createZoneSnapshot } from '@web-three-city/zone-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
@@ -55,9 +58,15 @@ function emptyWorld() {
 describe('WorldSaveV5 RCI integration', () => {
   it('round-trips Economy authority in WorldSaveV6 and rejects malformed Economy', () => {
     const world = emptyWorld();
-    const rci = createInitialRciSnapshot({ absoluteTick: world.simulation.absoluteTick });
+    const rci = createInitialRciSnapshot({
+      absoluteTick: deriveMacroHourIndex(world.simulation.absoluteGameMinute),
+    });
     const economy = createInitialEconomySnapshot(
-      { year: 1, month: 1, latestDailySettlementTick: world.simulation.absoluteTick },
+      {
+        year: 1,
+        month: 1,
+        latestDailySettlementTick: deriveMacroHourIndex(world.simulation.absoluteGameMinute),
+      },
       FOUNDATION_ECONOMY_RULES,
     );
     const encoded = encodeWorldSaveV6(
@@ -82,7 +91,7 @@ describe('WorldSaveV5 RCI integration', () => {
   it('round-trips the authoritative RCI snapshot with Simulation and Buildings', () => {
     const world = emptyWorld();
     const initial = createInitialRciSnapshot({
-      absoluteTick: world.simulation.absoluteTick,
+      absoluteTick: deriveMacroHourIndex(world.simulation.absoluteGameMinute),
       deterministicSeed: 73,
     });
     const rci = {
@@ -93,13 +102,13 @@ describe('WorldSaveV5 RCI integration', () => {
           residentialMilli: 20_000,
           commercialMilli: -5_000,
           industrialMilli: 10_000,
-          evaluatedAtTick: world.simulation.absoluteTick,
+          evaluatedAtTick: deriveMacroHourIndex(world.simulation.absoluteGameMinute),
         },
         growthGates: {
           residentialOpen: true,
           commercialOpen: false,
           industrialOpen: true,
-          evaluatedAtTick: world.simulation.absoluteTick,
+          evaluatedAtTick: deriveMacroHourIndex(world.simulation.absoluteGameMinute),
         },
       },
     };
@@ -132,7 +141,9 @@ describe('WorldSaveV5 RCI integration', () => {
     expect(decoded.value.rci.population.citizens).toEqual([]);
     expect(decoded.value.rci.housing.assignments).toEqual([]);
     expect(decoded.value.rci.employment.assignments).toEqual([]);
-    expect(decoded.value.rci.demand.demand.evaluatedAtTick).toBe(world.simulation.absoluteTick);
+    expect(decoded.value.rci.demand.demand.evaluatedAtTick).toBe(
+      deriveMacroHourIndex(world.simulation.absoluteGameMinute),
+    );
     expect(decoded.value.economy.treasuryBalanceMinor).toBe(
       FOUNDATION_ECONOMY_RULES.initialTreasuryMinor,
     );
@@ -147,7 +158,9 @@ describe('WorldSaveV5 RCI integration', () => {
       world.zones,
       world.buildings,
       world.simulation,
-      createInitialRciSnapshot({ absoluteTick: world.simulation.absoluteTick }),
+      createInitialRciSnapshot({
+        absoluteTick: deriveMacroHourIndex(world.simulation.absoluteGameMinute),
+      }),
     );
     const decoded = decodeWorldSave(
       { ...encoded, rci: { ...encoded.rci, schemaVersion: 99 } },

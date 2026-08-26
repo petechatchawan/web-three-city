@@ -1,5 +1,8 @@
 import type { TerrainCellSurfaceProfile } from '@web-three-city/terrain-core';
-import { createSimulationSnapshot } from '@web-three-city/simulation-core';
+import {
+  createSimulationSnapshot,
+  type MacroHourTransition,
+} from '@web-three-city/simulation-core';
 import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
 import { describe, expect, it } from 'vitest';
 import {
@@ -53,12 +56,93 @@ function environment(): BuildingDevelopmentEnvironment {
   });
 }
 
+function macroHourTransition(
+  beforeAbsoluteGameMinute: number,
+  afterAbsoluteGameMinute: number,
+): MacroHourTransition {
+  return Object.freeze({
+    beforeAbsoluteGameMinute,
+    afterAbsoluteGameMinute,
+    beforeMacroHourIndex: Math.floor(beforeAbsoluteGameMinute / 60),
+    afterMacroHourIndex: Math.floor(afterAbsoluteGameMinute / 60),
+    crossed: Math.floor(beforeAbsoluteGameMinute / 60) !== Math.floor(afterAbsoluteGameMinute / 60),
+  });
+}
+
 describe('automatic Building Growth tick', () => {
+  it('does not advance Construction during a minute that remains in macro hour 08', () => {
+    const buildings = {
+      revision: 0,
+      instances: [
+        {
+          instanceId: 'building:construction:1',
+          buildingDefinitionId: 'residential-cottage-1x1' as const,
+          buildingDefinitionVersion: 1 as const,
+          originCell: { x: 0, z: 0 },
+          rotationQuarterTurns: 0 as const,
+          lifecycle: 'construction' as const,
+          constructionStartedAtTick: 8,
+          constructionCompletesAtTick: 9,
+        },
+      ],
+    };
+    const simulation = createSimulationSnapshot({
+      revision: 0,
+      absoluteGameMinute: 8 * 60,
+      growthSequence: 0,
+    });
+
+    const plan = planBuildingGrowthTick({
+      buildings,
+      simulation,
+      macroHourTransition: macroHourTransition(8 * 60, 8 * 60 + 1),
+      environment: environment(),
+      config: CONFIG,
+    });
+
+    expect(plan.completedInstanceIds).toEqual([]);
+    expect(plan.proposedInstances[0]?.lifecycle).toBe('construction');
+  });
+
+  it('advances Construction once when 08:59 crosses into macro hour 09', () => {
+    const buildings = {
+      revision: 0,
+      instances: [
+        {
+          instanceId: 'building:construction:1',
+          buildingDefinitionId: 'residential-cottage-1x1' as const,
+          buildingDefinitionVersion: 1 as const,
+          originCell: { x: 0, z: 0 },
+          rotationQuarterTurns: 0 as const,
+          lifecycle: 'construction' as const,
+          constructionStartedAtTick: 8,
+          constructionCompletesAtTick: 9,
+        },
+      ],
+    };
+    const simulation = createSimulationSnapshot({
+      revision: 0,
+      absoluteGameMinute: 8 * 60,
+      growthSequence: 0,
+    });
+
+    const plan = planBuildingGrowthTick({
+      buildings,
+      simulation,
+      macroHourTransition: macroHourTransition(8 * 60 + 59, 9 * 60),
+      environment: environment(),
+      config: CONFIG,
+    });
+
+    expect(plan.completedInstanceIds).toEqual(['building:construction:1']);
+    expect(plan.proposedInstances[0]?.lifecycle).toBe('active');
+  });
+
   it('starts at most one Construction on an evaluation tick', () => {
     const buildings = createEmptyBuildingSnapshot(CONFIG);
     const simulation = createSimulationSnapshot({
       revision: 0,
-      absoluteTick: 23,
+      absoluteGameMinute: 24 * 60 - 1,
       growthSequence: 0,
     });
     const plan = planBuildingGrowthTick({
@@ -74,17 +158,40 @@ describe('automatic Building Growth tick', () => {
       config: CONFIG,
       plan,
     });
-    expect(result.simulation.absoluteTick).toBe(24);
+    expect(result.simulation.absoluteGameMinute).toBe(24 * 60);
     expect(result.buildings.instances).toHaveLength(1);
     expect(result.buildings.instances[0]?.lifecycle).toBe('construction');
     expect(result.receipt.startedInstanceIds).toEqual(['building:growth:1']);
+  });
+
+  it('starts Growth when 11:59 crosses into 12:00', () => {
+    const buildings = createEmptyBuildingSnapshot(CONFIG);
+    const simulation = createSimulationSnapshot({
+      revision: 0,
+      absoluteGameMinute: 11 * 60 + 59,
+      growthSequence: 0,
+    });
+    const plan = planBuildingGrowthTick({
+      buildings,
+      simulation,
+      macroHourTransition: macroHourTransition(11 * 60 + 59, 12 * 60),
+      environment: environment(),
+      config: CONFIG,
+    });
+
+    expect(plan.valid).toBe(true);
+    expect(plan.proposedInstances).toHaveLength(1);
+    expect(plan.proposedInstances[0]?.lifecycle).toBe('construction');
+    expect(plan.proposedInstances[0]).toMatchObject({
+      constructionStartedAtTick: 12,
+    });
   });
 
   it('advances an idle non-evaluation tick without changing Buildings', () => {
     const buildings = createEmptyBuildingSnapshot(CONFIG);
     const simulation = createSimulationSnapshot({
       revision: 0,
-      absoluteTick: 8,
+      absoluteGameMinute: 8 * 60,
       growthSequence: 0,
     });
     const plan = planBuildingGrowthTick({
@@ -100,7 +207,7 @@ describe('automatic Building Growth tick', () => {
       config: CONFIG,
       plan,
     });
-    expect(result.simulation.absoluteTick).toBe(9);
+    expect(result.simulation.absoluteGameMinute).toBe(8 * 60 + 1);
     expect(result.buildings).toBe(buildings);
   });
 });

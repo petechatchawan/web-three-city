@@ -1,7 +1,18 @@
+import {
+  FOUNDATION_TRAFFIC_PRESENTATION_POLICY,
+  FOUNDATION_TRAFFIC_VISUAL_SCALE_POLICY,
+} from '@web-three-city/traffic-three';
 import { Scene } from 'three';
 import { describe, expect, it } from 'vitest';
 import { TrafficPresentation } from './traffic-presentation.js';
 import type { TrafficPresentationSnapshot } from './traffic-presentation-projection.js';
+
+interface VehicleMotionDebugView {
+  readonly visualDistanceMillimeters: number;
+  readonly visualSpeedMillimetersPerSecond: number;
+  readonly canonicalTargetDistanceMillimeters: number;
+  readonly baselineFollowerSpeedMillimetersPerSecond: number;
+}
 
 function snapshot(): TrafficPresentationSnapshot {
   return Object.freeze({
@@ -52,6 +63,133 @@ function snapshot(): TrafficPresentationSnapshot {
   });
 }
 
+function cornerBoundarySnapshot(): TrafficPresentationSnapshot {
+  const first = Object.freeze({
+    edgeId: 'drive:0,0->1,0',
+    from: Object.freeze({ xQ: 0, yQ: 0, zQ: 0 }),
+    to: Object.freeze({ xQ: 1_000, yQ: 0, zQ: 0 }),
+    lengthMillimeters: 1_000,
+  });
+  const second = Object.freeze({
+    edgeId: 'drive:1,0->1,1',
+    from: Object.freeze({ xQ: 1_000, yQ: 0, zQ: 0 }),
+    to: Object.freeze({ xQ: 1_000, yQ: 0, zQ: 1_000 }),
+    lengthMillimeters: 1_000,
+  });
+  const route = Object.freeze([first, second]);
+
+  return Object.freeze({
+    trafficRevision: 1,
+    edges: Object.freeze([]),
+    agents: Object.freeze([
+      Object.freeze({
+        tripId: 'leader',
+        citizenId: 'citizen-leader',
+        mode: 'Drive' as const,
+        routeEdgeId: second.edgeId,
+        progressQ: 50_000,
+        queued: false,
+        from: second.from,
+        to: second.to,
+        turn: null,
+        routeSegments: route,
+        routeDistanceMillimeters: 1_050,
+      }),
+      Object.freeze({
+        tripId: 'follower',
+        citizenId: 'citizen-follower',
+        mode: 'Drive' as const,
+        routeEdgeId: first.edgeId,
+        progressQ: 950_000,
+        queued: false,
+        from: first.from,
+        to: first.to,
+        turn: null,
+        routeSegments: route,
+        routeDistanceMillimeters: 950,
+      }),
+    ]),
+  });
+}
+
+function canonicalSafeTwoCarSnapshot(trafficRevision: number): TrafficPresentationSnapshot {
+  const route = Object.freeze([
+    Object.freeze({
+      edgeId: 'drive:0,0->1,0',
+      from: Object.freeze({ xQ: 0, yQ: 0, zQ: 0 }),
+      to: Object.freeze({ xQ: 8_000, yQ: 0, zQ: 0 }),
+      lengthMillimeters: 8_000,
+    }),
+  ]);
+  return Object.freeze({
+    trafficRevision,
+    edges: Object.freeze([]),
+    agents: Object.freeze([
+      Object.freeze({
+        tripId: 'leader',
+        citizenId: 'citizen-leader',
+        mode: 'Drive' as const,
+        routeEdgeId: 'drive:0,0->1,0',
+        progressQ: 62_500,
+        queued: false,
+        from: route[0]!.from,
+        to: route[0]!.to,
+        turn: null,
+        routeSegments: route,
+        routeDistanceMillimeters: 500,
+      }),
+      Object.freeze({
+        tripId: 'follower',
+        citizenId: 'citizen-follower',
+        mode: 'Drive' as const,
+        routeEdgeId: 'drive:0,0->1,0',
+        progressQ: 0,
+        queued: false,
+        from: route[0]!.from,
+        to: route[0]!.to,
+        turn: null,
+        routeSegments: route,
+        routeDistanceMillimeters: 0,
+      }),
+    ]),
+  });
+}
+
+function phaseSnapshot(
+  phase: 'WaitingForEntry' | 'Entering' | 'Travelling' | 'Leaving',
+  trafficRevision: number,
+): TrafficPresentationSnapshot {
+  const routeDistanceMillimeters = phase === 'Leaving' ? 8_000 : 0;
+  return Object.freeze({
+    trafficRevision,
+    edges: Object.freeze([]),
+    agents: Object.freeze([
+      Object.freeze({
+        tripId: 'phase-trip',
+        citizenId: 'phase-citizen',
+        mode: 'Drive' as const,
+        routeEdgeId: 'drive:phase',
+        progressQ: phase === 'Leaving' ? 1_000_000 : 0,
+        queued: phase === 'WaitingForEntry',
+        from: Object.freeze({ xQ: 0, yQ: 0, zQ: 0 }),
+        to: Object.freeze({ xQ: 8_000, yQ: 0, zQ: 0 }),
+        turn: null,
+        routeSegments: Object.freeze([
+          Object.freeze({
+            edgeId: 'drive:phase',
+            from: Object.freeze({ xQ: 0, yQ: 0, zQ: 0 }),
+            to: Object.freeze({ xQ: 8_000, yQ: 0, zQ: 0 }),
+            lengthMillimeters: 8_000,
+          }),
+        ]),
+        routeDistanceMillimeters,
+        driveMovementPhase: phase,
+        reservationResourceIds: Object.freeze(['receiving:drive:phase']),
+      }),
+    ]),
+  }) as unknown as TrafficPresentationSnapshot;
+}
+
 function withDriveDistance(
   source: TrafficPresentationSnapshot,
   trafficRevision: number,
@@ -72,6 +210,15 @@ function withDriveDistance(
       ),
     ),
   });
+}
+
+function debugVehicleMotion(
+  presentation: TrafficPresentation,
+  tripId: string,
+): VehicleMotionDebugView {
+  const debug = Reflect.get(presentation, 'debugVehicleMotion') as unknown;
+  expect(typeof debug).toBe('function');
+  return (debug as (tripId: string) => VehicleMotionDebugView).call(presentation, tripId);
 }
 
 describe('TrafficPresentation real-agent contract', () => {
@@ -98,6 +245,71 @@ describe('TrafficPresentation real-agent contract', () => {
       citizenId: 'citizen-drive',
       tripId: 'drive-trip',
     });
+    presentation.dispose();
+  });
+
+  it('keeps vehicle bodies separated when cars straddle a Road turn boundary', () => {
+    const scene = new Scene();
+    const presentation = new TrafficPresentation(scene);
+    presentation.update(cornerBoundarySnapshot(), { x: 1, z: 0 }, 0, 0);
+
+    const root = scene.getObjectByName('traffic-vehicle-root')!;
+    const leader = root.children.find((child) => child.userData.tripId === 'leader');
+    const follower = root.children.find((child) => child.userData.tripId === 'follower');
+    expect(leader).toBeTruthy();
+    expect(follower).toBeTruthy();
+
+    const dx = leader!.position.x - follower!.position.x;
+    const dz = leader!.position.z - follower!.position.z;
+    const actualSeparationMillimeters = Math.hypot(dx, dz) * 1_000;
+    const vehicleLengthMillimeters =
+      FOUNDATION_TRAFFIC_VISUAL_SCALE_POLICY.vehicleLengthWorldUnits * 1_000;
+    expect(FOUNDATION_TRAFFIC_PRESENTATION_POLICY.vehicleMinimumHeadwayMillimeters).toBeGreaterThan(
+      vehicleLengthMillimeters,
+    );
+    expect(actualSeparationMillimeters).toBeGreaterThanOrEqual(vehicleLengthMillimeters);
+    presentation.dispose();
+  });
+
+  it('materializes both canonical-safe cars without using visual spacing as capacity authority', () => {
+    const scene = new Scene();
+    const presentation = new TrafficPresentation(scene);
+    const committed = canonicalSafeTwoCarSnapshot(20);
+
+    presentation.update(committed, { x: 0, z: 0 }, 0, 0);
+
+    expect(presentation.debugSnapshot().visibleVehicles).toBe(2);
+    expect(presentation.visibleAgents().map((agent) => agent.tripId)).toEqual([
+      'follower',
+      'leader',
+    ]);
+    expect(committed.agents.map((agent) => agent.routeDistanceMillimeters)).toEqual([500, 0]);
+    presentation.dispose();
+  });
+
+  it('projects every active Drive lifecycle phase under the same authoritative trip identity', () => {
+    const scene = new Scene();
+    const presentation = new TrafficPresentation(scene);
+    const phases = ['WaitingForEntry', 'Entering', 'Travelling', 'Leaving'] as const;
+
+    for (const [index, phase] of phases.entries()) {
+      presentation.update(phaseSnapshot(phase, 30 + index), { x: 0, z: 0 }, index, index * 1_000);
+      const debug = presentation.debugSnapshot() as unknown as Readonly<{
+        canonicalActiveDrives: readonly Readonly<{
+          tripId: string;
+          driveMovementPhase: string;
+          reservationResourceIds: readonly string[];
+        }>[];
+      }>;
+      expect(presentation.visibleAgents().map((agent) => agent.tripId)).toEqual(['phase-trip']);
+      expect(debug.canonicalActiveDrives).toEqual([
+        {
+          tripId: 'phase-trip',
+          driveMovementPhase: phase,
+          reservationResourceIds: ['receiving:drive:phase'],
+        },
+      ]);
+    }
     presentation.dispose();
   });
 
@@ -152,6 +364,55 @@ describe('TrafficPresentation real-agent contract', () => {
     presentation.dispose();
   });
 
+  it('accelerates and brakes Drive visuals through the presentation kinematics follower', () => {
+    const scene = new Scene();
+    const presentation = new TrafficPresentation(scene);
+    const initial = snapshot();
+    presentation.update(initial, { x: 4, z: 4 }, 0, 0);
+
+    const next = withDriveDistance(initial, 8, 8_000);
+    presentation.update(next, { x: 4, z: 4 }, 1, 1_000);
+    presentation.frame(1_100);
+    const after100 = debugVehicleMotion(presentation, 'drive-trip');
+    presentation.frame(1_200);
+    const after200 = debugVehicleMotion(presentation, 'drive-trip');
+
+    expect(after100.visualDistanceMillimeters).toBeGreaterThan(4_000);
+    expect(after100.visualDistanceMillimeters).toBeLessThan(8_000);
+    expect(after100.visualSpeedMillimetersPerSecond).toBeGreaterThan(0);
+    expect(after100.visualSpeedMillimetersPerSecond).toBeLessThan(
+      after100.baselineFollowerSpeedMillimetersPerSecond,
+    );
+    expect(after200.visualSpeedMillimetersPerSecond).toBeGreaterThan(
+      after100.visualSpeedMillimetersPerSecond,
+    );
+    expect(after200.visualDistanceMillimeters).toBeLessThanOrEqual(
+      after200.canonicalTargetDistanceMillimeters,
+    );
+
+    const queued = Object.freeze({
+      ...next,
+      trafficRevision: 9,
+      agents: Object.freeze(
+        next.agents.map((agent) =>
+          agent.mode === 'Drive' ? Object.freeze({ ...agent, queued: true }) : agent,
+        ),
+      ),
+    });
+    presentation.update(queued, { x: 4, z: 4 }, 2, 1_300);
+    const beforeBrake = debugVehicleMotion(
+      presentation,
+      'drive-trip',
+    ).visualSpeedMillimetersPerSecond;
+    presentation.frame(1_400);
+    const afterBrake = debugVehicleMotion(
+      presentation,
+      'drive-trip',
+    ).visualSpeedMillimetersPerSecond;
+    expect(afterBrake).toBeLessThan(beforeBrake);
+    presentation.dispose();
+  });
+
   it('interpolates a stable vehicle visual between canonical snapshots', () => {
     const scene = new Scene();
     const presentation = new TrafficPresentation(scene);
@@ -180,21 +441,18 @@ describe('TrafficPresentation real-agent contract', () => {
     presentation.dispose();
   });
 
-  it('keeps a completed vehicle visible for a bounded route-end presentation', () => {
+  it('releases a Leaving vehicle at terminal publication without a synthetic presentation tail', () => {
     const scene = new Scene();
     const presentation = new TrafficPresentation(scene);
-    const initial = snapshot();
+    const initial = phaseSnapshot('Leaving', 40);
     presentation.update(initial, { x: 4, z: 4 }, 0, 0);
 
     const arrived = Object.freeze({
       ...initial,
-      trafficRevision: 8,
-      agents: Object.freeze([initial.agents[0]!]),
+      trafficRevision: 41,
+      agents: Object.freeze([]),
     });
     presentation.update(arrived, { x: 4, z: 4 }, 1, 1_000);
-    expect(presentation.debugSnapshot().visibleVehicles).toBe(1);
-
-    presentation.update(arrived, { x: 4, z: 4 }, 2, 1_200);
     expect(presentation.debugSnapshot().visibleVehicles).toBe(0);
     presentation.dispose();
   });

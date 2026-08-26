@@ -14,6 +14,22 @@ master — always-releasable trunk
 Vercel Production — master Git integration
 ```
 
+### Selective Verification vNext baseline
+
+Every new branch and pull request uses Selective Verification vNext as its
+verification baseline. Generate the exact affected plan with
+`pnpm verify:impact` or `pnpm verify:affected`, then execute the owner,
+consumer, typecheck, deployment, and targeted Browser lanes selected by that
+plan. Agents must not default to the legacy all-tests/all-browser workflow or
+present its output as vNext evidence.
+
+Full Browser remains an escalation, not the ordinary system-PR default. It is
+required when the plan is global/shared, when release or milestone closure
+requires it, or when the explicit `full-ci`, manual-dispatch, or nightly
+authority applies. A branch based on a commit that predates vNext must first
+establish the approved workflow and contract tests before verification results
+are considered the repository baseline.
+
 ## Verification Ladder
 
 `AGENTS.md` § Verification Escalation Rules is the normative authority. Use the lowest sufficient level while implementing and the highest required level as the final gate.
@@ -47,19 +63,27 @@ pnpm exec playwright test --grep @smoke
 
 Record the targeted command/spec and result in the pull request. Expand the subset when multiple browser domains or shared interaction paths are affected.
 
-For CI-backed targeted evidence, add one metadata line to the pull request body using only approved ownership tags:
+For CI-backed targeted evidence, a pull request body may include one optional metadata line using only approved ownership tags:
 
 ```text
 Targeted browser tags: traffic building
 ```
 
-Lean CI validates the repository and publishes the exact preview build artifact first. Browser CI then enters targeted mode, validates the metadata against the approved tag allowlist, consumes that Lean artifact, and runs only the requested Playwright ownership-set union. Remove the metadata line after evidence is collected when future commits should stop rerunning that targeted subset; editing PR metadata does not change the candidate SHA.
+The classification job publishes one exact affected plan. Changed-file lint, owner tests, consumer tests, typechecks, and deployment contracts fan out independently. When browser evidence is required, `browser_build` produces the exact Game/Terrain Lab preview artifact and Browser CI consumes that artifact without waiting for the Lean aggregate. Browser then enters targeted mode from the plan and runs only the affected Playwright ownership-set union. PR-body metadata is optional allowlisted evidence/override metadata; it is not the authority for whether Browser runs and cannot suppress a plan-required Browser lane. Remove temporary tag metadata after evidence is collected when needed, because editing PR metadata does not change the candidate SHA.
 
 **Full Browser is not the default gate for every PR.** Targeted browser verification is the normal browser-observable PR gate. Escalate to the unfiltered suite when release closure, milestone closure, or shared browser infrastructure makes the impact too broad to bound safely with targeted tests.
 
 Full Browser also remains available through the `full-ci` pull-request label and manual `workflow_dispatch`. A nightly scheduled CI run executes the same unfiltered regression authority on the default branch so broad regression coverage is retained without forcing every PR through the long suite.
 
 Targeted subsets are affected-behavior evidence; they must not be described as Full Browser or release-wide regression evidence.
+
+Selective Verification vNext applies this rule across all system authorities:
+`@terrain`, `@water`, `@road`, `@zoning`, `@building`, `@rci`, `@traffic`,
+and `@interaction`. The resolver does not infer Browser tags from a broad
+`apps/game/**` prefix. Deterministic application paths can resolve to Browser
+`none`, bounded presentation paths select only their system tag(s), and
+unbounded bootstrap/composition or unknown ownership fails closed to Full
+Browser.
 
 ## Pull request finalization
 
@@ -78,14 +102,14 @@ For exact-head verification, commit the complete candidate first and verify that
 
 ## CI topology
 
-Lean CI is the mandatory repository verification owner for normal pull requests. It runs `pnpm check` and publishes the exact Game/Terrain Lab browser preview artifacts.
+Lean CI is the mandatory aggregate status for the independent affected non-browser lanes on normal pull requests. The Browser build lane owns the exact Game/Terrain Lab preview artifacts when the affected plan requires browser evidence.
 
-Browser CI depends on Lean and has two mutually exclusive execution modes:
+Browser CI depends on the Browser build lane and has two mutually exclusive execution modes:
 
-- **Targeted mode:** a PR body with approved `Targeted browser tags:` metadata consumes the Lean artifacts and runs only the selected ownership-tag union.
+- **Targeted mode:** the affected plan selects the ownership-tag union; optional approved `Targeted browser tags:` metadata may document or request bounded evidence but cannot replace the plan or suppress required Browser verification.
 - **Full mode:** runs the unfiltered browser authority only when the PR has `full-ci`, a maintainer uses `workflow_dispatch`, or the nightly schedule executes.
 
-Both modes reuse the Lean artifacts and do not rerun Lean-owned unit, typecheck, or build work.
+Both modes reuse the exact Browser build artifact and do not rerun non-browser unit, typecheck, deployment, or build work.
 
 ## Vercel deployment policy
 

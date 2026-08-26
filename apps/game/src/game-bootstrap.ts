@@ -13,7 +13,9 @@ import {
   FOUNDATION_ECONOMY_RULES,
 } from '@web-three-city/economy-core';
 import { createFoundationRciRegistries, createInitialRciSnapshot } from '@web-three-city/rci-core';
+import { type TrafficGraph } from '@web-three-city/traffic-core';
 import {
+  deriveMacroHourIndex,
   createInitialSimulationSnapshot,
   createSimulationSnapshot,
   type SimulationSnapshot,
@@ -79,6 +81,7 @@ import { fingerprintCommittedWorld } from './application/committed-world-fingerp
 import { executeEconomyTaxPolicyCommand } from './application/economy-tax-policy-command.js';
 import { PresentationCoordinator } from './application/presentation-coordinator.js';
 import { reconcileRciForBuildingChange } from './application/rci-building-reconciliation.js';
+import { staticPresentationNeedsRebuild } from './application/static-presentation-refresh.js';
 import { SaveCoordinator } from './application/save-coordinator.js';
 import {
   applyPaidActionCost,
@@ -95,6 +98,15 @@ import {
 import { createBuildingWorldOccupancy } from './building-world-occupancy.js';
 import { createGameInput, type GameRenderViewport } from './game-input.js';
 import { dispatchGameTransactionState } from './game-tool-events.js';
+import { createTrafficGraphCache } from './traffic-graph-cache.js';
+import {
+  createRoadTrafficSourceProjectionProvider,
+  type RoadTrafficSourceProjectionProvider,
+} from './road-traffic-source-provider.js';
+import {
+  createTrafficModeGraphProvider,
+  type TrafficModeGraphProvider,
+} from './traffic-mode-graph-provider.js';
 import type { GameToolMode } from './game-tool-mode.js';
 import type { GameTerraformInvalidReason } from './terraform-occupancy-guard.js';
 import {
@@ -110,6 +122,10 @@ import { guardTerraformPlanWithOccupancy } from './terraform-occupancy-guard.js'
 import { guardZonePlanWithBuildings, type GameZoneInvalidReason } from './zone-building-guard.js';
 import { executeGameWorldTick } from './game-world-tick.js';
 import { GameWorldStateStore } from './game-world-state.js';
+import {
+  createTemporalPublicationController,
+  type TemporalAdvanceResult,
+} from './temporal-publication-controller.js';
 import { type EconomyPolicyUiResult, type EconomyTaxPolicy } from './economy-budget-hud.js';
 import type { GameBootstrapHost, GameViewportLayout, QualityLevel } from './game-ui.js';
 
@@ -133,11 +149,25 @@ export type CommittedWorldSubscriber = (
 export type WorldSelectionSubscriber = (cell: CellCoord) => void;
 export type InformationViewKey = 'grid' | 'zoning' | null;
 
+export interface GameRenderStatsForTest {
+  readonly calls: number;
+  readonly triangles: number;
+  readonly roadPageCount: number;
+  readonly roadRenderableCount: number;
+}
+
 export interface GameRuntime {
   snapshot(): CommittedWorld;
+  /** Read-only test seam; callers must not retain or mutate the internal world. */
+  snapshotForTest(): CommittedWorld;
   subscribeCommittedWorld(subscriber: CommittedWorldSubscriber): () => void;
   subscribeWorldSelection(subscriber: WorldSelectionSubscriber): () => void;
   advanceLogicalTick(input: Readonly<{ automaticGrowth: boolean }>): CommittedWorld;
+  advanceGameMinute(input?: Readonly<{ automaticGrowth?: boolean }>): CommittedWorld;
+  advanceTransportQuantum(): CommittedWorld;
+  advanceTemporalMinute(input?: Readonly<{ automaticGrowth?: boolean }>): TemporalAdvanceResult;
+  setPresentationSuppressed(suppressed: boolean): void;
+  rebuildPresentationForTest(): CommittedWorld;
   resetSimulationForTest(): CommittedWorld;
   savePayload(): ReturnType<SaveCoordinator['savePayload']>;
   runBackgroundGrowthTick(simulation?: SimulationSnapshot): SimulationSnapshot;
@@ -153,6 +183,8 @@ export interface GameRuntime {
   resetCamera(): void;
   toggleGrid(): void;
   setQuality(quality: QualityLevel): void;
+  /** Read-only render counters for browser performance evidence. */
+  renderStatsForTest(): GameRenderStatsForTest;
   undo(): void;
   dispose(): void;
 }
@@ -175,6 +207,19 @@ function rebuildSelection(
 ): void {
   selection.clear();
   if (selectedCell !== null) selection.setSelection(snapshot, selectedCell);
+}
+
+const trafficGraphCache = createTrafficGraphCache<TrafficGraph>();
+
+function combinedTrafficGraphForWorld(
+  world: CommittedWorld,
+  roadTrafficSourceProvider: RoadTrafficSourceProjectionProvider,
+  trafficModeGraphProvider: TrafficModeGraphProvider,
+): TrafficGraph {
+  return trafficGraphCache.get(world.roads, world.environments.building, world.buildings, () => {
+    const roads = roadTrafficSourceProvider.get(world.roads, world.environments.building);
+    return trafficModeGraphProvider.get(roads, world.buildings.revision).combined;
+  });
 }
 
 type WaterBuildMetrics = Pick<
@@ -336,7 +381,19 @@ function statusForTerraformReason(
   return 'Terraform rejected';
 }
 
-export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
+export interface GameBootstrapOptions {
+  readonly roadTrafficSourceProvider?: RoadTrafficSourceProjectionProvider;
+  readonly trafficModeGraphProvider?: TrafficModeGraphProvider;
+}
+
+export function bootstrapGame(
+  host: GameBootstrapHost,
+  options: GameBootstrapOptions = {},
+): GameRuntime {
+  const roadTrafficSourceProvider =
+    options.roadTrafficSourceProvider ?? createRoadTrafficSourceProjectionProvider();
+  const trafficModeGraphProvider =
+    options.trafficModeGraphProvider ?? createTrafficModeGraphProvider();
   const generated = generateCoastalTerrain({ seed: CURATED_SEED, config: WORLD_CONFIG });
   if (!generated.ok) throw new Error(`game:generation-failed:${generated.error.code}`);
   const initialWaterDerivationStart = performance.now();
@@ -348,9 +405,15 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
     zones: createEmptyZoneSnapshot(WORLD_CONFIG),
     buildings: createEmptyBuildingSnapshot(WORLD_CONFIG),
     simulation: initialSimulation,
-    rci: createInitialRciSnapshot({ absoluteTick: initialSimulation.absoluteTick }),
+    rci: createInitialRciSnapshot({
+      absoluteTick: deriveMacroHourIndex(initialSimulation.absoluteGameMinute),
+    }),
     economy: createInitialEconomySnapshot(
-      { year: 1, month: 1, latestDailySettlementTick: initialSimulation.absoluteTick },
+      {
+        year: 1,
+        month: 1,
+        latestDailySettlementTick: deriveMacroHourIndex(initialSimulation.absoluteGameMinute),
+      },
       FOUNDATION_ECONOMY_RULES,
     ),
   });
@@ -362,6 +425,7 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
     const selectionSubscribers = new Set<WorldSelectionSubscriber>();
     return {
       snapshot: () => unavailableWorld.snapshot(),
+      snapshotForTest: () => unavailableWorld.snapshot(),
       subscribeCommittedWorld(subscriber: CommittedWorldSubscriber): () => void {
         subscribers.add(subscriber);
         return () => subscribers.delete(subscriber);
@@ -371,6 +435,21 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
         return () => selectionSubscribers.delete(subscriber);
       },
       advanceLogicalTick: () => unavailableWorld.snapshot(),
+      advanceGameMinute: () => unavailableWorld.snapshot(),
+      advanceTransportQuantum: () => unavailableWorld.snapshot(),
+      advanceTemporalMinute: () => {
+        const world = unavailableWorld.snapshot();
+        return Object.freeze({
+          status: 'rejected' as const,
+          phase: 'game-minute' as const,
+          reason: 'game-minute:invalid-plan' as const,
+          beforeGameMinute: world.simulation.absoluteGameMinute,
+          beforeRevision: world.revision,
+          world,
+        });
+      },
+      setPresentationSuppressed: () => undefined,
+      rebuildPresentationForTest: () => unavailableWorld.snapshot(),
       resetSimulationForTest: () => unavailableWorld.snapshot(),
       savePayload(): never {
         throw new Error('game:runtime-unavailable');
@@ -389,6 +468,12 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
       resetCamera: () => undefined,
       toggleGrid: () => undefined,
       setQuality: () => undefined,
+      renderStatsForTest: () => ({
+        calls: 0,
+        triangles: 0,
+        roadPageCount: 0,
+        roadRenderableCount: 0,
+      }),
       undo: () => undefined,
       dispose(): void {
         subscribers.clear();
@@ -515,6 +600,8 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
   zonePresentation.loadAll(zonesSnapshot);
   buildingPresentation.load(buildingsSnapshot);
 
+  let lastPresentedStaticWorld = initialWorld;
+
   const grid = new TerrainGridPresentation(scene, WORLD_CONFIG);
   grid.setVisible(false);
   grid.load(snapshot);
@@ -532,6 +619,8 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
   };
 
   const inputRef: { current: ReturnType<typeof createGameInput> | null } = { current: null };
+
+  let presentationSuppressedForTest = false;
 
   const committedWorldStore = new CommittedWorldStore(initialWorld);
   const committedWorldSubscribers = new Set<CommittedWorldSubscriber>();
@@ -561,6 +650,7 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
     zoneEnvironment = world.environments.zone;
     buildingsSnapshot = world.buildings;
     buildingEnvironment = world.environments.building;
+    if (!presentationSuppressedForTest) lastPresentedStaticWorld = world;
     notifyCommittedWorld(world, reason);
   };
 
@@ -608,6 +698,20 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
     transactionCoordinator,
   });
   const undoCoordinator = new UndoCoordinator({ transactionCoordinator });
+  const temporalPublication = createTemporalPublicationController({
+    coordinator: transactionCoordinator,
+    registries: rciRegistries,
+    graphForWorld: (world) =>
+      combinedTrafficGraphForWorld(world, roadTrafficSourceProvider, trafficModeGraphProvider),
+    reservedCells: () => inputRef.current?.getBackgroundGrowthReservations() ?? Object.freeze([]),
+    intermediatePresentation: noOpPresentation,
+    finalDynamicPresentation: noOpPresentation,
+    completePresentation: completeWorldPresentation,
+    presentationSuppressed: () => presentationSuppressedForTest,
+    adoptCommittedWorld,
+    roadTrafficSourceProvider,
+    trafficModeGraphProvider,
+  });
 
   type DomainOverrides = Partial<Omit<CommittedDomainState, 'revision'>>;
   const publishCommittedDomain = (
@@ -862,7 +966,7 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
         buildingsBefore: current.buildings,
         buildingsAfter: committed.snapshot,
         registries: rciRegistries,
-        evaluationTick: current.simulation.absoluteTick,
+        evaluationTick: deriveMacroHourIndex(current.simulation.absoluteGameMinute),
       });
       const publication = publishCommittedDomain(
         { buildings: committed.snapshot, rci: reconciledRci, economy: payment.snapshot },
@@ -930,7 +1034,7 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
     const current = transactionCoordinator.snapshot();
     const next = createSimulationSnapshot({
       revision: current.simulation.revision + 1,
-      absoluteTick: current.simulation.absoluteTick + 1,
+      absoluteGameMinute: current.simulation.absoluteGameMinute + 1,
       growthSequence: current.simulation.growthSequence,
     });
     const publication = publishCommittedDomain({ simulation: next }, noOpPresentation);
@@ -945,6 +1049,29 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
     return transactionCoordinator.snapshot();
   };
 
+  const advanceGameMinute = (input: Readonly<{ automaticGrowth?: boolean }> = {}): CommittedWorld =>
+    temporalPublication.advanceGameMinute(input);
+
+  const advanceTransportQuantum = (): CommittedWorld =>
+    temporalPublication.advanceTransportQuantum();
+
+  const advanceTemporalMinute = (
+    input: Readonly<{ automaticGrowth?: boolean }> = {},
+  ): TemporalAdvanceResult => {
+    const before = transactionCoordinator.snapshotForTransaction();
+    const result = temporalPublication.advanceTemporalMinute(input);
+    if (
+      result.status === 'committed' &&
+      result.world.buildings.revision !== before.buildings.revision
+    ) {
+      // Keep the existing browser evidence meaning: one count per accepted
+      // automatic building evaluation, independent of the five authority
+      // commits inside the temporal minute batch.
+      buildingCommitCount += 1;
+    }
+    return result;
+  };
+
   const resetSimulationForTest = (): CommittedWorld => {
     const publication = publishCommittedDomain(
       { simulation: createInitialSimulationSnapshot() },
@@ -955,6 +1082,19 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
       return publication.result.world;
     }
     return transactionCoordinator.snapshot();
+  };
+
+  const setPresentationSuppressed = (suppressed: boolean): void => {
+    presentationSuppressedForTest = suppressed;
+  };
+
+  const rebuildPresentationForTest = (): CommittedWorld => {
+    const world = transactionCoordinator.snapshot();
+    if (staticPresentationNeedsRebuild(lastPresentedStaticWorld, world)) {
+      completeWorldPresentation.synchronize(world);
+      lastPresentedStaticWorld = world;
+    }
+    return world;
   };
 
   const subscribeCommittedWorld = (subscriber: CommittedWorldSubscriber): (() => void) => {
@@ -1259,6 +1399,22 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
     animationFrame = window.requestAnimationFrame(render);
   };
 
+  const renderStatsForTest = (): GameRenderStatsForTest => {
+    const roadRoot = scene.getObjectByName('road-committed-root');
+    let roadRenderableCount = 0;
+    if (roadRoot !== undefined) {
+      roadRoot.traverse((object) => {
+        if (object instanceof THREE.Mesh) roadRenderableCount += 1;
+      });
+    }
+    return Object.freeze({
+      calls: renderer.info.render.calls,
+      triangles: renderer.info.render.triangles,
+      roadPageCount: roadRoot?.children.length ?? 0,
+      roadRenderableCount,
+    });
+  };
+
   host.setUndoAvailable(false);
   host.setStatus('Ready');
   render();
@@ -1287,9 +1443,15 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
   window.addEventListener('pagehide', dispose, { once: true });
   return {
     snapshot: () => transactionCoordinator.snapshot(),
+    snapshotForTest: () => transactionCoordinator.snapshotForTransaction(),
     subscribeCommittedWorld,
     subscribeWorldSelection,
     advanceLogicalTick,
+    advanceGameMinute,
+    advanceTransportQuantum,
+    advanceTemporalMinute,
+    setPresentationSuppressed,
+    rebuildPresentationForTest,
     resetSimulationForTest,
     savePayload: () => saveCoordinator.savePayload(),
     runBackgroundGrowthTick,
@@ -1305,6 +1467,7 @@ export function bootstrapGame(host: GameBootstrapHost): GameRuntime {
     resetCamera,
     toggleGrid,
     setQuality: applyQuality,
+    renderStatsForTest,
     undo: undoLatest,
     dispose,
   };

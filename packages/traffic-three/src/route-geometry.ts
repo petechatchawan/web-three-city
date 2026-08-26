@@ -1,5 +1,12 @@
 import { TRAFFIC_PROGRESS_MAX_Q } from '@web-three-city/traffic-core';
 import { Vector3 } from 'three';
+import {
+  prepareTrafficCubicArcLength,
+  trafficCubicPoint,
+  trafficCubicTangentXZ,
+  type TrafficCubicArcLengthLookup,
+  type TrafficCubicCurveQ,
+} from './cubic-motion-curve.js';
 
 export interface TrafficWorldPointQ {
   readonly xQ: number;
@@ -12,6 +19,8 @@ export interface TrafficRouteSegment {
   readonly from: TrafficWorldPointQ;
   readonly to: TrafficWorldPointQ;
   readonly lengthMillimeters?: number;
+  readonly curve?: TrafficCubicCurveQ;
+  readonly movementKind?: 'straight' | 'turn-left' | 'turn-right';
 }
 
 export interface TrafficRouteSample {
@@ -20,8 +29,16 @@ export interface TrafficRouteSample {
   readonly segmentIndex: number;
 }
 
+export interface PreparedTrafficSegment {
+  readonly source: TrafficRouteSegment;
+  readonly startDistanceMillimeters: number;
+  readonly endDistanceMillimeters: number;
+  readonly curveLookup: TrafficCubicArcLengthLookup | null;
+}
+
 export interface PreparedTrafficRoute {
   readonly segments: readonly TrafficRouteSegment[];
+  readonly preparedSegments: readonly PreparedTrafficSegment[];
   readonly cumulativeEndMillimeters: Float64Array;
   readonly totalLengthMillimeters: number;
 }
@@ -33,6 +50,7 @@ export interface MutableTrafficRouteSample {
 
 const WORLD_Q_PER_METER = 1_000;
 const TURN_SMOOTHING_MILLIMETERS = 1_500;
+const CUBIC_ARC_SAMPLE_COUNT = 8;
 
 function routeSegmentLengthMillimeters(segment: TrafficRouteSegment): number {
   if (
@@ -70,16 +88,60 @@ function positionBetweenInto(
   );
 }
 
+function curveTAtDistance(
+  lookup: TrafficCubicArcLengthLookup,
+  distanceMillimeters: number,
+): number {
+  const rawTotal = lookup.cumulativeMillimeters.at(-1) ?? 0;
+  if (distanceMillimeters <= 0) return 0;
+  if (distanceMillimeters >= rawTotal) return 1;
+
+  let low = 1;
+  let high = lookup.cumulativeMillimeters.length - 1;
+  while (low < high) {
+    const middle = Math.floor((low + high) / 2);
+    if (distanceMillimeters <= lookup.cumulativeMillimeters[middle]!) high = middle;
+    else low = middle + 1;
+  }
+
+  const upperIndex = low;
+  const lowerIndex = upperIndex - 1;
+  const lowerDistance = lookup.cumulativeMillimeters[lowerIndex]!;
+  const upperDistance = lookup.cumulativeMillimeters[upperIndex]!;
+  const interval = Math.max(Number.EPSILON, upperDistance - lowerDistance);
+  const weight = Math.max(0, Math.min(1, (distanceMillimeters - lowerDistance) / interval));
+  const lowerT = lookup.tSamples[lowerIndex]!;
+  const upperT = lookup.tSamples[upperIndex]!;
+  return lowerT + (upperT - lowerT) * weight;
+}
+
 export function prepareTrafficRoute(route: readonly TrafficRouteSegment[]): PreparedTrafficRoute {
   if (route.length === 0) throw new RangeError('traffic-three:empty-route');
   const cumulativeEndMillimeters = new Float64Array(route.length);
+  const preparedSegments: PreparedTrafficSegment[] = [];
   let totalLengthMillimeters = 0;
   for (let index = 0; index < route.length; index += 1) {
-    totalLengthMillimeters += routeSegmentLengthMillimeters(route[index]!);
+    const segment = route[index]!;
+    const startDistanceMillimeters = totalLengthMillimeters;
+    const curveLookup =
+      segment.curve === undefined
+        ? null
+        : prepareTrafficCubicArcLength(segment.curve, CUBIC_ARC_SAMPLE_COUNT);
+    totalLengthMillimeters +=
+      curveLookup?.totalLengthMillimeters ?? routeSegmentLengthMillimeters(segment);
     cumulativeEndMillimeters[index] = totalLengthMillimeters;
+    preparedSegments.push(
+      Object.freeze({
+        source: segment,
+        startDistanceMillimeters,
+        endDistanceMillimeters: totalLengthMillimeters,
+        curveLookup,
+      }),
+    );
   }
   return Object.freeze({
     segments: route,
+    preparedSegments: Object.freeze(preparedSegments),
     cumulativeEndMillimeters,
     totalLengthMillimeters,
   });
@@ -107,25 +169,44 @@ export function samplePreparedRouteInto(
   }
   const segmentIndex = low;
   const segment = prepared.segments[segmentIndex]!;
-  const previousEnd = segmentIndex === 0 ? 0 : prepared.cumulativeEndMillimeters[segmentIndex - 1]!;
-  const segmentEnd = prepared.cumulativeEndMillimeters[segmentIndex]!;
+  const preparedSegment = prepared.preparedSegments[segmentIndex]!;
+  const previousEnd = preparedSegment.startDistanceMillimeters;
+  const segmentEnd = preparedSegment.endDistanceMillimeters;
   const segmentLength = Math.max(1, segmentEnd - previousEnd);
   const localDistance = Math.max(0, target - previousEnd);
   const localProgress = Math.max(0, Math.min(1, localDistance / segmentLength));
-  positionBetweenInto(segment.from, segment.to, localProgress, outPosition);
 
-  let heading = headingRadians(segment.from, segment.to);
-  const next = prepared.segments[segmentIndex + 1];
-  const distanceToEnd = segmentLength - localDistance;
-  if (next !== undefined && distanceToEnd < TURN_SMOOTHING_MILLIMETERS) {
-    const turnWeight =
-      (TURN_SMOOTHING_MILLIMETERS - Math.max(0, distanceToEnd)) / TURN_SMOOTHING_MILLIMETERS;
-    heading = blendHeadings(
-      heading,
-      headingRadians(next.from, next.to),
-      Math.max(0, Math.min(1, turnWeight)),
+  let heading: number;
+  if (segment.curve !== undefined && preparedSegment.curveLookup !== null) {
+    const t = curveTAtDistance(preparedSegment.curveLookup, localDistance);
+    const point = trafficCubicPoint(segment.curve, t);
+    const tangent = trafficCubicTangentXZ(segment.curve, t);
+    outPosition.set(
+      point.xQ / WORLD_Q_PER_METER,
+      point.yQ / WORLD_Q_PER_METER,
+      point.zQ / WORLD_Q_PER_METER,
     );
+    heading = Math.atan2(tangent.x, tangent.z);
+  } else {
+    positionBetweenInto(segment.from, segment.to, localProgress, outPosition);
+    heading = headingRadians(segment.from, segment.to);
+    const next = prepared.segments[segmentIndex + 1];
+    const distanceToEnd = segmentLength - localDistance;
+    if (
+      next !== undefined &&
+      next.curve === undefined &&
+      distanceToEnd < TURN_SMOOTHING_MILLIMETERS
+    ) {
+      const turnWeight =
+        (TURN_SMOOTHING_MILLIMETERS - Math.max(0, distanceToEnd)) / TURN_SMOOTHING_MILLIMETERS;
+      heading = blendHeadings(
+        heading,
+        headingRadians(next.from, next.to),
+        Math.max(0, Math.min(1, turnWeight)),
+      );
+    }
   }
+
   const sample = outSample ?? { headingRadians: heading, segmentIndex };
   sample.headingRadians = heading;
   sample.segmentIndex = segmentIndex;

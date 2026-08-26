@@ -107,41 +107,65 @@ function roadRectangles(view: RoadCellView, config: WorldConfig): readonly RoadR
   const centerMaxX = cellMaxX - inset;
   const centerMinZ = cellMinZ + inset;
   const centerMaxZ = cellMaxZ - inset;
-  const rectangles: RoadRectangle[] = [
-    { minX: centerMinX, maxX: centerMaxX, minZ: centerMinZ, maxZ: centerMaxZ },
-  ];
+  const north = (view.connections & ROAD_NORTH) !== 0;
+  const east = (view.connections & ROAD_EAST) !== 0;
+  const south = (view.connections & ROAD_SOUTH) !== 0;
+  const west = (view.connections & ROAD_WEST) !== 0;
+  const northSouthArmCount = Number(north) + Number(south);
+  const eastWestArmCount = Number(east) + Number(west);
+  const rectangles: RoadRectangle[] = [];
 
-  if ((view.connections & ROAD_NORTH) !== 0) {
+  // Road Core accepts only Flat cells or axis-aligned ramps whose topology
+  // follows the ramp axis. Their surface is planar, so connected center/arm
+  // rectangles can be represented by one spine plus non-overlapping arms.
+  // Choose the spine that emits the fewest rectangles while preserving the
+  // exact occupied footprint and the existing Terrain sampling semantics.
+  if (northSouthArmCount <= eastWestArmCount) {
     rectangles.push({
-      minX: centerMinX,
-      maxX: centerMaxX,
-      minZ: cellMinZ,
-      maxZ: centerMinZ,
-    });
-  }
-  if ((view.connections & ROAD_EAST) !== 0) {
-    rectangles.push({
-      minX: centerMaxX,
-      maxX: cellMaxX,
+      minX: west ? cellMinX : centerMinX,
+      maxX: east ? cellMaxX : centerMaxX,
       minZ: centerMinZ,
       maxZ: centerMaxZ,
     });
-  }
-  if ((view.connections & ROAD_SOUTH) !== 0) {
+    if (north) {
+      rectangles.push({
+        minX: centerMinX,
+        maxX: centerMaxX,
+        minZ: cellMinZ,
+        maxZ: centerMinZ,
+      });
+    }
+    if (south) {
+      rectangles.push({
+        minX: centerMinX,
+        maxX: centerMaxX,
+        minZ: centerMaxZ,
+        maxZ: cellMaxZ,
+      });
+    }
+  } else {
     rectangles.push({
       minX: centerMinX,
       maxX: centerMaxX,
-      minZ: centerMaxZ,
-      maxZ: cellMaxZ,
+      minZ: north ? cellMinZ : centerMinZ,
+      maxZ: south ? cellMaxZ : centerMaxZ,
     });
-  }
-  if ((view.connections & ROAD_WEST) !== 0) {
-    rectangles.push({
-      minX: cellMinX,
-      maxX: centerMinX,
-      minZ: centerMinZ,
-      maxZ: centerMaxZ,
-    });
+    if (west) {
+      rectangles.push({
+        minX: cellMinX,
+        maxX: centerMinX,
+        minZ: centerMinZ,
+        maxZ: centerMaxZ,
+      });
+    }
+    if (east) {
+      rectangles.push({
+        minX: centerMaxX,
+        maxX: cellMaxX,
+        minZ: centerMinZ,
+        maxZ: centerMaxZ,
+      });
+    }
   }
   return Object.freeze(rectangles.map((rectangle) => Object.freeze(rectangle)));
 }

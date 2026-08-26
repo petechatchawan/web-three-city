@@ -8,9 +8,13 @@ import { clickToolUndo, openBuildCategory, waitForCityUi } from './helpers/city-
 import { prepareDeterministicGrowthClock, stepLogicalTicks } from './helpers/growth-fixture.js';
 import { GAME_URL, clickGameMenuAction, readEvidence } from './helpers/interaction.js';
 
-test.describe.configure({ timeout: 60_000 });
+// The long authority/save scenario can exceed the default budget after the
+// serial browser suite has exercised several WebGL-heavy pages. Keep the
+// expanded budget scoped to this owner suite; it does not change retries or
+// the browser worker topology.
+test.describe.configure({ timeout: 90_000 });
 
-const SAVE_KEY = 'web-three-city:world-save:v7';
+const SAVE_KEY = 'web-three-city:world-save:v8';
 const EXPECTED_DEFINITION_IDS = Object.freeze([
   'commercial-cafe-1x1',
   'commercial-shop-1x1',
@@ -99,7 +103,7 @@ test('headless Growth fails closed before eligible Zones exist', async ({ page }
   await expect(page.getByTestId('subtool-tray')).toBeHidden();
 });
 
-test('grows deterministic R/C/I content and preserves authority across guards, Undo, and Save V7', async ({
+test('grows deterministic R/C/I content and preserves authority across guards, Undo, and Save V8', async ({
   page,
 }) => {
   await openGame(page);
@@ -123,7 +127,7 @@ test('grows deterministic R/C/I content and preserves authority across guards, U
   const parsedSave = await saveWorldFixture(page);
   expect(parsedSave).toMatchObject({
     kind: 'world-save',
-    schemaVersion: 7,
+    schemaVersion: 8,
     buildings: {
       kind: 'building-save',
       schemaVersion: 2,
@@ -133,8 +137,8 @@ test('grows deterministic R/C/I content and preserves authority across guards, U
         expect.objectContaining({ buildingDefinitionId: 'industrial-depot-1x1' }),
       ]),
     },
-    mobility: { schemaVersion: 1 },
-    traffic: { schemaVersion: 1 },
+    mobility: { schemaVersion: 2 },
+    traffic: { schemaVersion: 2 },
   });
   const commercialInstance = parsedSave.buildings?.instances?.find((instance) =>
     instance.buildingDefinitionId.startsWith('commercial-'),

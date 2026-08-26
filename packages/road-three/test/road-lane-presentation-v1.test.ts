@@ -49,6 +49,22 @@ function extentAlongX(positions: Float32Array): number {
   return maximum - minimum;
 }
 
+function triangleNormalY(
+  positions: Float32Array,
+  first: number,
+  second: number,
+  third: number,
+): number {
+  const firstOffset = first * 3;
+  const secondOffset = second * 3;
+  const thirdOffset = third * 3;
+  const ux = positions[secondOffset]! - positions[firstOffset]!;
+  const uz = positions[secondOffset + 2]! - positions[firstOffset + 2]!;
+  const vx = positions[thirdOffset]! - positions[firstOffset]!;
+  const vz = positions[thirdOffset + 2]! - positions[firstOffset + 2]!;
+  return uz * vx - ux * vz;
+}
+
 describe('Road Lane Presentation v1', () => {
   it('derives distinct presentation profiles from canonical Road definitions', () => {
     expect(roadStyleProfileForDefinition(BASIC_ROAD_DEFINITION)).toMatchObject({
@@ -97,6 +113,39 @@ describe('Road Lane Presentation v1', () => {
     expect(northSouth.indices.length).toBeGreaterThan(0);
     expect(eastWest.indices.length).toBeGreaterThan(0);
     expect(extentAlongX(northSouth.positions)).toBeLessThan(0.08);
+  });
+
+  it('draws upward-facing white center-divider geometry through every simple orthogonal Road corner', () => {
+    const corners = [
+      ROAD_NORTH | ROAD_EAST,
+      ROAD_EAST | ROAD_SOUTH,
+      ROAD_SOUTH | ROAD_WEST,
+      ROAD_WEST | ROAD_NORTH,
+    ];
+
+    for (const connections of corners) {
+      const marking = buildRoadLaneMarkingMesh(
+        view(BASIC_ROAD_DEFINITION, connections),
+        WORLD_CONFIG,
+      );
+      expect(marking.indices.length).toBeGreaterThan(0);
+      for (let index = 0; index < marking.indices.length; index += 3) {
+        expect(
+          triangleNormalY(
+            marking.positions,
+            marking.indices[index]!,
+            marking.indices[index + 1]!,
+            marking.indices[index + 2]!,
+          ),
+        ).toBeGreaterThan(0);
+      }
+    }
+
+    expect(roadStyleProfileForDefinition(BASIC_ROAD_DEFINITION).centerDividerColor).toEqual({
+      r: 1,
+      g: 1,
+      b: 1,
+    });
   });
 
   it('suppresses center-divider geometry inside three-way and four-way junction cells', () => {

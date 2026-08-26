@@ -21,9 +21,16 @@ test('repository exposes the full release verification command', () => {
   assert.equal(packageJson.scripts['verify:full'], expectedFull);
 });
 
+test('repository exposes the exact-head affected verification command', () => {
+  assert.equal(packageJson.scripts['verify:affected'], 'node tooling/verify-affected.mjs');
+});
+
 test('deployment tests cover verification command contracts and clean-worktree behavior', () => {
   assert.match(packageJson.scripts['test:deployment'], /verification-scripts\.test\.mjs/);
   assert.match(packageJson.scripts['test:deployment'], /verify-clean-worktree\.test\.mjs/);
+  assert.match(packageJson.scripts['test:deployment'], /verification-execution\.test\.mjs/);
+  assert.match(packageJson.scripts['test:deployment'], /verification-command-runner\.test\.mjs/);
+  assert.match(packageJson.scripts['test:deployment'], /verify-affected\.test\.mjs/);
 });
 
 test('ESLint excludes generated browser evidence', () => {
@@ -36,7 +43,9 @@ test('Playwright serializes CI browser workers while retaining local parallelism
 });
 
 test('architecture contracts run before recursive package tests', async () => {
-  const packageJson = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+  const packageJson = JSON.parse(
+    await readFile(new URL('../package.json', import.meta.url), 'utf8'),
+  );
   const deployment = packageJson.scripts['test:deployment'];
   const steps = packageJson.scripts.check.split(' && ');
   assert.ok(

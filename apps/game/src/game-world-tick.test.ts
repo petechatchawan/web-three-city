@@ -11,6 +11,7 @@ import {
 import {
   createInitialSimulationSnapshot,
   createSimulationSnapshot,
+  deriveMacroHourIndex,
 } from '@web-three-city/simulation-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { describe, expect, it } from 'vitest';
@@ -37,15 +38,26 @@ function initialState(absoluteTick = 8) {
   const simulation =
     absoluteTick === 8
       ? createInitialSimulationSnapshot()
-      : createSimulationSnapshot({ revision: absoluteTick - 8, absoluteTick, growthSequence: 0 });
+      : createSimulationSnapshot({
+          revision: absoluteTick * 60 - 480,
+          absoluteGameMinute: absoluteTick * 60,
+          growthSequence: 0,
+        });
   return Object.freeze({
     revision: 0,
     simulation,
     buildings: createEmptyBuildingSnapshot(WORLD_CONFIG),
-    rci: createInitialRciSnapshot({ absoluteTick: simulation.absoluteTick, deterministicSeed: 41 }),
+    rci: createInitialRciSnapshot({
+      absoluteTick: deriveMacroHourIndex(simulation.absoluteGameMinute),
+      deterministicSeed: 41,
+    }),
     roads: createEmptyRoadSnapshot(WORLD_CONFIG),
     economy: createInitialEconomySnapshot(
-      { year: 1, month: 1, latestDailySettlementTick: 8 },
+      {
+        year: 1,
+        month: 1,
+        latestDailySettlementTick: deriveMacroHourIndex(simulation.absoluteGameMinute),
+      },
       FOUNDATION_ECONOMY_RULES,
     ),
   });
@@ -53,7 +65,19 @@ function initialState(absoluteTick = 8) {
 
 describe('atomic game-world tick', () => {
   it('stages one eligible Economy settlement in the same atomic tick candidate', () => {
-    const base = initialState(31);
+    const base = Object.freeze({
+      ...initialState(),
+      simulation: createSimulationSnapshot({
+        revision: 59,
+        absoluteGameMinute: 479,
+        growthSequence: 0,
+      }),
+      rci: createInitialRciSnapshot({ absoluteTick: 7, deterministicSeed: 41 }),
+      economy: createInitialEconomySnapshot(
+        { year: 1, month: 1, latestDailySettlementTick: 7 },
+        FOUNDATION_ECONOMY_RULES,
+      ),
+    });
     const state = Object.freeze({
       ...base,
       economy: Object.freeze({
@@ -68,10 +92,10 @@ describe('atomic game-world tick', () => {
       registries: createFoundationRciRegistries(),
     });
     expect(plan.valid).toBe(true);
-    expect(plan.proposedState.simulation.absoluteTick).toBe(32);
-    expect(plan.proposedState.economy.lastDailySettlementTick).toBe(32);
+    expect(plan.proposedState.simulation.absoluteGameMinute).toBe(8 * 60);
+    expect(plan.proposedState.economy.lastDailySettlementTick).toBe(8);
     expect(plan.proposedState.economy.revision).toBe(1);
-    expect(plan.rciReceipt.afterAbsoluteTick).toBe(32);
+    expect(plan.rciReceipt.afterAbsoluteTick).toBe(8);
     expect(plan.rciReceipt).toBeDefined();
     expect(plan.rciDemandContributions).toContainEqual(
       expect.objectContaining({
@@ -96,7 +120,9 @@ describe('atomic game-world tick', () => {
     expect(first).toEqual(second);
     expect(first.valid).toBe(true);
     expect(first.proposedState.revision).toBe(1);
-    expect(first.proposedState.simulation.absoluteTick).toBe(state.simulation.absoluteTick + 1);
+    expect(first.proposedState.simulation.absoluteGameMinute).toBe(
+      state.simulation.absoluteGameMinute + 1,
+    );
     expect(first.proposedState.buildings).toBe(state.buildings);
   });
 

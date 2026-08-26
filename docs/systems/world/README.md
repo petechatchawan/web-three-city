@@ -23,6 +23,7 @@ Provide shared world configuration, coordinates, result contracts, cross-system 
 - Fail-closed validation of Roads, Zones, Buildings, Simulation, and RCI references.
 - `GameWorldStateStore` atomically owns the currently published Simulation, Building, RCI, Economy, Mobility, and Traffic snapshots.
 - `planGameWorldTick` stages Building Growth, Simulation advancement, RCI reconciliation, Mobility/Traffic progression, validation, and receipts before one world revision is published.
+- Automatic temporal playback uses the application-owned temporal controller to plan `GameMinute → Q1 → Q2 → Q3 → Q4`, validate all five candidates, and install them atomically as one externally invisible batch while preserving five authority revisions.
 - Invalid or stale staged work leaves the committed world unchanged.
 - Mobility and Traffic snapshots are read observationally; presentation reads cannot overwrite newer committed state.
 
@@ -41,6 +42,10 @@ Each domain owns its snapshot. `apps/game` owns composition, migration order, at
 5. Validate the complete staged state.
 6. Replace the store once with the next world revision.
 7. Update all presentation and HUD projections from committed snapshots only.
+
+### Temporal minute batch
+
+The automatic runtime keeps the authority order and revision cadence unchanged: five ordered phases produce five contiguous revisions. The coordinator validates the whole chain before `CommittedWorldStore.replacePreparedBatch` installs the final candidate. External presentation and committed-world subscribers observe only the final world. Any rejection returns the original world and the runtime enters an explicit paused failure state.
 
 ### Save/load
 
@@ -89,6 +94,7 @@ V1–V6 migration preserves existing authority, creates stationary Mobility stat
 - Persisted occupied cells remain valid against reconstructed environments.
 - RCI evaluated ticks and references validate against decoded Building/Simulation authority.
 - State replacement requires the expected world revision and exactly one next revision.
+- Temporal batch replacement requires five contiguous next revisions and mutates the store only after every candidate has validated.
 - Background ticks do not mutate active tools, previews, pointer sessions, or undo history.
 
 ## Extension Points
@@ -106,3 +112,4 @@ The atomic store composes Simulation, Buildings, RCI, Economy, Mobility, and Tra
 - Atomic state: `apps/game/src/game-world-state.ts`
 - Tick orchestration: `apps/game/src/game-world-tick.ts`
 - Related systems: [Terrain](../terrain/README.md), [Water](../water/README.md), [Roads](../roads/README.md), [Zoning](../zoning/README.md), [Buildings](../buildings/README.md), [Simulation Time](../simulation-time/README.md), [RCI](../rci/README.md), [Citizen Mobility](../citizen-mobility/README.md), [Traffic](../traffic/README.md)
+- Accepted successor design: [ADR-0001 — WorldSaveV9 Temporal Unit Migration](adrs/0001-world-save-v9-temporal-unit-migration.md). Implementation remains deferred and does not alter the current writer in PR #83.

@@ -16,7 +16,8 @@ import {
 
 function findLine(): readonly CellCoord[] {
   const empty = createEmptyRoadSnapshot(WORLD_CONFIG);
-  for (let z = 6; z < WORLD_CONFIG.mapHeight - 6; z += 1) {
+  // Keep deterministic Road interaction points below the persistent Landscape HUD.
+  for (let z = 12; z < WORLD_CONFIG.mapHeight - 6; z += 1) {
     for (let x = 6; x < WORLD_CONFIG.mapWidth - 10; x += 1) {
       const cells = Object.freeze([
         Object.freeze({ x, z }),

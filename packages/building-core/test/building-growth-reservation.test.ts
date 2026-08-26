@@ -58,7 +58,7 @@ describe('automatic Building Growth interaction reservations', () => {
     const buildings = createEmptyBuildingSnapshot(CONFIG);
     const simulation = createSimulationSnapshot({
       revision: 0,
-      absoluteTick: 23,
+      absoluteGameMinute: 24 * 60 - 1,
       growthSequence: 0,
     });
     const input = {
@@ -78,7 +78,7 @@ describe('automatic Building Growth interaction reservations', () => {
       plan,
     });
 
-    expect(result.simulation.absoluteTick).toBe(24);
+    expect(result.simulation.absoluteGameMinute).toBe(24 * 60);
     expect(result.simulation.growthSequence).toBe(0);
     expect(result.buildings.instances).toEqual([]);
     expect(result.receipt.startedInstanceIds).toEqual([]);

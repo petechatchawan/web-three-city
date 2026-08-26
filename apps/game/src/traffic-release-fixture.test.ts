@@ -1,9 +1,6 @@
-import { createFoundationRciRegistries } from '@web-three-city/rci-core';
 import { createSimulationSnapshot } from '@web-three-city/simulation-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { describe, expect, it } from 'vitest';
-import { GameWorldStateStore } from './game-world-state.js';
-import { executeGameWorldTick } from './game-world-tick.js';
 import { createPresentCitizenMobilityProjection } from './mobility-source-projection.js';
 import {
   isTrafficJourneyDepartureReceipt,
@@ -17,20 +14,38 @@ import { createTrafficReleaseFixture } from './traffic-release-fixture.js';
 import { decodeWorldSave } from './world-save.js';
 
 describe('Citizen Mobility & Traffic release fixture', () => {
+  it('reuses the immutable citizen projection within the same macro-hour source', () => {
+    const fixture = createTrafficReleaseFixture();
+    const first = createPresentCitizenMobilityProjection(
+      fixture.world.rci,
+      fixture.world.buildings,
+      9,
+    );
+    const second = createPresentCitizenMobilityProjection(
+      fixture.world.rci,
+      fixture.world.buildings,
+      9,
+    );
+
+    expect(second).toBe(first);
+  });
+
   it('round-trips through WorldSaveV7 with real RCI Home/Work references intact', () => {
     const fixture = createTrafficReleaseFixture();
     const decoded = decodeWorldSave(fixture.save, WORLD_CONFIG);
     expect(decoded.ok).toBe(true);
     if (!decoded.ok) return;
 
-    expect(decoded.value.simulation.absoluteTick).toBe(fixture.summary.startAbsoluteTick);
+    expect(decoded.value.simulation.absoluteGameMinute).toBe(
+      fixture.summary.startAbsoluteGameMinute,
+    );
     expect(decoded.value.rci.population.citizens.map((citizen) => citizen.citizenId)).toEqual(
       fixture.world.rci.population.citizens.map((citizen) => citizen.citizenId),
     );
     const projected = createPresentCitizenMobilityProjection(
       decoded.value.rci,
       decoded.value.buildings,
-      decoded.value.simulation.absoluteTick,
+      decoded.value.simulation.absoluteGameMinute,
     );
     for (const citizen of projected) {
       expect(citizen.homeBuildingId).toBe(fixture.summary.homeBuildingByCitizen[citizen.citizenId]);
@@ -48,12 +63,16 @@ describe('Citizen Mobility & Traffic release fixture', () => {
       citizensAfter: createPresentCitizenMobilityProjection(
         world.rci,
         world.buildings,
-        world.simulation.absoluteTick,
+        world.simulation.absoluteGameMinute,
       ),
-      simulationBefore: world.simulation,
+      simulationBefore: createSimulationSnapshot({
+        revision: world.simulation.revision,
+        absoluteGameMinute: world.simulation.absoluteGameMinute - 1,
+        growthSequence: world.simulation.growthSequence,
+      }),
       simulationAfter: createSimulationSnapshot({
         revision: world.simulation.revision + 1,
-        absoluteTick: 9,
+        absoluteGameMinute: 9 * 60,
         growthSequence: world.simulation.growthSequence,
       }),
       trafficSource: {
@@ -80,36 +99,60 @@ describe('Citizen Mobility & Traffic release fixture', () => {
     for (const citizenId of fixture.summary.driveCitizenIds) {
       expect(modeByCitizen.get(citizenId)).toBe('Drive');
     }
-    expect(result.mobility.trips.every((trip) => trip.status === 'Arrived')).toBe(true);
-    expect(result.traffic.activeTrips).toHaveLength(0);
+    expect(
+      result.mobility.trips.every((trip) => trip.status === 'Active' || trip.status === 'Arrived'),
+    ).toBe(true);
+    expect(
+      result.traffic.activeTrips.every((trip) =>
+        result.mobility.trips.some((mobilityTrip) => mobilityTrip.tripId === trip.tripId),
+      ),
+    ).toBe(true);
   });
 
   it('continues hourly fixture ticks through commute home', () => {
     const fixture = createTrafficReleaseFixture();
     const world = fixture.world;
-    const store = new GameWorldStateStore({
-      revision: world.revision,
-      simulation: world.simulation,
-      buildings: world.buildings,
-      rci: world.rci,
-      roads: world.roads,
-      economy: world.economy,
-      mobility: world.mobility,
-      traffic: world.traffic,
-    });
-    const registries = createFoundationRciRegistries();
-
-    while (store.snapshot().simulation.absoluteTick < 17) {
-      executeGameWorldTick({
-        store,
-        environment: world.environments.building,
-        config: WORLD_CONFIG,
-        registries,
+    let mobility = world.mobility;
+    let traffic = world.traffic;
+    let previousMinute = world.simulation.absoluteGameMinute;
+    for (const nextMinute of [world.simulation.absoluteGameMinute + 1, 19 * 60]) {
+      if (nextMinute <= previousMinute) continue;
+      const result = planMobilityTrafficTick({
+        mobilityBefore: mobility,
+        trafficBefore: traffic,
+        citizensAfter: createPresentCitizenMobilityProjection(
+          world.rci,
+          world.buildings,
+          nextMinute,
+        ),
+        simulationBefore: createSimulationSnapshot({
+          revision:
+            world.simulation.revision + previousMinute - world.simulation.absoluteGameMinute,
+          absoluteGameMinute: previousMinute,
+          growthSequence: world.simulation.growthSequence,
+        }),
+        simulationAfter: createSimulationSnapshot({
+          revision: world.simulation.revision + nextMinute - world.simulation.absoluteGameMinute,
+          absoluteGameMinute: nextMinute,
+          growthSequence: world.simulation.growthSequence,
+        }),
+        trafficSource: {
+          roads: createRoadTrafficSourceProjectionFromEnvironment(
+            world.roads,
+            world.environments.building,
+          ),
+          buildingAccess: createBuildingTrafficAccessProjection(
+            world.buildings,
+            world.roads,
+            world.environments.building,
+          ),
+        },
       });
+      mobility = result.mobility;
+      traffic = result.traffic;
+      previousMinute = nextMinute;
     }
-
-    const finished = store.snapshot();
-    expect(finished.simulation.absoluteTick).toBe(17);
+    const finished = { mobility, traffic };
     expect(finished.mobility.trips).toHaveLength(fixture.summary.citizenIds.length * 2);
     expect(finished.mobility.trips.filter((trip) => trip.purpose === 'CommuteHome')).toHaveLength(
       fixture.summary.citizenIds.length,

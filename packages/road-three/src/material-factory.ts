@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 export interface RoadMaterials {
-  readonly committed: THREE.MeshStandardMaterial;
+  readonly committed: THREE.MeshBasicMaterial;
   readonly buildValidPreview: THREE.MeshStandardMaterial;
   readonly buildInvalidPreview: THREE.MeshStandardMaterial;
   readonly bulldozeValidPreview: THREE.MeshStandardMaterial;
@@ -27,11 +27,9 @@ function previewMaterial(name: string, color: number, opacity: number): THREE.Me
 }
 
 export function createRoadMaterials(): RoadMaterials {
-  const committed = new THREE.MeshStandardMaterial({
+  const committed = new THREE.MeshBasicMaterial({
     vertexColors: true,
-    roughness: 0.92,
-    metalness: 0,
-    side: THREE.DoubleSide,
+    side: THREE.FrontSide,
   });
   committed.name = 'road-material-committed';
 

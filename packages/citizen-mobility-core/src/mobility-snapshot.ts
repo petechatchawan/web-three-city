@@ -11,6 +11,8 @@ export const MOBILITY_SCHEMA_VERSION = 1 as const;
 export const MOBILITY_POLICY_VERSION = 1 as const;
 export const MOBILITY_SCHEDULE_SEED_VERSION = 1 as const;
 
+const CANONICAL_MOBILITY_SNAPSHOTS = new WeakSet<object>();
+
 export interface MobilitySnapshotV1 {
   readonly schemaVersion: 1;
   readonly revision: number;
@@ -50,6 +52,7 @@ function assertSnapshotHeader(input: MobilitySnapshotV1): void {
 }
 
 export function createMobilitySnapshot(input: MobilitySnapshotV1): MobilitySnapshotV1 {
+  if (CANONICAL_MOBILITY_SNAPSHOTS.has(input)) return input;
   assertSnapshotHeader(input);
 
   const citizenStates = input.citizenStates
@@ -96,7 +99,7 @@ export function createMobilitySnapshot(input: MobilitySnapshotV1): MobilitySnaps
     }
   }
 
-  return Object.freeze({
+  const snapshot = Object.freeze({
     schemaVersion: MOBILITY_SCHEMA_VERSION,
     revision: input.revision,
     policyVersion: MOBILITY_POLICY_VERSION,
@@ -105,6 +108,8 @@ export function createMobilitySnapshot(input: MobilitySnapshotV1): MobilitySnaps
     citizenStates: Object.freeze(citizenStates),
     trips: Object.freeze(trips),
   });
+  CANONICAL_MOBILITY_SNAPSHOTS.add(snapshot);
+  return snapshot;
 }
 
 export function createEmptyMobilitySnapshot(): MobilitySnapshotV1 {

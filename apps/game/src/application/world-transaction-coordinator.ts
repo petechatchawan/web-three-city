@@ -1,10 +1,12 @@
 import {
   buildingDefinitionForId,
+  isBuildingConstructionCompleteAtMacroHour,
   occupiedCellsForBuilding,
   resolveBuildingFrontage,
 } from '@web-three-city/building-core';
 import { createFoundationRciRegistries, validateRciSnapshot } from '@web-three-city/rci-core';
 import { roadCellPolicyInvalidReason, roadOccupiedAt } from '@web-three-city/road-core';
+import { deriveMacroHourIndex } from '@web-three-city/simulation-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { zoneCellPolicyInvalidReason, zoneOccupiedAt } from '@web-three-city/zone-core';
 import { createZonePlacementEnvironment } from '../zone-placement-environment.js';
@@ -15,7 +17,10 @@ import {
   createCommittedWorldFromDomainState,
   type CommittedWorld,
 } from './committed-world.js';
-import { fingerprintCommittedWorld } from './committed-world-fingerprint.js';
+import {
+  fingerprintCommittedWorld,
+  memoizedFingerprintCommittedWorld,
+} from './committed-world-fingerprint.js';
 
 export type WorldPublicationRejection =
   | 'world:stale-revision'
@@ -48,7 +53,13 @@ export type WorldPublicationResult =
 
 export interface WorldTransactionCoordinator {
   snapshot(): CommittedWorld;
+  /** Internal transaction read; only authority-owned planning code may consume it. */
+  snapshotForTransaction(): CommittedWorld;
   publish(plan: WorldPublication): WorldPublicationResult;
+  /** Internal stepping path; result.world must not escape authority-owned code. */
+  publishForTransaction(plan: WorldPublication): WorldPublicationResult;
+  /** Internal atomic temporal batch; no candidate may escape to observers before all validate. */
+  publishBatchForTransaction(plans: readonly WorldPublication[]): WorldPublicationResult;
   replaceFromDecodedWorld(world: DecodedWorldState): WorldPublicationResult;
 }
 
@@ -79,7 +90,71 @@ function validMobilityTraffic(world: CommittedWorld): boolean {
   return true;
 }
 
-function validCandidate(world: CommittedWorld): boolean {
+function sameStaticAuthority(first: CommittedWorld, second: CommittedWorld): boolean {
+  return (
+    first.terrain === second.terrain &&
+    first.water === second.water &&
+    first.roads === second.roads &&
+    first.zones === second.zones &&
+    first.buildings === second.buildings &&
+    first.environments === second.environments
+  );
+}
+
+export class StaticWorldValidationCache {
+  #validatedWorld: CommittedWorld | null = null;
+
+  fork(): StaticWorldValidationCache {
+    const fork = new StaticWorldValidationCache();
+    fork.#validatedWorld = this.#validatedWorld;
+    return fork;
+  }
+
+  shouldValidate(world: CommittedWorld): boolean {
+    return this.#validatedWorld === null || !sameStaticAuthority(this.#validatedWorld, world);
+  }
+
+  markValidated(world: CommittedWorld): void {
+    this.#validatedWorld = world;
+  }
+}
+
+function validBuildingInstance(
+  world: CommittedWorld,
+  instance: CommittedWorld['buildings']['instances'][number],
+  validateStaticAuthority: boolean,
+): boolean {
+  if (
+    instance.lifecycle === 'construction' &&
+    isBuildingConstructionCompleteAtMacroHour(
+      instance,
+      deriveMacroHourIndex(world.simulation.absoluteGameMinute),
+    )
+  ) {
+    return false;
+  }
+  if (!validateStaticAuthority) return true;
+
+  const definition = buildingDefinitionForId(instance.buildingDefinitionId);
+  const cells = occupiedCellsForBuilding(instance);
+  const firstCell = cells[0];
+  const zoneId =
+    firstCell === undefined ? null : world.environments.building.zoneDefinitionIdAt(firstCell);
+  return !(
+    zoneId === null ||
+    !definition.compatibleZoneDefinitionIds.includes(zoneId) ||
+    cells.some(
+      (cell) =>
+        world.environments.building.zoneDefinitionIdAt(cell) !== zoneId ||
+        !world.environments.building.isDry(cell) ||
+        world.environments.building.surfaceAt(cell).shape !== 'flat' ||
+        world.environments.building.isRoadOccupied(cell),
+    ) ||
+    resolveBuildingFrontage(instance, world.environments.building) === null
+  );
+}
+
+function validStaticAuthority(world: CommittedWorld): boolean {
   for (let z = 0; z < WORLD_CONFIG.mapHeight; z += 1) {
     for (let x = 0; x < WORLD_CONFIG.mapWidth; x += 1) {
       const cell = { x, z };
@@ -112,33 +187,20 @@ function validCandidate(world: CommittedWorld): boolean {
       }
     }
   }
+  return true;
+}
 
-  for (const instance of world.buildings.instances) {
-    if (
-      instance.lifecycle === 'construction' &&
-      instance.constructionCompletesAtTick <= world.simulation.absoluteTick
-    ) {
-      return false;
-    }
-    const definition = buildingDefinitionForId(instance.buildingDefinitionId);
-    const cells = occupiedCellsForBuilding(instance);
-    const firstCell = cells[0];
-    const zoneId =
-      firstCell === undefined ? null : world.environments.building.zoneDefinitionIdAt(firstCell);
-    if (
-      zoneId === null ||
-      !definition.compatibleZoneDefinitionIds.includes(zoneId) ||
-      cells.some(
-        (cell) =>
-          world.environments.building.zoneDefinitionIdAt(cell) !== zoneId ||
-          !world.environments.building.isDry(cell) ||
-          world.environments.building.surfaceAt(cell).shape !== 'flat' ||
-          world.environments.building.isRoadOccupied(cell),
-      ) ||
-      resolveBuildingFrontage(instance, world.environments.building) === null
-    ) {
-      return false;
-    }
+function validCandidate(
+  world: CommittedWorld,
+  options: Readonly<{ validateStaticAuthority: boolean }>,
+): boolean {
+  if (options.validateStaticAuthority && !validStaticAuthority(world)) return false;
+  if (
+    world.buildings.instances.some(
+      (instance) => !validBuildingInstance(world, instance, options.validateStaticAuthority),
+    )
+  ) {
+    return false;
   }
 
   return (
@@ -151,6 +213,56 @@ function validCandidate(world: CommittedWorld): boolean {
   );
 }
 
+function publicationStaleReason(
+  plan: WorldPublication,
+  current: CommittedWorld,
+  currentFingerprint: string,
+): WorldPublicationRejection | null {
+  if (plan.baseRevision !== current.revision) return 'world:stale-revision';
+  if (plan.baseFingerprint !== currentFingerprint) return 'world:stale-content';
+  if (plan.nextWorld.revision !== current.revision + 1) return 'world:stale-content';
+  return null;
+}
+
+function prepareCandidate(
+  plan: WorldPublication,
+  current: CommittedWorld,
+  staticValidationCache: StaticWorldValidationCache,
+  reusePreparedDynamic: boolean,
+): CommittedWorld | null {
+  try {
+    const candidate = createCommittedWorld(plan.nextWorld, {
+      reuseStaticFrom: current,
+      ...(reusePreparedDynamic ? { reuseDynamicFrom: plan.nextWorld } : {}),
+    });
+    const candidateFingerprint = memoizedFingerprintCommittedWorld(candidate);
+    if (candidateFingerprint !== plan.nextFingerprint) return null;
+    const validateStaticAuthority = staticValidationCache.shouldValidate(candidate);
+    const valid = validCandidate(candidate, { validateStaticAuthority });
+    if (!valid) return null;
+    return candidate;
+  } catch {
+    return null;
+  }
+}
+
+function synchronizePresentation(
+  presentation: WorldPresentationPort,
+  candidate: CommittedWorld,
+): 'synchronized' | 'degraded' {
+  try {
+    presentation.synchronize(candidate);
+    return 'synchronized';
+  } catch {
+    try {
+      presentation.rebuildFromCommitted(candidate);
+    } catch {
+      // Domain authority is already committed. Recovery can be retried from snapshot().
+    }
+    return 'degraded';
+  }
+}
+
 function rejected(
   world: CommittedWorld,
   reason: WorldPublicationRejection,
@@ -161,6 +273,7 @@ function rejected(
 export class DefaultWorldTransactionCoordinator implements WorldTransactionCoordinator {
   readonly #worldStore: CommittedWorldStore;
   readonly #presentation: WorldPresentationPort | null;
+  readonly #staticValidationCache = new StaticWorldValidationCache();
 
   constructor(input: { worldStore: CommittedWorldStore; presentation?: WorldPresentationPort }) {
     this.#worldStore = input.worldStore;
@@ -171,57 +284,104 @@ export class DefaultWorldTransactionCoordinator implements WorldTransactionCoord
     return this.#worldStore.snapshot();
   }
 
-  publish(plan: WorldPublication): WorldPublicationResult {
-    const current = this.#worldStore.snapshot();
-    const currentFingerprint = fingerprintCommittedWorld(current);
-    if (plan.baseRevision !== current.revision) return rejected(current, 'world:stale-revision');
-    if (plan.baseFingerprint !== currentFingerprint)
-      return rejected(current, 'world:stale-content');
-    const candidateFingerprint = fingerprintCommittedWorld(plan.nextWorld);
-    if (plan.nextFingerprint !== candidateFingerprint)
-      return rejected(current, 'world:stale-content');
-    if (plan.nextWorld.revision !== current.revision + 1)
-      return rejected(current, 'world:stale-content');
+  snapshotForTransaction(): CommittedWorld {
+    return this.#worldStore.committedForTransaction();
+  }
 
-    let candidate: CommittedWorld;
+  publish(plan: WorldPublication): WorldPublicationResult {
+    return this.#publish(plan, true);
+  }
+
+  publishForTransaction(plan: WorldPublication): WorldPublicationResult {
+    return this.#publish(plan, false);
+  }
+
+  publishBatchForTransaction(plans: readonly WorldPublication[]): WorldPublicationResult {
+    const original = this.#worldStore.committedForTransaction();
+    if (plans.length !== 5) return rejected(this.#worldStore.snapshot(), 'world:invalid-candidate');
+
+    let current = original;
+    const candidates: CommittedWorld[] = [];
+    const batchValidationCache = this.#staticValidationCache.fork();
+    for (const plan of plans) {
+      const currentFingerprint = fingerprintCommittedWorld(current);
+      const staleReason = publicationStaleReason(plan, current, currentFingerprint);
+      if (staleReason !== null) return rejected(this.#worldStore.snapshot(), staleReason);
+      if (plan.nextFingerprint !== fingerprintCommittedWorld(plan.nextWorld)) {
+        return rejected(this.#worldStore.snapshot(), 'world:stale-content');
+      }
+      const candidate = prepareCandidate(plan, current, batchValidationCache, true);
+      if (candidate === null) {
+        return rejected(this.#worldStore.snapshot(), 'world:invalid-candidate');
+      }
+      candidates.push(candidate);
+      // The next quantum reuses this candidate's immutable static authority. Mark it
+      // immediately so Q1–Q4 do not repeat the full map-wide static validation pass.
+      batchValidationCache.markValidated(candidate);
+      current = candidate;
+    }
+
     try {
-      candidate = createCommittedWorld(plan.nextWorld);
-      if (!validCandidate(candidate)) return rejected(current, 'world:invalid-candidate');
-      candidate = this.#worldStore.replace(current.revision, candidate);
+      this.#worldStore.replacePreparedBatch(original.revision, candidates);
+      this.#staticValidationCache.markValidated(current);
     } catch {
-      return rejected(current, 'world:invalid-candidate');
+      return rejected(this.#worldStore.snapshot(), 'world:invalid-candidate');
+    }
+    return Object.freeze({
+      status: 'committed' as const,
+      world: current,
+      presentation: Object.freeze({ status: 'synchronized' as const }),
+    });
+  }
+
+  #publish(plan: WorldPublication, copyResultWorld: boolean): WorldPublicationResult {
+    const current = this.#worldStore.committedForTransaction();
+    const currentFingerprint = fingerprintCommittedWorld(current);
+    const readCurrent = (): CommittedWorld =>
+      copyResultWorld ? this.#worldStore.snapshot() : current;
+    const staleReason = publicationStaleReason(plan, current, currentFingerprint);
+    if (staleReason !== null) return rejected(readCurrent(), staleReason);
+    const candidateFingerprint = fingerprintCommittedWorld(plan.nextWorld);
+    if (plan.nextFingerprint !== candidateFingerprint) {
+      return rejected(readCurrent(), 'world:stale-content');
+    }
+    const candidate = prepareCandidate(
+      plan,
+      current,
+      this.#staticValidationCache,
+      !copyResultWorld,
+    );
+    if (candidate === null) return rejected(readCurrent(), 'world:invalid-candidate');
+    try {
+      this.#worldStore.replacePrepared(current.revision, candidate);
+      this.#staticValidationCache.markValidated(candidate);
+    } catch {
+      return rejected(readCurrent(), 'world:invalid-candidate');
     }
 
     const presentation = plan.presentation ?? this.#presentation;
     if (presentation === null) {
       return Object.freeze({
         status: 'committed' as const,
-        world: candidate,
+        world: copyResultWorld ? this.#worldStore.snapshot() : candidate,
         presentation: Object.freeze({ status: 'synchronized' as const }),
       });
     }
-    try {
-      presentation.synchronize(candidate);
-      return Object.freeze({
-        status: 'committed' as const,
-        world: candidate,
-        presentation: Object.freeze({ status: 'synchronized' as const }),
-      });
-    } catch {
-      try {
-        presentation.rebuildFromCommitted(candidate);
-      } catch {
-        // Domain authority is already committed. Recovery can be retried from snapshot().
-      }
-      return Object.freeze({
-        status: 'committed' as const,
-        world: candidate,
-        presentation: Object.freeze({
-          status: 'degraded' as const,
-          recoveryRequired: true as const,
-        }),
-      });
-    }
+    const presentationStatus = synchronizePresentation(presentation, candidate);
+    return presentationStatus === 'synchronized'
+      ? Object.freeze({
+          status: 'committed' as const,
+          world: copyResultWorld ? this.#worldStore.snapshot() : candidate,
+          presentation: Object.freeze({ status: 'synchronized' as const }),
+        })
+      : Object.freeze({
+          status: 'committed' as const,
+          world: copyResultWorld ? this.#worldStore.snapshot() : candidate,
+          presentation: Object.freeze({
+            status: 'degraded' as const,
+            recoveryRequired: true as const,
+          }),
+        });
   }
 
   replaceFromDecodedWorld(world: DecodedWorldState): WorldPublicationResult {

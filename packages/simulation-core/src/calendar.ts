@@ -1,6 +1,7 @@
-import type { GameCalendar } from './contracts.js';
+import type { GameCalendar, MacroHourTransition } from './contracts.js';
 
 export const HOURS_PER_DAY = 24;
+export const MINUTES_PER_HOUR = 60;
 export const DAYS_PER_MONTH = 30;
 export const MONTHS_PER_YEAR = 12;
 export const INITIAL_ABSOLUTE_TICK = 8;
@@ -9,6 +10,54 @@ export const DEVELOPMENT_EVALUATION_HOURS = Object.freeze([0, 6, 12, 18] as cons
 export function assertAbsoluteTick(value: number): void {
   if (!Number.isSafeInteger(value) || value < 0) {
     throw new RangeError('simulation-calendar:invalid-tick');
+  }
+}
+
+function assertAbsoluteGameMinute(value: number): void {
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new RangeError('simulation-calendar:invalid-minute');
+  }
+}
+
+export function deriveMacroHourIndex(absoluteGameMinute: number): number {
+  assertAbsoluteGameMinute(absoluteGameMinute);
+  return Math.floor(absoluteGameMinute / MINUTES_PER_HOUR);
+}
+
+export function crossedMacroHour(beforeMinute: number, afterMinute: number): boolean {
+  return deriveMacroHourIndex(beforeMinute) !== deriveMacroHourIndex(afterMinute);
+}
+
+export function deriveMacroHourTransition(
+  beforeAbsoluteGameMinute: number,
+  afterAbsoluteGameMinute: number,
+): MacroHourTransition {
+  assertAbsoluteGameMinute(beforeAbsoluteGameMinute);
+  assertAbsoluteGameMinute(afterAbsoluteGameMinute);
+  const beforeMacroHourIndex = deriveMacroHourIndex(beforeAbsoluteGameMinute);
+  const afterMacroHourIndex = deriveMacroHourIndex(afterAbsoluteGameMinute);
+  return Object.freeze({
+    beforeAbsoluteGameMinute,
+    afterAbsoluteGameMinute,
+    beforeMacroHourIndex,
+    afterMacroHourIndex,
+    crossed: beforeMacroHourIndex !== afterMacroHourIndex,
+  });
+}
+
+export function isMacroHourTransition(value: MacroHourTransition): boolean {
+  try {
+    const derived = deriveMacroHourTransition(
+      value.beforeAbsoluteGameMinute,
+      value.afterAbsoluteGameMinute,
+    );
+    return (
+      value.beforeMacroHourIndex === derived.beforeMacroHourIndex &&
+      value.afterMacroHourIndex === derived.afterMacroHourIndex &&
+      value.crossed === derived.crossed
+    );
+  } catch {
+    return false;
   }
 }
 
@@ -23,6 +72,10 @@ export function deriveGameCalendar(absoluteTick: number): GameCalendar {
     day: (completeDays % DAYS_PER_MONTH) + 1,
     hour,
   });
+}
+
+export function deriveGameCalendarFromGameMinute(absoluteGameMinute: number): GameCalendar {
+  return deriveGameCalendar(deriveMacroHourIndex(absoluteGameMinute));
 }
 
 export function isDevelopmentEvaluationTick(absoluteTick: number): boolean {

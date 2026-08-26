@@ -3,30 +3,103 @@ import {
   applyRouteRecovery,
   createTrafficProjection,
   createTrafficSnapshot,
+  createTrafficSnapshotV2,
   deriveBuildingAccessNodes,
   derivePedestrianTrafficGraph,
   deriveVehicleTrafficGraph,
   recoverInvalidatedRoute,
+  type ActiveTransportTripV2,
   type BuildingTrafficAccessProjection,
   type RoadTrafficSourceProjection,
   type TrafficGraph,
   type TrafficSnapshotV1,
+  type TrafficSnapshotV2,
 } from '@web-three-city/traffic-core';
 
 function withBuildingRevision(graph: TrafficGraph, buildingRevision: number): TrafficGraph {
   return Object.freeze({ ...graph, sourceBuildingRevision: buildingRevision });
 }
 
+function v1TrafficView(traffic: TrafficSnapshotV1 | TrafficSnapshotV2): TrafficSnapshotV1 {
+  if (traffic.schemaVersion === 1) return createTrafficSnapshot(traffic);
+  return createTrafficSnapshot({
+    schemaVersion: 1,
+    revision: traffic.revision,
+    policyVersion: traffic.policyVersion,
+    graphSourceRoadRevision: traffic.graphSourceRoadRevision,
+    graphSourceBuildingRevision: traffic.graphSourceBuildingRevision,
+    activeTrips: traffic.activeTrips.map((trip) => ({
+      tripId: trip.tripId,
+      citizenId: trip.citizenId,
+      mode: trip.mode,
+      originBuildingId: trip.originBuildingId,
+      destinationBuildingId: trip.destinationBuildingId,
+      routeEdgeIds: trip.routeEdgeIds,
+      routeGraphRevision: trip.routeGraphRevision,
+      segmentIndex: trip.segmentIndex,
+      progressQ: trip.progressQ,
+      lastStableNodeId: trip.lastStableNodeId,
+      queuedMovement:
+        trip.queuedMovement === null
+          ? null
+          : {
+              fromEdgeId: trip.queuedMovement.fromEdgeId,
+              toEdgeId: trip.queuedMovement.toEdgeId,
+              arrivedAtGameSecond: Math.floor(trip.queuedMovement.arrivedAtTransportSecond / 4),
+            },
+      status: trip.status,
+      failureReason: trip.failureReason,
+    })),
+  });
+}
+
+function restoreV2Traffic(
+  original: TrafficSnapshotV2,
+  recovered: TrafficSnapshotV1,
+): TrafficSnapshotV2 {
+  const originalByTripId = new Map(
+    original.activeTrips.map((trip) => [trip.tripId, trip] as const),
+  );
+  const activeTrips: ActiveTransportTripV2[] = recovered.activeTrips.map((trip) => {
+    const originalTrip = originalByTripId.get(trip.tripId);
+    if (originalTrip === undefined) return trip as unknown as ActiveTransportTripV2;
+    const { queuedMovement, ...withoutQueue } = trip;
+    return {
+      ...withoutQueue,
+      queuedMovement:
+        queuedMovement === null
+          ? null
+          : {
+              fromEdgeId: queuedMovement.fromEdgeId,
+              toEdgeId: queuedMovement.toEdgeId,
+              arrivedAtTransportSecond: queuedMovement.arrivedAtGameSecond * 4,
+            },
+      driveMovementPhase: originalTrip.driveMovementPhase,
+      entryReservationResourceIds: Object.freeze([]),
+    };
+  });
+  return createTrafficSnapshotV2({
+    schemaVersion: 2,
+    revision: recovered.revision,
+    policyVersion: recovered.policyVersion,
+    graphSourceRoadRevision: recovered.graphSourceRoadRevision,
+    graphSourceBuildingRevision: recovered.graphSourceBuildingRevision,
+    timeCursor: original.timeCursor,
+    activeTrips,
+  });
+}
+
 export function reconcileTrafficAfterRoadChange(
   input: Readonly<{
-    traffic: TrafficSnapshotV1;
+    traffic: TrafficSnapshotV1 | TrafficSnapshotV2;
     mobility: MobilitySnapshotV1;
     trafficSourceAfter: Readonly<{
       roads: RoadTrafficSourceProjection;
       buildingAccess: BuildingTrafficAccessProjection;
     }>;
   }>,
-): TrafficSnapshotV1 {
+): TrafficSnapshotV1 | TrafficSnapshotV2 {
+  const traffic = v1TrafficView(input.traffic);
   const buildingRevision = input.trafficSourceAfter.buildingAccess.buildingRevision;
   const vehicleGraph = withBuildingRevision(
     deriveVehicleTrafficGraph(input.trafficSourceAfter.roads),
@@ -45,14 +118,14 @@ export function reconcileTrafficAfterRoadChange(
     access.map((entry) => [entry.buildingInstanceId, entry] as const),
   );
   const previousProjectionGraph: TrafficGraph = Object.freeze({
-    sourceRoadRevision: input.traffic.graphSourceRoadRevision,
-    sourceBuildingRevision: input.traffic.graphSourceBuildingRevision,
+    sourceRoadRevision: traffic.graphSourceRoadRevision,
+    sourceBuildingRevision: traffic.graphSourceBuildingRevision,
     nodes: Object.freeze([...pedestrianGraph.nodes, ...vehicleGraph.nodes]),
     edges: Object.freeze([...pedestrianGraph.edges, ...vehicleGraph.edges]),
   });
   const previousCostField = createTrafficProjection({
     snapshot: createTrafficSnapshot({
-      ...input.traffic,
+      ...traffic,
       graphSourceRoadRevision: input.trafficSourceAfter.roads.roadRevision,
       graphSourceBuildingRevision: buildingRevision,
     }),
@@ -62,7 +135,7 @@ export function reconcileTrafficAfterRoadChange(
     input.mobility.trips.map((trip) => [trip.tripId, trip] as const),
   );
 
-  const nextTrips = input.traffic.activeTrips.map((trip) => {
+  const nextTrips = traffic.activeTrips.map((trip) => {
     if (trip.status !== 'Active') return trip;
     const mobilityTrip = mobilityTripById.get(trip.tripId);
     if (mobilityTrip === undefined || mobilityTrip.status !== 'Active') {
@@ -89,11 +162,12 @@ export function reconcileTrafficAfterRoadChange(
     return applyRouteRecovery(trip, recovery, input.trafficSourceAfter.roads.roadRevision);
   });
 
-  return createTrafficSnapshot({
-    ...input.traffic,
-    revision: input.traffic.revision + 1,
+  const recovered = createTrafficSnapshot({
+    ...traffic,
+    revision: traffic.revision + 1,
     graphSourceRoadRevision: input.trafficSourceAfter.roads.roadRevision,
     graphSourceBuildingRevision: buildingRevision,
     activeTrips: nextTrips,
   });
+  return input.traffic.schemaVersion === 2 ? restoreV2Traffic(input.traffic, recovered) : recovered;
 }

@@ -15,10 +15,12 @@ import {
   createTrafficSnapshot,
   derivePedestrianTrafficGraph,
   deriveVehicleTrafficGraph,
+  planTransportRoute,
   type ActiveTransportTrip,
   type TrafficGraph,
 } from '@web-three-city/traffic-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
+import { deriveMacroHourIndex } from '@web-three-city/simulation-core';
 import { createCommittedWorldFromDomainState } from './application/committed-world.js';
 import {
   createBuildingTrafficAccessProjection,
@@ -31,6 +33,8 @@ export const TRAFFIC_PERFORMANCE_LOGICAL_CITIZENS = 5_000;
 export const TRAFFIC_PERFORMANCE_LOGICAL_TRIPS = 5_000;
 
 const FOUNDATION_RCI_REGISTRIES = createFoundationRciRegistries();
+const MINIMUM_REMAINING_PERFORMANCE_ROUTE_EDGES = 81;
+const PERFORMANCE_ROUTE_SEED_LIMIT = 64;
 
 export interface TrafficPerformanceReleaseFixture {
   readonly save: WorldSaveV7;
@@ -70,7 +74,7 @@ function performanceRci(
   base: ReturnType<typeof createTrafficReleaseFixture>['world'],
 ): RciSnapshot {
   const initial = createInitialRciSnapshot({
-    absoluteTick: base.simulation.absoluteTick,
+    absoluteTick: deriveMacroHourIndex(base.simulation.absoluteGameMinute),
     deterministicSeed: 20260816,
   });
   const citizens = Array.from({ length: TRAFFIC_PERFORMANCE_LOGICAL_CITIZENS }, (_, index) => ({
@@ -126,6 +130,96 @@ function withBuildingRevision(graph: TrafficGraph, revision: number): TrafficGra
   return Object.freeze({ ...graph, sourceBuildingRevision: revision });
 }
 
+function createPerformanceRouteResolver(
+  graph: TrafficGraph,
+): (edgeId: string) => readonly string[] | null {
+  const cache = new Map<string, readonly string[] | null>();
+  const edgesById = new Map(graph.edges.map((edge) => [edge.edgeId, edge] as const));
+  const outgoing = new Map<string, TrafficGraph['edges'][number][]>();
+  for (const edge of graph.edges) {
+    const list = outgoing.get(edge.fromNodeId) ?? [];
+    list.push(edge);
+    outgoing.set(edge.fromNodeId, list);
+  }
+  for (const list of outgoing.values()) {
+    list.sort((first, second) =>
+      first.edgeId < second.edgeId ? -1 : first.edgeId > second.edgeId ? 1 : 0,
+    );
+  }
+
+  // Keep the fixture tied to the real route planner while using a bounded
+  // deterministic continuation walk for every seeded edge. Calling the
+  // planner once per dense-graph edge makes fixture construction dominate the
+  // browser test itself without adding authority coverage.
+  const anchor = graph.nodes[0];
+  const destination = [...graph.nodes].sort((first, second) =>
+    first.nodeId < second.nodeId ? -1 : first.nodeId > second.nodeId ? 1 : 0,
+  )[graph.nodes.length - 1];
+  if (anchor === undefined || destination === undefined) {
+    throw new Error('traffic-performance-fixture:missing-route-anchor');
+  }
+  const plannerProbe = planTransportRoute(graph, {
+    requestTripId: `fixture:planner-probe:${graph.edges[0]?.mode ?? 'Walk'}`,
+    citizenId: 'fixture:planner-probe',
+    mode: graph.edges[0]?.mode ?? 'Walk',
+    originAccessNodeId: anchor.nodeId,
+    destinationAccessNodeId: destination.nodeId,
+  });
+  if (!plannerProbe.available) throw new Error('traffic-performance-fixture:planner-probe-failed');
+
+  return (edgeId: string): readonly string[] | null => {
+    const cached = cache.get(edgeId);
+    if (cached !== undefined) return cached;
+    const edge = edgesById.get(edgeId);
+    if (edge === undefined) throw new Error(`traffic-performance-fixture:missing-edge:${edgeId}`);
+    const route: string[] = [edge.edgeId];
+    let currentNodeId = edge.toNodeId;
+    let previousNodeId = edge.fromNodeId;
+    while (route.length < MINIMUM_REMAINING_PERFORMANCE_ROUTE_EDGES + 1) {
+      const choices = outgoing
+        .get(currentNodeId)
+        ?.filter((candidate) => candidate.mode === edge.mode);
+      if (choices === undefined || choices.length === 0) {
+        cache.set(edgeId, null);
+        return null;
+      }
+      const next =
+        choices.find(
+          (candidate) => candidate.edgeId !== route.at(-1) && candidate.toNodeId !== previousNodeId,
+        ) ?? choices.find((candidate) => candidate.toNodeId !== previousNodeId);
+      if (next === undefined) {
+        cache.set(edgeId, null);
+        return null;
+      }
+      route.push(next.edgeId);
+      previousNodeId = currentNodeId;
+      currentNodeId = next.toNodeId;
+    }
+    const resolved = Object.freeze(route);
+    cache.set(edgeId, resolved);
+    return resolved;
+  };
+}
+
+interface PerformanceRouteSeed {
+  readonly edge: TrafficGraph['edges'][number];
+  readonly route: readonly string[];
+}
+
+function collectPerformanceRouteSeeds(
+  graph: TrafficGraph,
+  routeForEdge: (edgeId: string) => readonly string[] | null,
+): readonly PerformanceRouteSeed[] {
+  const seeds: PerformanceRouteSeed[] = [];
+  for (const edge of graph.edges) {
+    const route = routeForEdge(edge.edgeId);
+    if (route === null) continue;
+    seeds.push(Object.freeze({ edge, route }));
+    if (seeds.length === PERFORMANCE_ROUTE_SEED_LIMIT) break;
+  }
+  return Object.freeze(seeds);
+}
+
 export function createTrafficPerformanceReleaseFixture(): TrafficPerformanceReleaseFixture {
   const baseFixture = createTrafficReleaseFixture();
   const base = baseFixture.world;
@@ -169,12 +263,20 @@ export function createTrafficPerformanceReleaseFixture(): TrafficPerformanceRele
   const citizenStates: CitizenMobilityState[] = [];
   const mobilityTrips: MobilityTrip[] = [];
   const trafficTrips: ActiveTransportTrip[] = [];
+  const walkRouteForEdge = createPerformanceRouteResolver(walk);
+  const driveRouteForEdge = createPerformanceRouteResolver(drive);
+  const walkSeeds = collectPerformanceRouteSeeds(walk, walkRouteForEdge);
+  const driveSeeds = collectPerformanceRouteSeeds(drive, driveRouteForEdge);
+  if (walkSeeds.length === 0 || driveSeeds.length === 0) {
+    throw new Error('traffic-performance-fixture:no-long-route-seeds');
+  }
   for (let index = 0; index < TRAFFIC_PERFORMANCE_LOGICAL_TRIPS; index += 1) {
     const citizenId = `citizen:${index + 1}`;
     const tripId = `trip:${index + 1}`;
     const mode = index % 2 === 0 ? ('Walk' as const) : ('Drive' as const);
-    const graph = mode === 'Walk' ? walk : drive;
-    const edge = graph.edges[index % graph.edges.length]!;
+    const seeds = mode === 'Walk' ? walkSeeds : driveSeeds;
+    const seed = seeds[index % seeds.length]!;
+    const edge = seed.edge;
     const originBuildingId = 'fixture:home:1';
     const destinationBuildingId = mode === 'Walk' ? 'fixture:work:shop' : 'fixture:work:factory';
     citizenStates.push(
@@ -207,7 +309,7 @@ export function createTrafficPerformanceReleaseFixture(): TrafficPerformanceRele
         mode,
         originBuildingId,
         destinationBuildingId,
-        routeEdgeIds: Object.freeze([edge.edgeId]),
+        routeEdgeIds: seed.route,
         routeGraphRevision: roads.revision,
         segmentIndex: 0,
         progressQ: (index * 104_729) % 1_000_000,

@@ -12,6 +12,7 @@ type RecoveryFixture = {
 type TrafficState = {
   citizenIds: string[];
   traffic: {
+    timeCursor: { absoluteTransportSecond: number };
     graphSourceRoadRevision: number;
     activeTrips: Array<{
       tripId: string;
@@ -20,8 +21,14 @@ type TrafficState = {
       routeGraphRevision: number;
       status: string;
       failureReason: string | null;
+      driveMovementPhase: string | null;
+      queuedResourceIds: string[];
+      reservedResourceIds: string[];
     }>;
+    queuedResourceSummaries: unknown[];
+    reservedResourceSummaries: unknown[];
   };
+  presentation: { materializedTripIds: string[]; replayCount?: number } | null;
 };
 
 test('bulldozing a future route edge recovers the active trip without orphaning its Citizen', async ({
@@ -60,6 +67,8 @@ test('bulldozing a future route edge recovers the active trip without orphaning 
   });
   expect(before.traffic.activeTrips).toHaveLength(1);
   expect(before.traffic.activeTrips[0]?.tripId).toBe(fixture.tripId);
+  expect(before.traffic.timeCursor.absoluteTransportSecond).toBeGreaterThanOrEqual(0);
+  expect(before.presentation?.replayCount ?? 0).toBe(0);
 
   await openBuildCategory(page, 'roads');
   await page.getByRole('button', { name: 'Bulldoze Road', exact: true }).click();
@@ -93,6 +102,13 @@ test('bulldozing a future route edge recovers the active trip without orphaning 
   expect(trip?.citizenId).toBe(fixture.citizenId);
   expect(after.citizenIds).toContain(fixture.citizenId);
   expect(trip?.status).toBe('Active');
+  expect(trip?.driveMovementPhase).not.toBeNull();
   expect(trip?.routeEdgeIds).not.toEqual(fixture.routeEdgeIds);
   expect(trip?.routeGraphRevision).toBe(after.traffic.graphSourceRoadRevision);
+  expect(
+    after.presentation?.materializedTripIds.every((tripId) =>
+      after.traffic.activeTrips.some((activeTrip) => activeTrip.tripId === tripId),
+    ),
+  ).toBe(true);
+  expect(after.presentation?.replayCount ?? 0).toBe(0);
 });

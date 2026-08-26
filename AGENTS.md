@@ -118,6 +118,32 @@ Lean CI → Full Browser CI
 - Browser CI must not duplicate `pnpm check`, unit suites, typecheck, or application builds.
 - A CI-topology change must update the architecture/CI topology contract tests in the same PR. Do not add duplicate verification “for safety” without an explicit architecture decision backed by evidence.
 
+## Selective Verification vNext Baseline
+
+Selective Verification vNext is the default verification baseline for every
+new branch and pull request. Agents must begin from the current repository
+workflow and use the affected-plan flow rather than copying the legacy
+all-tests/all-browser workflow:
+
+1. resolve the exact base/head impact with `pnpm verify:impact` or
+   `pnpm verify:affected`;
+2. use the generated plan as the authority for owner tests, affected
+   consumers, typechecks, deployment checks, and Browser ownership tags;
+3. run targeted Browser only for the ownership tags selected by the plan;
+4. apply the Level 4 Full Browser escalation rules below when the plan is
+   global/shared, the change is release or milestone closure, or an explicit
+   `full-ci`/manual/nightly trigger applies.
+
+When creating a branch or PR from an older base that does not contain this
+workflow, agents must first port or otherwise establish the approved vNext
+workflow and its contract tests before treating verification results as the
+repository baseline. Do not silently fall back to the legacy workflow or
+describe legacy full-suite output as Selective Verification vNext evidence.
+
+Every new CI, verification-tooling, or workflow-documentation change must
+preserve this baseline, update its topology/contract tests when applicable,
+and verify the exact candidate head before PR finalization.
+
 ## Verification Escalation Rules
 
 The final gate is determined by these normative rules. Lower levels remain the preferred feedback loop during implementation.

@@ -8,13 +8,14 @@ import { expandToolContext, openBuildCategory, waitForCityUi } from './helpers/c
 import {
   prepareDeterministicGrowthClock,
   readTimeSnapshot,
+  stepLogicalMinutes,
   stepLogicalTicks,
 } from './helpers/growth-fixture.js';
 import { GAME_URL, clickGameMenuAction } from './helpers/interaction.js';
 
 test.describe.configure({ timeout: 60_000 });
 
-const SAVE_KEY = 'web-three-city:world-save:v7';
+const SAVE_KEY = 'web-three-city:world-save:v8';
 
 async function openGrowthGame(page: import('@playwright/test').Page): Promise<void> {
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -36,6 +37,12 @@ test('exposes the simple calendar and deterministic time controls', async ({ pag
   await normal.click();
   await expect(normal).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('[data-simulation-step]')).toHaveCount(0);
+  await expect
+    .poll(() => page.locator('[data-metric="gameTime"] strong').textContent(), {
+      timeout: 4_000,
+      message: 'automatic simulation must refresh the visible calendar',
+    })
+    .not.toBe('Y1 M1 D1 08:00');
   await fast.click();
   await expect(fast).toHaveAttribute('aria-pressed', 'true');
   await faster.click();
@@ -51,6 +58,57 @@ test('exposes the simple calendar and deterministic time controls', async ({ pag
   expect(after.simulation.absoluteTick).toBe(9);
   expect(after.speed).toBe('paused');
   await expect(page.locator('[data-metric="gameTime"] strong')).toHaveText('Y1 M1 D1 09:00');
+});
+
+test('production playback crosses hour and day boundaries with Growth enabled', async ({
+  page,
+}) => {
+  // This regression deliberately advances every logical minute from the
+  // deterministic start to both boundaries. Keep the budget local to this
+  // production-path test; do not broaden the suite or browser worker budget.
+  test.setTimeout(180_000);
+  await openGrowthGame(page);
+  await prepareBuildingFixtureWorld(page);
+
+  let before = await stepLogicalMinutes(page, 11 * 60 + 59 - 8 * 60);
+  expect(before.simulation.absoluteGameMinute).toBe(11 * 60 + 59);
+  const normal = page.locator('[data-simulation-speed="normal"]');
+  await normal.click();
+  await expect
+    .poll(() => readTimeSnapshot(page).then((snapshot) => snapshot.simulation.absoluteGameMinute), {
+      timeout: 4_000,
+      message: 'production runtime must cross 11:59 → 12:00',
+    })
+    .toBeGreaterThanOrEqual(12 * 60);
+  await page.locator('[data-simulation-speed="paused"]').click();
+  let after = await readTimeSnapshot(page);
+  expect(after.simulation.absoluteGameMinute).toBeGreaterThanOrEqual(12 * 60);
+  expect(after.revision - before.revision).toBe(
+    (after.simulation.absoluteGameMinute - before.simulation.absoluteGameMinute) * 5,
+  );
+  expect(after.buildingCount).toBeGreaterThan(before.buildingCount);
+
+  await page.goto(GAME_URL);
+  await waitForCityUi(page);
+  await prepareDeterministicGrowthClock(page);
+  await prepareBuildingFixtureWorld(page);
+
+  before = await stepLogicalMinutes(page, 23 * 60 + 59 - 8 * 60);
+  expect(before.simulation.absoluteGameMinute).toBe(23 * 60 + 59);
+  await page.locator('[data-simulation-speed="normal"]').click();
+  await expect
+    .poll(() => readTimeSnapshot(page).then((snapshot) => snapshot.simulation.absoluteGameMinute), {
+      timeout: 4_000,
+      message: 'production runtime must cross 23:59 → 00:00',
+    })
+    .toBeGreaterThanOrEqual(24 * 60);
+  await page.locator('[data-simulation-speed="paused"]').click();
+  after = await readTimeSnapshot(page);
+  expect(after.simulation.absoluteGameMinute).toBeGreaterThanOrEqual(24 * 60);
+  expect(after.revision - before.revision).toBe(
+    (after.simulation.absoluteGameMinute - before.simulation.absoluteGameMinute) * 5,
+  );
+  expect(after.buildingCount).toBeGreaterThan(before.buildingCount);
 });
 
 test('starts at most one automatic Construction per evaluation tick', async ({ page }) => {
@@ -126,37 +184,7 @@ test('automatic Growth preserves the active Zoning tool and in-progress stroke',
     )
     .toBe(true);
 
-  await page.evaluate(() => {
-    const timeWindow = window as Window & {
-      __WEB_THREE_CITY_TIME__?: {
-        setSpeed(speed: 'paused' | 'normal' | 'fast' | 'faster'): void;
-      };
-    };
-    timeWindow.__WEB_THREE_CITY_TIME__?.setSpeed('faster');
-  });
-  await expect(page.locator('[data-simulation-speed="faster"]')).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
-  await expect
-    .poll(async () => (await readTimeSnapshot(page)).simulation.absoluteTick, {
-      timeout: 5_000,
-    })
-    .toBeGreaterThanOrEqual(12);
-  await page.evaluate(() => {
-    const timeWindow = window as Window & {
-      __WEB_THREE_CITY_TIME__?: {
-        setSpeed(speed: 'paused' | 'normal' | 'fast' | 'faster'): void;
-      };
-    };
-    timeWindow.__WEB_THREE_CITY_TIME__?.setSpeed('paused');
-  });
-  await expect(page.locator('[data-simulation-speed="paused"]')).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
-
-  const snapshot = await readTimeSnapshot(page);
+  const snapshot = await stepLogicalTicks(page, 4);
   expect(snapshot.simulation.absoluteTick).toBeGreaterThanOrEqual(12);
   expect(snapshot.simulation.growthSequence).toBeGreaterThanOrEqual(1);
   expect(snapshot.buildingCount).toBeGreaterThanOrEqual(1);
@@ -191,7 +219,7 @@ test('automatic Growth preserves the active Zoning tool and in-progress stroke',
   await expect(page.locator('.city-tool-context-name')).toHaveText('Industrial');
 });
 
-test('persists WorldSaveV7 and loads paused at the exact logical tick', async ({ page }) => {
+test('persists WorldSaveV8 and loads paused at the exact logical tick', async ({ page }) => {
   await openGrowthGame(page);
   await prepareBuildingFixtureWorld(page);
   await stepLogicalTicks(page, 4);
@@ -200,18 +228,27 @@ test('persists WorldSaveV7 and loads paused at the exact logical tick', async ({
   const saved = await page.evaluate((key) => localStorage.getItem(key), SAVE_KEY);
   const parsed = JSON.parse(saved ?? '{}') as {
     readonly schemaVersion?: number;
-    readonly simulation?: { readonly absoluteTick?: number; readonly growthSequence?: number };
+    readonly simulation?: {
+      readonly schemaVersion?: number;
+      readonly absoluteGameMinute?: number;
+      readonly absoluteTick?: number;
+      readonly growthSequence?: number;
+    };
     readonly buildings?: { readonly schemaVersion?: number };
     readonly rci?: { readonly schemaVersion?: number };
     readonly mobility?: { readonly schemaVersion?: number };
     readonly traffic?: { readonly schemaVersion?: number };
   };
-  expect(parsed.schemaVersion).toBe(7);
-  expect(parsed.simulation).toMatchObject({ absoluteTick: 12, growthSequence: 1 });
+  expect(parsed.schemaVersion).toBe(8);
+  expect(parsed.simulation).toMatchObject({
+    schemaVersion: 3,
+    absoluteGameMinute: 12 * 60,
+    growthSequence: 1,
+  });
   expect(parsed.buildings?.schemaVersion).toBe(2);
   expect(parsed.rci?.schemaVersion).toBe(1);
-  expect(parsed.mobility?.schemaVersion).toBe(1);
-  expect(parsed.traffic?.schemaVersion).toBe(1);
+  expect(parsed.mobility?.schemaVersion).toBe(2);
+  expect(parsed.traffic?.schemaVersion).toBe(2);
 
   await stepLogicalTicks(page, 3);
   await clickGameMenuAction(page, 'Load world');

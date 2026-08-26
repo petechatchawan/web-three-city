@@ -5,6 +5,7 @@ import {
   commitPlannedMobilityTrip,
   createEmptyMobilitySnapshot,
   planMobilityBoundaries,
+  planMobilityCatchUp,
   reconcileMobilityCitizens,
   settleMobilityTrip,
   workStartGameMinuteForCitizen,
@@ -124,6 +125,69 @@ describe('Citizen Mobility commute planning', () => {
       activeTripId: null,
     });
     expect(arrived.trips[0]?.status).toBe('Arrived');
+  });
+
+  it('does not queue a later boundary during travel and creates one current-activity catch-up after settlement', () => {
+    const initialized = reconcileMobilityCitizens({
+      snapshot: createEmptyMobilitySnapshot(),
+      citizens: [citizen],
+    }).snapshot;
+    const outbound = planMobilityBoundaries({
+      snapshot: initialized,
+      boundaries: [{ citizenId: citizen.citizenId, atGameMinute: 480, nextActivity: 'Work' }],
+      citizens: [citizen],
+    }).planningRequests[0]!;
+    const travelling = commitPlannedMobilityTrip({
+      snapshot: initialized,
+      request: outbound,
+      candidates: [{ mode: 'Walk', available: true, generalizedCostSeconds: 100 }],
+    });
+
+    const laterDueWhileTravelling = planMobilityBoundaries({
+      snapshot: travelling,
+      boundaries: [{ citizenId: citizen.citizenId, atGameMinute: 1020, nextActivity: 'Home' }],
+      citizens: [citizen],
+    });
+    expect(laterDueWhileTravelling.planningRequests).toEqual([]);
+    expect(laterDueWhileTravelling.proposedSnapshot.nextTripSequence).toBe(2);
+
+    const settled = settleMobilityTrip({
+      snapshot: travelling,
+      tripId: outbound.tripId,
+      outcome: 'Arrived',
+    });
+    const catchUp = planMobilityCatchUp({
+      snapshot: settled,
+      citizens: [citizen],
+      currentGameMinute: 1020,
+    });
+
+    expect(catchUp.planningRequests).toEqual([
+      expect.objectContaining({
+        tripId: 'mobility-trip-0000000002',
+        citizenId: citizen.citizenId,
+        purpose: 'CommuteHome',
+        originBuildingId: 'work-1',
+        destinationBuildingId: 'home-1',
+        departureGameMinute: 1020,
+      }),
+    ]);
+  });
+
+  it('does not turn a stale desired-activity boundary into a duplicate trip', () => {
+    const initialized = reconcileMobilityCitizens({
+      snapshot: createEmptyMobilitySnapshot(),
+      citizens: [{ ...citizen, homeBuildingId: null }],
+    }).snapshot;
+
+    const plan = planMobilityBoundaries({
+      snapshot: initialized,
+      boundaries: [{ citizenId: citizen.citizenId, atGameMinute: 480, nextActivity: 'Work' }],
+      citizens: [citizen],
+    });
+
+    expect(plan.planningRequests).toEqual([]);
+    expect(plan.proposedSnapshot.nextTripSequence).toBe(1);
   });
 
   it('cancels active travel when Citizen leaves the city without deleting RCI identity', () => {

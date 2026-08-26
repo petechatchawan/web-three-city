@@ -1,10 +1,18 @@
-import type { TrafficRouteSegment, TrafficWorldPointQ } from './route-geometry.js';
+import {
+  prepareTrafficCubicArcLength,
+  splitTrafficCubicCurveHalf,
+  type TrafficCubicCurveQ,
+} from './cubic-motion-curve.js';
+import type { TrafficRouteSegment } from './route-geometry.js';
 
 export type IntersectionLaneTurn = 'straight' | 'left' | 'right';
+export type IntersectionLaneMovementKind = 'straight' | 'turn-left' | 'turn-right';
 
 export interface IntersectionLaneConnectorSegment extends TrafficRouteSegment {
   readonly sourceEdgeId: string;
   readonly kind: 'connector';
+  readonly movementKind: IntersectionLaneMovementKind;
+  readonly curve: TrafficCubicCurveQ;
   readonly lengthMillimeters: number;
 }
 
@@ -39,27 +47,8 @@ export function classifyIntersectionLaneTurn(
   return cross > 0 ? 'right' : 'left';
 }
 
-function point(
-  p0: TrafficWorldPointQ,
-  p1: TrafficWorldPointQ,
-  p2: TrafficWorldPointQ,
-  p3: TrafficWorldPointQ,
-  t: number,
-): TrafficWorldPointQ {
-  const oneMinusT = 1 - t;
-  const a = oneMinusT * oneMinusT * oneMinusT;
-  const b = 3 * oneMinusT * oneMinusT * t;
-  const c = 3 * oneMinusT * t * t;
-  const d = t * t * t;
-  return Object.freeze({
-    xQ: Math.round(a * p0.xQ + b * p1.xQ + c * p2.xQ + d * p3.xQ),
-    yQ: Math.round(a * p0.yQ + b * p1.yQ + c * p2.yQ + d * p3.yQ),
-    zQ: Math.round(a * p0.zQ + b * p1.zQ + c * p2.zQ + d * p3.zQ),
-  });
-}
-
-function segmentLengthMillimeters(from: TrafficWorldPointQ, to: TrafficWorldPointQ): number {
-  return Math.max(1, Math.ceil(Math.hypot(to.xQ - from.xQ, to.yQ - from.yQ, to.zQ - from.zQ)));
+function movementKindFor(turn: IntersectionLaneTurn): IntersectionLaneMovementKind {
+  return turn === 'left' ? 'turn-left' : turn === 'right' ? 'turn-right' : 'straight';
 }
 
 export function createIntersectionLaneConnector(
@@ -76,6 +65,7 @@ export function createIntersectionLaneConnector(
     throw new RangeError('traffic-three:invalid-connector-sample-count');
   }
   const turn = classifyIntersectionLaneTurn(input.incoming, input.outgoing);
+  const movementKind = movementKindFor(turn);
   const incomingDirection = horizontalDirection(input.incoming);
   const outgoingDirection = horizontalDirection(input.outgoing);
   const start = input.incoming.to;
@@ -92,23 +82,37 @@ export function createIntersectionLaneConnector(
     yQ: end.yQ,
     zQ: Math.round(end.zQ - outgoingDirection.z * controlDistance),
   });
-  const segments: IntersectionLaneConnectorSegment[] = [];
-  let previous = start;
-  for (let index = 0; index < sampleCount; index += 1) {
-    const next = point(start, controlOne, controlTwo, end, (index + 1) / sampleCount);
-    const sourceEdgeId =
-      index < sampleCount / 2 ? input.incomingSourceEdgeId : input.outgoingSourceEdgeId;
-    segments.push(
-      Object.freeze({
-        edgeId: `lane-connector:${input.incomingSourceEdgeId}->${input.outgoingSourceEdgeId}:${index}`,
-        sourceEdgeId,
-        kind: 'connector' as const,
-        from: previous,
-        to: next,
-        lengthMillimeters: segmentLengthMillimeters(previous, next),
-      }),
-    );
-    previous = next;
-  }
-  return Object.freeze({ turn, segments: Object.freeze(segments) });
+  const curve: TrafficCubicCurveQ = Object.freeze({
+    p0: start,
+    p1: controlOne,
+    p2: controlTwo,
+    p3: end,
+  });
+  const [incomingHalf, outgoingHalf] = splitTrafficCubicCurveHalf(curve);
+  const arcSampleCount = Math.max(4, sampleCount);
+  const segments: readonly IntersectionLaneConnectorSegment[] = Object.freeze([
+    Object.freeze({
+      edgeId: `lane-connector:${input.incomingSourceEdgeId}->${input.outgoingSourceEdgeId}:incoming`,
+      sourceEdgeId: input.incomingSourceEdgeId,
+      kind: 'connector' as const,
+      movementKind,
+      curve: incomingHalf,
+      from: incomingHalf.p0,
+      to: incomingHalf.p3,
+      lengthMillimeters: prepareTrafficCubicArcLength(incomingHalf, arcSampleCount)
+        .totalLengthMillimeters,
+    }),
+    Object.freeze({
+      edgeId: `lane-connector:${input.incomingSourceEdgeId}->${input.outgoingSourceEdgeId}:outgoing`,
+      sourceEdgeId: input.outgoingSourceEdgeId,
+      kind: 'connector' as const,
+      movementKind,
+      curve: outgoingHalf,
+      from: outgoingHalf.p0,
+      to: outgoingHalf.p3,
+      lengthMillimeters: prepareTrafficCubicArcLength(outgoingHalf, arcSampleCount)
+        .totalLengthMillimeters,
+    }),
+  ]);
+  return Object.freeze({ turn, segments });
 }

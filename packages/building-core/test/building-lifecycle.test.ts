@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import {
   buildingLifecycleCounts,
+  constructionProgressAtMacroHour,
   constructionProgressAtTick,
   createBuildingSnapshot,
 } from '../src/index.js';
+import * as buildingLifecycle from '../src/index.js';
 
 describe('Building lifecycle authority', () => {
   it('validates Construction and derives counts and progress', () => {
@@ -34,6 +36,7 @@ describe('Building lifecycle authority', () => {
     });
     if (instance?.lifecycle !== 'construction') throw new Error('expected construction');
     expect(constructionProgressAtTick(instance, 22)).toBe(0.5);
+    expect(constructionProgressAtMacroHour(instance, 22)).toBe(0.5);
   });
 
   it('rejects an end tick that is not after start', () => {
@@ -57,6 +60,10 @@ describe('Building lifecycle authority', () => {
         WORLD_CONFIG,
       ),
     ).toThrow('building-lifecycle:invalid-construction');
+  });
+
+  it('exposes a lifecycle progress API named for the macro-hour authority', () => {
+    expect('constructionProgressAtMacroHour' in buildingLifecycle).toBe(true);
   });
 
   it('migrates a legacy instance to Active at the initial tick', () => {

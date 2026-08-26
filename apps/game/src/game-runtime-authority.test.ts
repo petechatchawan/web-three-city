@@ -12,14 +12,38 @@ describe('GameRuntime committed-world authority', () => {
     );
     expect(mainSource).toMatch(/runtime\.snapshot\(\)/);
     expect(mainSource).toMatch(/runtime\.subscribeCommittedWorld/);
-    expect(mainSource).toMatch(/runtime\.advanceLogicalTick/);
+    expect(mainSource).toMatch(/runtime\.advanceTemporalMinute/);
     expect(mainSource).toMatch(/runtime\.savePayload\(\)/);
   });
 
   it('exposes one committed-world read and tick command surface', () => {
     expect(bootstrapSource).toMatch(/snapshot\(\): CommittedWorld/);
     expect(bootstrapSource).toMatch(/subscribeCommittedWorld/);
-    expect(bootstrapSource).toMatch(/advanceLogicalTick/);
+    expect(bootstrapSource).toMatch(/advanceGameMinute/);
+    expect(bootstrapSource).toMatch(/advanceTransportQuantum/);
+    expect(bootstrapSource).toMatch(/advanceTemporalMinute/);
     expect(bootstrapSource).toMatch(/savePayload/);
+  });
+
+  it('batches deterministic test-time steps behind one presentation rebuild', () => {
+    expect(mainSource).toMatch(/runtime\.setPresentationSuppressed\(true\)/);
+    expect(mainSource).toMatch(/runtime\.rebuildPresentationForTest\(\)/);
+    expect(bootstrapSource).toMatch(/setPresentationSuppressed/);
+    expect(bootstrapSource).toMatch(/rebuildPresentationForTest/);
+    expect(bootstrapSource).toMatch(/staticPresentationNeedsRebuild/);
+    expect(mainSource).toMatch(/runtime\.snapshotForTest\(\)/);
+    expect(bootstrapSource).toMatch(/snapshotForTest\(\): CommittedWorld/);
+  });
+
+  it('routes the temporal minute through one coalesced orchestration boundary', () => {
+    expect(mainSource).toMatch(/runtime\.advanceTemporalMinute/);
+    const temporalSection = bootstrapSource.slice(
+      bootstrapSource.indexOf('const advanceTemporalMinute'),
+      bootstrapSource.indexOf('const resetSimulationForTest'),
+    );
+
+    expect(temporalSection).toMatch(/temporalPublication\.advanceTemporalMinute/);
+    expect(bootstrapSource).toMatch(/createTemporalPublicationController/);
+    expect(bootstrapSource).toMatch(/adoptCommittedWorld/);
   });
 });

@@ -24,7 +24,11 @@ import {
   type RciSnapshot,
 } from '@web-three-city/rci-core';
 import { BASIC_ROAD_CODE, createRoadSnapshot, type RoadSnapshot } from '@web-three-city/road-core';
-import { createSimulationSnapshot, type SimulationSnapshot } from '@web-three-city/simulation-core';
+import {
+  createSimulationSnapshot,
+  deriveMacroHourIndex,
+  type SimulationSnapshot,
+} from '@web-three-city/simulation-core';
 import { createTerrainMap, type TerrainSnapshot } from '@web-three-city/terrain-core';
 import { createEmptyTrafficSnapshot, type TrafficSnapshotV1 } from '@web-three-city/traffic-core';
 import { WORLD_CONFIG, type CellCoord } from '@web-three-city/world-core';
@@ -42,11 +46,11 @@ import {
 import { createPresentCitizenMobilityProjection } from './mobility-source-projection.js';
 import { encodeWorldSaveV7, type WorldSaveV7 } from './world-save.js';
 
-export const TRAFFIC_RELEASE_FIXTURE_START_TICK = 6;
+export const TRAFFIC_RELEASE_FIXTURE_START_TICK = 9;
 export const TRAFFIC_RELEASE_FIXTURE_PRIMARY_CUT_CELL: CellCoord = Object.freeze({ x: 64, z: 64 });
 
 export interface TrafficReleaseFixtureSummary {
-  readonly startAbsoluteTick: number;
+  readonly startAbsoluteGameMinute: number;
   readonly citizenIds: readonly string[];
   readonly walkCitizenIds: readonly string[];
   readonly driveCitizenIds: readonly string[];
@@ -238,7 +242,7 @@ function fixtureCitizens(): readonly FixtureCitizen[] {
 function createFixtureSimulation(): SimulationSnapshot {
   return createSimulationSnapshot({
     revision: 1,
-    absoluteTick: TRAFFIC_RELEASE_FIXTURE_START_TICK,
+    absoluteGameMinute: TRAFFIC_RELEASE_FIXTURE_START_TICK * 60,
     growthSequence: 0,
   });
 }
@@ -250,7 +254,7 @@ function createFixtureRci(
 ): RciSnapshot {
   const registries = createFoundationRciRegistries();
   const initial = createInitialRciSnapshot({
-    absoluteTick: simulation.absoluteTick,
+    absoluteTick: deriveMacroHourIndex(simulation.absoluteGameMinute),
     deterministicSeed: 20260816,
   });
   const numericCitizenIds = citizens.map((citizen) =>
@@ -265,7 +269,7 @@ function createFixtureRci(
         citizenId: citizen.citizenId,
         presence: 'resident' as const,
         sexDefinitionId: index % 2 === 0 ? 'sex.female' : 'sex.male',
-        bornAtTick: simulation.absoluteTick - (28 + index) * 8_640,
+        bornAtTick: deriveMacroHourIndex(simulation.absoluteGameMinute) - (28 + index) * 8_640,
         movedIntoCityAtTick: 0,
         movedOutOfCityAtTick: null,
         diedAtTick: null,
@@ -311,14 +315,14 @@ function createFixtureRci(
     buildingsBefore: emptyBuildings,
     buildingsAfter: buildings,
     registries,
-    evaluationTick: simulation.absoluteTick,
+    evaluationTick: deriveMacroHourIndex(simulation.absoluteGameMinute),
   }).proposedSnapshot;
   const withWorkplaces = synchronizeWorkplaceInventory({
     snapshot: withDwellings,
     buildingsBefore: emptyBuildings,
     buildingsAfter: buildings,
     registries,
-    evaluationTick: simulation.absoluteTick,
+    evaluationTick: deriveMacroHourIndex(simulation.absoluteGameMinute),
   }).proposedSnapshot;
   const finalCandidate: RciSnapshot = {
     ...withWorkplaces,
@@ -366,7 +370,7 @@ function createFixtureMobility(
 ): MobilitySnapshotV1 {
   return reconcileMobilityCitizens({
     snapshot: createEmptyMobilitySnapshot(),
-    citizens: createPresentCitizenMobilityProjection(rci, buildings, simulation.absoluteTick),
+    citizens: createPresentCitizenMobilityProjection(rci, buildings, simulation.absoluteGameMinute),
   }).snapshot;
 }
 
@@ -418,7 +422,7 @@ export function createTrafficReleaseFixture(): TrafficReleaseFixture {
     Object.fromEntries(citizens.map((citizen) => [citizen.citizenId, citizen.workBuildingId])),
   );
   const summary: TrafficReleaseFixtureSummary = Object.freeze({
-    startAbsoluteTick: simulation.absoluteTick,
+    startAbsoluteGameMinute: simulation.absoluteGameMinute,
     citizenIds: Object.freeze(citizens.map((citizen) => citizen.citizenId)),
     walkCitizenIds: Object.freeze(
       citizens

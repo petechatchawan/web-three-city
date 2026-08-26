@@ -1,5 +1,5 @@
 import type { BuildingSnapshot } from '@web-three-city/building-core';
-import type { SimulationSnapshot } from '@web-three-city/simulation-core';
+import { deriveMacroHourIndex, type SimulationSnapshot } from '@web-three-city/simulation-core';
 import { describe, expect, it } from 'vitest';
 import {
   createFoundationRciRegistries,
@@ -10,14 +10,16 @@ import {
 const buildings: BuildingSnapshot = Object.freeze({ revision: 0, instances: Object.freeze([]) });
 const simulation: SimulationSnapshot = Object.freeze({
   revision: 0,
-  absoluteTick: 120,
+  absoluteGameMinute: 120 * 60,
   growthSequence: 0,
 });
 const registries = createFoundationRciRegistries();
 
 describe('RCI validation', () => {
   it('accepts the empty coherent state', () => {
-    const snapshot = createInitialRciSnapshot({ absoluteTick: simulation.absoluteTick });
+    const snapshot = createInitialRciSnapshot({
+      absoluteTick: deriveMacroHourIndex(simulation.absoluteGameMinute),
+    });
     expect(validateRciSnapshot(snapshot, buildings, simulation, registries)).toEqual({
       valid: true,
       issues: [],
@@ -25,7 +27,9 @@ describe('RCI validation', () => {
   });
 
   it('reports sorted dangling and duplicate active references', () => {
-    const initial = createInitialRciSnapshot({ absoluteTick: simulation.absoluteTick });
+    const initial = createInitialRciSnapshot({
+      absoluteTick: deriveMacroHourIndex(simulation.absoluteGameMinute),
+    });
     const snapshot = {
       ...initial,
       population: {
@@ -82,7 +86,9 @@ describe('RCI validation', () => {
   });
 
   it('rejects an unknown definition and a future demand tick', () => {
-    const initial = createInitialRciSnapshot({ absoluteTick: simulation.absoluteTick });
+    const initial = createInitialRciSnapshot({
+      absoluteTick: deriveMacroHourIndex(simulation.absoluteGameMinute),
+    });
     const snapshot = {
       ...initial,
       population: {

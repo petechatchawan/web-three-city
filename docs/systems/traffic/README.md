@@ -1,9 +1,9 @@
 # Traffic System
 
-**Status:** Traffic Foundation v0.1 + Road PR3 Lane-aware Traffic implemented; PR3 release gate/owner visual acceptance pending<br>
+**Status:** Implemented — V2 temporal/physical core, Game transactions, and Road-reconciliation slices are complete; exact-head release/owner verification remains open<br>
 **Milestone:** Citizen Mobility & Traffic Foundation v0.1  
 **Primary ownership:** `packages/traffic-core`, `packages/traffic-three`; atomic composition by `apps/game`<br>
-**Persistence:** `TrafficSaveV1` inside `WorldSaveV7`
+**Persistence:** `TrafficSaveV2` inside `WorldSaveV8`; V1/V7 migration remains supported
 
 ## Purpose
 
@@ -11,7 +11,7 @@ Own deterministic pedestrian/vehicle graph derivation, multimodal routing, logic
 
 The production goal is visual truth: a visible pedestrian is a real Citizen Walk trip and a visible car is a real Citizen Drive trip. Off-screen trips remain logical; renderer state never becomes canonical Traffic state.
 
-For vehicle presentation, canonical Traffic progress and edge-route identity remain simulation authority. The renderer derives a left-hand directional lane path from the committed route, keeps a stable trip-to-pooled-vehicle mapping, interpolates transforms on render frames, and applies deterministic longitudinal visual headway without inventing lateral spread. Lane centerline position, junction connector sampling, heading, interpolation, arrival cleanup, and materialization are presentation state only and must never mutate canonical trip progress, queue order, Road state, or save state.
+For vehicle presentation, canonical Traffic progress, ordering, entry admission, and reservation state are simulation authority. The renderer derives a left-hand directional lane path from committed active trips, prepares deterministic line/cubic motion segments and arc-length lookup data outside RAF, and keeps a stable trip-to-pooled-vehicle mapping. It may smooth transforms behind canonical safe targets, but it cannot create capacity, own spacing, replay completed trips, or keep a renderer-owned arrival tail authoritative.
 
 ## Does Not Own
 
@@ -34,7 +34,8 @@ Roads + Buildings + Simulation + Citizen Mobility
        queues + committed cost projection
                     ↓
              traffic-three
-   directed lane path + junction connector
+   directed lane path + cubic connectors
+     prepared route + visual kinematics
      materialization + pooling + LOD
                     ↓
        real pedestrians / real cars
@@ -45,7 +46,7 @@ Roads + Buildings + Simulation + Citizen Mobility
 `packages/traffic-core` now provides:
 
 - strict Road/Building source projection contracts;
-- immutable `TrafficSnapshotV1` + deterministic snapshot/graph fingerprints;
+- immutable V1 compatibility and V2 `TrafficSnapshot` contracts with deterministic snapshot/graph fingerprints;
 - versioned Traffic road profiles for Road definition codes `1/2/3` with PR3 differentiation:
   - Local Street: `8_333 mm/s` free-flow, capacity `16`;
   - Collector Road: `13_889 mm/s` free-flow, capacity `24`;
@@ -56,33 +57,119 @@ Roads + Buildings + Simulation + Citizen Mobility
 - previous-committed `TrafficCostField` input for Drive candidate costs;
 - disposable revision-keyed route cache;
 - fixed-point `progressQ` trip progression with logical `lastStableNodeId`;
-- deterministic unsignalized intersection queue service;
+- V2-only authoritative Drive lifecycle phases: `WaitingForEntry`, `Entering`, `Travelling`, and `Leaving`, separate from terminal trip status; a transport quantum crosses at most one lifecycle boundary, and final-road completion enters `Leaving` before a later terminal arrival;
+- subordinate `TrafficTimeCursor` (`4` transport quanta per GameMinute) with versioned pacing, rather than a second calendar;
+- indexed canonical lane occupancy/headway caps and physical vehicle-envelope facts; the PR3.1 `650 mm` visual headway is not canonical Traffic capacity;
+- all-or-nothing ingress/receiving/merge/conflict reservation bundles with owner-checked physical-clearance release and no timeout;
+- derived Drive node classification (`SimpleContinuation`, `Diverge`, `Merge`, `ConflictJunction`) and deterministic compatible-bundle arbitration;
 - load/capacity/congestion/effective-travel-time projections and next lagged cost field;
 - topology/destination route recovery from a stable logical node;
-- fail-closed `TrafficSaveV1` codec that persists route/progress/queue authority, never graph/cache/render state;
+- fail-closed `TrafficSaveV2` codec and explicit V1 -> V2 migration that persist cursor, route/progress, Drive phase, and reservation/traversal facts, never graph/cache/render state;
 - no imports from RCI, Mobility, Road, Building, DOM, or Three.js;
 - `apps/game` atomic integration with real Mobility trips, Road/Building projections, Simulation time, and deterministic Road-change recovery;
 - Game Road source projection preserves canonical Road definition codes `1/2/3` and derives connectivity from non-empty Road occupancy across mixed Road types;
-- `WorldSaveV7` persistence and V1–V6 migration, preserving logical route/progress/queue state without synthetic trips;
-- `traffic-three` production left-hand `DirectedLanePath` derivation, deterministic straight/left/right junction connectors, pooled pedestrian/vehicle materialization, spatial indexing, deterministic caps, and LOD where every materialized agent resolves to a real Citizen-linked trip;
-- Game presentation maps canonical edge progress onto the derived lane path, so opposing Drive directions occupy opposite physical sides of the Road while canonical route/trip identity remains unchanged;
-- active trips re-prepare only their derived presentation route when Road width/type changes; canonical Mobility/Traffic identity is preserved;
-- Citizen/Vehicle Inspect projections and the localized Traffic Information View consume committed state without mutating Traffic authority.
+- `WorldSaveV8` composition and V7 migration, preserving V2 cursor/route/progress/phase/reservation state without synthetic trips.
+
+## Implemented Traffic Presentation
+
+`packages/traffic-three` and Game composition now provide:
+
+- production left-hand `DirectedLanePath` derivation with one directional travel lane each way on the current single-cell two-way Road footprint;
+- deterministic straight/left/right junction connectors with immediate U-turn generation rejected;
+- turn connectors represented as two source-edge-attributed cubic Bézier halves rather than flattened angular slices;
+- deterministic prepared line/cubic route geometry with precomputed arc-length lookup and curve-aware distance sampling;
+- continuous vehicle heading from local line/cubic tangent rather than independent angular stepping;
+- presentation-only vehicle kinematics with progressive acceleration/deceleration, canonical queue braking, bounded catch-up, and turn-speed reduction before/through turns;
+- frame-rate-tolerant elapsed-time motion covered at 30/60/120 FPS schedules;
+- Game presentation mapping of canonical edge progress onto the derived lane path so opposing Drive directions occupy opposite physical sides of the Road while canonical route/trip identity remains unchanged;
+- presentation-only interpolation/visual safety clamps behind canonical ordered traffic state; these are not a capacity or reservation authority;
+  - active-trip route re-preparation when Road width/type or lane geometry changes, preserving canonical Mobility/Traffic trip identity, with deterministic reservation-safe Road mutation reconciliation;
+- only active authoritative Traffic trips materialize; completed-trip receipts cannot recreate movement;
+- pooled pedestrian/vehicle materialization, spatial indexing, deterministic caps, and LOD where every materialized agent resolves to a real Citizen-linked trip;
+- Citizen/Vehicle Inspect projections and the localized Traffic Information View consuming committed state without mutating Traffic authority.
+
+### Render submission remediation
+
+The local PR #83 remediation keeps Traffic authority, logical active trips,
+materialization caps, trip identity, and motion semantics unchanged while
+batching presentation submissions. Vehicle body/roof and pedestrian body/head
+are owned by bounded shared `InstancedMesh` batches; logical pooled handles
+retain inspection and motion identity, while instance slots carry transforms
+and deterministic appearance. Backing capacity is storage only: each batch's
+render count equals its packed active-agent count. Releasing a non-final slot
+moves the last active slot into the hole and updates the moved logical handle,
+so inactive capacity is never submitted while inspection identity, transform,
+and appearance remain stable. Camera reconciliation permits one bounded overlap
+of old and new policy-sized selections, and the presentation owner disposes
+shared render resources exactly once. This changes render submission
+cardinality, not Traffic state or visual-agent policy.
+
+Production Rendering Rewrite v1 partitions those packed instances into
+deterministic spatial Near/Mid region batches. Near agents preserve the
+existing multipart appearance while Mid agents use one bounded low-cost
+archetype; shared unlit vertex-color geometry/material resources and region bounds permit
+frustum culling without changing Traffic identity or materialization policy.
+The Game render path derives active agents directly and omits unused Traffic
+edge-flow projection, while Traffic Inspect keeps full edge-flow projection by
+default. The approved design and current release-authority evidence are
+recorded in [the v1 specification](specs/2026-08-25-production-rendering-rewrite-v1.md)
+and [verification record](verification/2026-08-25-production-rendering-rewrite-v1.md).
+Default SwiftShader browser runs are correctness/structural evidence; the
+414×896 product frame budget is admitted only from an explicitly selected M4
+Metal run. The current local Metal samples were host-contended and remain
+RETEST REQUIRED rather than PASS.
 
 Flow policy v1 keeps zero-load time equal to free-flow and adds monotonic delay only when load exceeds edge capacity or queue wait exists. Ordinary congestion never reroutes an active trip; only topology/destination invalidation invokes recovery.
+
+## vNext Integration Status and Handoff
+
+The V2 temporal, lifecycle, reservation, arbitration, persistence, Game atomic-publication, and Road-mutation recovery slices have focused GREEN evidence. This is not release closure: exact-head CI/Sonar, targeted Chromium, and owner-controlled 414×896 visual acceptance remain external gates. The source specification is implemented locally; its release status is recorded in the PR evidence rather than inferred from package tests alone.
+
+`traffic-core` owns transport cursor, Drive lifecycle, canonical headway, reservations, node classification, arbitration, recovery, and Traffic V2 persistence. `traffic-three` owns only derived geometry, materialization, pooling, and interpolation. `apps/game` owns minute-boundary and transport-quantum atomic publication plus `WorldSaveV8` composition. Journey Replay has been removed from the production movement path: only active authoritative Traffic trips may materialize.
+
+The Game transport path reuses the derived directed Traffic graph while immutable Road, Building, and Building-environment authority is unchanged. A graph is rebuilt when one of those static authorities changes; the cache is an ephemeral derived index and is never persisted or used as a second Traffic authority.
+
+## Motion Realism Authority Rules
+
+PR3.1 is presentation-only. Its runtime state includes prepared curve geometry, visual route distance, visual speed, tangent heading, and bounded lag behind the latest committed Traffic target. These values are never saved and never feed canonical Traffic progression.
+
+Normal visible Drive motion must satisfy:
+
+```text
+visualDistance <= canonicalTargetDistance
+```
+
+For vehicles sharing the same directed visual route span, the current presentation additionally enforces:
+
+```text
+followerVisualDistance <= leaderVisualDistance - visualHeadway
+```
+
+The headway constraint is re-derived every rendered frame from actual visual kinematics rather than only from canonical targets. It can cap forward visual motion but never pulls a car backward, changes canonical order, or becomes persisted simulation state.
+
+Canonical `queued` forces the presentation desired speed toward zero without allowing momentum to cross the committed target. Releasing the queue resumes the same acceleration policy. Road Local/Collector/Arterial canonical Traffic speed/capacity values remain unchanged by PR3.1.
+
+Visual headway is also presentation-only. It may delay or de-materialize a rendered car to prevent overlap, but it may not reorder, delay, or mutate the canonical Traffic trip. Likewise, canonical trip completion ends logical Traffic authority immediately while an already materialized vehicle may finish its remaining visual route; that bounded presentation tail is never persisted and cannot re-enter simulation state.
 
 ## Current Limitations and Extension Points
 
 The current lane-aware model is deliberately bounded to one directional travel lane each way on the existing single-cell two-way Road footprint. There is no lane changing/overtaking, one-way Road behavior, U-turn generation, multi-cell four/six-lane avenue footprint, signals, roundabouts, parking, vehicle ownership, transit, freight, accidents, or ordinary congestion-triggered mid-trip rerouting. Road topology/destination invalidation can still recover or fail active trips deterministically; ordinary congestion does not reroute an active trip in v0.1.
 
-Vehicle Life authority, persistent car ownership/parking, and concrete vehicle assignment remain PR4–PR6 work. The previously identified x4 world-tick/topology caching performance remediation is intentionally deferred from PR3 and should be handled as a separate performance change after the Traffic/Vehicle Life program unless release evidence requires earlier intervention.
+PR3.1 smooths the visible follower but does not introduce microscopic car-following physics or make visual acceleration canonical. Traffic signals/stop controls and street-light props remain separate future systems. Vehicle Life authority, persistent car ownership/parking, and concrete vehicle assignment remain PR4–PR6 work.
+
+The transport-quantum graph/topology cache is now part of the bounded performance path: repeated quanta reuse the immutable graph, while Road/Building/environment changes deterministically invalidate it. This does not alter canonical trip progression or reservation ordering.
 
 ## Performance Contract
 
 - Logical scale gate: at least 20,000 Citizens and 5,000 concurrent trips.
+- Traffic edge-flow projection indexes active current-edge load and queued
+  Drive delay in one trip pass, then projects graph edges in one edge pass.
+  Deterministic scale instrumentation locks this to `O(trips + edges)` work;
+  the previous per-edge full-trip scans are not an acceptable production path.
 - Materialized target budgets: up to 300 pedestrians, up to 300 vehicles, normal full-detail combined target 400–500 agents.
 - No per-frame scan of all Citizens or world trips.
-- Spatial indexes, pooling, LOD, route caching, and dirty-region graph rebuilds are required production mechanisms.
+- Prepared curve controls and arc-length tables are built outside RAF; RAF performs elapsed-time kinematics, prepared-path sampling, visual headway constraint derivation over the bounded materialized vehicle set, and transforms only.
+- Spatial indexes, pooling, LOD, route caching, and future dirty-region graph rebuilds remain the intended production mechanisms.
 
 ## Planning Documents
 
@@ -95,5 +182,9 @@ Vehicle Life authority, persistent car ownership/parking, and concrete vehicle a
 - [ADR-0001 — Logical real trips with materialized visual agents](adrs/0001-logical-real-trips-materialized-visual-agents.md)
 - [ADR-0002 — Derived transport graphs and lagged congestion costs](adrs/0002-derived-transport-graphs-and-lagged-costs.md)
 - [Road Lane & Vehicle Life Realism v1](../roads/specs/2026-08-17-road-lane-vehicle-life-realism-v1.md)
+- [Motion & Junction Realism v1](../roads/specs/2026-08-19-motion-junction-realism-v1.md)
+- [Motion & Junction Realism v1 TDD plan](../roads/tdd/2026-08-19-motion-junction-realism-v1.md)
+- [Production Rendering Rewrite v1](specs/2026-08-25-production-rendering-rewrite-v1.md)
+- [Production Rendering Rewrite v1 TDD plan](tdd/2026-08-25-production-rendering-rewrite-v1.md)
 
-PR3 release verification covers differentiated Road profiles, left-hand directional lane derivation, junction connectors, canonical-trip-preserving Road upgrades, deterministic 5,000-trip Traffic scale, and the targeted `@road|@traffic` browser ownership set. Owner-controlled 414×896 lane-direction visual acceptance remains the final PR3 gate.
+PR3.1 release verification covers cubic turn continuity, curve-aware route sampling, presentation acceleration/deceleration/turn-speed behavior, route-aware anti-overlap headway including per-frame real-kinematics regression, visual completion before arrival de-materialization, 30/60/120 FPS tolerance, simple curved Road markings, canonical-trip-preserving Road upgrades, targeted `@road|@traffic` browser ownership, clean worktree, Sonar, and owner-controlled 414×896 visual acceptance. Exact run/artifact IDs are recorded on PR #83 rather than this living document.

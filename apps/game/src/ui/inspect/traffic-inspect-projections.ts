@@ -109,7 +109,7 @@ function citizenProjection(world: CommittedWorld, target: CitizenInspectTarget):
   const sources = createPresentCitizenMobilityProjection(
     world.rci,
     world.buildings,
-    world.simulation.absoluteTick,
+    world.simulation.absoluteGameMinute,
   );
   const source = sources.find((entry) => entry.citizenId === target.citizenId);
   const employment = activeEmployment(world, target.citizenId);

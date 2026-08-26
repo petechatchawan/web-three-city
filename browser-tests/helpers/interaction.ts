@@ -265,11 +265,18 @@ export async function clickTerrainCell(
   page: Page,
   target: Readonly<{ x: number; z: number }>,
 ): Promise<TerrainCellScreenPoint> {
+  const closeInspectIfOpen = async (): Promise<void> => {
+    const close = page.getByRole('button', { name: 'Close Inspect', exact: true });
+    if (await close.isVisible()) await close.click();
+  };
+
+  await closeInspectIfOpen();
   const layout = await readGameCanvasLayout(page);
   const cameraState = (await readEvidence(page)).camera;
   let lastSelected: Readonly<{ x: number; z: number }> | null = null;
 
   for (const centroid of terrainCellTriangleCentroids(GAME_TERRAIN, target)) {
+    await closeInspectIfOpen();
     const screen = projectWorldPoint(centroid, cameraState, layout);
     const hitsCanvas = await page.evaluate(
       ({ x, y }) => document.elementFromPoint(x, y)?.id === 'game-canvas',
@@ -284,6 +291,7 @@ export async function clickTerrainCell(
       if (await dialog.isVisible()) {
         await dialog.getByRole('button', { name: 'Close', exact: true }).click();
       }
+      await closeInspectIfOpen();
       return screen;
     }
   }

@@ -10,7 +10,11 @@ import { createApplicationFixture } from '../test/application-fixtures.js';
 import { createCommittedWorldFromDomainState } from './application/committed-world.js';
 import { fingerprintCommittedWorld } from './application/committed-world-fingerprint.js';
 import { planGameWorldTick } from './game-world-tick.js';
-import type { GameWorldState, GameWorldStateInput } from './game-world-state.js';
+import {
+  createGameWorldState,
+  type GameWorldState,
+  type GameWorldStateInput,
+} from './game-world-state.js';
 import { decodeWorldSave, encodeWorldSaveV6 } from './world-save.js';
 
 describe('Economy save continuation determinism', () => {
@@ -18,7 +22,7 @@ describe('Economy save continuation determinism', () => {
     const base = createApplicationFixture();
     const simulation = createSimulationSnapshot({
       revision: 719,
-      absoluteTick: 727,
+      absoluteGameMinute: 727 * 60,
       growthSequence: 0,
     });
     const state: GameWorldStateInput = Object.freeze({
@@ -43,7 +47,12 @@ describe('Economy save continuation determinism', () => {
       expect(plan.valid).toBe(true);
       return plan.proposedState;
     };
-    const atBoundary = step(state);
+    const advanceHour = (start: GameWorldStateInput): GameWorldState => {
+      let current = createGameWorldState(start);
+      for (let index = 0; index < 60; index += 1) current = step(current);
+      return current;
+    };
+    const atBoundary = advanceHour(state);
     const uninterrupted = step(atBoundary);
 
     const saved = encodeWorldSaveV6(

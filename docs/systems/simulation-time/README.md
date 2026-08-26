@@ -1,100 +1,102 @@
 # Simulation Time System
 
-**Status:** Implemented — Phase 1 temporal authority/fail-stop integration is local GREEN; release/owner verification remains open<br>
-**Primary ownership:** `packages/simulation-core`, `apps/game/src/simulation-runtime.ts`, and time HUD integration  
-**Persistence:** `SimulationSaveV3` inside `WorldSaveV8`; V1/V2 hour saves migrate explicitly
+**Status:** PR #83 temporal authority is merged on `master`; Temporal Authority & Simulation Clock Standard v1 is APPROVED in planning PR #94; successor production implementation has not started.  
+**Primary ownership:** `packages/simulation-core`, `apps/game/src/simulation-runtime.ts`, temporal Game orchestration, and time/calendar presentation.  
+**Current persistence:** `SimulationSaveV3` inside `WorldSaveV8`; successor targets `SimulationSaveV4` inside `WorldSaveV9`.
 
 ## Purpose
 
-Own deterministic in-game time, calendar derivation, tick planning/commit, time-speed presentation, and the sequencing state used by Building Growth. Domain-specific lifecycle and Demand rules remain outside `simulation-core`.
+Own deterministic in-game time, calendar projection, minute planning/commit, playback request policy, and sequencing state used by temporal consumers. Domain-specific Building, RCI, Economy, Mobility, and Traffic policies stay in their owner packages.
 
-## Does Not Own
+## Merged Authority Today
 
-- Real-time rendering frame loops.
-- Building, RCI, Economy, or population rules.
-- Wall-clock catch-up while the page is hidden.
-- Atomic cross-domain publication.
+- `absoluteGameMinute` is the one persisted Simulation time authority.
+- Current calendar projection on `master` remains legacy `24h/day`, `30 days/month`, `12 months/year` until T4.
+- Current nominal playback remains Pause / x1 / x2 / x4 with `1000ms` base and multipliers `1/2/4`.
+- `macroHourIndex = floor(absoluteGameMinute / 60)` is the compatibility projection used by Building/RCI/Economy.
+- Building Growth evaluates at `00/06/12/18`; RCI/Economy cycle work crosses the existing `08:00` boundary.
+- Traffic owns a subordinate four-quanta-per-GameMinute cursor.
+- Automatic runtime advances one temporal minute as five ordered authority phases:
 
-## Current Capabilities
-
-- `1 committed Simulation minute = 1 in-game minute`.
-- Calendar: `24` hours/day, `30` days/month, `12` months/year.
-- Initial time: Year 1, Month 1, Day 1, `08:00` (`absoluteGameMinute = 480`).
-- Speeds: Paused `0×`, Normal `1×`, Fast `2×`, Faster `4×`.
-- Step advances exactly one game minute while paused.
-- `macroHourIndex = floor(absoluteGameMinute / 60)` preserves existing hourly Building, RCI, and Economy semantics. Minute transitions that do not cross a macro hour do not run that work.
-- Building development evaluation hours remain `00`, `06`, `12`, and `18`; the RCI daily lifecycle/Demand boundary remains crossing into `08:00`.
-- Runtime clamps frame delta and resets accumulated time on speed or visibility changes.
-- Revision, `absoluteGameMinute`, and Building growth sequence persist across Save/Load.
-- `apps/game` has a minute-boundary transaction that stages macro-hour work, Mobility due boundaries, and a coherent world candidate before publication.
-- Traffic uses a subordinate four-quanta-per-game-minute cursor; minute and transport-quantum publication are separate atomic transaction classes.
-- The automatic runtime advances one temporal minute as five ordered authority phases (`GameMinute → Q1 → Q2 → Q3 → Q4`), validates the complete candidate chain before installing it as one internal batch, suppresses intermediate presentation, then performs one final dynamic/full presentation choice, adopts the final world, and notifies committed-world subscribers once. Public single-step GameMinute and transport-quantum commands retain legacy per-commit publication semantics for parity/debug callers.
-- A rejected temporal phase leaves the original world/minute/revision unchanged, pauses playback with a typed failure, clears the real-time accumulator, and cannot silently retry on later frames.
-
-## Ownership and State
-
-`SimulationSnapshot` is authoritative for revision, `absoluteGameMinute`, and `growthSequence`. `macroHourIndex`, calendar labels, age/date projections, lifecycle boundary checks, speed-button state, and accumulated real milliseconds are derived or runtime-only.
-
-## Main Workflow
-
-1. Runtime accepts a bounded real-time delta and current speed.
-2. Each completed simulated second requests a game-minute boundary according to the selected speed.
-3. The minute transaction derives whether a macro-hour boundary is crossed and runs Building/RCI/Economy only when due.
-4. Mobility resolves due schedule boundaries at the new game minute; Traffic admission/progression then occurs in its own ordered transport quanta.
-5. The automatic temporal orchestration plans the minute and four quanta in order, validates all five complete staged worlds, then installs the five contiguous authority revisions in one internal batch.
-6. Only the final world is presented/adopted externally; full static synchronization occurs only when static authority changed between the pre-batch and final worlds.
-7. Time HUD and RCI HUD derive values from committed state.
-
-## Integrations
-
-```mermaid
-flowchart LR
-  Runtime --> GameWorldTick
-  Simulation --> GameWorldTick
-  Buildings --> GameWorldTick
-  RCI --> GameWorldTick
-  GameWorldTick --> StateStore[GameWorldStateStore]
-  StateStore --> TimeHUD
-  StateStore --> MobilityTraffic[Mobility + Traffic]
-  MobilityTraffic --> WorldSaveV8
+```text
+GameMinute -> Q1 -> Q2 -> Q3 -> Q4
 ```
 
-`simulation-core` does not import Building or RCI packages. `apps/game` owns orchestration and dependency direction.
+The complete candidate chain is validated before internal batch publication. Success exposes only the final world and advances world revision exactly `+5`; rejection leaves the original world/minute/revision unchanged, pauses playback, clears accumulated real time, exposes a typed failure, and never silently retries.
+
+## Approved Successor Direction
+
+The approved successor keeps the same single authority and five-phase topology but introduces explicit temporal point/duration types and a versioned compressed calendar:
+
+```text
+60 GameMinutes = 1 GameHour
+24 GameHours   = 1 Simulation Cycle = 1 Calendar Month
+12 Months      = 1 Calendar Year
+```
+
+Playback during this migration **retains current merged pacing**:
+
+```text
+x1 = 1.000s / GameMinute
+x2 = 0.500s / GameMinute
+x4 = 0.250s / GameMinute
+```
+
+The older 3.0/1.5/0.75 proposal is superseded.
+
+`AbsoluteGameMinute` remains 1:1 when V8 cities migrate to V9. Legacy calendar labels are reprojected under the compressed policy. RCI age-origin state receives an explicit age-preserving migration so the shorter 12-cycle year does not make existing citizens approximately 30x older.
+
+## Ownership Boundaries
+
+`simulation-core` owns:
+
+- `AbsoluteGameMinute` / `GameMinuteDuration`;
+- `MacroHourIndex` / `MacroHourDuration`;
+- macro-hour/cycle/calendar projection and checked arithmetic;
+- Simulation snapshot mutation/serialization contracts.
+
+Traffic owns `AbsoluteTransportSecond` / `TransportSecondDuration` while consuming `AbsoluteGameMinute` one-way. `simulation-core` must never import Traffic, Mobility, Economy, Building, RCI, presentation, or app code.
+
+`apps/game` owns cross-domain staging, atomic publication, playback state, and final UI/presentation integration.
+
+## Approved Migration Order
+
+```text
+T1  Explicit Temporal Units + architecture enforcement
+T2A Building macro-hour migration
+T2B RCI temporal/calendar migration
+T2C Economy temporal migration
+T3A Mobility temporal migration
+T3B Traffic temporal migration
+T4  Compressed calendar + unchanged playback
+T5  WorldSaveV9 + V1-V8 golden migration
+T6  Game/UI/release cutover
+T7  Legacy runtime naming/facade cleanup
+```
+
+Each slice uses local RED -> GREEN before any remote push. CI is exact-head independent verification, not the first debugger.
 
 ## Persistence
 
-`SimulationSaveV3` stores revision, `absoluteGameMinute`, and growth sequence. V1/V2 `absoluteTick` values migrate exactly to `absoluteTick * 60`, rejecting unsafe numeric overflow. Runtime speed and accumulated real milliseconds are not persisted. `WorldSaveV8` composes Simulation V3 with Mobility V2 and Traffic V2; V7 remains a decode/migration input.
+Current `SimulationSaveV3` stores revision, `absoluteGameMinute`, and Growth sequence. Legacy Simulation V1/V2 `absoluteTick` values are hourly and migrate with checked `*60`.
 
-## Invariants and Failure Behavior
+The successor targets V9 reader/writer semantics:
 
-- Ticks and revisions are non-negative safe integers.
-- A minute plan advances exactly one `absoluteGameMinute`.
-- Stale or invalid plans do not commit.
-- Paused runtime emits no automatic minute boundaries; Step emits one minute only while paused.
-- Frame rate and callback batching do not change committed domain results.
-- Save/load/resume must match continuous execution from the same committed minute and Traffic cursor.
-- A failed Building, RCI, Economy, Mobility, or Traffic stage prevents publication of every staged Simulation snapshot in that temporal minute.
-- Accepted minute: `absoluteGameMinute +1`, world revision `+5`, five ordered phase receipts. Rejected minute: minute/revision unchanged, no external presentation/notification, playback fail-stop.
+- V1–V9 readable;
+- V9 writer only after T5;
+- `temporalStandardVersion = 1`;
+- `calendarPolicyVersion = 1`;
+- raw historical numbers are converted only at trusted codec/migration boundaries.
 
-## Extension Points
+## Handoff
 
-Additional systems schedule work from `absoluteGameMinute`, derived macro-hour transitions, and calendar projections, never wall-clock time. New daily/monthly policies belong in their domain packages and join the application-level staged minute transaction without adding domain dependencies to `simulation-core`.
+Read in this order before successor implementation:
 
-## Current Limitations
+1. [Approved Temporal Authority & Simulation Clock Standard v1](specs/2026-08-26-temporal-authority-simulation-clock-standard-v1.md)
+2. [Successor Execution Index](tdd/2026-08-26-temporal-successor-execution-index.md)
+3. [ADR-0002 — Atomic Temporal Minute Publication](adrs/0002-atomic-temporal-minute-publication.md)
+4. [ADR-0003 — Explicit Temporal Units](adrs/0003-explicit-temporal-units.md)
+5. [ADR-0005 — Compressed Calendar and Playback Cutover](adrs/0005-compressed-calendar-playback-cutover.md)
+6. [World ADR-0002 — WorldSaveV9 Temporal and Calendar Policy Migration](../world/adrs/0002-world-save-v9-calendar-policy-migration.md)
 
-No seasonal calendar, leap years, offline progress, general event scheduler, variable-length calendar ticks, or persisted runtime speed. The legacy `absoluteTick` compatibility facade remains only for migration/test callers; the runtime authority is `absoluteGameMinute` with subordinate transport quanta. Exact-head browser, Sonar, and owner visual acceptance are release gates outside this system package.
-
-## Handoff Checklist
-
-- Core: `packages/simulation-core/src/contracts.ts`, `calendar.ts`, `simulation-mutation.ts`, `serialization.ts`
-- Runtime: `apps/game/src/simulation-runtime.ts`
-- Atomic orchestration: `apps/game/src/game-minute-transaction.ts`, `traffic-transport-transaction.ts`, `temporal-publication-controller.ts`
-- UI: `apps/game/src/game-time-ui.ts`, `game-time-presentation.ts`
-- Related systems: [Buildings](../buildings/README.md), [RCI](../rci/README.md), [Citizen Mobility](../citizen-mobility/README.md), [Traffic](../traffic/README.md), [World](../world/README.md)
-- [ADR-0001 — Minute calendar with derived macro-hour compatibility](adrs/0001-minute-calendar-macro-hour-compatibility.md)
-- Approved phased design: [Temporal Authority Standard v1](specs/2026-08-25-temporal-authority-standard-v1.md)
-- Phase 1 execution: [PR #83 Clock Freeze and Atomic Temporal Minute](tdd/2026-08-25-pr83-clock-freeze-atomic-minute.md)
-- Successor execution index: [Temporal Authority Delivery](tdd/2026-08-25-temporal-authority-execution-index.md)
-- [ADR-0002 — Atomic Temporal Minute Publication](adrs/0002-atomic-temporal-minute-publication.md)
-- [ADR-0003 — Explicit Temporal Units](adrs/0003-explicit-temporal-units.md)
-- [ADR-0004 — Simulation Calendar and Playback Standard](adrs/0004-simulation-calendar-playback-standard.md) remains proposed and deferred.
+System-specific TDD plans live under each `docs/systems/<system>/tdd/` directory. PR #83 plans/ADR-0004/World ADR-0001 remain historical evidence and are not successor implementation authority.

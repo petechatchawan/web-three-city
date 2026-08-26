@@ -1,16 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import {
+  absoluteGameMinute,
   crossedMacroHour,
   deriveGameCalendar,
   deriveGameCalendarFromGameMinute,
   deriveMacroHourIndex,
+  deriveMacroHourTransition,
   isDevelopmentEvaluationTick,
+  macroHourValue,
 } from '../src/index.js';
 
 describe('simple game calendar', () => {
   it('derives the legacy 08:00 calendar position from game minute 480', () => {
-    expect(deriveMacroHourIndex(480)).toBe(8);
-    expect(deriveGameCalendarFromGameMinute(480)).toEqual({
+    expect(macroHourValue(deriveMacroHourIndex(absoluteGameMinute(480)))).toBe(8);
+    expect(deriveGameCalendarFromGameMinute(absoluteGameMinute(480))).toEqual({
       year: 1,
       month: 1,
       day: 1,
@@ -19,10 +22,18 @@ describe('simple game calendar', () => {
   });
 
   it('keeps minutes before 09:00 in macro hour eight and crosses at minute 540', () => {
-    expect(deriveMacroHourIndex(539)).toBe(8);
-    expect(deriveMacroHourIndex(540)).toBe(9);
-    expect(crossedMacroHour(480, 539)).toBe(false);
-    expect(crossedMacroHour(539, 540)).toBe(true);
+    expect(macroHourValue(deriveMacroHourIndex(absoluteGameMinute(539)))).toBe(8);
+    expect(macroHourValue(deriveMacroHourIndex(absoluteGameMinute(540)))).toBe(9);
+    expect(crossedMacroHour(absoluteGameMinute(480), absoluteGameMinute(539))).toBe(false);
+    expect(crossedMacroHour(absoluteGameMinute(539), absoluteGameMinute(540))).toBe(true);
+  });
+
+  it('types the exact 59 to 60 macro-hour boundary', () => {
+    const transition = deriveMacroHourTransition(absoluteGameMinute(59), absoluteGameMinute(60));
+
+    expect(macroHourValue(transition.beforeMacroHourIndex)).toBe(0);
+    expect(macroHourValue(transition.afterMacroHourIndex)).toBe(1);
+    expect(transition.crossed).toBe(true);
   });
 
   it('derives the initial calendar from absolute tick eight', () => {

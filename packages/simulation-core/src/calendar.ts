@@ -1,4 +1,6 @@
 import type { GameCalendar, MacroHourTransition } from './contracts.js';
+import { gameMinuteValue, macroHourIndex, macroHourValue } from './temporal-units.js';
+import type { AbsoluteGameMinute, MacroHourIndex } from './temporal-units.js';
 
 export const HOURS_PER_DAY = 24;
 export const MINUTES_PER_HOUR = 60;
@@ -13,27 +15,24 @@ export function assertAbsoluteTick(value: number): void {
   }
 }
 
-function assertAbsoluteGameMinute(value: number): void {
-  if (!Number.isSafeInteger(value) || value < 0) {
-    throw new RangeError('simulation-calendar:invalid-minute');
-  }
+export function deriveMacroHourIndex(gameMinute: AbsoluteGameMinute): MacroHourIndex {
+  return macroHourIndex(Math.floor(gameMinuteValue(gameMinute) / MINUTES_PER_HOUR));
 }
 
-export function deriveMacroHourIndex(absoluteGameMinute: number): number {
-  assertAbsoluteGameMinute(absoluteGameMinute);
-  return Math.floor(absoluteGameMinute / MINUTES_PER_HOUR);
-}
-
-export function crossedMacroHour(beforeMinute: number, afterMinute: number): boolean {
-  return deriveMacroHourIndex(beforeMinute) !== deriveMacroHourIndex(afterMinute);
+export function crossedMacroHour(
+  beforeMinute: AbsoluteGameMinute,
+  afterMinute: AbsoluteGameMinute,
+): boolean {
+  return (
+    macroHourValue(deriveMacroHourIndex(beforeMinute)) !==
+    macroHourValue(deriveMacroHourIndex(afterMinute))
+  );
 }
 
 export function deriveMacroHourTransition(
-  beforeAbsoluteGameMinute: number,
-  afterAbsoluteGameMinute: number,
+  beforeAbsoluteGameMinute: AbsoluteGameMinute,
+  afterAbsoluteGameMinute: AbsoluteGameMinute,
 ): MacroHourTransition {
-  assertAbsoluteGameMinute(beforeAbsoluteGameMinute);
-  assertAbsoluteGameMinute(afterAbsoluteGameMinute);
   const beforeMacroHourIndex = deriveMacroHourIndex(beforeAbsoluteGameMinute);
   const afterMacroHourIndex = deriveMacroHourIndex(afterAbsoluteGameMinute);
   return Object.freeze({
@@ -74,8 +73,8 @@ export function deriveGameCalendar(absoluteTick: number): GameCalendar {
   });
 }
 
-export function deriveGameCalendarFromGameMinute(absoluteGameMinute: number): GameCalendar {
-  return deriveGameCalendar(deriveMacroHourIndex(absoluteGameMinute));
+export function deriveGameCalendarFromGameMinute(gameMinute: AbsoluteGameMinute): GameCalendar {
+  return deriveGameCalendar(macroHourValue(deriveMacroHourIndex(gameMinute)));
 }
 
 export function isDevelopmentEvaluationTick(absoluteTick: number): boolean {

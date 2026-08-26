@@ -71,11 +71,11 @@ test('production playback crosses hour and day boundaries with Growth enabled', 
   const normal = page.locator('[data-simulation-speed="normal"]');
   await normal.click();
   await expect
-    .poll(() => readTimeSnapshot(page), {
+    .poll(() => readTimeSnapshot(page).then((snapshot) => snapshot.simulation.absoluteGameMinute), {
       timeout: 4_000,
       message: 'production runtime must cross 11:59 → 12:00',
     })
-    .toMatchObject({ simulation: { absoluteGameMinute: 12 * 60 } });
+    .toBeGreaterThanOrEqual(12 * 60);
   await page.locator('[data-simulation-speed="paused"]').click();
   let after = await readTimeSnapshot(page);
   expect(after.simulation.absoluteGameMinute).toBeGreaterThanOrEqual(12 * 60);
@@ -93,11 +93,11 @@ test('production playback crosses hour and day boundaries with Growth enabled', 
   expect(before.simulation.absoluteGameMinute).toBe(23 * 60 + 59);
   await page.locator('[data-simulation-speed="normal"]').click();
   await expect
-    .poll(() => readTimeSnapshot(page), {
+    .poll(() => readTimeSnapshot(page).then((snapshot) => snapshot.simulation.absoluteGameMinute), {
       timeout: 4_000,
       message: 'production runtime must cross 23:59 → 00:00',
     })
-    .toMatchObject({ simulation: { absoluteGameMinute: 24 * 60 } });
+    .toBeGreaterThanOrEqual(24 * 60);
   await page.locator('[data-simulation-speed="paused"]').click();
   after = await readTimeSnapshot(page);
   expect(after.simulation.absoluteGameMinute).toBeGreaterThanOrEqual(24 * 60);

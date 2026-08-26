@@ -27,6 +27,12 @@ only their system tag(s), and unbounded bootstrap/composition fails closed to
 Full Browser. Shared CI/verification changes still escalate to Full Browser,
 and every candidate is verified at exact head.
 
+The simulation-time T1 boundary is additionally enforced by
+`tooling/temporal-unit-boundary.test.mjs`, which is included in
+`pnpm test:deployment`. It is a shared verification authority change, so the
+affected-plan resolver correctly escalates candidates that wire this check
+through `package.json` to GLOBAL / Full Browser verification.
+
 The repository exposes root `pnpm format`, root `test:watch`, and `test:watch` in the 21 workspaces that currently use Vitest. Husky invokes lint-staged at pre-commit so staged TypeScript/JavaScript receives the approved Prettier/ESLint fixes and staged YAML receives Prettier. The hook does not run TypeScript, tests, builds, `pnpm verify`, or Playwright.
 
 Root `AGENTS.md` is the normative workflow authority. It owns code-location guidance, architecture boundaries, Level 0–4 conflict resolution, targeted browser evidence, Full Browser escalation, the explicit static Level 2 verification map, trunk policy, Definition of Done, and the exact-head documentation exception.

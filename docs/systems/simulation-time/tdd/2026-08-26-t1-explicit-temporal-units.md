@@ -59,12 +59,15 @@ Rules:
 ### Task 1: Add explicit simulation temporal scalar contracts
 
 **Files:**
+
 - Create: `packages/simulation-core/src/temporal-units.ts`
 - Modify: `packages/simulation-core/src/index.ts`
 - Test: `packages/simulation-core/test/temporal-units.test.ts`
 
 **Interfaces:**
+
 - Produces:
+
 ```ts
 export type AbsoluteGameMinute = number & { readonly __absoluteGameMinute: unique symbol };
 export type GameMinuteDuration = number & { readonly __gameMinuteDuration: unique symbol };
@@ -77,44 +80,50 @@ export function macroHourIndex(value: number): MacroHourIndex;
 export function macroHourDuration(value: number): MacroHourDuration;
 export function gameMinuteValue(value: AbsoluteGameMinute | GameMinuteDuration): number;
 export function macroHourValue(value: MacroHourIndex | MacroHourDuration): number;
-export function addGameMinutes(point: AbsoluteGameMinute, duration: GameMinuteDuration): AbsoluteGameMinute;
+export function addGameMinutes(
+  point: AbsoluteGameMinute,
+  duration: GameMinuteDuration,
+): AbsoluteGameMinute;
 export function addMacroHours(point: MacroHourIndex, duration: MacroHourDuration): MacroHourIndex;
 export function compareGameMinutes(a: AbsoluteGameMinute, b: AbsoluteGameMinute): -1 | 0 | 1;
 export function compareMacroHours(a: MacroHourIndex, b: MacroHourIndex): -1 | 0 | 1;
 ```
 
-- [ ] **Step 1: Write constructor/arithmetic RED tests**
+- [x] **Step 1: Write constructor/arithmetic RED tests**
 
 Add tests proving zero and safe positive integers are accepted; negative, fractional, `NaN`, infinity, and unsafe integers reject with the existing simulation contract error family. Test point+duration and same-unit comparisons.
 
-- [ ] **Step 2: Run the focused RED**
+- [x] **Step 2: Run the focused RED**
 
 Run:
+
 ```bash
 pnpm --filter @web-three-city/simulation-core exec vitest run test/temporal-units.test.ts
 ```
+
 Expected: FAIL because the module/exports do not exist.
 
-- [ ] **Step 3: Implement minimal branded integer contracts**
+- [x] **Step 3: Implement minimal branded integer contracts**
 
 Use private `unique symbol` brands and runtime safe-integer validation. Do not export brand symbols and do not introduce wrapper objects.
 
-- [ ] **Step 4: Run focused GREEN and package typecheck**
+- [x] **Step 4: Run focused GREEN and package typecheck**
 
 ```bash
 pnpm --filter @web-three-city/simulation-core exec vitest run test/temporal-units.test.ts
 pnpm --filter @web-three-city/simulation-core typecheck
 ```
+
 Expected: PASS.
 
-- [ ] **Step 5: Run Selective GREEN checkpoint**
+- [x] **Step 5: Run Selective GREEN checkpoint**
 
 ```bash
 pnpm verify:affected -- --base "$T1_BASE_SHA" --head HEAD --plan-only --json
 pnpm verify:affected -- --base "$T1_BASE_SHA" --head HEAD --skip-browser
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add packages/simulation-core/src/temporal-units.ts packages/simulation-core/src/index.ts packages/simulation-core/test/temporal-units.test.ts
@@ -124,6 +133,7 @@ git commit -m "feat(simulation): add explicit temporal units"
 ### Task 2: Move macro-hour derivation behind typed helpers
 
 **Files:**
+
 - Modify: `packages/simulation-core/src/calendar.ts`
 - Modify: `packages/simulation-core/src/contracts.ts`
 - Modify: `packages/simulation-core/src/simulation-snapshot.ts`
@@ -131,29 +141,38 @@ git commit -m "feat(simulation): add explicit temporal units"
 - Test: `packages/simulation-core/test/simulation-snapshot.test.ts`
 
 **Interfaces:**
+
 - Consumes: T1 temporal units.
 - Produces:
+
 ```ts
 export function deriveMacroHourIndex(gameMinute: AbsoluteGameMinute): MacroHourIndex;
-export function deriveMacroHourTransition(before: AbsoluteGameMinute, after: AbsoluteGameMinute): MacroHourTransition;
+export function deriveMacroHourTransition(
+  before: AbsoluteGameMinute,
+  after: AbsoluteGameMinute,
+): MacroHourTransition;
 ```
+
 `SimulationSnapshot.absoluteGameMinute` becomes `AbsoluteGameMinute` internally while serialization still emits the same V3 integer.
 
-- [ ] **Step 1: Add RED type/runtime tests** proving `59 -> 60` crosses macro hour, `60 -> 61` does not, and snapshot creation validates through `absoluteGameMinute(...)`.
-- [ ] **Step 2: Run RED** with `pnpm --filter @web-three-city/simulation-core test`; expected compile/test failure at raw-number call sites.
-- [ ] **Step 3: Implement typed signatures** and migrate only `simulation-core` call sites using constructors/helpers; preserve current calendar values byte-for-byte.
-- [ ] **Step 4: Run GREEN**:
+- [x] **Step 1: Add RED type/runtime tests** proving `59 -> 60` crosses macro hour, `60 -> 61` does not, and snapshot creation validates through `absoluteGameMinute(...)`.
+- [x] **Step 2: Run RED** with `pnpm --filter @web-three-city/simulation-core test`; expected compile/test failure at raw-number call sites.
+- [x] **Step 3: Implement typed signatures** and migrate only `simulation-core` call sites using constructors/helpers; preserve current calendar values byte-for-byte.
+- [x] **Step 4: Run GREEN**:
+
 ```bash
 pnpm --filter @web-three-city/simulation-core test
 pnpm --filter @web-three-city/simulation-core typecheck
 pnpm verify:affected -- --base "$T1_BASE_SHA" --head HEAD --plan-only --json
 pnpm verify:affected -- --base "$T1_BASE_SHA" --head HEAD --skip-browser
 ```
-- [ ] **Step 5: Commit** with `feat(simulation): type game-minute authority`.
+
+- [x] **Step 5: Commit** with `feat(simulation): type game-minute authority`.
 
 ### Task 3: Add temporal architecture enforcement
 
 **Files:**
+
 - Create: `tooling/temporal-unit-boundary.test.mjs`
 - Create: `tooling/architecture-fixtures/temporal-unit-violations/valid.ts`
 - Create: `tooling/architecture-fixtures/temporal-unit-violations/operator.ts`
@@ -161,28 +180,36 @@ pnpm verify:affected -- --base "$T1_BASE_SHA" --head HEAD --skip-browser
 - Modify: `package.json`
 
 **Interfaces:**
+
 - Produces a Node test included in `pnpm test:deployment` that parses TypeScript with the compiler API and rejects production-source patterns that bypass the named temporal API.
 
-- [ ] **Step 1: Write scanner RED fixture tests** proving detection of incompatible branded arithmetic/comparison, direct `as AbsoluteGameMinute` / `as MacroHourIndex`, and `as unknown as <TemporalType>`; allow trusted constructor implementation and codec decode boundaries by explicit path allowlist.
-- [ ] **Step 2: Run RED**:
+- [x] **Step 1: Write scanner RED fixture tests** proving detection of incompatible branded arithmetic/comparison, direct `as AbsoluteGameMinute` / `as MacroHourIndex`, and `as unknown as <TemporalType>`; allow trusted constructor implementation and codec decode boundaries by explicit path allowlist.
+- [x] **Step 2: Run RED**:
+
 ```bash
 node --test tooling/temporal-unit-boundary.test.mjs
 ```
+
 Expected: FAIL until scanner rules exist.
-- [ ] **Step 3: Implement scanner and add it to `test:deployment`**. The scanner must report file/line and stable violation category.
-- [ ] **Step 4: Run GREEN and confirm resolver escalation**:
+
+- [x] **Step 3: Implement scanner and add it to `test:deployment`**. The scanner must report file/line and stable violation category.
+- [x] **Step 4: Run GREEN and confirm resolver escalation**:
+
 ```bash
 node --test tooling/temporal-unit-boundary.test.mjs tooling/architecture-boundary.test.mjs
 pnpm test:deployment
 pnpm verify:affected -- --base "$T1_BASE_SHA" --head HEAD --plan-only --json
 pnpm verify:affected -- --base "$T1_BASE_SHA" --head HEAD --skip-browser
 ```
+
 Expected Selective result after `package.json` is changed: GLOBAL/shared-verification escalation with Full Browser required for final closure. Do not weaken classification to avoid this.
-- [ ] **Step 5: Commit** with `test(architecture): enforce temporal unit boundaries`.
+
+- [x] **Step 5: Commit** with `test(architecture): enforce temporal unit boundaries`.
 
 ### Task 4: Migrate Game application compile seam without semantic change
 
 **Files:**
+
 - Modify: `apps/game/src/game-minute-transaction.ts`
 - Modify: `apps/game/src/temporal-publication-controller.ts`
 - Modify: `apps/game/src/simulation-runtime.ts` only where typed adapter conversion is required; do not change constants.
@@ -191,16 +218,20 @@ Expected Selective result after `package.json` is changed: GLOBAL/shared-verific
 - Test: `apps/game/src/simulation-runtime.test.ts`
 
 **Interfaces:**
+
 - Consumes typed Simulation contracts.
 - Preserves public temporal result behavior and five ordered phase receipts.
 
-- [ ] **Step 1: Add RED parity assertions** for minute `+1`, revision `+5`, phase order, rejection atomicity, and unchanged runtime pacing constants.
-- [ ] **Step 2: Run RED/compile gate**:
+- [x] **Step 1: Add RED parity assertions** for minute `+1`, revision `+5`, phase order, rejection atomicity, and unchanged runtime pacing constants.
+- [x] **Step 2: Run RED/compile gate**:
+
 ```bash
 pnpm --filter @web-three-city/game exec vitest run src/game-minute-transaction.test.ts src/temporal-publication.test.ts src/simulation-runtime.test.ts
 ```
-- [ ] **Step 3: Replace raw simulation boundary arithmetic with named helpers**. Do not touch Building/RCI/Economy/Mobility/Traffic domain public fields yet; use explicit boundary adapters at the app seam.
-- [ ] **Step 4: Run GREEN plus Selective/deployment architecture**:
+
+- [x] **Step 3: Replace raw simulation boundary arithmetic with named helpers**. Do not touch Building/RCI/Economy/Mobility/Traffic domain public fields yet; use explicit boundary adapters at the app seam.
+- [x] **Step 4: Run GREEN plus Selective/deployment architecture**:
+
 ```bash
 pnpm --filter @web-three-city/game test
 pnpm test:deployment
@@ -208,7 +239,8 @@ pnpm verify:affected -- --base "$T1_BASE_SHA" --head HEAD --plan-only --json
 pnpm verify:affected -- --base "$T1_BASE_SHA" --head HEAD --skip-browser
 pnpm check
 ```
-- [ ] **Step 5: Commit** with `refactor(game): adopt explicit temporal authority types`.
+
+- [x] **Step 5: Commit** with `refactor(game): adopt explicit temporal authority types`.
 
 ## T1 Exit Gate
 
@@ -227,3 +259,11 @@ T1 is complete only when:
 - only then may a non-force GREEN candidate be pushed for exact-head CI/Sonar verification.
 
 Do not start calendar or domain semantic migration in this PR.
+
+## Execution Record
+
+- T1 implementation base: `10a6c1f8c593451262d077779787fc5c127858e1`
+- GREEN commits: `e810f85`, `f461abf`, `932ccbc`, `b01c701`, `62a6b6e`
+- Local Full Browser: `149 passed`, `1 skipped`, `0 failed` (the explicit Metal-gated performance test is skipped under local SwiftShader)
+- The final exit status of `pnpm verify:full` was affected only by the repository clean-worktree check seeing the two pre-existing protected untracked plan files; they were preserved untouched.
+- Exact-head CI/Sonar remains the post-push gate.

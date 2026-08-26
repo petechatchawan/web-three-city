@@ -1,6 +1,6 @@
 # Simulation Time System
 
-**Status:** PR #83 temporal authority is merged on `master`; Temporal Authority & Simulation Clock Standard v1 is APPROVED in planning PR #94; successor production implementation has not started.  
+**Status:** PR #83 temporal authority is merged on `master`; T1 — Explicit Temporal Units + Architecture Enforcement is implemented on `feat/temporal-explicit-units-v1`; T2A–T7 remain not started. Temporal Authority & Simulation Clock Standard v1 remains the approved successor design from planning PR #94.
 **Primary ownership:** `packages/simulation-core`, `apps/game/src/simulation-runtime.ts`, temporal Game orchestration, and time/calendar presentation.  
 **Current persistence:** `SimulationSaveV3` inside `WorldSaveV8`; successor targets `SimulationSaveV4` inside `WorldSaveV9`.
 
@@ -23,6 +23,14 @@ GameMinute -> Q1 -> Q2 -> Q3 -> Q4
 ```
 
 The complete candidate chain is validated before internal batch publication. Success exposes only the final world and advances world revision exactly `+5`; rejection leaves the original world/minute/revision unchanged, pauses playback, clears accumulated real time, exposes a typed failure, and never silently retries.
+
+## T1 Implementation on This Branch
+
+`simulation-core` now exports validated, integer-backed opaque scalar types for `AbsoluteGameMinute`, `GameMinuteDuration`, `MacroHourIndex`, and `MacroHourDuration`, together with named value, addition, and comparison helpers. `SimulationSnapshot.absoluteGameMinute` and simulation minute/macro-hour transition contracts use the explicit types internally; V3 serialization and all legacy calendar values remain unchanged.
+
+The application and directly affected Building/RCI boundary adapters use the named temporal helpers without migrating their domain field semantics. A TypeScript compiler-API architecture test scans production source for incompatible temporal operators and direct/escape casts, and runs as part of `pnpm test:deployment`.
+
+T1 does not introduce the compressed calendar, playback changes, domain lifecycle renames, Save V9, or a new temporal package. Those remain owned by the approved T2–T7 execution order below. See the [T1 verification record](verification/2026-08-26-t1-explicit-temporal-units.md) for exact local evidence.
 
 ## Approved Successor Direction
 

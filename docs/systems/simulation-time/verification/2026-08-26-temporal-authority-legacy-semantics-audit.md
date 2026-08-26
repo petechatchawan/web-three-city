@@ -1,225 +1,113 @@
-# Temporal Authority Legacy Semantics Audit — 2026-08-26
+# Temporal Authority Legacy Semantics Audit
 
-**Status:** Complete for design planning; no production code changed  
-**Baseline:** `master@df5b831f7bd25f2f8015ea04b1f3a5d17753c11b`  
-**Purpose:** establish current temporal ownership, legacy `tick` semantics, dependency direction, and persistence assumptions before the Temporal Authority & Simulation Clock Standard v1 migration.
+**Status:** Audit complete; design decisions incorporated into the approved successor spec  
+**Date:** `2026-08-26`  
+**Baseline:** `master@df5b831f7bd25f2f8015ea04b1f3a5d17753c11b`
 
-## Executive Result
+## Summary
 
-The merged repository can host the successor standard in `simulation-core` without introducing a new `temporal-core` package today. `simulation-core` is dependency-free, while existing dependent domains either already depend on it (Building, RCI) or can add a one-way dependency without a cycle (Economy, Mobility, Traffic).
+The merged repository already has the correct single-clock and five-phase transaction topology, but temporal values are still represented by multiple raw-number units and legacy `Tick` names. The successor should therefore migrate contracts and codecs, not redesign the core transaction model.
 
-The audit also confirms that the word `tick` does **not** have one repository-wide unit:
+## Confirmed Findings
 
-```text
-Simulation V1/V2 absoluteTick   = macro hour / hour cursor -> GameMinute via *60
-Building lifecycle *AtTick      = MacroHourIndex -> rename 1:1
-RCI tick/evaluation fields      = MacroHourIndex -> rename 1:1 after field proof
-Economy settlement tick fields  = MacroHourIndex -> rename 1:1 after field proof
-Mobility departure/boundary     = GameMinute -> AbsoluteGameMinute 1:1
-Traffic V2 cursor               = TransportSecond + source GameMinute
-```
+### Simulation
 
-That distinction is a hard migration rule.
+- `SimulationSnapshot.absoluteGameMinute` is the canonical persisted world time.
+- Simulation V1/V2 `absoluteTick` is an hourly cursor and existing migration semantics are checked `*60` to GameMinutes.
+- `simulation-core` is dependency-free and can remain the Level-0 temporal owner.
 
-## 1. Simulation Core
-
-Current package: `packages/simulation-core`.
-
-Current source authority:
-
-- `SimulationSnapshot.absoluteGameMinute: number`
-- `growthSequence`
-- Simulation revision
-- calendar/macro-hour projection helpers
-
-The package has no declared workspace dependencies. This makes it the correct lower-level owner for generic game-minute, macro-hour, and calendar types unless a later concrete dependency cycle disproves the assumption.
-
-Current calendar policy:
-
-```text
-60 minutes/hour
-24 hours/day
-30 days/month
-12 months/year
-```
-
-Current `deriveMacroHourIndex(absoluteGameMinute)` is centralized as `floor(minute / 60)`, but inputs/outputs are raw numbers.
-
-### Persistence evidence
-
-Simulation V1/V2 store `absoluteTick`; migration to the minute authority already performs checked multiplication by 60. Simulation V3 stores `absoluteGameMinute` directly. Therefore Simulation legacy ticks are hour-level values and are **not** the same semantic as Building/RCI/Economy legacy tick fields.
-
-## 2. Building
-
-`building-core` already declares a dependency on `simulation-core`.
-
-Current lifecycle fields retain legacy names including:
-
-```text
-constructionDurationTicks
-constructionStartedAtTick
-constructionCompletesAtTick
-activatedAtTick
-```
-
-However lifecycle functions compare these values against a `macroHourIndex`, and construction progress subtracts them from macro-hour values. This is direct source evidence that these persisted/runtime fields represent macro hours despite the generic names.
-
-Migration consequence:
-
-```text
-Building *AtTick -> *AtMacroHourIndex 1:1
-Building *Ticks  -> *MacroHours 1:1
-```
-
-No `*60` conversion is permitted for these fields.
-
-Building lifecycle logic remains owned by `building-core`; consumers must use Building APIs rather than recreate time comparisons.
-
-## 3. RCI
-
-`rci-core` already depends on `building-core`, `simulation-core`, and `world-core`.
-
-The current RCI tick planner imports macro-hour transition logic and assigns/evaluates its generic tick values from:
-
-```text
-macroHourTransition.beforeMacroHourIndex
-macroHourTransition.afterMacroHourIndex
-```
-
-The main evaluation boundary uses `afterMacroHourIndex` as the evaluation tick. This strongly supports macro-hour 1:1 migration for RCI temporal fields.
-
-Because RCI has higher-cardinality temporal state and historical migration risk, production migration must still include golden field-by-field tests before semantic renaming. This audit is architectural evidence, not a substitute for those RED tests.
-
-## 4. Economy
-
-`economy-core` currently declares no workspace dependencies, so a one-way dependency on `simulation-core` is cycle-free at this baseline.
-
-Current temporal fields include generic names such as:
-
-```text
-lastDailySettlementTick
-lastMonthlyCloseTick
-latestDailySettlementTick
-```
-
-Scheduled settlement receives a macro-hour transition and uses its `afterMacroHourIndex` as the effective settlement tick. The module also contains local `floor(gameMinute / 60)` validation logic, which is precisely the kind of duplicated conversion the successor temporal API should eliminate.
-
-Migration expectation: Economy settlement tick fields are macro-hour semantics and should rename 1:1 after golden tests establish every persisted field.
-
-## 5. Citizen Mobility
-
-`citizen-mobility-core` currently declares no workspace dependencies.
-
-Current schedule fields are raw game-minute values, including:
-
-```text
-departureGameMinute
-nextBoundaryGameMinute
-```
-
-Migration expectation: these become `AbsoluteGameMinute` values 1:1. Adding a dependency on `simulation-core` is cycle-free on the audited baseline.
-
-## 6. Traffic
-
-`traffic-core` currently declares no workspace dependencies.
-
-Traffic already distinguishes some temporal resolutions:
-
-- legacy trip queue field: `arrivedAtGameSecond`
-- V2 trip queue field: `arrivedAtTransportSecond`
-- V2 time cursor: source GameMinute + absolute TransportSecond + completed quantum count
-- edge travel duration: `freeFlowTravelSeconds`
-
-Game orchestration still contains raw conversion arithmetic such as `sourceGameMinute * 4` and legacy queue time `* 4`. Those conversions must move behind explicit temporal migration/helpers while preserving four transport quanta per GameMinute.
-
-## 7. Application-Level Atomic Temporal Minute
-
-PR #83 already implemented the intended authority topology in `apps/game`:
-
-```text
-GameMinute
-Q1
-Q2
-Q3
-Q4
-```
-
-`temporal-publication-controller.ts` stages all five publications before invoking `publishBatchForTransaction`. A planning failure returns the original committed world; successful execution produces five ordered revision receipts and one final presentation/adoption path.
-
-The successor therefore does **not** need a new temporal transaction architecture. It should migrate the current result/receipt fields to explicit units and retain the proven batching semantics.
-
-## 8. Current Playback Runtime
+### Game runtime/publication
 
 `apps/game/src/simulation-runtime.ts` currently uses:
 
 ```text
 GAME_MINUTE_MILLISECONDS = 1000
 normal multiplier = 1
-fast multiplier = 2
+fast multiplier   = 2
 faster multiplier = 4
 ```
 
-Nominal pacing is therefore:
+Therefore nominal pacing is x1/x2/x4 = `1.000/0.500/0.250s` per GameMinute.
+
+`apps/game/src/temporal-publication-controller.ts` already stages:
 
 ```text
-x1 = 1.000s / GameMinute
-x2 = 0.500s / GameMinute
-x4 = 0.250s / GameMinute
+GameMinute -> Q1 -> Q2 -> Q3 -> Q4
 ```
 
-This audit result conflicts with the proposed successor baseline of 3.0/1.5/0.75s. Since the product motivation includes current x4 feeling too slow, this discrepancy requires explicit owner reconfirmation before playback production edits.
+and uses batch publication so the successor should preserve this exact topology.
 
-## 9. World Persistence
+### Buildings
 
-Current canonical writer: WorldSaveV8.  
-Current save key: `web-three-city:world-save:v8`.
+Building lifecycle fields retain legacy Tick names but are evaluated through macro-hour lifecycle APIs. Their persisted/runtime numeric values are macro-hour semantics and migrate 1:1. They must never be multiplied by 60.
 
-The current reader accepts legacy world save keys through V8 (with historical gaps dictated by previous schemas) plus terrain legacy input.
+### Economy
 
-WorldSaveV8 composes:
+Economy scheduled settlement is driven from macro-hour transition state. Runtime code includes local minute/hour conversion that should move behind Simulation helpers. Existing fiscal settlement is an operational 24-hour-cycle rule, not evidence of a separate mutable calendar.
+
+### Citizen Mobility
+
+Mobility `departureGameMinute` and `nextBoundaryGameMinute` are GameMinute semantics. `scheduleCursorDay` requires semantic rename if it is only a 24-hour recurrence counter; it must not become calendar authority.
+
+### Traffic
+
+Traffic V2 distinguishes `arrivedAtTransportSecond` and a subordinate transport cursor. It still uses raw-number contracts and local `GameMinute * 4` conversion. Four quanta per GameMinute are established behavior and remain unchanged.
+
+## Additional RCI Audit Finding
+
+RCI is not a simple blanket 1:1 Tick rename.
+
+`packages/rci-core/src/population/age.ts` currently defines:
 
 ```text
-SimulationSaveV3
-MobilitySaveV2
-TrafficSaveV2
-plus existing Building / RCI / Economy codecs
+RCI_TICKS_PER_DAY  = 24
+RCI_DAYS_PER_YEAR  = 360
+RCI_TICKS_PER_YEAR = 8640
 ```
 
-WorldSave V8 migration code already contains raw temporal conversions, including Traffic cursor derivation from `absoluteGameMinute * 4`.
+`ageYearsAtTick` divides elapsed macro-hour ticks by 8640. `hazard.ts` compiles annual fertility/mortality rates into 360 daily evaluations.
 
-The successor must make WorldSaveV9 the only writer after cutover while retaining V1–V8 decode/migration authority.
-
-## 10. Calendar Migration Gap
-
-Current saves encode `AbsoluteGameMinute` under a 30-day/month calendar projection. The proposed successor calendar interprets every 24-hour cycle as one month.
-
-Preserving the same `AbsoluteGameMinute` across V8 -> V9 preserves deterministic simulation timeline position but changes the displayed calendar label. Remapping the authority to preserve the displayed date changes elapsed simulation position and can affect domain schedules.
-
-The approved baseline design did not fully specify which continuity is authoritative. Production V9 implementation must not proceed until the owner selects an explicit policy and the selected behavior is encoded in migration tests.
-
-## 11. Dependency Conclusion
-
-Audited baseline dependency direction supports:
+The approved compressed calendar instead defines:
 
 ```text
-Building ---------> simulation-core
-RCI --------------> simulation-core
-Economy ----------> simulation-core   (new dependency allowed)
-Citizen Mobility -> simulation-core   (new dependency allowed)
-Traffic ----------> simulation-core   (new dependency allowed if generic game-minute types are consumed)
-
-simulation-core -X-> any of the above
+12 Simulation Cycles/year
+24 MacroHours/cycle
+288 MacroHours/year
 ```
 
-No present evidence requires a new `temporal-core` package.
+If canonical GameMinute and RCI `bornAtTick` were both migrated 1:1, a legacy one-year-old resident would be interpreted as roughly 30 years old after cutover. This is unacceptable.
 
-## 12. Design Stop Conditions
+### Locked resolution
 
-Before implementation planning can be declared complete:
+- Keep canonical `AbsoluteGameMinute` 1:1.
+- Classify every durable RCI Tick field before migration.
+- Future RCI age uses 288 MacroHours/year.
+- Annual rate definitions remain annual; per-cycle hazard is recomputed across 12 cycle evaluations/year.
+- Age-origin timestamps are rescaled relative to current MacroHour to preserve age-years, age-band, ordering, and fractional-year phase.
+- Historical event/relationship/membership/cycle fields are not automatically age-scaled; each follows its classified meaning.
 
-1. owner reconfirms or replaces the 3.0/1.5/0.75 playback table after seeing the current 1.0/0.5/0.25 baseline;
-2. owner chooses V8 -> V9 calendar continuity semantics;
-3. TDD plan must require golden historical proof before any RCI/Economy ambiguous Tick field is renamed;
-4. no migration slice may create a second mutable world clock.
+Approved age-origin mapping:
 
-No production code was changed by this audit.
+```text
+legacyElapsed = currentMacroHour - legacyBornMacroHour
+newElapsed    = floor(legacyElapsed * 288 / 8640)
+newBorn       = currentMacroHour - newElapsed
+```
+
+## Approved Product Decisions
+
+1. Compressed calendar: `60 min/hour`, `24h = 1 Simulation Cycle = 1 calendar month`, `12 months/year`.
+2. Playback retains merged nominal pacing `1.000/0.500/0.250s` at x1/x2/x4. The old `3.000/1.500/0.750` proposal is rejected.
+3. V8 -> V9 preserves canonical `AbsoluteGameMinute` 1:1 and accepts calendar-label reprojection under the new policy.
+4. RCI age-bearing state is migrated semantically so existing citizens do not jump in age.
+
+## Implementation Consequence
+
+The migration must proceed vertically through T1-T6 with system-owned RED/GREEN plans. No production implementation is authorized to bypass the execution index or combine temporal migration with Traffic/Road rendering, routing, Growth-policy, or unrelated scheduler changes.
+
+See:
+
+- `../specs/2026-08-26-temporal-authority-simulation-clock-standard-v1.md`
+- `../tdd/2026-08-26-temporal-successor-execution-index.md`
+- `../adrs/0005-compressed-calendar-playback-cutover.md`
+- `../../world/adrs/0002-world-save-v9-calendar-policy-migration.md`

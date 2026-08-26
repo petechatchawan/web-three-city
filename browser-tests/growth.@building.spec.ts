@@ -63,6 +63,10 @@ test('exposes the simple calendar and deterministic time controls', async ({ pag
 test('production playback crosses hour and day boundaries with Growth enabled', async ({
   page,
 }) => {
+  // This regression deliberately advances every logical minute from the
+  // deterministic start to both boundaries. Keep the budget local to this
+  // production-path test; do not broaden the suite or browser worker budget.
+  test.setTimeout(180_000);
   await openGrowthGame(page);
   await prepareBuildingFixtureWorld(page);
 

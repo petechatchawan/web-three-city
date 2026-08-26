@@ -1,5 +1,6 @@
 import type { TerrainCellSurfaceProfile } from '@web-three-city/terrain-core';
 import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
+import { macroHourIndex } from '@web-three-city/simulation-core';
 import { describe, expect, it } from 'vitest';
 import {
   commitBuildingMutation,
@@ -44,12 +45,19 @@ const environment: BuildingDevelopmentEnvironment = Object.freeze({
 describe('automatic Growth runtime bridge', () => {
   it('commits one Construction and suppresses the following Undo write', () => {
     const before = createEmptyBuildingSnapshot(CONFIG);
-    configureAutomaticBuildingGrowth({ absoluteTick: 24, growthSequence: 0, evaluation: true });
+    configureAutomaticBuildingGrowth({
+      macroHourIndex: macroHourIndex(24),
+      growthSequence: 0,
+      evaluation: true,
+    });
     const plan = planBuildingDevelopment(before, environment, CONFIG);
     const committed = commitBuildingMutation(before, plan, environment, CONFIG);
     configureAutomaticBuildingGrowth(null);
     expect(committed.snapshot.instances).toHaveLength(1);
-    expect(committed.snapshot.instances[0]?.lifecycle).toBe('construction');
+    expect(committed.snapshot.instances[0]).toMatchObject({
+      lifecycle: 'construction',
+      constructionStartedAtMacroHourIndex: macroHourIndex(24),
+    });
     expect(consumeAutomaticBuildingUndoSuppression()).toBe(true);
   });
 });

@@ -1,4 +1,9 @@
 import type { WorldConfig } from '@web-three-city/world-core';
+import {
+  macroHourIndex,
+  macroHourValue,
+  type MacroHourIndex,
+} from '@web-three-city/simulation-core';
 import { buildingDefinitionForId } from './building-definitions.js';
 import { isBuildingRotationQuarterTurns } from './building-footprint.js';
 import { normalizeBuildingInstance } from './building-lifecycle.js';
@@ -55,6 +60,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
+function decodeLegacyMacroHourIndex(value: unknown): MacroHourIndex | null {
+  if (typeof value !== 'number') return null;
+  try {
+    return macroHourIndex(value);
+  } catch {
+    return null;
+  }
+}
+
 export function encodeBuildingSaveV2(snapshot: BuildingSnapshot): BuildingSaveV2 {
   return Object.freeze({
     kind: 'building-save',
@@ -72,8 +86,12 @@ export function encodeBuildingSaveV2(snapshot: BuildingSnapshot): BuildingSaveV2
                 originCell: Object.freeze({ ...instance.originCell }),
                 rotationQuarterTurns: instance.rotationQuarterTurns,
                 lifecycle: 'construction' as const,
-                constructionStartedAtTick: instance.constructionStartedAtTick,
-                constructionCompletesAtTick: instance.constructionCompletesAtTick,
+                constructionStartedAtTick: macroHourValue(
+                  instance.constructionStartedAtMacroHourIndex,
+                ),
+                constructionCompletesAtTick: macroHourValue(
+                  instance.constructionCompletesAtMacroHourIndex,
+                ),
               }
             : {
                 instanceId: instance.instanceId,
@@ -82,7 +100,7 @@ export function encodeBuildingSaveV2(snapshot: BuildingSnapshot): BuildingSaveV2
                 originCell: Object.freeze({ ...instance.originCell }),
                 rotationQuarterTurns: instance.rotationQuarterTurns,
                 lifecycle: 'active' as const,
-                activatedAtTick: instance.activatedAtTick,
+                activatedAtTick: macroHourValue(instance.activatedAtMacroHourIndex),
               },
         );
       }),
@@ -141,25 +159,43 @@ export function decodeBuildingSaveV2(input: unknown, config: WorldConfig): Build
       }),
       rotationQuarterTurns: candidate.rotationQuarterTurns,
     } as const;
-    if (
-      candidate.lifecycle === 'construction' &&
-      typeof candidate.constructionStartedAtTick === 'number' &&
-      typeof candidate.constructionCompletesAtTick === 'number'
-    ) {
+    if (candidate.lifecycle === 'construction') {
+      const constructionStartedAtMacroHourIndex = decodeLegacyMacroHourIndex(
+        candidate.constructionStartedAtTick,
+      );
+      const constructionCompletesAtMacroHourIndex = decodeLegacyMacroHourIndex(
+        candidate.constructionCompletesAtTick,
+      );
+      if (
+        constructionStartedAtMacroHourIndex === null ||
+        constructionCompletesAtMacroHourIndex === null
+      ) {
+        return Object.freeze({
+          ok: false,
+          error: Object.freeze({ code: 'building-save:invalid-instance' }),
+        });
+      }
       instances.push(
         Object.freeze({
           ...base,
           lifecycle: 'construction',
-          constructionStartedAtTick: candidate.constructionStartedAtTick,
-          constructionCompletesAtTick: candidate.constructionCompletesAtTick,
+          constructionStartedAtMacroHourIndex,
+          constructionCompletesAtMacroHourIndex,
         }),
       );
-    } else if (candidate.lifecycle === 'active' && typeof candidate.activatedAtTick === 'number') {
+    } else if (candidate.lifecycle === 'active') {
+      const activatedAtMacroHourIndex = decodeLegacyMacroHourIndex(candidate.activatedAtTick);
+      if (activatedAtMacroHourIndex === null) {
+        return Object.freeze({
+          ok: false,
+          error: Object.freeze({ code: 'building-save:invalid-instance' }),
+        });
+      }
       instances.push(
         Object.freeze({
           ...base,
           lifecycle: 'active',
-          activatedAtTick: candidate.activatedAtTick,
+          activatedAtMacroHourIndex,
         }),
       );
     } else {

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { macroHourDuration, macroHourValue } from '@web-three-city/simulation-core';
 import { buildingDefinitionForId, buildingDefinitions } from '../src/index.js';
 
 const EXPECTED_IDS = [
@@ -25,8 +26,10 @@ describe('building definitions', () => {
       expect(definition.compatibleZoneDefinitionIds).toHaveLength(1);
       expect(definition.allowedRotationQuarterTurns).toEqual([0, 1, 2, 3]);
       expect(definition.selectionWeight).toBeGreaterThan(0);
-      expect(definition.constructionDurationTicks).toBe(
-        24 * definition.footprintWidth * definition.footprintDepth,
+      expect(macroHourValue(definition.constructionDurationMacroHours)).toBe(
+        macroHourValue(
+          macroHourDuration(24 * definition.footprintWidth * definition.footprintDepth),
+        ),
       );
       expect(definition.capacityProfileDefinitionId).toMatch(
         /^capacity\.(residential|commercial|industrial)\.[a-z0-9-]+\.v1$/,

@@ -2,6 +2,7 @@ import type { TerrainCellSurfaceProfile } from '@web-three-city/terrain-core';
 import {
   absoluteGameMinute,
   createSimulationSnapshot,
+  deriveMacroHourTransition,
   macroHourIndex,
   type MacroHourTransition,
 } from '@web-three-city/simulation-core';
@@ -62,13 +63,10 @@ function macroHourTransition(
   beforeAbsoluteGameMinute: number,
   afterAbsoluteGameMinute: number,
 ): MacroHourTransition {
-  return Object.freeze({
-    beforeAbsoluteGameMinute: absoluteGameMinute(beforeAbsoluteGameMinute),
-    afterAbsoluteGameMinute: absoluteGameMinute(afterAbsoluteGameMinute),
-    beforeMacroHourIndex: macroHourIndex(Math.floor(beforeAbsoluteGameMinute / 60)),
-    afterMacroHourIndex: macroHourIndex(Math.floor(afterAbsoluteGameMinute / 60)),
-    crossed: Math.floor(beforeAbsoluteGameMinute / 60) !== Math.floor(afterAbsoluteGameMinute / 60),
-  });
+  return deriveMacroHourTransition(
+    absoluteGameMinute(beforeAbsoluteGameMinute),
+    absoluteGameMinute(afterAbsoluteGameMinute),
+  );
 }
 
 describe('automatic Building Growth tick', () => {
@@ -98,7 +96,7 @@ describe('automatic Building Growth tick', () => {
     expect(plan.proposedInstances).toHaveLength(1);
     expect(plan.proposedInstances[0]).toMatchObject({
       lifecycle: 'construction',
-      constructionStartedAtTick: expectedStart,
+      constructionStartedAtMacroHourIndex: macroHourIndex(expectedStart),
     });
   });
 
@@ -113,8 +111,8 @@ describe('automatic Building Growth tick', () => {
           originCell: { x: 0, z: 0 },
           rotationQuarterTurns: 0 as const,
           lifecycle: 'construction' as const,
-          constructionStartedAtTick: 8,
-          constructionCompletesAtTick: 9,
+          constructionStartedAtMacroHourIndex: macroHourIndex(8),
+          constructionCompletesAtMacroHourIndex: macroHourIndex(9),
         },
       ],
     };
@@ -147,8 +145,8 @@ describe('automatic Building Growth tick', () => {
           originCell: { x: 0, z: 0 },
           rotationQuarterTurns: 0 as const,
           lifecycle: 'construction' as const,
-          constructionStartedAtTick: 8,
-          constructionCompletesAtTick: 9,
+          constructionStartedAtMacroHourIndex: macroHourIndex(8),
+          constructionCompletesAtMacroHourIndex: macroHourIndex(9),
         },
       ],
     };
@@ -215,7 +213,7 @@ describe('automatic Building Growth tick', () => {
     expect(plan.proposedInstances).toHaveLength(1);
     expect(plan.proposedInstances[0]?.lifecycle).toBe('construction');
     expect(plan.proposedInstances[0]).toMatchObject({
-      constructionStartedAtTick: 12,
+      constructionStartedAtMacroHourIndex: macroHourIndex(12),
     });
   });
 

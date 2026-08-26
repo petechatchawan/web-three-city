@@ -1,4 +1,9 @@
-import type { MacroHourTransition, SimulationSnapshot } from '@web-three-city/simulation-core';
+import type {
+  MacroHourDuration,
+  MacroHourIndex,
+  MacroHourTransition,
+  SimulationSnapshot,
+} from '@web-three-city/simulation-core';
 import type { ChunkCoord, TerrainCellSurfaceProfile } from '@web-three-city/terrain-core';
 import type { CellCoord } from '@web-three-city/world-core';
 import type {
@@ -48,7 +53,7 @@ export interface BuildingDefinition {
   readonly compatibleZoneDefinitionIds: readonly ZoneDefinitionId[];
   readonly selectionPriority: number;
   readonly selectionWeight: number;
-  readonly constructionDurationTicks: number;
+  readonly constructionDurationMacroHours: MacroHourDuration;
   readonly prototypeId: BuildingPrototypeId;
   readonly prototypeHeight: number;
   readonly capacityProfileDefinitionId: string;
@@ -66,12 +71,12 @@ export interface LegacyBuildingInstance extends BuildingInstanceBase {
 }
 export interface ConstructionBuildingInstance extends BuildingInstanceBase {
   readonly lifecycle: 'construction';
-  readonly constructionStartedAtTick: number;
-  readonly constructionCompletesAtTick: number;
+  readonly constructionStartedAtMacroHourIndex: MacroHourIndex;
+  readonly constructionCompletesAtMacroHourIndex: MacroHourIndex;
 }
 export interface ActiveBuildingInstance extends BuildingInstanceBase {
   readonly lifecycle: 'active';
-  readonly activatedAtTick: number;
+  readonly activatedAtMacroHourIndex: MacroHourIndex;
 }
 export type BuildingInstance =
   LegacyBuildingInstance | ConstructionBuildingInstance | ActiveBuildingInstance;
@@ -152,8 +157,8 @@ export interface BuildingGrowthPlan {
   readonly baseWaterSourceTerrainRevision: number;
   readonly baseRoadRevision: number;
   readonly baseZoneRevision: number;
-  readonly beforeAbsoluteTick: number;
-  readonly afterAbsoluteTick: number;
+  readonly beforeMacroHourIndex: MacroHourIndex;
+  readonly afterMacroHourIndex: MacroHourIndex;
   readonly macroHourTransition: MacroHourTransition;
   readonly simulationAdvanceOwnedByBuilding: boolean;
   readonly proposedInstances: readonly BuildingInstance[];
@@ -169,8 +174,8 @@ export interface BuildingGrowthReceipt {
   readonly afterBuildingRevision: number;
   readonly beforeSimulationRevision: number;
   readonly afterSimulationRevision: number;
-  readonly beforeAbsoluteTick: number;
-  readonly afterAbsoluteTick: number;
+  readonly beforeMacroHourIndex: MacroHourIndex;
+  readonly afterMacroHourIndex: MacroHourIndex;
   readonly startedInstanceIds: readonly string[];
   readonly completedInstanceIds: readonly string[];
   readonly dirtyChunks: readonly ChunkCoord[];

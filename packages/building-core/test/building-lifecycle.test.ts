@@ -1,12 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
-import { macroHourDuration, macroHourIndex, macroHourValue } from '@web-three-city/simulation-core';
+import {
+  macroHourDuration,
+  macroHourIndex,
+  macroHourValue,
+  type MacroHourDuration,
+} from '@web-three-city/simulation-core';
 import {
   buildingLifecycleCounts,
-  constructionProgressAtMacroHour,
-  constructionProgressAtTick,
   createBuildingSnapshot,
+  deriveConstructionProgressAtMacroHour,
+  deriveConstructionStateAtMacroHour,
   isBuildingConstructionCompleteAtMacroHour,
+  validateBuildingLifecycleAtMacroHour,
 } from '../src/index.js';
 import * as buildingLifecycle from '../src/index.js';
 
@@ -28,8 +34,8 @@ function constructionSnapshot() {
           originCell: { x: 0, z: 0 },
           rotationQuarterTurns: 0,
           lifecycle: 'construction',
-          constructionStartedAtTick: LEGACY_LIFECYCLE_GOLDEN.start,
-          constructionCompletesAtTick: LEGACY_LIFECYCLE_GOLDEN.completion,
+          constructionStartedAtMacroHourIndex: macroHourIndex(LEGACY_LIFECYCLE_GOLDEN.start),
+          constructionCompletesAtMacroHourIndex: macroHourIndex(LEGACY_LIFECYCLE_GOLDEN.completion),
         },
       ],
     },
@@ -47,14 +53,23 @@ describe('Building lifecycle authority', () => {
       total: 1,
     });
     if (instance?.lifecycle !== 'construction') throw new Error('expected construction');
-    expect(instance.constructionCompletesAtTick - instance.constructionStartedAtTick).toBe(6);
-    expect(constructionProgressAtMacroHour(instance, 12)).toBe(0);
-    expect(constructionProgressAtMacroHour(instance, 15)).toBe(0.5);
-    expect(constructionProgressAtMacroHour(instance, 18)).toBe(1);
-    expect(constructionProgressAtTick(instance, 15)).toBe(0.5);
-    expect(isBuildingConstructionCompleteAtMacroHour(instance, 12)).toBe(false);
-    expect(isBuildingConstructionCompleteAtMacroHour(instance, 15)).toBe(false);
-    expect(isBuildingConstructionCompleteAtMacroHour(instance, 18)).toBe(true);
+    const duration: MacroHourDuration = macroHourDuration(
+      macroHourValue(instance.constructionCompletesAtMacroHourIndex) -
+        macroHourValue(instance.constructionStartedAtMacroHourIndex),
+    );
+    expect(macroHourValue(duration)).toBe(6);
+    expect(deriveConstructionProgressAtMacroHour(instance, macroHourIndex(12))).toBe(0);
+    expect(deriveConstructionProgressAtMacroHour(instance, macroHourIndex(15))).toBe(0.5);
+    expect(deriveConstructionProgressAtMacroHour(instance, macroHourIndex(18))).toBe(1);
+    expect(deriveConstructionStateAtMacroHour(instance, macroHourIndex(15))).toBe('construction');
+    expect(deriveConstructionStateAtMacroHour(instance, macroHourIndex(18))).toBe('active');
+    expect(() => validateBuildingLifecycleAtMacroHour(instance, macroHourIndex(17))).not.toThrow();
+    expect(() => validateBuildingLifecycleAtMacroHour(instance, macroHourIndex(18))).toThrow(
+      'building-lifecycle:invalid-construction',
+    );
+    expect(isBuildingConstructionCompleteAtMacroHour(instance, macroHourIndex(12))).toBe(false);
+    expect(isBuildingConstructionCompleteAtMacroHour(instance, macroHourIndex(15))).toBe(false);
+    expect(isBuildingConstructionCompleteAtMacroHour(instance, macroHourIndex(18))).toBe(true);
   });
 
   it('records legacy lifecycle values as a 1:1 macro-hour golden fixture', () => {
@@ -69,16 +84,18 @@ describe('Building lifecycle authority', () => {
     };
 
     expect({
-      start: instance.constructionStartedAtTick,
-      duration: instance.constructionCompletesAtTick - instance.constructionStartedAtTick,
-      completion: instance.constructionCompletesAtTick,
+      start: macroHourValue(instance.constructionStartedAtMacroHourIndex),
+      duration:
+        macroHourValue(instance.constructionCompletesAtMacroHourIndex) -
+        macroHourValue(instance.constructionStartedAtMacroHourIndex),
+      completion: macroHourValue(instance.constructionCompletesAtMacroHourIndex),
     }).toEqual(LEGACY_LIFECYCLE_GOLDEN);
     expect(macroHourValues).toEqual(LEGACY_LIFECYCLE_GOLDEN);
   });
 
   it.each([11, 12])(
     'rejects construction completion before or at its macro-hour start (%s)',
-    (completionAtTick) => {
+    (completionAtMacroHourIndex) => {
       expect(() =>
         createBuildingSnapshot(
           {
@@ -91,8 +108,8 @@ describe('Building lifecycle authority', () => {
                 originCell: { x: 0, z: 0 },
                 rotationQuarterTurns: 0,
                 lifecycle: 'construction',
-                constructionStartedAtTick: 12,
-                constructionCompletesAtTick: completionAtTick,
+                constructionStartedAtMacroHourIndex: macroHourIndex(12),
+                constructionCompletesAtMacroHourIndex: macroHourIndex(completionAtMacroHourIndex),
               },
             ],
           },
@@ -102,11 +119,13 @@ describe('Building lifecycle authority', () => {
     },
   );
 
-  it('exposes a lifecycle progress API named for the macro-hour authority', () => {
-    expect('constructionProgressAtMacroHour' in buildingLifecycle).toBe(true);
+  it('exposes lifecycle APIs named for the macro-hour authority', () => {
+    expect('validateBuildingLifecycleAtMacroHour' in buildingLifecycle).toBe(true);
+    expect('deriveConstructionStateAtMacroHour' in buildingLifecycle).toBe(true);
+    expect('deriveConstructionProgressAtMacroHour' in buildingLifecycle).toBe(true);
   });
 
-  it('migrates a legacy instance to Active at the initial tick', () => {
+  it('migrates a legacy instance to Active at the initial macro-hour index', () => {
     const snapshot = createBuildingSnapshot(
       {
         revision: 1,
@@ -122,6 +141,9 @@ describe('Building lifecycle authority', () => {
       },
       WORLD_CONFIG,
     );
-    expect(snapshot.instances[0]).toMatchObject({ lifecycle: 'active', activatedAtTick: 8 });
+    expect(snapshot.instances[0]).toMatchObject({
+      lifecycle: 'active',
+      activatedAtMacroHourIndex: macroHourIndex(8),
+    });
   });
 });

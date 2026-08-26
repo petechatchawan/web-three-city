@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { macroHourIndex } from '@web-three-city/simulation-core';
 import {
   buildingDefinitionForId,
   selectBuildingCandidate,
@@ -30,7 +31,7 @@ describe('deterministic Building variety selection', () => {
   it('hashes equal authority to the same unsigned value without random input', () => {
     const random = vi.spyOn(Math, 'random');
     const context = {
-      absoluteTick: 24,
+      macroHourIndex: macroHourIndex(24),
       growthSequence: 1,
       originCell: { x: 2, z: 3 },
       zoneDefinitionId: 'commercial',
@@ -45,7 +46,7 @@ describe('deterministic Building variety selection', () => {
     const selected = selectBuildingCandidate(
       [candidate('commercial-shop-1x1'), candidate('commercial-cafe-1x1')],
       {
-        absoluteTick: 24,
+        macroHourIndex: macroHourIndex(24),
         growthSequence: 1,
         originCell: { x: 2, z: 3 },
         zoneDefinitionId: 'commercial',

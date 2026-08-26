@@ -12,11 +12,11 @@ export function fingerprintBuildingSnapshot(snapshot: BuildingSnapshot): string 
       lifecycle: instance.lifecycle,
       ...(instance.lifecycle === 'construction'
         ? {
-            constructionStartedAtTick: instance.constructionStartedAtTick,
-            constructionCompletesAtTick: instance.constructionCompletesAtTick,
+            constructionStartedAtMacroHourIndex: instance.constructionStartedAtMacroHourIndex,
+            constructionCompletesAtMacroHourIndex: instance.constructionCompletesAtMacroHourIndex,
           }
-        : { activatedAtTick: instance.activatedAtTick }),
+        : { activatedAtMacroHourIndex: instance.activatedAtMacroHourIndex }),
     }))
     .sort((first, second) => first.instanceId.localeCompare(second.instanceId));
-  return `building-snapshot-v1:${JSON.stringify({ revision: snapshot.revision, instances })}`;
+  return `building-snapshot-v2:${JSON.stringify({ revision: snapshot.revision, instances })}`;
 }

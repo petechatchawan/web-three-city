@@ -23,6 +23,7 @@ import { occupiedRoadCellCount } from '@web-three-city/road-core';
 import {
   addMacroHours,
   deriveGameCalendarFromGameMinute,
+  deriveMacroHourIndex,
   deriveMacroHourTransition,
   macroHourDuration,
 } from '@web-three-city/simulation-core';
@@ -129,8 +130,8 @@ export function planGameWorldTick(
         afterBuildingRevision: state.buildings.revision,
         beforeSimulationRevision: state.simulation.revision,
         afterSimulationRevision: state.simulation.revision,
-        beforeAbsoluteTick: state.simulation.absoluteGameMinute,
-        afterAbsoluteTick: state.simulation.absoluteGameMinute,
+        beforeMacroHourIndex: deriveMacroHourIndex(state.simulation.absoluteGameMinute),
+        afterMacroHourIndex: deriveMacroHourIndex(state.simulation.absoluteGameMinute),
         startedInstanceIds: Object.freeze([]),
         completedInstanceIds: Object.freeze([]),
         dirtyChunks: Object.freeze([]),

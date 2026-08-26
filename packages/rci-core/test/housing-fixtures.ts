@@ -1,4 +1,5 @@
 import type { BuildingSnapshot } from '@web-three-city/building-core';
+import { macroHourIndex } from '@web-three-city/simulation-core';
 import {
   createFoundationRciRegistries,
   createInitialRciSnapshot,
@@ -17,7 +18,7 @@ export const activeCottageBuildings: BuildingSnapshot = Object.freeze({
       originCell: Object.freeze({ x: 1, z: 1 }),
       rotationQuarterTurns: 0,
       lifecycle: 'active',
-      activatedAtTick: 24,
+      activatedAtMacroHourIndex: macroHourIndex(24),
     }),
   ]),
 });

@@ -1,4 +1,5 @@
 import { buildingDefinitionForId, type BuildingSnapshot } from '@web-three-city/building-core';
+import { macroHourValue } from '@web-three-city/simulation-core';
 import { compareStableId } from '../contracts/ids.js';
 import type { DwellingUnitId, HousingAssignmentId } from '../contracts/ids.js';
 import type { DisplacedHouseholdEntry, DwellingUnitRecord } from '../contracts/records.js';
@@ -49,7 +50,7 @@ export function synchronizeDwellingInventory(
             buildingInstanceId: building.instanceId,
             capacityProfileDefinitionId: residential.id,
             unitIndex,
-            activatedAtTick: building.activatedAtTick,
+            activatedAtTick: macroHourValue(building.activatedAtMacroHourIndex),
             retiredAtTick: null,
           }),
       );

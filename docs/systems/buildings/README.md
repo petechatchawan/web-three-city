@@ -92,6 +92,7 @@ flowchart LR
 - Building-owned lifecycle validation, state derivation, and progress helpers operate on `MacroHourIndex` and `MacroHourDuration` values before comparing construction boundaries.
 - Background growth must not switch tools, close menus, or cancel player previews.
 - Building never mutates RCI state directly.
+- WorldSave and presentation consumers use Building lifecycle helpers with explicit macro-hour indexes; legacy V2 wire names remain private to the Building codec.
 
 ## Extension Points
 

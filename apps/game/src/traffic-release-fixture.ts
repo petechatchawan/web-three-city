@@ -27,6 +27,7 @@ import { BASIC_ROAD_CODE, createRoadSnapshot, type RoadSnapshot } from '@web-thr
 import {
   createSimulationSnapshot,
   deriveMacroHourIndex,
+  macroHourIndex,
   macroHourValue,
   type SimulationSnapshot,
 } from '@web-three-city/simulation-core';
@@ -144,7 +145,7 @@ function building(
     originCell: Object.freeze({ ...originCell }),
     rotationQuarterTurns: 0,
     lifecycle: 'active' as const,
-    activatedAtTick: 0,
+    activatedAtMacroHourIndex: macroHourIndex(0),
   });
 }
 

@@ -1,4 +1,5 @@
 import type { BuildingSnapshot } from '@web-three-city/building-core';
+import { macroHourIndex } from '@web-three-city/simulation-core';
 import { describe, expect, it } from 'vitest';
 import {
   createEmploymentIndex,
@@ -19,7 +20,7 @@ const buildings: BuildingSnapshot = Object.freeze({
       originCell: Object.freeze({ x: 2, z: 2 }),
       rotationQuarterTurns: 0,
       lifecycle: 'active',
-      activatedAtTick: 24,
+      activatedAtMacroHourIndex: macroHourIndex(24),
     }),
   ]),
 });

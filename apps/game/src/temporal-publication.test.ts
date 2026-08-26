@@ -3,7 +3,11 @@ import {
   type ConstructionBuildingInstance,
 } from '@web-three-city/building-core';
 import { createFoundationRciRegistries } from '@web-three-city/rci-core';
-import { createSimulationSnapshot, type AbsoluteGameMinute } from '@web-three-city/simulation-core';
+import {
+  createSimulationSnapshot,
+  macroHourIndex,
+  type AbsoluteGameMinute,
+} from '@web-three-city/simulation-core';
 import { type TrafficGraph } from '@web-three-city/traffic-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { describe, expect, it } from 'vitest';
@@ -73,8 +77,8 @@ function worldAtGrowthCompletion(): CommittedWorld {
   const construction: ConstructionBuildingInstance = {
     ...activeBuilding,
     lifecycle: 'construction',
-    constructionStartedAtTick: 8,
-    constructionCompletesAtTick: 9,
+    constructionStartedAtMacroHourIndex: macroHourIndex(8),
+    constructionCompletesAtMacroHourIndex: macroHourIndex(9),
   };
   const buildings = createBuildingSnapshot(
     { revision: base.buildings.revision, instances: [construction] },

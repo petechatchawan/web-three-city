@@ -1,4 +1,5 @@
 import { buildingDefinitions } from '@web-three-city/building-core';
+import { macroHourIndex } from '@web-three-city/simulation-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { describe, expect, it } from 'vitest';
 import { createBuildingMaterials, createBuildingPrototype } from '../src/index.js';
@@ -16,7 +17,7 @@ describe('Building active prototype variety', () => {
           originCell: { x: 0, z: 0 },
           rotationQuarterTurns: 0,
           lifecycle: 'active',
-          activatedAtTick: 8,
+          activatedAtMacroHourIndex: macroHourIndex(8),
         },
         materials,
         WORLD_CONFIG,

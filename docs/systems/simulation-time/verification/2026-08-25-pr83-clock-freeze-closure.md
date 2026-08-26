@@ -74,7 +74,7 @@ topology, retries, or assertions.
 
 ### Current local closure candidate
 
-The current source-tested candidate is `9db33b5f8e6b7f2d69db1ee3a7cf39bdbf9b0c7e`.
+The current source-tested candidate is `9db33b5ef5ed37c80605467e7ac4a144dcd55a88`.
 The documentation-only follow-up commit is intentionally separate from this
 source-tested SHA.
 

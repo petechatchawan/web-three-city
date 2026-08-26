@@ -1,7 +1,10 @@
 import {
+  addMacroHours,
   commitSimulationMinute,
   createSimulationSnapshot,
   deriveMacroHourTransition,
+  macroHourDuration,
+  macroHourValue,
   isDevelopmentEvaluationTick,
   isMacroHourTransition,
   planSimulationMinute,
@@ -196,8 +199,10 @@ function applyScheduledGrowth(input: {
     rotationQuarterTurns: selected.instance.rotationQuarterTurns,
     lifecycle: 'construction',
     constructionStartedAtTick: input.macroHourTransition.afterMacroHourIndex,
-    constructionCompletesAtTick:
-      input.macroHourTransition.afterMacroHourIndex + definition.constructionDurationTicks,
+    constructionCompletesAtTick: addMacroHours(
+      input.macroHourTransition.afterMacroHourIndex,
+      macroHourDuration(definition.constructionDurationTicks),
+    ),
   });
   input.proposed.push(construction);
   startedIds.push(construction.instanceId);
@@ -300,10 +305,12 @@ export function commitBuildingGrowthTick(input: {
   if (
     input.simulation.revision !== plan.baseSimulationRevision ||
     (plan.simulationAdvanceOwnedByBuilding &&
-      deriveMacroHourTransition(
-        input.simulation.absoluteGameMinute,
-        input.simulation.absoluteGameMinute,
-      ).beforeMacroHourIndex !== plan.beforeAbsoluteTick)
+      macroHourValue(
+        deriveMacroHourTransition(
+          input.simulation.absoluteGameMinute,
+          input.simulation.absoluteGameMinute,
+        ).beforeMacroHourIndex,
+      ) !== plan.beforeAbsoluteTick)
   ) {
     throw new BuildingContractError('building-growth:stale-simulation-plan');
   }
@@ -319,10 +326,12 @@ export function commitBuildingGrowthTick(input: {
   if (
     plan.simulationAdvanceOwnedByBuilding &&
     (!tickPlan.valid ||
-      deriveMacroHourTransition(
-        input.simulation.absoluteGameMinute,
-        tickPlan.afterAbsoluteGameMinute,
-      ).afterMacroHourIndex !== plan.afterAbsoluteTick)
+      macroHourValue(
+        deriveMacroHourTransition(
+          input.simulation.absoluteGameMinute,
+          tickPlan.afterAbsoluteGameMinute,
+        ).afterMacroHourIndex,
+      ) !== plan.afterAbsoluteTick)
   ) {
     throw new BuildingContractError('building-growth:stale-simulation-plan');
   }

@@ -1,4 +1,10 @@
-import { createSimulationSnapshot } from '@web-three-city/simulation-core';
+import {
+  absoluteGameMinute,
+  addGameMinutes,
+  createSimulationSnapshot,
+  gameMinuteDuration,
+  gameMinuteValue,
+} from '@web-three-city/simulation-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { describe, expect, it } from 'vitest';
 import { createPresentCitizenMobilityProjection } from './mobility-source-projection.js';
@@ -67,7 +73,7 @@ describe('Citizen Mobility & Traffic release fixture', () => {
       ),
       simulationBefore: createSimulationSnapshot({
         revision: world.simulation.revision,
-        absoluteGameMinute: world.simulation.absoluteGameMinute - 1,
+        absoluteGameMinute: gameMinuteValue(world.simulation.absoluteGameMinute) - 1,
         growthSequence: world.simulation.growthSequence,
       }),
       simulationAfter: createSimulationSnapshot({
@@ -115,7 +121,10 @@ describe('Citizen Mobility & Traffic release fixture', () => {
     let mobility = world.mobility;
     let traffic = world.traffic;
     let previousMinute = world.simulation.absoluteGameMinute;
-    for (const nextMinute of [world.simulation.absoluteGameMinute + 1, 19 * 60]) {
+    for (const nextMinute of [
+      addGameMinutes(world.simulation.absoluteGameMinute, gameMinuteDuration(1)),
+      absoluteGameMinute(19 * 60),
+    ]) {
       if (nextMinute <= previousMinute) continue;
       const result = planMobilityTrafficTick({
         mobilityBefore: mobility,

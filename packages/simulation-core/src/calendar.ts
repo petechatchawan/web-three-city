@@ -1,5 +1,10 @@
 import type { GameCalendar, MacroHourTransition } from './contracts.js';
-import { gameMinuteValue, macroHourIndex, macroHourValue } from './temporal-units.js';
+import {
+  compareMacroHours,
+  gameMinuteValue,
+  macroHourIndex,
+  macroHourValue,
+} from './temporal-units.js';
 import type { AbsoluteGameMinute, MacroHourIndex } from './temporal-units.js';
 
 export const HOURS_PER_DAY = 24;
@@ -40,7 +45,7 @@ export function deriveMacroHourTransition(
     afterAbsoluteGameMinute,
     beforeMacroHourIndex,
     afterMacroHourIndex,
-    crossed: beforeMacroHourIndex !== afterMacroHourIndex,
+    crossed: compareMacroHours(beforeMacroHourIndex, afterMacroHourIndex) !== 0,
   });
 }
 
@@ -51,8 +56,8 @@ export function isMacroHourTransition(value: MacroHourTransition): boolean {
       value.afterAbsoluteGameMinute,
     );
     return (
-      value.beforeMacroHourIndex === derived.beforeMacroHourIndex &&
-      value.afterMacroHourIndex === derived.afterMacroHourIndex &&
+      compareMacroHours(value.beforeMacroHourIndex, derived.beforeMacroHourIndex) === 0 &&
+      compareMacroHours(value.afterMacroHourIndex, derived.afterMacroHourIndex) === 0 &&
       value.crossed === derived.crossed
     );
   } catch {

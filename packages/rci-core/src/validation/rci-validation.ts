@@ -1,5 +1,9 @@
 import type { BuildingSnapshot } from '@web-three-city/building-core';
-import { deriveMacroHourIndex, type SimulationSnapshot } from '@web-three-city/simulation-core';
+import {
+  deriveMacroHourIndex,
+  macroHourValue,
+  type SimulationSnapshot,
+} from '@web-three-city/simulation-core';
 import type { RciContractErrorCode } from '../contracts/errors.js';
 import { compareStableId } from '../contracts/ids.js';
 import type { RciDefinitionRegistries } from '../definitions/contracts.js';
@@ -208,17 +212,19 @@ export function validateRciSnapshot(
   for (const citizen of snapshot.population.citizens) {
     if (
       !Number.isSafeInteger(citizen.bornAtTick) ||
-      citizen.bornAtTick > deriveMacroHourIndex(simulation.absoluteGameMinute) ||
+      citizen.bornAtTick > macroHourValue(deriveMacroHourIndex(simulation.absoluteGameMinute)) ||
       !nonNegativeSafe(citizen.movedIntoCityAtTick) ||
-      citizen.movedIntoCityAtTick > deriveMacroHourIndex(simulation.absoluteGameMinute) ||
+      citizen.movedIntoCityAtTick >
+        macroHourValue(deriveMacroHourIndex(simulation.absoluteGameMinute)) ||
       (citizen.movedOutOfCityAtTick !== null &&
         (!nonNegativeSafe(citizen.movedOutOfCityAtTick) ||
           citizen.movedOutOfCityAtTick < citizen.movedIntoCityAtTick ||
-          citizen.movedOutOfCityAtTick > deriveMacroHourIndex(simulation.absoluteGameMinute))) ||
+          citizen.movedOutOfCityAtTick >
+            macroHourValue(deriveMacroHourIndex(simulation.absoluteGameMinute)))) ||
       (citizen.diedAtTick !== null &&
         (!nonNegativeSafe(citizen.diedAtTick) ||
           citizen.diedAtTick < citizen.bornAtTick ||
-          citizen.diedAtTick > deriveMacroHourIndex(simulation.absoluteGameMinute)))
+          citizen.diedAtTick > macroHourValue(deriveMacroHourIndex(simulation.absoluteGameMinute))))
     ) {
       addIssue(issues, 'rci:invalid-state', citizen.citizenId);
     }
@@ -442,10 +448,11 @@ export function validateRciSnapshot(
       (value) => !Number.isSafeInteger(value) || value < -100_000 || value > 100_000,
     ) ||
     !nonNegativeSafe(snapshot.demand.demand.evaluatedAtTick) ||
-    snapshot.demand.demand.evaluatedAtTick > deriveMacroHourIndex(simulation.absoluteGameMinute) ||
+    snapshot.demand.demand.evaluatedAtTick >
+      macroHourValue(deriveMacroHourIndex(simulation.absoluteGameMinute)) ||
     !nonNegativeSafe(snapshot.demand.growthGates.evaluatedAtTick) ||
     snapshot.demand.growthGates.evaluatedAtTick >
-      deriveMacroHourIndex(simulation.absoluteGameMinute)
+      macroHourValue(deriveMacroHourIndex(simulation.absoluteGameMinute))
   ) {
     addIssue(issues, 'rci:invalid-demand');
   }

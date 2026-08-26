@@ -15,9 +15,11 @@ import {
 import { createFoundationRciRegistries, createInitialRciSnapshot } from '@web-three-city/rci-core';
 import { type TrafficGraph } from '@web-three-city/traffic-core';
 import {
+  addGameMinutes,
   deriveMacroHourIndex,
   createInitialSimulationSnapshot,
   createSimulationSnapshot,
+  gameMinuteDuration,
   type SimulationSnapshot,
 } from '@web-three-city/simulation-core';
 import {
@@ -1034,7 +1036,10 @@ export function bootstrapGame(
     const current = transactionCoordinator.snapshot();
     const next = createSimulationSnapshot({
       revision: current.simulation.revision + 1,
-      absoluteGameMinute: current.simulation.absoluteGameMinute + 1,
+      absoluteGameMinute: addGameMinutes(
+        current.simulation.absoluteGameMinute,
+        gameMinuteDuration(1),
+      ),
       growthSequence: current.simulation.growthSequence,
     });
     const publication = publishCommittedDomain({ simulation: next }, noOpPresentation);

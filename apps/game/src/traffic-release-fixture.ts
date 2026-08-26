@@ -27,6 +27,7 @@ import { BASIC_ROAD_CODE, createRoadSnapshot, type RoadSnapshot } from '@web-thr
 import {
   createSimulationSnapshot,
   deriveMacroHourIndex,
+  macroHourValue,
   type SimulationSnapshot,
 } from '@web-three-city/simulation-core';
 import { createTerrainMap, type TerrainSnapshot } from '@web-three-city/terrain-core';
@@ -269,7 +270,9 @@ function createFixtureRci(
         citizenId: citizen.citizenId,
         presence: 'resident' as const,
         sexDefinitionId: index % 2 === 0 ? 'sex.female' : 'sex.male',
-        bornAtTick: deriveMacroHourIndex(simulation.absoluteGameMinute) - (28 + index) * 8_640,
+        bornAtTick:
+          macroHourValue(deriveMacroHourIndex(simulation.absoluteGameMinute)) -
+          (28 + index) * 8_640,
         movedIntoCityAtTick: 0,
         movedOutOfCityAtTick: null,
         diedAtTick: null,

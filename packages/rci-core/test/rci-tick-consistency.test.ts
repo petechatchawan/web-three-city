@@ -1,5 +1,9 @@
 import { createBuildingSnapshot, type ActiveBuildingInstance } from '@web-three-city/building-core';
-import { deriveMacroHourIndex, type SimulationSnapshot } from '@web-three-city/simulation-core';
+import {
+  absoluteGameMinute,
+  deriveMacroHourIndex,
+  type SimulationSnapshot,
+} from '@web-three-city/simulation-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { describe, expect, it } from 'vitest';
 import {
@@ -13,12 +17,12 @@ import {
 
 const before: SimulationSnapshot = Object.freeze({
   revision: 0,
-  absoluteGameMinute: 32 * 60,
+  absoluteGameMinute: absoluteGameMinute(32 * 60),
   growthSequence: 0,
 });
 const after: SimulationSnapshot = Object.freeze({
   revision: 1,
-  absoluteGameMinute: 33 * 60,
+  absoluteGameMinute: absoluteGameMinute(33 * 60),
   growthSequence: 0,
 });
 

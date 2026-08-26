@@ -8,7 +8,7 @@ import {
   type MobilitySnapshotV1,
   type PresentCitizenMobilityProjection,
 } from '@web-three-city/citizen-mobility-core';
-import type { SimulationSnapshot } from '@web-three-city/simulation-core';
+import { compareGameMinutes, type SimulationSnapshot } from '@web-three-city/simulation-core';
 import {
   advanceTrafficSnapshot,
   cancelTransportTrip,
@@ -190,10 +190,14 @@ export function planMobilityTrafficTick(
   const trafficBefore = trafficV1View(
     input.trafficBefore as unknown as TrafficSnapshotV1 | TrafficSnapshotV2,
   );
-  if (input.simulationAfter.absoluteGameMinute < input.simulationBefore.absoluteGameMinute) {
+  const timeOrder = compareGameMinutes(
+    input.simulationAfter.absoluteGameMinute,
+    input.simulationBefore.absoluteGameMinute,
+  );
+  if (timeOrder < 0) {
     throw new RangeError('mobility-traffic-tick:time-regressed');
   }
-  if (input.simulationAfter.absoluteGameMinute === input.simulationBefore.absoluteGameMinute) {
+  if (timeOrder === 0) {
     return Object.freeze({
       mobility: input.mobilityBefore,
       traffic: trafficBefore,

@@ -13,8 +13,10 @@ import {
   type RoadSnapshot,
 } from '@web-three-city/road-core';
 import {
+  addGameMinutes,
   createInitialSimulationSnapshot,
   createSimulationSnapshot,
+  gameMinuteDuration,
 } from '@web-three-city/simulation-core';
 import { createTerrainMap } from '@web-three-city/terrain-core';
 import { createEmptyTrafficSnapshot } from '@web-three-city/traffic-core';
@@ -235,7 +237,10 @@ describe('CommittedWorldStore', () => {
         simulation: createSimulationSnapshot({
           ...initial.simulation,
           revision: initial.simulation.revision + 1,
-          absoluteGameMinute: initial.simulation.absoluteGameMinute + 1,
+          absoluteGameMinute: addGameMinutes(
+            initial.simulation.absoluteGameMinute,
+            gameMinuteDuration(1),
+          ),
         }),
       },
       { reuseStaticFrom: initial },
@@ -259,7 +264,10 @@ describe('CommittedWorldStore', () => {
         simulation: createSimulationSnapshot({
           ...initial.simulation,
           revision: initial.simulation.revision + 1,
-          absoluteGameMinute: initial.simulation.absoluteGameMinute + 1,
+          absoluteGameMinute: addGameMinutes(
+            initial.simulation.absoluteGameMinute,
+            gameMinuteDuration(1),
+          ),
         }),
       },
       { reuseStaticFrom: initial },

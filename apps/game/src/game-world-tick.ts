@@ -21,8 +21,10 @@ import {
 } from '@web-three-city/rci-core';
 import { occupiedRoadCellCount } from '@web-three-city/road-core';
 import {
+  addMacroHours,
   deriveGameCalendarFromGameMinute,
   deriveMacroHourTransition,
+  macroHourDuration,
 } from '@web-three-city/simulation-core';
 import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
 import {
@@ -246,7 +248,7 @@ export function planGameWorldTick(
       beforeTick: macroHourTransition.beforeMacroHourIndex,
       afterTick: macroHourTransition.crossed
         ? macroHourTransition.afterMacroHourIndex
-        : macroHourTransition.beforeMacroHourIndex + 1,
+        : addMacroHours(macroHourTransition.beforeMacroHourIndex, macroHourDuration(1)),
       macroHourTransition,
       calendar: deriveGameCalendarFromGameMinute(buildingCommit.simulation.absoluteGameMinute),
       taxableActivity: {

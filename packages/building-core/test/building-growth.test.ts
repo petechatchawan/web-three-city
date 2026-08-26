@@ -1,6 +1,8 @@
 import type { TerrainCellSurfaceProfile } from '@web-three-city/terrain-core';
 import {
+  absoluteGameMinute,
   createSimulationSnapshot,
+  macroHourIndex,
   type MacroHourTransition,
 } from '@web-three-city/simulation-core';
 import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
@@ -61,10 +63,10 @@ function macroHourTransition(
   afterAbsoluteGameMinute: number,
 ): MacroHourTransition {
   return Object.freeze({
-    beforeAbsoluteGameMinute,
-    afterAbsoluteGameMinute,
-    beforeMacroHourIndex: Math.floor(beforeAbsoluteGameMinute / 60),
-    afterMacroHourIndex: Math.floor(afterAbsoluteGameMinute / 60),
+    beforeAbsoluteGameMinute: absoluteGameMinute(beforeAbsoluteGameMinute),
+    afterAbsoluteGameMinute: absoluteGameMinute(afterAbsoluteGameMinute),
+    beforeMacroHourIndex: macroHourIndex(Math.floor(beforeAbsoluteGameMinute / 60)),
+    afterMacroHourIndex: macroHourIndex(Math.floor(afterAbsoluteGameMinute / 60)),
     crossed: Math.floor(beforeAbsoluteGameMinute / 60) !== Math.floor(afterAbsoluteGameMinute / 60),
   });
 }

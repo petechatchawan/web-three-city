@@ -5,7 +5,11 @@ import {
 } from '@web-three-city/economy-core';
 import { createInitialRciSnapshot } from '@web-three-city/rci-core';
 import { createEmptyRoadSnapshot } from '@web-three-city/road-core';
-import { createInitialSimulationSnapshot } from '@web-three-city/simulation-core';
+import {
+  addGameMinutes,
+  createInitialSimulationSnapshot,
+  gameMinuteDuration,
+} from '@web-three-city/simulation-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { describe, expect, it } from 'vitest';
 import {
@@ -50,7 +54,10 @@ describe('GameWorldStateStore', () => {
       simulation: Object.freeze({
         ...before.simulation,
         revision: 1,
-        absoluteGameMinute: before.simulation.absoluteGameMinute + 1,
+        absoluteGameMinute: addGameMinutes(
+          before.simulation.absoluteGameMinute,
+          gameMinuteDuration(1),
+        ),
       }),
     });
     expect(store.replace(0, next)).toBe(next);
@@ -75,7 +82,10 @@ describe('GameWorldStateStore', () => {
     const simulation = Object.freeze({
       ...before.simulation,
       revision: before.simulation.revision + 1,
-      absoluteGameMinute: before.simulation.absoluteGameMinute + 1,
+      absoluteGameMinute: addGameMinutes(
+        before.simulation.absoluteGameMinute,
+        gameMinuteDuration(1),
+      ),
     });
     const synchronized = store.synchronizeExternal({
       simulation,

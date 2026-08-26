@@ -1,3 +1,4 @@
+import { absoluteGameMinute, macroHourIndex } from '@web-three-city/simulation-core';
 import { describe, expect, it } from 'vitest';
 import { RCI_TICKS_PER_YEAR, createFoundationRciRegistries, planRciTick } from '../src/index.js';
 import {
@@ -49,10 +50,10 @@ describe('RCI daily population lifecycle', () => {
       simulationBefore: testSimulationBefore,
       simulationAfter: testSimulationAfter,
       macroHourTransition: {
-        beforeAbsoluteGameMinute: 8 * 60,
-        afterAbsoluteGameMinute: 8 * 60 + 1,
-        beforeMacroHourIndex: 8,
-        afterMacroHourIndex: 8,
+        beforeAbsoluteGameMinute: absoluteGameMinute(8 * 60),
+        afterAbsoluteGameMinute: absoluteGameMinute(8 * 60 + 1),
+        beforeMacroHourIndex: macroHourIndex(8),
+        afterMacroHourIndex: macroHourIndex(8),
         crossed: false,
       },
       buildingsBefore: testBuildings,

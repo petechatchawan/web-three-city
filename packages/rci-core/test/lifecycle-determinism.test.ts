@@ -1,5 +1,5 @@
 import type { BuildingSnapshot } from '@web-three-city/building-core';
-import type { SimulationSnapshot } from '@web-three-city/simulation-core';
+import { absoluteGameMinute, type SimulationSnapshot } from '@web-three-city/simulation-core';
 import { describe, expect, it } from 'vitest';
 import {
   FOUNDATION_RCI_CONFIGURATION,
@@ -65,12 +65,12 @@ function advance(
 ): Readonly<{ snapshot: RciSnapshot; receipt: RciTickReceipt; events: readonly string[] }> {
   const simulationBefore: SimulationSnapshot = Object.freeze({
     revision: simulationRevision,
-    absoluteGameMinute: beforeTick * 60,
+    absoluteGameMinute: absoluteGameMinute(beforeTick * 60),
     growthSequence: 0,
   });
   const simulationAfter: SimulationSnapshot = Object.freeze({
     revision: simulationRevision + 1,
-    absoluteGameMinute: (beforeTick + 1) * 60,
+    absoluteGameMinute: absoluteGameMinute((beforeTick + 1) * 60),
     growthSequence: 0,
   });
   const plan = planRciTick({
@@ -107,7 +107,11 @@ describe('population lifecycle save/load determinism', () => {
     const encoded = encodeRciSaveV1(firstResumed.snapshot);
     const decoded = decodeRciSaveV1(encoded, {
       buildings,
-      simulation: { revision: 5, absoluteGameMinute: 32 * 60, growthSequence: 0 },
+      simulation: {
+        revision: 5,
+        absoluteGameMinute: absoluteGameMinute(32 * 60),
+        growthSequence: 0,
+      },
       registries,
     });
     if (!decoded.ok) throw new Error(decoded.error.code);

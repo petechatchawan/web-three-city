@@ -4,7 +4,12 @@ import {
   type SimulationMinuteReceipt,
   type SimulationSnapshot,
 } from './contracts.js';
-import { addGameMinutes, gameMinuteDuration, gameMinuteValue } from './temporal-units.js';
+import {
+  addGameMinutes,
+  compareGameMinutes,
+  gameMinuteDuration,
+  gameMinuteValue,
+} from './temporal-units.js';
 import { createSimulationSnapshot } from './simulation-snapshot.js';
 
 export function planSimulationMinute(snapshot: SimulationSnapshot): SimulationMinutePlan {
@@ -48,7 +53,7 @@ export function commitSimulationMinute(
   const validated = createSimulationSnapshot(snapshot);
   if (
     validated.revision !== plan.baseRevision ||
-    validated.absoluteGameMinute !== plan.beforeAbsoluteGameMinute
+    compareGameMinutes(validated.absoluteGameMinute, plan.beforeAbsoluteGameMinute) !== 0
   ) {
     throw new SimulationContractError('simulation:stale-plan');
   }

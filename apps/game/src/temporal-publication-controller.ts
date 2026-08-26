@@ -1,4 +1,5 @@
 import type { RciDefinitionRegistries } from '@web-three-city/rci-core';
+import type { AbsoluteGameMinute } from '@web-three-city/simulation-core';
 import type { TrafficGraph } from '@web-three-city/traffic-core';
 import type { CellCoord } from '@web-three-city/world-core';
 import type { CommittedWorld } from './application/committed-world.js';
@@ -48,8 +49,8 @@ export interface TemporalPhaseReceipt {
 export type TemporalAdvanceResult =
   | Readonly<{
       status: 'committed';
-      beforeGameMinute: number;
-      afterGameMinute: number;
+      beforeGameMinute: AbsoluteGameMinute;
+      afterGameMinute: AbsoluteGameMinute;
       beforeRevision: number;
       afterRevision: number;
       phaseReceipts: readonly [
@@ -65,7 +66,7 @@ export type TemporalAdvanceResult =
       status: 'rejected';
       phase: TemporalPhase;
       reason: TemporalAdvanceFailureReason;
-      beforeGameMinute: number;
+      beforeGameMinute: AbsoluteGameMinute;
       beforeRevision: number;
       world: CommittedWorld;
     }>;

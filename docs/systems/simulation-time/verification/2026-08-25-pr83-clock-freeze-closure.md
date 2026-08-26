@@ -72,6 +72,38 @@ topology, retries, or assertions.
 - The final automated closure does not replace the human 414×896 Owner
   Visual checklist below; Owner Visual acceptance remains pending.
 
+### Current local closure candidate
+
+The current source-tested candidate is `9db33b5f8e6b7f2d69db1ee3a7cf39bdbf9b0c7e`.
+The documentation-only follow-up commit is intentionally separate from this
+source-tested SHA.
+
+- The reported manual freeze was reproduced as a stale local preview-server
+  condition: an older Game preview process was already listening on port 4174.
+  After stopping that repo-owned process and starting a fresh preview from the
+  current build, the production playback regression passed.
+- Game focused temporal/runtime/coordinator tests: `30/30` passed.
+- New production-playback browser regression: `1/1` passed. It crosses
+  `11:59 → 12:00` and `23:59 → 00:00` with Automatic Growth enabled, verifies
+  continued time progression, Growth creation, and the committed-world
+  revision invariant `delta = elapsed game minutes × 5`.
+- Full Growth browser suite: `6/6` passed.
+- Affected targeted Browser command
+  `pnpm exec playwright test --grep '@building|@rci|@traffic|@interaction' --project=chromium --workers=1`:
+  `74` passed, `1` skipped, `0` failed. The skipped case is the explicit
+  Traffic performance-authority test gated to Metal; local Chromium uses
+  SwiftShader.
+- `pnpm verify`: GREEN. This included format, lint, workspace/browser
+  typecheck, provenance, deployment contracts (`102/102`), all workspace
+  tests (Game `407/407`), and builds.
+- `pnpm verify:full`: clean install, verification, and Full Browser completed
+  with `149/150` passed, `1` skipped, `0` failed. The final local clean-worktree
+  check was blocked only by the two preserved user-owned untracked plan files;
+  the browser-inventory contract change is committed in `9db33b5`.
+- Local verification emitted the existing Node engine warning because the
+  workstation uses Node `20.20.2` while the repository declares Node `>=22`;
+  no test or build failure was attributed to that warning.
+
 The exact-head targeted run `32885768470` passed Lean CI but failed one
 Building visual evidence case after `138` browser tests because
 `stepLogicalTicks` exceeded that suite's default `60s` budget in the serial

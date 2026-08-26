@@ -132,11 +132,16 @@ export { createRciMigrationInventory } from './persistence/migration-inventory.j
 export { decodeRciSaveV1, encodeRciSaveV1 } from './persistence/serialization.js';
 export type { RciSaveError, RciSaveErrorCode, RciSaveV1 } from './persistence/serialization.js';
 export {
+  RCI_CYCLES_PER_CALENDAR_YEAR,
   RCI_DAYS_PER_YEAR,
+  RCI_MACRO_HOURS_PER_CALENDAR_YEAR,
+  RCI_MACRO_HOURS_PER_SIMULATION_CYCLE,
   RCI_TICKS_PER_DAY,
   RCI_TICKS_PER_YEAR,
   ageBandAtTick,
+  ageBandAtMacroHour,
   ageYearsAtTick,
+  ageYearsAtMacroHour,
   isDailyLifecycleTick,
 } from './population/age.js';
 export type { AgeBandDefinitionId } from './population/age.js';
@@ -149,6 +154,7 @@ export type { ProbabilityUnit } from './population/deterministic-sample.js';
 export {
   ANNUAL_RATE_SCALE,
   compileAnnualRateToDailyHazard,
+  compileAnnualRateToCycleHazard,
   sampleSucceeds,
 } from './population/hazard.js';
 export { planAwardCitizenQualification } from './population/qualification-plan.js';

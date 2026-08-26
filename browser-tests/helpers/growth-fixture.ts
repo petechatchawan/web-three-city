@@ -1,6 +1,7 @@
 import { expect, type Page } from '@playwright/test';
 
 interface TimeSnapshot {
+  readonly revision: number;
   readonly simulation: Readonly<{
     readonly revision: number;
     readonly absoluteGameMinute: number;
@@ -41,6 +42,7 @@ export async function readTimeSnapshot(page: Page): Promise<TimeSnapshot> {
     if (snapshot === undefined) throw new Error('growth:missing-time-api');
     return {
       ...snapshot,
+      revision: snapshot.revision,
       simulation: {
         ...snapshot.simulation,
         absoluteTick: Math.floor(snapshot.simulation.absoluteGameMinute / 60),
@@ -51,20 +53,23 @@ export async function readTimeSnapshot(page: Page): Promise<TimeSnapshot> {
 
 export async function stepLogicalTicks(page: Page, count: number): Promise<TimeSnapshot> {
   if (!Number.isSafeInteger(count) || count < 0) throw new RangeError('growth:invalid-step-count');
-  await page.evaluate((ticks) => {
+  return stepLogicalMinutes(page, count * 60);
+}
+
+export async function stepLogicalMinutes(page: Page, count: number): Promise<TimeSnapshot> {
+  if (!Number.isSafeInteger(count) || count < 0) throw new RangeError('growth:invalid-step-count');
+  await page.evaluate((minutes) => {
     const timeWindow = window as Window & {
       __WEB_THREE_CITY_TIME__?: { step(): boolean; stepMinutes?(count: number): boolean };
     };
     const api = timeWindow.__WEB_THREE_CITY_TIME__;
     if (api === undefined) throw new Error('growth:missing-time-api');
     if (api.stepMinutes !== undefined) {
-      if (!api.stepMinutes(ticks * 60)) throw new Error('growth:step-rejected');
+      if (!api.stepMinutes(minutes)) throw new Error('growth:step-rejected');
       return;
     }
-    for (let tick = 0; tick < ticks; tick += 1) {
-      for (let minute = 0; minute < 60; minute += 1) {
-        if (!api.step()) throw new Error('growth:step-rejected');
-      }
+    for (let minute = 0; minute < minutes; minute += 1) {
+      if (!api.step()) throw new Error('growth:step-rejected');
     }
   }, count);
   return readTimeSnapshot(page);

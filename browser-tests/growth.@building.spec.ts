@@ -8,6 +8,7 @@ import { expandToolContext, openBuildCategory, waitForCityUi } from './helpers/c
 import {
   prepareDeterministicGrowthClock,
   readTimeSnapshot,
+  stepLogicalMinutes,
   stepLogicalTicks,
 } from './helpers/growth-fixture.js';
 import { GAME_URL, clickGameMenuAction } from './helpers/interaction.js';
@@ -57,6 +58,53 @@ test('exposes the simple calendar and deterministic time controls', async ({ pag
   expect(after.simulation.absoluteTick).toBe(9);
   expect(after.speed).toBe('paused');
   await expect(page.locator('[data-metric="gameTime"] strong')).toHaveText('Y1 M1 D1 09:00');
+});
+
+test('production playback crosses hour and day boundaries with Growth enabled', async ({
+  page,
+}) => {
+  await openGrowthGame(page);
+  await prepareBuildingFixtureWorld(page);
+
+  let before = await stepLogicalMinutes(page, 11 * 60 + 59 - 8 * 60);
+  expect(before.simulation.absoluteGameMinute).toBe(11 * 60 + 59);
+  const normal = page.locator('[data-simulation-speed="normal"]');
+  await normal.click();
+  await expect
+    .poll(() => readTimeSnapshot(page), {
+      timeout: 4_000,
+      message: 'production runtime must cross 11:59 → 12:00',
+    })
+    .toMatchObject({ simulation: { absoluteGameMinute: 12 * 60 } });
+  await page.locator('[data-simulation-speed="paused"]').click();
+  let after = await readTimeSnapshot(page);
+  expect(after.simulation.absoluteGameMinute).toBeGreaterThanOrEqual(12 * 60);
+  expect(after.revision - before.revision).toBe(
+    (after.simulation.absoluteGameMinute - before.simulation.absoluteGameMinute) * 5,
+  );
+  expect(after.buildingCount).toBeGreaterThan(before.buildingCount);
+
+  await page.goto(GAME_URL);
+  await waitForCityUi(page);
+  await prepareDeterministicGrowthClock(page);
+  await prepareBuildingFixtureWorld(page);
+
+  before = await stepLogicalMinutes(page, 23 * 60 + 59 - 8 * 60);
+  expect(before.simulation.absoluteGameMinute).toBe(23 * 60 + 59);
+  await page.locator('[data-simulation-speed="normal"]').click();
+  await expect
+    .poll(() => readTimeSnapshot(page), {
+      timeout: 4_000,
+      message: 'production runtime must cross 23:59 → 00:00',
+    })
+    .toMatchObject({ simulation: { absoluteGameMinute: 24 * 60 } });
+  await page.locator('[data-simulation-speed="paused"]').click();
+  after = await readTimeSnapshot(page);
+  expect(after.simulation.absoluteGameMinute).toBeGreaterThanOrEqual(24 * 60);
+  expect(after.revision - before.revision).toBe(
+    (after.simulation.absoluteGameMinute - before.simulation.absoluteGameMinute) * 5,
+  );
+  expect(after.buildingCount).toBeGreaterThan(before.buildingCount);
 });
 
 test('starts at most one automatic Construction per evaluation tick', async ({ page }) => {

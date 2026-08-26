@@ -14,6 +14,22 @@ master — always-releasable trunk
 Vercel Production — master Git integration
 ```
 
+### Selective Verification vNext baseline
+
+Every new branch and pull request uses Selective Verification vNext as its
+verification baseline. Generate the exact affected plan with
+`pnpm verify:impact` or `pnpm verify:affected`, then execute the owner,
+consumer, typecheck, deployment, and targeted Browser lanes selected by that
+plan. Agents must not default to the legacy all-tests/all-browser workflow or
+present its output as vNext evidence.
+
+Full Browser remains an escalation, not the ordinary system-PR default. It is
+required when the plan is global/shared, when release or milestone closure
+requires it, or when the explicit `full-ci`, manual-dispatch, or nightly
+authority applies. A branch based on a commit that predates vNext must first
+establish the approved workflow and contract tests before verification results
+are considered the repository baseline.
+
 ## Verification Ladder
 
 `AGENTS.md` § Verification Escalation Rules is the normative authority. Use the lowest sufficient level while implementing and the highest required level as the final gate.

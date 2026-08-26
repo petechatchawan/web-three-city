@@ -1,6 +1,6 @@
 # Development Workflow System
 
-**Status:** Implemented — Browser Verification Policy v0.2 + PR-T4 affected execution + CI topology remediation CI-R1–CI-R6; Selective Verification vNext ownership precision planned<br>
+**Status:** Implemented — Browser Verification Policy v0.2 + PR-T4 affected execution + CI topology remediation CI-R1–CI-R6 + Selective Verification vNext ownership precision<br>
 **System:** Development Workflow  
 **Primary ownership:** repository root configuration, `.github/`, `AGENTS.md`, and development documentation  
 **Persistence:** Git-tracked repository configuration and documentation only
@@ -17,13 +17,15 @@ Browser-observable changes now require targeted Playwright evidence for every af
 
 The CI topology remediation now computes one exact-head `affected-verification-plan.json` in a fast classification job. Changed-file lint, owner tests, conservative Level-2 consumer tests, typechecks, and deployment checks fan out independently from that artifact. Lean CI is the aggregate status for those non-browser lanes. Browser build and Browser verification are separate lanes: Browser consumes the exact Game/Terrain Lab artifact produced by `browser_build` and does not wait for the Lean aggregate. Normal PRs run only the planned targeted ownership set; explicit Full Browser mode remains reserved for `full-ci`, manual dispatch, nightly regression, and shared verification escalation.
 
-Selective Verification vNext extends this affected-plan model across every
-system. Direct package ownership maps Terrain, Water, Road, Zoning,
+Selective Verification vNext is the repository baseline for every new branch
+and pull request. It extends this affected-plan model across every system.
+Direct package ownership maps Terrain, Water, Road, Zoning,
 Building, RCI, Traffic, and Interaction presentation to their Browser tags.
 The bounded follow-up adds path-aware `apps/game` ownership so deterministic
 application files resolve to Browser `none`, bounded presentation files select
 only their system tag(s), and unbounded bootstrap/composition fails closed to
-Full Browser. It does not change CI topology or migrate tests.
+Full Browser. Shared CI/verification changes still escalate to Full Browser,
+and every candidate is verified at exact head.
 
 The repository exposes root `pnpm format`, root `test:watch`, and `test:watch` in the 21 workspaces that currently use Vitest. Husky invokes lint-staged at pre-commit so staged TypeScript/JavaScript receives the approved Prettier/ESLint fixes and staged YAML receives Prettier. The hook does not run TypeScript, tests, builds, `pnpm verify`, or Playwright.
 

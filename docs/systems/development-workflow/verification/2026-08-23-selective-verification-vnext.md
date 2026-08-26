@@ -1,6 +1,6 @@
 # Selective Verification vNext — Ownership Precision Handoff
 
-**Status:** Local implementation GREEN; hosted natural system canaries pending
+**Status:** Implemented and exact-head CI GREEN on PR #83; future branches and pull requests use this as the verification baseline
 **System:** `development-workflow`
 
 ## Scope
@@ -8,6 +8,8 @@
 This phase makes the existing PR-T6 affected plan precise for every system,
 with special attention to `apps/game` application and presentation paths. It
 does not alter the PR-T6 CI topology or the Full Browser two-shard authority.
+New branches and pull requests must use this affected-plan flow as their
+baseline; shared/global verification changes fail closed to Full Browser.
 
 ## Required result
 

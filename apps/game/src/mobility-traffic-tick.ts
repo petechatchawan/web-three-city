@@ -8,7 +8,11 @@ import {
   type MobilitySnapshotV1,
   type PresentCitizenMobilityProjection,
 } from '@web-three-city/citizen-mobility-core';
-import { compareGameMinutes, type SimulationSnapshot } from '@web-three-city/simulation-core';
+import {
+  compareGameMinutes,
+  gameMinuteValue,
+  type SimulationSnapshot,
+} from '@web-three-city/simulation-core';
 import {
   advanceTrafficSnapshot,
   cancelTransportTrip,
@@ -331,8 +335,8 @@ export function planMobilityTrafficTick(
     );
   }
 
-  let currentGameSecond = fromMinute * 60;
-  const targetGameSecond = toMinute * 60;
+  let currentGameSecond = gameMinuteValue(fromMinute) * 60;
+  const targetGameSecond = gameMinuteValue(toMinute) * 60;
   const progressUntil = (nextGameSecond: number): void => {
     if (input.advanceTraffic === false) return;
     const elapsedSeconds = nextGameSecond - currentGameSecond;

@@ -27,6 +27,7 @@ import {
   decodeSimulationSaveV1,
   encodeSimulationSaveV1,
   deriveMacroHourIndex,
+  macroHourValue,
   type SimulationSaveV1,
   type SimulationSnapshot,
 } from '@web-three-city/simulation-core';
@@ -348,7 +349,8 @@ export function decodeWorldSave(
   for (const instance of buildings.instances) {
     if (
       instance.lifecycle === 'construction' &&
-      instance.constructionCompletesAtTick <= deriveMacroHourIndex(simulation.absoluteGameMinute)
+      instance.constructionCompletesAtTick <=
+        macroHourValue(deriveMacroHourIndex(simulation.absoluteGameMinute))
     ) {
       return err({
         code: 'world-save:invalid-building-lifecycle',

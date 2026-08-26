@@ -141,7 +141,8 @@ function normalizeGrowthBuildings(
         const authoritative = normalizeBuildingInstance(instance);
         if (
           authoritative.lifecycle === 'construction' &&
-          authoritative.constructionCompletesAtTick <= macroHourTransition.afterMacroHourIndex
+          authoritative.constructionCompletesAtTick <=
+            macroHourValue(macroHourTransition.afterMacroHourIndex)
         ) {
           completedIds.push(authoritative.instanceId);
           for (const cell of occupiedCellsForBuilding(authoritative))

@@ -72,6 +72,36 @@ function macroHourTransition(
 }
 
 describe('automatic Building Growth tick', () => {
+  it.each([
+    { label: '00', before: 24 * 60 - 1, after: 24 * 60, expectedStart: 24 },
+    { label: '06', before: 6 * 60 - 1, after: 6 * 60, expectedStart: 6 },
+    { label: '12', before: 12 * 60 - 1, after: 12 * 60, expectedStart: 12 },
+    { label: '18', before: 18 * 60 - 1, after: 18 * 60, expectedStart: 18 },
+  ])('starts Growth at the $label macro-hour boundary', ({ before, after, expectedStart }) => {
+    const buildings = createEmptyBuildingSnapshot(CONFIG);
+    const simulation = createSimulationSnapshot({
+      revision: 0,
+      absoluteGameMinute: before,
+      growthSequence: 0,
+    });
+
+    const plan = planBuildingGrowthTick({
+      buildings,
+      simulation,
+      macroHourTransition: macroHourTransition(before, after),
+      environment: environment(),
+      config: CONFIG,
+    });
+
+    expect(plan.valid).toBe(true);
+    expect(plan.startedInstanceIds).toEqual(['building:growth:1']);
+    expect(plan.proposedInstances).toHaveLength(1);
+    expect(plan.proposedInstances[0]).toMatchObject({
+      lifecycle: 'construction',
+      constructionStartedAtTick: expectedStart,
+    });
+  });
+
   it('does not advance Construction during a minute that remains in macro hour 08', () => {
     const buildings = {
       revision: 0,

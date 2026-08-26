@@ -74,7 +74,7 @@ topology, retries, or assertions.
 
 ### Current local closure candidate
 
-The current source-tested candidate is `8c318b16dab6427b8178947517fe3ead49d13148`.
+The current source-tested candidate is `f0bf776a67d4b827b77b65bd6d9b65f634fcd49b`.
 The documentation-only follow-up commit is intentionally separate from this
 source-tested SHA.
 
@@ -114,6 +114,13 @@ new boundary regression after `73` browser tests because
 reached `12:02`. The current source candidate replaces that exact-value
 assertion with a boundary-crossed assertion; the exact-head CI rerun is the
 authoritative final result.
+
+The subsequent exact-head run (`32937812049`) passed all non-browser lanes
+and reached the boundary regression in both Full Browser shards, but the test
+timed out during the intentionally long deterministic `23:59` setup under
+CI shard load. The current source candidate gives only this regression test a
+`180s` budget; it does not change workers, retries, global timeouts, or
+production behavior. A new exact-head CI run is required for final closure.
 
 The earlier exact-head targeted run `32885768470` passed Lean CI but failed one
 Building visual evidence case after `138` browser tests because

@@ -11,6 +11,7 @@ import {
   createRciSnapshot,
   decodeRciSaveV1,
   encodeRciSaveV1,
+  ageOriginForYearsAtMacroHour,
 } from '../src/index.js';
 
 const buildings: BuildingSnapshot = Object.freeze({ revision: 0, instances: Object.freeze([]) });
@@ -23,7 +24,7 @@ const registries = createFoundationRciRegistries();
 
 function historicalSnapshot() {
   const initial = createInitialRciSnapshot({
-    absoluteTick: deriveMacroHourIndex(simulation.absoluteGameMinute),
+    absoluteMacroHourIndex: deriveMacroHourIndex(simulation.absoluteGameMinute),
   });
   return createRciSnapshot(
     {
@@ -36,28 +37,28 @@ function historicalSnapshot() {
             citizenId: 'citizen:3',
             presence: 'emigrated',
             sexDefinitionId: 'sex.male',
-            bornAtTick: -5_000,
-            movedIntoCityAtTick: 0,
-            movedOutOfCityAtTick: 60,
-            diedAtTick: null,
+            bornAtMacroHourIndex: ageOriginMacroHour(-5_000),
+            movedIntoCityAtMacroHourIndex: macroHour(0),
+            movedOutOfCityAtMacroHourIndex: macroHour(60),
+            diedAtMacroHourIndex: null,
           },
           {
             citizenId: 'citizen:1',
             presence: 'deceased',
             sexDefinitionId: 'sex.female',
-            bornAtTick: -30_000,
-            movedIntoCityAtTick: 0,
-            movedOutOfCityAtTick: null,
-            diedAtTick: 40,
+            bornAtMacroHourIndex: ageOriginMacroHour(-30_000),
+            movedIntoCityAtMacroHourIndex: macroHour(0),
+            movedOutOfCityAtMacroHourIndex: null,
+            diedAtMacroHourIndex: macroHour(40),
           },
           {
             citizenId: 'citizen:2',
             presence: 'emigrated',
             sexDefinitionId: 'sex.male',
-            bornAtTick: -32_000,
-            movedIntoCityAtTick: 0,
-            movedOutOfCityAtTick: 50,
-            diedAtTick: null,
+            bornAtMacroHourIndex: ageOriginMacroHour(-32_000),
+            movedIntoCityAtMacroHourIndex: macroHour(0),
+            movedOutOfCityAtMacroHourIndex: macroHour(50),
+            diedAtMacroHourIndex: null,
           },
         ],
         qualifications: [
@@ -65,8 +66,8 @@ function historicalSnapshot() {
             citizenQualificationId: 'citizen-qualification:1',
             citizenId: 'citizen:2',
             qualificationDefinitionId: 'qualification.skilled',
-            awardedAtTick: 0,
-            endedAtTick: 50,
+            awardedAtMacroHourIndex: macroHour(0),
+            endedAtMacroHourIndex: macroHour(50),
             sourceDefinitionId: 'qualification-source.fixture',
           },
         ],
@@ -80,16 +81,16 @@ function historicalSnapshot() {
             typeDefinitionId: 'relationship.parent.biological.father',
             sourceCitizenId: 'citizen:2',
             targetCitizenId: 'citizen:3',
-            startedAtTick: 0,
-            endedAtTick: null,
+            startedAtMacroHourIndex: macroHour(0),
+            endedAtMacroHourIndex: null,
           },
           {
             relationshipId: 'relationship:1',
             orientation: 'undirected',
             typeDefinitionId: 'relationship.partner',
             participantCitizenIds: ['citizen:1', 'citizen:2'],
-            startedAtTick: 0,
-            endedAtTick: 40,
+            startedAtMacroHourIndex: macroHour(0),
+            endedAtMacroHourIndex: macroHour(40),
           },
           {
             relationshipId: 'relationship:2',
@@ -97,37 +98,43 @@ function historicalSnapshot() {
             typeDefinitionId: 'relationship.parent.biological.mother',
             sourceCitizenId: 'citizen:1',
             targetCitizenId: 'citizen:3',
-            startedAtTick: 0,
-            endedAtTick: null,
+            startedAtMacroHourIndex: macroHour(0),
+            endedAtMacroHourIndex: null,
           },
         ],
       },
       households: {
         revision: 2,
-        households: [{ householdId: 'household:1', foundedAtTick: 0, dissolvedAtTick: 60 }],
+        households: [
+          {
+            householdId: 'household:1',
+            foundedAtMacroHourIndex: macroHour(0),
+            dissolvedAtMacroHourIndex: macroHour(60),
+          },
+        ],
         memberships: [
           {
             membershipId: 'household-membership:3',
             householdId: 'household:1',
             citizenId: 'citizen:3',
-            startedAtTick: 0,
-            endedAtTick: 60,
+            startedAtMacroHourIndex: macroHour(0),
+            endedAtMacroHourIndex: macroHour(60),
             endReasonDefinitionId: 'household-membership-ended.emigrated',
           },
           {
             membershipId: 'household-membership:1',
             householdId: 'household:1',
             citizenId: 'citizen:1',
-            startedAtTick: 0,
-            endedAtTick: 40,
+            startedAtMacroHourIndex: macroHour(0),
+            endedAtMacroHourIndex: macroHour(40),
             endReasonDefinitionId: 'household-membership-ended.deceased',
           },
           {
             membershipId: 'household-membership:2',
             householdId: 'household:1',
             citizenId: 'citizen:2',
-            startedAtTick: 0,
-            endedAtTick: 50,
+            startedAtMacroHourIndex: macroHour(0),
+            endedAtMacroHourIndex: macroHour(50),
             endReasonDefinitionId: 'household-membership-ended.emigrated',
           },
         ],
@@ -159,6 +166,38 @@ describe('RciSaveV1 historical population regression', () => {
     ]);
   });
 
+  it('uses the current macro-hour to preserve a compressed age origin in the V1 wire format', () => {
+    const original = historicalSnapshot();
+    const snapshot = createRciSnapshot(
+      {
+        ...original,
+        population: {
+          ...original.population,
+          citizens: original.population.citizens.map((citizen) =>
+            citizen.citizenId === 'citizen:3'
+              ? {
+                  ...citizen,
+                  bornAtMacroHourIndex: ageOriginForYearsAtMacroHour(macroHour(100), 18),
+                }
+              : citizen,
+          ),
+        },
+      },
+      { buildings, simulation, registries },
+    );
+
+    const encoded = encodeRciSaveV1(snapshot, macroHour(100));
+    const encodedCitizen = encoded.population.citizens.find(
+      (citizen) => citizen.citizenId === 'citizen:3',
+    );
+
+    expect(encodedCitizen?.bornAtTick).toBe(-155420);
+    expect(decodeRciSaveV1(encoded, { buildings, simulation, registries })).toEqual({
+      ok: true,
+      value: snapshot,
+    });
+  });
+
   it('produces identical canonical Save output after authoritative array permutations', () => {
     const snapshot = historicalSnapshot();
     const permuted = {
@@ -182,3 +221,4 @@ describe('RciSaveV1 historical population regression', () => {
     expect(encodeRciSaveV1(permuted)).toEqual(encodeRciSaveV1(snapshot));
   });
 });
+import { ageOriginMacroHour, macroHour } from './temporal-fixtures.js';

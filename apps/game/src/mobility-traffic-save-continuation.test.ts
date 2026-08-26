@@ -1,5 +1,9 @@
 import { fingerprintMobilitySnapshot } from '@web-three-city/citizen-mobility-core';
-import { createSimulationSnapshot } from '@web-three-city/simulation-core';
+import {
+  absoluteGameMinute,
+  createSimulationSnapshot,
+  deriveMacroHourIndex,
+} from '@web-three-city/simulation-core';
 import { fingerprintTrafficSnapshot } from '@web-three-city/traffic-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { describe, expect, it } from 'vitest';
@@ -43,7 +47,11 @@ function progress(
     const result = planMobilityTrafficTick({
       mobilityBefore: currentMobility,
       trafficBefore: currentTraffic,
-      citizensAfter: createPresentCitizenMobilityProjection(world.rci, world.buildings, nextMinute),
+      citizensAfter: createPresentCitizenMobilityProjection(
+        world.rci,
+        world.buildings,
+        deriveMacroHourIndex(absoluteGameMinute(nextMinute)),
+      ),
       simulationBefore: simulationAt(world.simulation, previousMinute),
       simulationAfter: simulationAt(world.simulation, nextMinute),
       trafficSource: {

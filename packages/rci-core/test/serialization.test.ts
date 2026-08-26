@@ -10,6 +10,7 @@ import {
   createInitialRciSnapshot,
   decodeRciSaveV1,
   encodeRciSaveV1,
+  type RciSaveV1,
 } from '../src/index.js';
 
 const buildings: BuildingSnapshot = Object.freeze({ revision: 0, instances: Object.freeze([]) });
@@ -23,7 +24,7 @@ const registries = createFoundationRciRegistries();
 describe('RciSaveV1', () => {
   it('round-trips the canonical empty snapshot losslessly', () => {
     const snapshot = createInitialRciSnapshot({
-      absoluteTick: deriveMacroHourIndex(simulation.absoluteGameMinute),
+      absoluteMacroHourIndex: deriveMacroHourIndex(simulation.absoluteGameMinute),
     });
     const encoded = encodeRciSaveV1(snapshot);
     const decoded = decodeRciSaveV1(encoded, { buildings, simulation, registries });
@@ -35,7 +36,7 @@ describe('RciSaveV1', () => {
 
   it('encodes authoritative arrays in stable id order', () => {
     const snapshot = createInitialRciSnapshot({
-      absoluteTick: deriveMacroHourIndex(simulation.absoluteGameMinute),
+      absoluteMacroHourIndex: deriveMacroHourIndex(simulation.absoluteGameMinute),
     });
     const encoded = encodeRciSaveV1({
       ...snapshot,
@@ -46,19 +47,19 @@ describe('RciSaveV1', () => {
             citizenId: 'citizen:2',
             presence: 'emigrated',
             sexDefinitionId: 'sex.male',
-            bornAtTick: -20_000,
-            movedIntoCityAtTick: 0,
-            movedOutOfCityAtTick: 100,
-            diedAtTick: null,
+            bornAtMacroHourIndex: ageOriginMacroHour(-20_000),
+            movedIntoCityAtMacroHourIndex: macroHour(0),
+            movedOutOfCityAtMacroHourIndex: macroHour(100),
+            diedAtMacroHourIndex: null,
           },
           {
             citizenId: 'citizen:1',
             presence: 'emigrated',
             sexDefinitionId: 'sex.female',
-            bornAtTick: -30_000,
-            movedIntoCityAtTick: 0,
-            movedOutOfCityAtTick: 110,
-            diedAtTick: null,
+            bornAtMacroHourIndex: ageOriginMacroHour(-30_000),
+            movedIntoCityAtMacroHourIndex: macroHour(0),
+            movedOutOfCityAtMacroHourIndex: macroHour(110),
+            diedAtMacroHourIndex: null,
           },
         ],
       },
@@ -85,7 +86,7 @@ describe('RciSaveV1', () => {
 
     const encoded = encodeRciSaveV1(
       createInitialRciSnapshot({
-        absoluteTick: deriveMacroHourIndex(simulation.absoluteGameMinute),
+        absoluteMacroHourIndex: deriveMacroHourIndex(simulation.absoluteGameMinute),
       }),
     );
     const invalid = {
@@ -97,7 +98,7 @@ describe('RciSaveV1', () => {
             citizenId: 'citizen:1',
             presence: 'emigrated',
             sexDefinitionId: 'sex.unknown',
-            bornAtTick: -20_000,
+            bornAtTick: 0,
             movedIntoCityAtTick: 0,
             movedOutOfCityAtTick: 100,
             diedAtTick: null,
@@ -112,4 +113,47 @@ describe('RciSaveV1', () => {
       error: { code: 'rci-save:unknown-definition' },
     });
   });
+
+  it('decodes legacy wire records into typed runtime temporal fields', () => {
+    const snapshot = createInitialRciSnapshot({
+      absoluteMacroHourIndex: deriveMacroHourIndex(simulation.absoluteGameMinute),
+    });
+    const legacyCitizen: RciSaveV1['population']['citizens'][number] = {
+      citizenId: 'citizen:1',
+      presence: 'emigrated',
+      sexDefinitionId: 'sex.female',
+      bornAtTick: 0,
+      movedIntoCityAtTick: 0,
+      movedOutOfCityAtTick: 100,
+      diedAtTick: null,
+    };
+    const legacySave: RciSaveV1 = {
+      ...encodeRciSaveV1(snapshot),
+      population: {
+        ...encodeRciSaveV1(snapshot).population,
+        citizens: [legacyCitizen],
+      },
+      sequences: { ...snapshot.sequences, nextCitizen: 2 },
+    };
+
+    const decoded = decodeRciSaveV1(legacySave, { buildings, simulation, registries });
+
+    expect(decoded).toEqual({
+      ok: true,
+      value: expect.objectContaining({
+        population: expect.objectContaining({
+          citizens: [
+            expect.objectContaining({
+              citizenId: 'citizen:1',
+              bornAtMacroHourIndex: ageOriginMacroHour(116),
+              movedIntoCityAtMacroHourIndex: macroHour(0),
+              movedOutOfCityAtMacroHourIndex: macroHour(100),
+              diedAtMacroHourIndex: null,
+            }),
+          ],
+        }),
+      }),
+    });
+  });
 });
+import { ageOriginMacroHour, macroHour } from './temporal-fixtures.js';

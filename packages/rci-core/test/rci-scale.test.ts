@@ -1,34 +1,36 @@
 import { describe, expect, it } from 'vitest';
 import {
+  ageOriginMacroHour,
   createFoundationRciRegistries,
   createInitialRciSnapshot,
   createRciProjection,
   encodeRciSaveV1,
 } from '../src/index.js';
+import { macroHour } from './temporal-fixtures.js';
 
 function scaleSnapshot() {
-  const absoluteTick = 32;
-  const initial = createInitialRciSnapshot({ absoluteTick, deterministicSeed: 101 });
+  const absoluteMacroHourIndex = macroHour(32);
+  const initial = createInitialRciSnapshot({ absoluteMacroHourIndex, deterministicSeed: 101 });
   const citizens = Array.from({ length: 5_000 }, (_, index) => ({
     citizenId: `citizen:${index + 1}`,
     presence: 'resident' as const,
     sexDefinitionId: index % 2 === 0 ? 'sex.female' : 'sex.male',
-    bornAtTick: absoluteTick - (18 + (index % 47)) * 8_640,
-    movedIntoCityAtTick: 0,
-    movedOutOfCityAtTick: null,
-    diedAtTick: null,
+    bornAtMacroHourIndex: ageOriginMacroHour(32 - (18 + (index % 47)) * 288),
+    movedIntoCityAtMacroHourIndex: macroHour(0),
+    movedOutOfCityAtMacroHourIndex: null,
+    diedAtMacroHourIndex: null,
   }));
   const households = Array.from({ length: 1_250 }, (_, index) => ({
     householdId: `household:${index + 1}`,
-    foundedAtTick: 0,
-    dissolvedAtTick: null,
+    foundedAtMacroHourIndex: macroHour(0),
+    dissolvedAtMacroHourIndex: null,
   }));
   const memberships = citizens.map((citizen, index) => ({
     membershipId: `household-membership:${index + 1}`,
     householdId: `household:${Math.floor(index / 4) + 1}`,
     citizenId: citizen.citizenId,
-    startedAtTick: 0,
-    endedAtTick: null,
+    startedAtMacroHourIndex: macroHour(0),
+    endedAtMacroHourIndex: null,
     endReasonDefinitionId: null,
   }));
   const qualifications = citizens.map((citizen, index) => ({
@@ -40,8 +42,8 @@ function scaleSnapshot() {
         : index % 3 === 1
           ? 'qualification.skilled'
           : 'qualification.entry',
-    awardedAtTick: 0,
-    endedAtTick: null,
+    awardedAtMacroHourIndex: macroHour(0),
+    endedAtMacroHourIndex: null,
     sourceDefinitionId: 'scale-fixture',
   }));
   return {
@@ -63,9 +65,9 @@ describe('RCI 5,000 Citizen scale baseline', () => {
     const snapshot = scaleSnapshot();
     const registries = createFoundationRciRegistries();
     const startedAt = Date.now();
-    const firstProjection = createRciProjection(snapshot, registries, 32);
+    const firstProjection = createRciProjection(snapshot, registries, macroHour(32));
     const firstSave = encodeRciSaveV1(snapshot);
-    const secondProjection = createRciProjection(snapshot, registries, 32);
+    const secondProjection = createRciProjection(snapshot, registries, macroHour(32));
     const secondSave = encodeRciSaveV1(snapshot);
     const elapsedMs = Date.now() - startedAt;
 

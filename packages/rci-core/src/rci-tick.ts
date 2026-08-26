@@ -1,11 +1,12 @@
 import { fingerprintBuildingSnapshot, type BuildingSnapshot } from '@web-three-city/building-core';
 import {
   compareGameMinutes,
+  compareMacroHours,
   deriveMacroHourTransition,
   gameMinuteValue,
   isMacroHourTransition,
-  macroHourValue,
   type MacroHourTransition,
+  type MacroHourIndex,
   type SimulationSnapshot,
 } from '@web-three-city/simulation-core';
 import { RciContractError, type RciContractErrorCode } from './contracts/errors.js';
@@ -24,9 +25,9 @@ import type { RciDomainEvent } from './events/rci-domain-event.js';
 import { synchronizeDwellingInventory } from './housing/dwelling-inventory.js';
 import { planHousingReconciliation } from './housing/housing-reconciliation.js';
 import { createFoundationMigrationRequestPolicy } from './migration/request-policy.js';
-import { isDailyLifecycleTick } from './population/age.js';
+import { isPopulationLifecycleCycle } from './population/age.js';
 import {
-  evaluateDailyPopulationLifecycle,
+  evaluatePopulationLifecycleCycle,
   type PopulationLifecycleResult,
 } from './population/daily-lifecycle.js';
 import type { QualificationResolver } from './population/qualification-resolver.js';
@@ -54,8 +55,8 @@ export interface RciTickPlan {
   readonly baseBuildingRevision: number;
   readonly afterBuildingRevision: number;
   readonly afterBuildingFingerprint: string;
-  readonly beforeAbsoluteTick: number;
-  readonly afterAbsoluteTick: number;
+  readonly beforeAbsoluteMacroHourIndex: MacroHourIndex;
+  readonly afterAbsoluteMacroHourIndex: MacroHourIndex;
   readonly proposedSnapshot: RciSnapshot;
   readonly emittedEvents: readonly RciDomainEvent[];
   readonly demandContributions: readonly RciDemandFactorContribution[];
@@ -67,8 +68,8 @@ export interface RciTickPlan {
 export interface RciTickReceipt {
   readonly beforeRevision: number;
   readonly afterRevision: number;
-  readonly beforeAbsoluteTick: number;
-  readonly afterAbsoluteTick: number;
+  readonly beforeAbsoluteMacroHourIndex: MacroHourIndex;
+  readonly afterAbsoluteMacroHourIndex: MacroHourIndex;
   readonly emittedEventCount: number;
 }
 
@@ -88,11 +89,11 @@ function invalidPlan(input: RciTickInput, invalidReason: RciContractErrorCode): 
     baseBuildingRevision: input.buildingsBefore.revision,
     afterBuildingRevision: input.buildingsAfter.revision,
     afterBuildingFingerprint: fingerprintBuildingSnapshot(input.buildingsAfter),
-    beforeAbsoluteTick: deriveMacroHourTransition(
+    beforeAbsoluteMacroHourIndex: deriveMacroHourTransition(
       input.simulationBefore.absoluteGameMinute,
       input.simulationBefore.absoluteGameMinute,
     ).beforeMacroHourIndex,
-    afterAbsoluteTick: deriveMacroHourTransition(
+    afterAbsoluteMacroHourIndex: deriveMacroHourTransition(
       input.simulationAfter.absoluteGameMinute,
       input.simulationAfter.absoluteGameMinute,
     ).afterMacroHourIndex,
@@ -146,38 +147,41 @@ export function planRciTick(input: RciTickInput): RciTickPlan {
       invalidReason: null,
     });
   }
-  const evaluationTick = macroHourTransition.afterMacroHourIndex;
+  const evaluationMacroHourIndex = macroHourTransition.afterMacroHourIndex;
 
   let snapshot = synchronizeDwellingInventory({
     snapshot: input.rci,
     buildingsBefore: input.buildingsBefore,
     buildingsAfter: input.buildingsAfter,
     registries: input.registries,
-    evaluationTick,
-    ...(input.configuration.displacedExpiryTicks === undefined
+    evaluationMacroHourIndex,
+    ...(input.configuration.displacedExpiryMacroHours === undefined
       ? {}
-      : { displacedExpiryTicks: input.configuration.displacedExpiryTicks }),
+      : { displacedExpiryMacroHours: input.configuration.displacedExpiryMacroHours }),
   }).proposedSnapshot;
   snapshot = synchronizeWorkplaceInventory({
     snapshot,
     buildingsBefore: input.buildingsBefore,
     buildingsAfter: input.buildingsAfter,
     registries: input.registries,
-    evaluationTick,
+    evaluationMacroHourIndex,
   }).proposedSnapshot;
 
   const emittedEvents: RciDomainEvent[] = [];
   let demandContributions: readonly RciDemandFactorContribution[] = Object.freeze([]);
-  const daily = isDailyLifecycleTick(macroHourTransition.beforeMacroHourIndex, evaluationTick);
+  const daily = isPopulationLifecycleCycle(
+    macroHourTransition.beforeMacroHourIndex,
+    evaluationMacroHourIndex,
+  );
 
   if (daily) {
     let lifecycle: PopulationLifecycleResult = Object.freeze({
       snapshot,
       events: Object.freeze([]),
     });
-    lifecycle = evaluateDailyPopulationLifecycle({
+    lifecycle = evaluatePopulationLifecycleCycle({
       snapshot,
-      evaluationTick,
+      evaluationMacroHourIndex,
       registries: input.registries,
       populationRateProfile: input.registries.populationRateProfiles.get(
         input.configuration.populationRateProfileDefinitionId,
@@ -192,18 +196,21 @@ export function planRciTick(input: RciTickInput): RciTickPlan {
 
   const employment = planEmploymentReconciliation({
     snapshot,
-    evaluationTick,
+    evaluationMacroHourIndex,
     registries: input.registries,
     allowControlledUpgrade: daily,
   });
   snapshot = employment.proposedSnapshot;
-  const suitableVacantJobCount = createEmploymentIndex(snapshot, input.registries, evaluationTick)
-    .projection.compatibleVacantPositionCount;
+  const suitableVacantJobCount = createEmploymentIndex(
+    snapshot,
+    input.registries,
+    evaluationMacroHourIndex,
+  ).projection.compatibleVacantPositionCount;
 
   if (daily) {
     const requestPlan = createFoundationMigrationRequestPolicy().planRequests({
       snapshot,
-      evaluationTick,
+      evaluationMacroHourIndex,
       suitableVacantJobCount,
       registries: input.registries,
       configuration: input.configuration,
@@ -231,12 +238,12 @@ export function planRciTick(input: RciTickInput): RciTickPlan {
 
   snapshot = planHousingReconciliation({
     snapshot,
-    evaluationTick,
+    evaluationMacroHourIndex,
     registries: input.registries,
   }).proposedSnapshot;
 
   if (daily) {
-    const projection = createRciProjection(snapshot, input.registries, evaluationTick);
+    const projection = createRciProjection(snapshot, input.registries, evaluationMacroHourIndex);
     const evaluation = evaluateRciDemand(projection.factorContext, [
       ...FOUNDATION_RCI_DEMAND_FACTORS,
       ...(input.externalDemandFactors ?? []),
@@ -244,12 +251,12 @@ export function planRciTick(input: RciTickInput): RciTickPlan {
     const demand = smoothRciDemand({
       previous: snapshot.demand.demand,
       evaluation,
-      evaluationTick,
+      evaluationMacroHourIndex,
     });
     const growthGates = updateRciGrowthGates({
       previous: snapshot.demand.growthGates,
       demand,
-      evaluationTick,
+      evaluationMacroHourIndex,
     });
     demandContributions = evaluation.contributions;
     if (
@@ -259,7 +266,7 @@ export function planRciTick(input: RciTickInput): RciTickPlan {
       growthGates.residentialOpen !== snapshot.demand.growthGates.residentialOpen ||
       growthGates.commercialOpen !== snapshot.demand.growthGates.commercialOpen ||
       growthGates.industrialOpen !== snapshot.demand.growthGates.industrialOpen ||
-      demand.evaluatedAtTick !== snapshot.demand.demand.evaluatedAtTick
+      demand.evaluatedAtMacroHourIndex !== snapshot.demand.demand.evaluatedAtMacroHourIndex
     ) {
       snapshot = canonicalizeRciSnapshot({
         ...snapshot,
@@ -289,8 +296,8 @@ export function planRciTick(input: RciTickInput): RciTickPlan {
     baseBuildingRevision: input.buildingsBefore.revision,
     afterBuildingRevision: input.buildingsAfter.revision,
     afterBuildingFingerprint: fingerprintBuildingSnapshot(input.buildingsAfter),
-    beforeAbsoluteTick: macroHourTransition.beforeMacroHourIndex,
-    afterAbsoluteTick: macroHourTransition.afterMacroHourIndex,
+    beforeAbsoluteMacroHourIndex: macroHourTransition.beforeMacroHourIndex,
+    afterAbsoluteMacroHourIndex: macroHourTransition.afterMacroHourIndex,
     proposedSnapshot: snapshot,
     emittedEvents: Object.freeze(emittedEvents),
     demandContributions,
@@ -313,18 +320,20 @@ export function commitRciTick(input: RciTickCommitInput): Readonly<{
   }
   if (
     input.simulationBefore.revision !== plan.baseSimulationRevision ||
-    macroHourValue(
+    compareMacroHours(
       deriveMacroHourTransition(
         input.simulationBefore.absoluteGameMinute,
         input.simulationBefore.absoluteGameMinute,
       ).beforeMacroHourIndex,
-    ) !== plan.beforeAbsoluteTick ||
-    macroHourValue(
+      plan.beforeAbsoluteMacroHourIndex,
+    ) !== 0 ||
+    compareMacroHours(
       deriveMacroHourTransition(
         input.simulationAfter.absoluteGameMinute,
         input.simulationAfter.absoluteGameMinute,
       ).afterMacroHourIndex,
-    ) !== plan.afterAbsoluteTick ||
+      plan.afterAbsoluteMacroHourIndex,
+    ) !== 0 ||
     input.simulationAfter.revision !== input.simulationBefore.revision + 1
   ) {
     throw new RciContractError('rci:stale-simulation-plan');
@@ -342,8 +351,8 @@ export function commitRciTick(input: RciTickCommitInput): Readonly<{
     receipt: Object.freeze({
       beforeRevision: input.rci.revision,
       afterRevision: plan.proposedSnapshot.revision,
-      beforeAbsoluteTick: plan.beforeAbsoluteTick,
-      afterAbsoluteTick: plan.afterAbsoluteTick,
+      beforeAbsoluteMacroHourIndex: plan.beforeAbsoluteMacroHourIndex,
+      afterAbsoluteMacroHourIndex: plan.afterAbsoluteMacroHourIndex,
       emittedEventCount: plan.emittedEvents.length,
     }),
   });

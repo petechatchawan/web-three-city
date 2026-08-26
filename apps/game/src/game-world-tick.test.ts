@@ -17,6 +17,7 @@ import {
   createInitialSimulationSnapshot,
   createSimulationSnapshot,
   deriveMacroHourIndex,
+  macroHourIndex,
 } from '@web-three-city/simulation-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { describe, expect, it } from 'vitest';
@@ -53,7 +54,7 @@ function initialState(absoluteTick = 8) {
     simulation,
     buildings: createEmptyBuildingSnapshot(WORLD_CONFIG),
     rci: createInitialRciSnapshot({
-      absoluteTick: deriveMacroHourIndex(simulation.absoluteGameMinute),
+      absoluteMacroHourIndex: deriveMacroHourIndex(simulation.absoluteGameMinute),
       deterministicSeed: 41,
     }),
     roads: createEmptyRoadSnapshot(WORLD_CONFIG),
@@ -77,7 +78,10 @@ describe('atomic game-world tick', () => {
         absoluteGameMinute: 479,
         growthSequence: 0,
       }),
-      rci: createInitialRciSnapshot({ absoluteTick: 7, deterministicSeed: 41 }),
+      rci: createInitialRciSnapshot({
+        absoluteMacroHourIndex: macroHourIndex(7),
+        deterministicSeed: 41,
+      }),
       economy: createInitialEconomySnapshot(
         { year: 1, month: 1, latestDailySettlementTick: 7 },
         FOUNDATION_ECONOMY_RULES,
@@ -100,7 +104,7 @@ describe('atomic game-world tick', () => {
     expect(plan.proposedState.simulation.absoluteGameMinute).toBe(8 * 60);
     expect(plan.proposedState.economy.lastDailySettlementTick).toBe(8);
     expect(plan.proposedState.economy.revision).toBe(1);
-    expect(plan.rciReceipt.afterAbsoluteTick).toBe(8);
+    expect(plan.rciReceipt.afterAbsoluteMacroHourIndex).toBe(macroHourIndex(8));
     expect(plan.rciReceipt).toBeDefined();
     expect(plan.rciDemandContributions).toContainEqual(
       expect.objectContaining({

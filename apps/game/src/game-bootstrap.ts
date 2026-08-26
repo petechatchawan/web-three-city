@@ -408,7 +408,7 @@ export function bootstrapGame(
     buildings: createEmptyBuildingSnapshot(WORLD_CONFIG),
     simulation: initialSimulation,
     rci: createInitialRciSnapshot({
-      absoluteTick: deriveMacroHourIndex(initialSimulation.absoluteGameMinute),
+      absoluteMacroHourIndex: deriveMacroHourIndex(initialSimulation.absoluteGameMinute),
     }),
     economy: createInitialEconomySnapshot(
       {
@@ -968,7 +968,7 @@ export function bootstrapGame(
         buildingsBefore: current.buildings,
         buildingsAfter: committed.snapshot,
         registries: rciRegistries,
-        evaluationTick: deriveMacroHourIndex(current.simulation.absoluteGameMinute),
+        evaluationMacroHourIndex: deriveMacroHourIndex(current.simulation.absoluteGameMinute),
       });
       const publication = publishCommittedDomain(
         { buildings: committed.snapshot, rci: reconciledRci, economy: payment.snapshot },

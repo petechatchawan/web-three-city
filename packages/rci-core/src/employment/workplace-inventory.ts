@@ -1,5 +1,5 @@
 import { buildingDefinitionForId, type BuildingSnapshot } from '@web-three-city/building-core';
-import { macroHourValue } from '@web-three-city/simulation-core';
+import type { MacroHourIndex } from '@web-three-city/simulation-core';
 import { compareStableId } from '../contracts/ids.js';
 import type { EmploymentAssignmentId, WorkplaceId } from '../contracts/ids.js';
 import type { WorkplaceRecord } from '../contracts/records.js';
@@ -20,7 +20,7 @@ export function synchronizeWorkplaceInventory(
     buildingsBefore: BuildingSnapshot;
     buildingsAfter: BuildingSnapshot;
     registries: RciDefinitionRegistries;
-    evaluationTick: number;
+    evaluationMacroHourIndex: MacroHourIndex;
   }>,
 ): WorkplaceInventorySynchronizationResult {
   const existingById = new Map(
@@ -43,8 +43,8 @@ export function synchronizeWorkplaceInventory(
           workplaceId,
           buildingInstanceId: building.instanceId,
           capacityProfileDefinitionId: profile.id,
-          activatedAtTick: macroHourValue(building.activatedAtMacroHourIndex),
-          retiredAtTick: null,
+          activatedAtMacroHourIndex: building.activatedAtMacroHourIndex,
+          retiredAtMacroHourIndex: null,
         }),
     );
   }
@@ -52,9 +52,10 @@ export function synchronizeWorkplaceInventory(
   const activatedWorkplaceIds: string[] = [];
   const retiredWorkplaceIds: string[] = [];
   const workplaces = input.snapshot.employment.workplaces.map((workplace) => {
-    if (workplace.retiredAtTick !== null || expected.has(workplace.workplaceId)) return workplace;
+    if (workplace.retiredAtMacroHourIndex !== null || expected.has(workplace.workplaceId))
+      return workplace;
     retiredWorkplaceIds.push(workplace.workplaceId);
-    return Object.freeze({ ...workplace, retiredAtTick: input.evaluationTick });
+    return Object.freeze({ ...workplace, retiredAtMacroHourIndex: input.evaluationMacroHourIndex });
   });
   for (const [workplaceId, workplace] of expected) {
     if (existingById.has(workplaceId)) continue;
@@ -65,13 +66,13 @@ export function synchronizeWorkplaceInventory(
   const retiredSet = new Set(retiredWorkplaceIds);
   const endedEmploymentAssignmentIds: string[] = [];
   const assignments = input.snapshot.employment.assignments.map((assignment) => {
-    if (assignment.endedAtTick !== null || !retiredSet.has(assignment.workplaceId)) {
+    if (assignment.endedAtMacroHourIndex !== null || !retiredSet.has(assignment.workplaceId)) {
       return assignment;
     }
     endedEmploymentAssignmentIds.push(assignment.employmentAssignmentId);
     return Object.freeze({
       ...assignment,
-      endedAtTick: input.evaluationTick,
+      endedAtMacroHourIndex: input.evaluationMacroHourIndex,
       endReasonDefinitionId: 'employment-ended.workplace-retired',
     });
   });

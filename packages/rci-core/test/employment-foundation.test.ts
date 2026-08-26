@@ -26,7 +26,10 @@ const buildings: BuildingSnapshot = Object.freeze({
 });
 
 function workforce() {
-  const initial = createInitialRciSnapshot({ absoluteTick: 32, deterministicSeed: 11 });
+  const initial = createInitialRciSnapshot({
+    absoluteMacroHourIndex: macroHour(32),
+    deterministicSeed: 11,
+  });
   return {
     ...initial,
     population: {
@@ -36,19 +39,19 @@ function workforce() {
           citizenId: 'citizen:1',
           presence: 'resident' as const,
           sexDefinitionId: 'sex.female',
-          bornAtTick: 32 - 30 * 8_640,
-          movedIntoCityAtTick: 0,
-          movedOutOfCityAtTick: null,
-          diedAtTick: null,
+          bornAtMacroHourIndex: ageOriginMacroHour(32 - 30 * 288),
+          movedIntoCityAtMacroHourIndex: macroHour(0),
+          movedOutOfCityAtMacroHourIndex: null,
+          diedAtMacroHourIndex: null,
         },
         {
           citizenId: 'citizen:2',
           presence: 'resident' as const,
           sexDefinitionId: 'sex.male',
-          bornAtTick: 32 - 40 * 8_640,
-          movedIntoCityAtTick: 0,
-          movedOutOfCityAtTick: null,
-          diedAtTick: null,
+          bornAtMacroHourIndex: ageOriginMacroHour(32 - 40 * 288),
+          movedIntoCityAtMacroHourIndex: macroHour(0),
+          movedOutOfCityAtMacroHourIndex: null,
+          diedAtMacroHourIndex: null,
         },
       ],
       qualifications: [
@@ -56,16 +59,16 @@ function workforce() {
           citizenQualificationId: 'citizen-qualification:1',
           citizenId: 'citizen:1',
           qualificationDefinitionId: 'qualification.professional',
-          awardedAtTick: 0,
-          endedAtTick: null,
+          awardedAtMacroHourIndex: macroHour(0),
+          endedAtMacroHourIndex: null,
           sourceDefinitionId: 'fixture',
         },
         {
           citizenQualificationId: 'citizen-qualification:2',
           citizenId: 'citizen:2',
           qualificationDefinitionId: 'qualification.entry',
-          awardedAtTick: 0,
-          endedAtTick: null,
+          awardedAtMacroHourIndex: macroHour(0),
+          endedAtMacroHourIndex: null,
           sourceDefinitionId: 'fixture',
         },
       ],
@@ -81,7 +84,7 @@ describe('Workplace and Employment foundation', () => {
       buildingsBefore: { revision: 0, instances: [] },
       buildingsAfter: buildings,
       registries,
-      evaluationTick: 32,
+      evaluationMacroHourIndex: macroHour(32),
     });
     expect(activated.activatedWorkplaceIds).toEqual(['workplace:building:growth:office']);
     expect(activated.proposedSnapshot.employment.workplaces[0]?.capacityProfileDefinitionId).toBe(
@@ -92,9 +95,9 @@ describe('Workplace and Employment foundation', () => {
       buildingsBefore: buildings,
       buildingsAfter: { revision: 2, instances: [] },
       registries,
-      evaluationTick: 40,
+      evaluationMacroHourIndex: macroHour(40),
     });
-    expect(retired.proposedSnapshot.employment.workplaces[0]?.retiredAtTick).toBe(40);
+    expect(retired.proposedSnapshot.employment.workplaces[0]?.retiredAtMacroHourIndex).toBe(40);
   });
 
   it('matches unemployed residents before controlled upgrades using stable best fit', () => {
@@ -103,11 +106,11 @@ describe('Workplace and Employment foundation', () => {
       buildingsBefore: { revision: 0, instances: [] },
       buildingsAfter: buildings,
       registries,
-      evaluationTick: 32,
+      evaluationMacroHourIndex: macroHour(32),
     }).proposedSnapshot;
     const plan = planEmploymentReconciliation({
       snapshot: withWorkplace,
-      evaluationTick: 32,
+      evaluationMacroHourIndex: macroHour(32),
       registries,
       allowControlledUpgrade: true,
     });
@@ -118,7 +121,9 @@ describe('Workplace and Employment foundation', () => {
     expect(
       plan.proposedSnapshot.employment.assignments.find((value) => value.citizenId === 'citizen:2'),
     ).toMatchObject({ positionGroupDefinitionId: 'position.entry' });
-    expect(createEmploymentIndex(plan.proposedSnapshot, registries, 32).projection).toMatchObject({
+    expect(
+      createEmploymentIndex(plan.proposedSnapshot, registries, macroHour(32)).projection,
+    ).toMatchObject({
       employedResidentCount: 2,
       unemployedResidentCount: 0,
     });
@@ -130,11 +135,11 @@ describe('Workplace and Employment foundation', () => {
       buildingsBefore: { revision: 0, instances: [] },
       buildingsAfter: buildings,
       registries,
-      evaluationTick: 32,
+      evaluationMacroHourIndex: macroHour(32),
     }).proposedSnapshot;
     const forward = planEmploymentReconciliation({
       snapshot: withWorkplace,
-      evaluationTick: 32,
+      evaluationMacroHourIndex: macroHour(32),
       registries,
     });
     const reversed = planEmploymentReconciliation({
@@ -146,9 +151,10 @@ describe('Workplace and Employment foundation', () => {
           qualifications: [...withWorkplace.population.qualifications].reverse(),
         },
       },
-      evaluationTick: 32,
+      evaluationMacroHourIndex: macroHour(32),
       registries,
     });
     expect(reversed.proposedSnapshot).toEqual(forward.proposedSnapshot);
   });
 });
+import { ageOriginMacroHour, macroHour } from './temporal-fixtures.js';

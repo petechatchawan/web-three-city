@@ -1,3 +1,4 @@
+import type { MacroHourIndex } from '@web-three-city/simulation-core';
 import { RciContractError } from '../contracts/errors.js';
 import type { HouseholdId } from '../contracts/ids.js';
 import { canonicalizeRciSnapshot, type RciSnapshot } from '../rci-snapshot.js';
@@ -6,7 +7,7 @@ export function planEmigrateHousehold(
   input: Readonly<{
     snapshot: RciSnapshot;
     householdId: HouseholdId;
-    evaluationTick: number;
+    evaluationMacroHourIndex: MacroHourIndex;
     endReasonDefinitionId: string;
   }>,
 ): RciSnapshot {
@@ -14,7 +15,7 @@ export function planEmigrateHousehold(
     input.snapshot.households.memberships
       .filter(
         (membership) =>
-          membership.householdId === input.householdId && membership.endedAtTick === null,
+          membership.householdId === input.householdId && membership.endedAtMacroHourIndex === null,
       )
       .map((membership) => membership.citizenId),
   );
@@ -23,14 +24,15 @@ export function planEmigrateHousehold(
     input.snapshot.housing.assignments
       .filter(
         (assignment) =>
-          assignment.householdId === input.householdId && assignment.endedAtTick === null,
+          assignment.householdId === input.householdId && assignment.endedAtMacroHourIndex === null,
       )
       .map((assignment) => assignment.housingAssignmentId),
   );
   const activeEmploymentIds = new Set(
     input.snapshot.employment.assignments
       .filter(
-        (assignment) => memberIds.has(assignment.citizenId) && assignment.endedAtTick === null,
+        (assignment) =>
+          memberIds.has(assignment.citizenId) && assignment.endedAtMacroHourIndex === null,
       )
       .map((assignment) => assignment.employmentAssignmentId),
   );
@@ -44,28 +46,34 @@ export function planEmigrateHousehold(
           ? Object.freeze({
               ...citizen,
               presence: 'emigrated' as const,
-              movedOutOfCityAtTick: input.evaluationTick,
+              movedOutOfCityAtMacroHourIndex: input.evaluationMacroHourIndex,
             })
           : citizen,
       ),
       qualifications: input.snapshot.population.qualifications.map((qualification) =>
-        memberIds.has(qualification.citizenId) && qualification.endedAtTick === null
-          ? Object.freeze({ ...qualification, endedAtTick: input.evaluationTick })
+        memberIds.has(qualification.citizenId) && qualification.endedAtMacroHourIndex === null
+          ? Object.freeze({
+              ...qualification,
+              endedAtMacroHourIndex: input.evaluationMacroHourIndex,
+            })
           : qualification,
       ),
     },
     households: {
       revision: input.snapshot.households.revision + 1,
       households: input.snapshot.households.households.map((household) =>
-        household.householdId === input.householdId && household.dissolvedAtTick === null
-          ? Object.freeze({ ...household, dissolvedAtTick: input.evaluationTick })
+        household.householdId === input.householdId && household.dissolvedAtMacroHourIndex === null
+          ? Object.freeze({
+              ...household,
+              dissolvedAtMacroHourIndex: input.evaluationMacroHourIndex,
+            })
           : household,
       ),
       memberships: input.snapshot.households.memberships.map((membership) =>
-        membership.householdId === input.householdId && membership.endedAtTick === null
+        membership.householdId === input.householdId && membership.endedAtMacroHourIndex === null
           ? Object.freeze({
               ...membership,
-              endedAtTick: input.evaluationTick,
+              endedAtMacroHourIndex: input.evaluationMacroHourIndex,
               endReasonDefinitionId: input.endReasonDefinitionId,
             })
           : membership,
@@ -74,14 +82,20 @@ export function planEmigrateHousehold(
     relationships: {
       revision: input.snapshot.relationships.revision + 1,
       relationships: input.snapshot.relationships.relationships.map((relationship) => {
-        if (relationship.endedAtTick !== null || relationship.orientation !== 'undirected') {
+        if (
+          relationship.endedAtMacroHourIndex !== null ||
+          relationship.orientation !== 'undirected'
+        ) {
           return relationship;
         }
         const members = relationship.participantCitizenIds.filter((citizenId) =>
           memberIds.has(citizenId),
         );
         return members.length === 1
-          ? Object.freeze({ ...relationship, endedAtTick: input.evaluationTick })
+          ? Object.freeze({
+              ...relationship,
+              endedAtMacroHourIndex: input.evaluationMacroHourIndex,
+            })
           : relationship;
       }),
     },
@@ -95,7 +109,7 @@ export function planEmigrateHousehold(
         activeHousingIds.has(assignment.housingAssignmentId)
           ? Object.freeze({
               ...assignment,
-              endedAtTick: input.evaluationTick,
+              endedAtMacroHourIndex: input.evaluationMacroHourIndex,
               endReasonDefinitionId: 'housing-ended.household-emigrated',
             })
           : assignment,
@@ -111,7 +125,7 @@ export function planEmigrateHousehold(
         activeEmploymentIds.has(assignment.employmentAssignmentId)
           ? Object.freeze({
               ...assignment,
-              endedAtTick: input.evaluationTick,
+              endedAtMacroHourIndex: input.evaluationMacroHourIndex,
               endReasonDefinitionId: 'employment-ended.citizen-emigrated',
             })
           : assignment,

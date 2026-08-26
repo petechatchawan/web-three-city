@@ -202,7 +202,7 @@ describe('WorldTransactionCoordinator', () => {
       buildings: createEmptyBuildingSnapshot(WORLD_CONFIG),
       simulation,
       rci: createInitialRciSnapshot({
-        absoluteTick: deriveMacroHourIndex(simulation.absoluteGameMinute),
+        absoluteMacroHourIndex: deriveMacroHourIndex(simulation.absoluteGameMinute),
       }),
       economy: createInitialEconomySnapshot(
         {

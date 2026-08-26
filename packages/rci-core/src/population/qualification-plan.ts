@@ -7,13 +7,14 @@ import type { CitizenId } from '../contracts/ids.js';
 import type { CitizenQualificationRecord } from '../contracts/records.js';
 import type { RciDefinitionRegistries } from '../definitions/contracts.js';
 import { canonicalizeRciSnapshot, type RciSnapshot } from '../rci-snapshot.js';
+import { macroHourValue, type MacroHourIndex } from '@web-three-city/simulation-core';
 
 export function planAwardCitizenQualification(
   input: Readonly<{
     snapshot: RciSnapshot;
     citizenId: CitizenId;
     qualificationDefinitionId: string;
-    awardedAtTick: number;
+    awardedAtMacroHourIndex: MacroHourIndex;
     sourceDefinitionId: string;
     registries: RciDefinitionRegistries;
   }>,
@@ -24,7 +25,7 @@ export function planAwardCitizenQualification(
   );
   const hasActive = snapshot.population.qualifications.some(
     (qualification) =>
-      qualification.citizenId === input.citizenId && qualification.endedAtTick === null,
+      qualification.citizenId === input.citizenId && qualification.endedAtMacroHourIndex === null,
   );
   if (
     citizen === undefined ||
@@ -32,8 +33,8 @@ export function planAwardCitizenQualification(
     hasActive ||
     !input.registries.qualifications.has(input.qualificationDefinitionId) ||
     input.sourceDefinitionId.length === 0 ||
-    !Number.isSafeInteger(input.awardedAtTick) ||
-    input.awardedAtTick < 0
+    !Number.isSafeInteger(macroHourValue(input.awardedAtMacroHourIndex)) ||
+    macroHourValue(input.awardedAtMacroHourIndex) < 0
   ) {
     return invalidRecordMutationPlan(snapshot, 'rci:invalid-state');
   }
@@ -42,8 +43,8 @@ export function planAwardCitizenQualification(
     citizenQualificationId: `citizen-qualification:${snapshot.sequences.nextCitizenQualification}`,
     citizenId: input.citizenId,
     qualificationDefinitionId: input.qualificationDefinitionId,
-    awardedAtTick: input.awardedAtTick,
-    endedAtTick: null,
+    awardedAtMacroHourIndex: input.awardedAtMacroHourIndex,
+    endedAtMacroHourIndex: null,
     sourceDefinitionId: input.sourceDefinitionId,
   });
   const proposed = canonicalizeRciSnapshot({

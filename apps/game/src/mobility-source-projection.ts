@@ -1,6 +1,11 @@
 import type { BuildingSnapshot } from '@web-three-city/building-core';
 import type { PresentCitizenMobilityProjection } from '@web-three-city/citizen-mobility-core';
 import type { RciSnapshot } from '@web-three-city/rci-core';
+import {
+  macroHourIndex,
+  macroHourValue,
+  type MacroHourIndex,
+} from '@web-three-city/simulation-core';
 
 const MAX_CACHED_PROJECTIONS_PER_SOURCE = 4;
 const PROJECTION_CACHE = new WeakMap<
@@ -11,11 +16,12 @@ const PROJECTION_CACHE = new WeakMap<
 export function createPresentCitizenMobilityProjection(
   rci: RciSnapshot,
   buildings: BuildingSnapshot,
-  absoluteTick: number,
+  evaluationMacroHourIndex: MacroHourIndex,
 ): readonly PresentCitizenMobilityProjection[] {
-  if (!Number.isSafeInteger(absoluteTick) || absoluteTick < 0) {
-    throw new RangeError('mobility-source-projection:invalid-absolute-tick');
-  }
+  const validatedEvaluationMacroHourIndex = macroHourIndex(
+    macroHourValue(evaluationMacroHourIndex),
+  );
+  const evaluationMacroHourValue = macroHourValue(validatedEvaluationMacroHourIndex);
   const canReuse = Object.isFrozen(rci) && Object.isFrozen(buildings);
   let byBuilding:
     WeakMap<object, Map<number, readonly PresentCitizenMobilityProjection[]>> | undefined;
@@ -31,7 +37,7 @@ export function createPresentCitizenMobilityProjection(
       byTick = new Map();
       byBuilding.set(buildings, byTick);
     }
-    const cached = byTick.get(absoluteTick);
+    const cached = byTick.get(evaluationMacroHourValue);
     if (cached !== undefined) return cached;
   }
   const validBuildingIds = new Set(
@@ -41,12 +47,12 @@ export function createPresentCitizenMobilityProjection(
   );
   const activeMembershipByCitizen = new Map(
     rci.households.memberships
-      .filter((membership) => membership.endedAtTick === null)
+      .filter((membership) => membership.endedAtMacroHourIndex === null)
       .map((membership) => [membership.citizenId, membership] as const),
   );
   const activeHousingByHousehold = new Map(
     rci.housing.assignments
-      .filter((assignment) => assignment.endedAtTick === null)
+      .filter((assignment) => assignment.endedAtMacroHourIndex === null)
       .map((assignment) => [assignment.householdId, assignment] as const),
   );
   const dwellingById = new Map(
@@ -54,7 +60,7 @@ export function createPresentCitizenMobilityProjection(
   );
   const activeEmploymentByCitizen = new Map(
     rci.employment.assignments
-      .filter((assignment) => assignment.endedAtTick === null)
+      .filter((assignment) => assignment.endedAtMacroHourIndex === null)
       .map((assignment) => [assignment.citizenId, assignment] as const),
   );
   const workplaceById = new Map(
@@ -77,13 +83,13 @@ export function createPresentCitizenMobilityProjection(
           employment === undefined ? undefined : workplaceById.get(employment.workplaceId);
         const homeBuildingId =
           dwelling !== undefined &&
-          dwelling.retiredAtTick === null &&
+          dwelling.retiredAtMacroHourIndex === null &&
           validBuildingIds.has(dwelling.buildingInstanceId)
             ? dwelling.buildingInstanceId
             : null;
         const workBuildingId =
           workplace !== undefined &&
-          workplace.retiredAtTick === null &&
+          workplace.retiredAtMacroHourIndex === null &&
           validBuildingIds.has(workplace.buildingInstanceId)
             ? workplace.buildingInstanceId
             : null;
@@ -96,7 +102,7 @@ export function createPresentCitizenMobilityProjection(
       }),
   );
   if (byTick !== undefined) {
-    byTick.set(absoluteTick, projection);
+    byTick.set(evaluationMacroHourValue, projection);
     if (byTick.size > MAX_CACHED_PROJECTIONS_PER_SOURCE) {
       const oldest = byTick.keys().next().value;
       if (oldest !== undefined) byTick.delete(oldest);

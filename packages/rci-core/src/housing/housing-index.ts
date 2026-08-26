@@ -30,7 +30,8 @@ export function createHousingIndex(
   );
   const residentCountByHouseholdId = new Map<HouseholdId, number>();
   for (const membership of snapshot.households.memberships) {
-    if (membership.endedAtTick !== null || !residentCitizens.has(membership.citizenId)) continue;
+    if (membership.endedAtMacroHourIndex !== null || !residentCitizens.has(membership.citizenId))
+      continue;
     residentCountByHouseholdId.set(
       membership.householdId,
       (residentCountByHouseholdId.get(membership.householdId) ?? 0) + 1,
@@ -43,14 +44,16 @@ export function createHousingIndex(
     snapshot.housing.assignments.map((assignment) => [assignment.housingAssignmentId, assignment]),
   );
   for (const assignment of snapshot.housing.assignments) {
-    if (assignment.endedAtTick !== null) continue;
+    if (assignment.endedAtMacroHourIndex !== null) continue;
     activeAssignmentByHouseholdId.set(assignment.householdId, assignment.housingAssignmentId);
     activeAssignmentByDwellingUnitId.set(assignment.dwellingUnitId, assignment.housingAssignmentId);
   }
 
   let residentCapacity = 0;
   let overcrowdedResidentCount = 0;
-  const activeUnits = snapshot.housing.dwellingUnits.filter((unit) => unit.retiredAtTick === null);
+  const activeUnits = snapshot.housing.dwellingUnits.filter(
+    (unit) => unit.retiredAtMacroHourIndex === null,
+  );
   for (const unit of activeUnits) {
     const profile = residentialCapacityProfileForId(
       registries.capacityProfiles,

@@ -8,10 +8,13 @@ import { housingRegistries } from './housing-fixtures.js';
 
 describe('migration request policy', () => {
   it('accumulates milli-households and allocates no Citizen IDs', () => {
-    const snapshot = createInitialRciSnapshot({ absoluteTick: 32, deterministicSeed: 9 });
+    const snapshot = createInitialRciSnapshot({
+      absoluteMacroHourIndex: macroHour(32),
+      deterministicSeed: 9,
+    });
     const first = createFoundationMigrationRequestPolicy().planRequests({
       snapshot,
-      evaluationTick: 32,
+      evaluationMacroHourIndex: macroHour(32),
       suitableVacantJobCount: 0,
       registries: housingRegistries,
       configuration: FOUNDATION_RCI_CONFIGURATION,
@@ -26,7 +29,7 @@ describe('migration request policy', () => {
     };
     const second = createFoundationMigrationRequestPolicy().planRequests({
       snapshot: accumulated,
-      evaluationTick: 56,
+      evaluationMacroHourIndex: macroHour(56),
       suitableVacantJobCount: 0,
       registries: housingRegistries,
       configuration: FOUNDATION_RCI_CONFIGURATION,
@@ -38,10 +41,10 @@ describe('migration request policy', () => {
   });
 
   it('honors the daily and queue caps without discarding carry', () => {
-    const snapshot = createInitialRciSnapshot({ absoluteTick: 32 });
+    const snapshot = createInitialRciSnapshot({ absoluteMacroHourIndex: macroHour(32) });
     const result = createFoundationMigrationRequestPolicy().planRequests({
       snapshot: { ...snapshot, migration: { ...snapshot.migration, attractionMilli: 5_000 } },
-      evaluationTick: 32,
+      evaluationMacroHourIndex: macroHour(32),
       suitableVacantJobCount: 100,
       registries: housingRegistries,
       configuration: FOUNDATION_RCI_CONFIGURATION,
@@ -50,3 +53,4 @@ describe('migration request policy', () => {
     expect(result.nextAttractionMilli).toBeGreaterThanOrEqual(0);
   });
 });
+import { macroHour } from './temporal-fixtures.js';

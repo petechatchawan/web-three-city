@@ -1,3 +1,4 @@
+import { type MacroHourIndex } from '@web-three-city/simulation-core';
 import { RciContractError } from '../contracts/errors.js';
 import { compareStableId } from '../contracts/ids.js';
 import type { DwellingUnitId, IncomingHouseholdRequestId } from '../contracts/ids.js';
@@ -8,6 +9,7 @@ import type {
 } from '../contracts/records.js';
 import type { RciDefinitionRegistries } from '../definitions/contracts.js';
 import { residentialCapacityProfileForId } from '../housing/capacity-profile.js';
+import { ageOriginForYearsAtMacroHour } from '../population/age.js';
 import { deterministicSample, PROBABILITY_SCALE } from '../population/deterministic-sample.js';
 import type { QualificationResolver } from '../population/qualification-resolver.js';
 import { canonicalizeRciSnapshot, type RciSnapshot } from '../rci-snapshot.js';
@@ -16,7 +18,7 @@ function sampleAge(
   input: Readonly<{
     seed: number;
     requestId: string;
-    evaluationTick: number;
+    evaluationMacroHourIndex: MacroHourIndex;
     attemptIndex: number;
     minimumYears: number;
     maximumYears: number;
@@ -29,7 +31,7 @@ function sampleAge(
     (deterministicSample({
       seed: input.seed,
       eventType: input.namespace,
-      evaluationTick: input.evaluationTick,
+      evaluationMacroHourIndex: input.evaluationMacroHourIndex,
       entityStableId: input.requestId,
       attemptIndex: input.attemptIndex,
     }) %
@@ -42,7 +44,7 @@ export function planMaterializeIncomingHousehold(
     snapshot: RciSnapshot;
     requestId: IncomingHouseholdRequestId;
     dwellingUnitId: DwellingUnitId;
-    evaluationTick: number;
+    evaluationMacroHourIndex: MacroHourIndex;
     registries: RciDefinitionRegistries;
     qualificationResolver: QualificationResolver;
   }>,
@@ -53,13 +55,14 @@ export function planMaterializeIncomingHousehold(
   const unit = input.snapshot.housing.dwellingUnits.find(
     (value) => value.dwellingUnitId === input.dwellingUnitId,
   );
-  if (request === undefined || unit === undefined || unit.retiredAtTick !== null) {
+  if (request === undefined || unit === undefined || unit.retiredAtMacroHourIndex !== null) {
     throw new RciContractError('rci:invalid-state');
   }
   if (
     input.snapshot.housing.assignments.some(
       (assignment) =>
-        assignment.dwellingUnitId === unit.dwellingUnitId && assignment.endedAtTick === null,
+        assignment.dwellingUnitId === unit.dwellingUnitId &&
+        assignment.endedAtMacroHourIndex === null,
     )
   ) {
     throw new RciContractError('rci:duplicate-active-housing');
@@ -94,7 +97,7 @@ export function planMaterializeIncomingHousehold(
     const age = sampleAge({
       seed: input.snapshot.deterministicSeed,
       requestId: request.requestId,
-      evaluationTick: input.evaluationTick,
+      evaluationMacroHourIndex: input.evaluationMacroHourIndex,
       attemptIndex: index,
       minimumYears: ageRange.minimumYears,
       maximumYears: ageRange.maximumYears,
@@ -103,7 +106,7 @@ export function planMaterializeIncomingHousehold(
     const sexSample = deterministicSample({
       seed: input.snapshot.deterministicSeed,
       eventType: 'migration-sex',
-      evaluationTick: input.evaluationTick,
+      evaluationMacroHourIndex: input.evaluationMacroHourIndex,
       entityStableId: citizenId,
       attemptIndex: index,
     });
@@ -119,10 +122,10 @@ export function planMaterializeIncomingHousehold(
         citizenId,
         presence: 'resident',
         sexDefinitionId,
-        bornAtTick: input.evaluationTick - age * 8_640,
-        movedIntoCityAtTick: input.evaluationTick,
-        movedOutOfCityAtTick: null,
-        diedAtTick: null,
+        bornAtMacroHourIndex: ageOriginForYearsAtMacroHour(input.evaluationMacroHourIndex, age),
+        movedIntoCityAtMacroHourIndex: input.evaluationMacroHourIndex,
+        movedOutOfCityAtMacroHourIndex: null,
+        diedAtMacroHourIndex: null,
       }),
     );
     memberships.push(
@@ -130,8 +133,8 @@ export function planMaterializeIncomingHousehold(
         membershipId: `household-membership:${nextMembership}`,
         householdId,
         citizenId,
-        startedAtTick: input.evaluationTick,
-        endedAtTick: null,
+        startedAtMacroHourIndex: input.evaluationMacroHourIndex,
+        endedAtMacroHourIndex: null,
         endReasonDefinitionId: null,
       }),
     );
@@ -140,7 +143,7 @@ export function planMaterializeIncomingHousehold(
       const qualificationDefinitionId = input.qualificationResolver.resolve({
         citizenId,
         context: 'working-age-immigrant',
-        evaluationTick: input.evaluationTick,
+        evaluationMacroHourIndex: input.evaluationMacroHourIndex,
         deterministicSeed: input.snapshot.deterministicSeed,
       });
       qualifications.push(
@@ -148,8 +151,8 @@ export function planMaterializeIncomingHousehold(
           citizenQualificationId: `citizen-qualification:${nextQualification}`,
           citizenId,
           qualificationDefinitionId,
-          awardedAtTick: input.evaluationTick,
-          endedAtTick: null,
+          awardedAtMacroHourIndex: input.evaluationMacroHourIndex,
+          endedAtMacroHourIndex: null,
           sourceDefinitionId: 'qualification-source.migration-archetype.v1',
         }),
       );
@@ -167,8 +170,8 @@ export function planMaterializeIncomingHousehold(
         orientation: 'undirected',
         typeDefinitionId: 'relationship.partner',
         participantCitizenIds: pair,
-        startedAtTick: input.evaluationTick,
-        endedAtTick: null,
+        startedAtMacroHourIndex: input.evaluationMacroHourIndex,
+        endedAtMacroHourIndex: null,
       }),
     );
     nextRelationship += 1;
@@ -191,8 +194,8 @@ export function planMaterializeIncomingHousehold(
           typeDefinitionId: 'relationship.parent.biological.mother',
           sourceCitizenId: motherId,
           targetCitizenId: childId,
-          startedAtTick: input.evaluationTick,
-          endedAtTick: null,
+          startedAtMacroHourIndex: input.evaluationMacroHourIndex,
+          endedAtMacroHourIndex: null,
         }),
       );
       nextRelationship += 1;
@@ -205,8 +208,8 @@ export function planMaterializeIncomingHousehold(
           typeDefinitionId: 'relationship.parent.biological.father',
           sourceCitizenId: fatherId,
           targetCitizenId: childId,
-          startedAtTick: input.evaluationTick,
-          endedAtTick: null,
+          startedAtMacroHourIndex: input.evaluationMacroHourIndex,
+          endedAtMacroHourIndex: null,
         }),
       );
       nextRelationship += 1;
@@ -229,7 +232,11 @@ export function planMaterializeIncomingHousehold(
       revision: input.snapshot.households.revision + 1,
       households: [
         ...input.snapshot.households.households,
-        Object.freeze({ householdId, foundedAtTick: input.evaluationTick, dissolvedAtTick: null }),
+        Object.freeze({
+          householdId,
+          foundedAtMacroHourIndex: input.evaluationMacroHourIndex,
+          dissolvedAtMacroHourIndex: null,
+        }),
       ],
       memberships: [...input.snapshot.households.memberships, ...memberships],
     },
@@ -242,8 +249,8 @@ export function planMaterializeIncomingHousehold(
           housingAssignmentId: `housing-assignment:${input.snapshot.sequences.nextHousingAssignment}`,
           householdId,
           dwellingUnitId: input.dwellingUnitId,
-          startedAtTick: input.evaluationTick,
-          endedAtTick: null,
+          startedAtMacroHourIndex: input.evaluationMacroHourIndex,
+          endedAtMacroHourIndex: null,
           endReasonDefinitionId: null,
         }),
       ],

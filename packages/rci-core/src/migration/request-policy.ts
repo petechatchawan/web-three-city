@@ -1,3 +1,4 @@
+import type { MacroHourIndex } from '@web-three-city/simulation-core';
 import type { IncomingHouseholdRequest } from '../contracts/records.js';
 import type { RciDefinitionRegistries } from '../definitions/contracts.js';
 import { deterministicSample } from '../population/deterministic-sample.js';
@@ -8,7 +9,7 @@ export interface MigrationRequestPolicy {
   planRequests(
     input: Readonly<{
       snapshot: RciSnapshot;
-      evaluationTick: number;
+      evaluationMacroHourIndex: MacroHourIndex;
       suitableVacantJobCount: number;
       registries: RciDefinitionRegistries;
       configuration: RciConfiguration;
@@ -64,7 +65,7 @@ export function createFoundationMigrationRequestPolicy(): MigrationRequestPolicy
         const sample = deterministicSample({
           seed: input.snapshot.deterministicSeed,
           eventType: 'migration-request-archetype',
-          evaluationTick: input.evaluationTick,
+          evaluationMacroHourIndex: input.evaluationMacroHourIndex,
           entityStableId: `incoming-household:${nextSequence}`,
           attemptIndex: index,
         });
@@ -81,7 +82,7 @@ export function createFoundationMigrationRequestPolicy(): MigrationRequestPolicy
           Object.freeze({
             requestId: `incoming-household:${nextSequence}`,
             archetypeDefinitionId: selected.id,
-            requestedAtTick: input.evaluationTick,
+            requestedAtMacroHourIndex: input.evaluationMacroHourIndex,
             minimumResidentCapacity: selected.minimumResidentCapacity,
             queuePriority: 0,
             deterministicSequence: nextSequence,

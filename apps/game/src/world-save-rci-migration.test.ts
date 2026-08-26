@@ -20,7 +20,7 @@ function createWorldFixture() {
     growthSequence: 3,
   });
   const rci = createInitialRciSnapshot({
-    absoluteTick: deriveMacroHourIndex(simulation.absoluteGameMinute),
+    absoluteMacroHourIndex: deriveMacroHourIndex(simulation.absoluteGameMinute),
   });
   return { terrain: terrain.value, roads, zones, buildings, simulation, rci };
 }
@@ -63,7 +63,7 @@ describe('WorldSaveV5 RCI foundation', () => {
     if (decoded.ok) {
       expect(decoded.value.rci).toEqual(
         createInitialRciSnapshot({
-          absoluteTick: deriveMacroHourIndex(decoded.value.simulation.absoluteGameMinute),
+          absoluteMacroHourIndex: deriveMacroHourIndex(decoded.value.simulation.absoluteGameMinute),
         }),
       );
     }

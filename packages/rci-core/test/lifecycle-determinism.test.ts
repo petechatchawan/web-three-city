@@ -17,7 +17,10 @@ const buildings: BuildingSnapshot = Object.freeze({ revision: 0, instances: Obje
 const registries = createFoundationRciRegistries();
 
 function lifecycleFixture(): RciSnapshot {
-  const initial = createInitialRciSnapshot({ absoluteTick: 31, deterministicSeed: 37 });
+  const initial = createInitialRciSnapshot({
+    absoluteMacroHourIndex: macroHour(31),
+    deterministicSeed: 37,
+  });
   return {
     ...initial,
     population: {
@@ -27,24 +30,30 @@ function lifecycleFixture(): RciSnapshot {
           citizenId: 'citizen:1',
           presence: 'resident',
           sexDefinitionId: 'sex.male',
-          bornAtTick: 32 - 18 * 8_640,
-          movedIntoCityAtTick: 0,
-          movedOutOfCityAtTick: null,
-          diedAtTick: null,
+          bornAtMacroHourIndex: ageOriginMacroHour(32 - 18 * 288),
+          movedIntoCityAtMacroHourIndex: macroHour(0),
+          movedOutOfCityAtMacroHourIndex: null,
+          diedAtMacroHourIndex: null,
         },
       ],
       qualifications: [],
     },
     households: {
       revision: 1,
-      households: [{ householdId: 'household:1', foundedAtTick: 0, dissolvedAtTick: null }],
+      households: [
+        {
+          householdId: 'household:1',
+          foundedAtMacroHourIndex: macroHour(0),
+          dissolvedAtMacroHourIndex: null,
+        },
+      ],
       memberships: [
         {
           membershipId: 'household-membership:1',
           householdId: 'household:1',
           citizenId: 'citizen:1',
-          startedAtTick: 0,
-          endedAtTick: null,
+          startedAtMacroHourIndex: macroHour(0),
+          endedAtMacroHourIndex: null,
           endReasonDefinitionId: null,
         },
       ],
@@ -60,17 +69,17 @@ function lifecycleFixture(): RciSnapshot {
 
 function advance(
   snapshot: RciSnapshot,
-  beforeTick: number,
+  beforeMacroHourIndex: number,
   simulationRevision: number,
 ): Readonly<{ snapshot: RciSnapshot; receipt: RciTickReceipt; events: readonly string[] }> {
   const simulationBefore: SimulationSnapshot = Object.freeze({
     revision: simulationRevision,
-    absoluteGameMinute: absoluteGameMinute(beforeTick * 60),
+    absoluteGameMinute: absoluteGameMinute(beforeMacroHourIndex * 60),
     growthSequence: 0,
   });
   const simulationAfter: SimulationSnapshot = Object.freeze({
     revision: simulationRevision + 1,
-    absoluteGameMinute: absoluteGameMinute((beforeTick + 1) * 60),
+    absoluteGameMinute: absoluteGameMinute((beforeMacroHourIndex + 1) * 60),
     growthSequence: 0,
   });
   const plan = planRciTick({
@@ -123,3 +132,4 @@ describe('population lifecycle save/load determinism', () => {
     expect(encodeRciSaveV1(resumed.snapshot)).toEqual(encodeRciSaveV1(continuous.snapshot));
   });
 });
+import { ageOriginMacroHour, macroHour } from './temporal-fixtures.js';

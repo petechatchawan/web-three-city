@@ -7,6 +7,7 @@ import {
 } from '../../traffic-source-projection.js';
 import type { CitizenInspectTarget, VehicleInspectTarget } from './inspect-target.js';
 import type { InspectProjection } from './inspect-projections.js';
+import { deriveMacroHourIndex } from '@web-three-city/simulation-core';
 
 function field(label: string, value: string | number): Readonly<{ label: string; value: string }> {
   return Object.freeze({ label, value: String(value) });
@@ -15,7 +16,8 @@ function field(label: string, value: string | number): Readonly<{ label: string;
 function activeHouseholdId(world: CommittedWorld, citizenId: string): string | null {
   return (
     world.rci.households.memberships.find(
-      (membership) => membership.citizenId === citizenId && membership.endedAtTick === null,
+      (membership) =>
+        membership.citizenId === citizenId && membership.endedAtMacroHourIndex === null,
     )?.householdId ?? null
   );
 }
@@ -29,11 +31,12 @@ function activeEmployment(
   workBuildingId: string | null;
 }> | null {
   const assignment = world.rci.employment.assignments.find(
-    (entry) => entry.citizenId === citizenId && entry.endedAtTick === null,
+    (entry) => entry.citizenId === citizenId && entry.endedAtMacroHourIndex === null,
   );
   if (assignment === undefined) return null;
   const workplace = world.rci.employment.workplaces.find(
-    (entry) => entry.workplaceId === assignment.workplaceId && entry.retiredAtTick === null,
+    (entry) =>
+      entry.workplaceId === assignment.workplaceId && entry.retiredAtMacroHourIndex === null,
   );
   return Object.freeze({
     employmentAssignmentId: assignment.employmentAssignmentId,
@@ -109,7 +112,7 @@ function citizenProjection(world: CommittedWorld, target: CitizenInspectTarget):
   const sources = createPresentCitizenMobilityProjection(
     world.rci,
     world.buildings,
-    world.simulation.absoluteGameMinute,
+    deriveMacroHourIndex(world.simulation.absoluteGameMinute),
   );
   const source = sources.find((entry) => entry.citizenId === target.citizenId);
   const employment = activeEmployment(world, target.citizenId);

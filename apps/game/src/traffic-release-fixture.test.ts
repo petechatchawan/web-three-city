@@ -2,8 +2,10 @@ import {
   absoluteGameMinute,
   addGameMinutes,
   createSimulationSnapshot,
+  deriveMacroHourIndex,
   gameMinuteDuration,
   gameMinuteValue,
+  macroHourIndex,
 } from '@web-three-city/simulation-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { describe, expect, it } from 'vitest';
@@ -25,12 +27,12 @@ describe('Citizen Mobility & Traffic release fixture', () => {
     const first = createPresentCitizenMobilityProjection(
       fixture.world.rci,
       fixture.world.buildings,
-      9,
+      macroHourIndex(9),
     );
     const second = createPresentCitizenMobilityProjection(
       fixture.world.rci,
       fixture.world.buildings,
-      9,
+      macroHourIndex(9),
     );
 
     expect(second).toBe(first);
@@ -51,7 +53,7 @@ describe('Citizen Mobility & Traffic release fixture', () => {
     const projected = createPresentCitizenMobilityProjection(
       decoded.value.rci,
       decoded.value.buildings,
-      decoded.value.simulation.absoluteGameMinute,
+      deriveMacroHourIndex(decoded.value.simulation.absoluteGameMinute),
     );
     for (const citizen of projected) {
       expect(citizen.homeBuildingId).toBe(fixture.summary.homeBuildingByCitizen[citizen.citizenId]);
@@ -69,7 +71,7 @@ describe('Citizen Mobility & Traffic release fixture', () => {
       citizensAfter: createPresentCitizenMobilityProjection(
         world.rci,
         world.buildings,
-        world.simulation.absoluteGameMinute,
+        deriveMacroHourIndex(world.simulation.absoluteGameMinute),
       ),
       simulationBefore: createSimulationSnapshot({
         revision: world.simulation.revision,
@@ -132,7 +134,7 @@ describe('Citizen Mobility & Traffic release fixture', () => {
         citizensAfter: createPresentCitizenMobilityProjection(
           world.rci,
           world.buildings,
-          nextMinute,
+          deriveMacroHourIndex(nextMinute),
         ),
         simulationBefore: createSimulationSnapshot({
           revision:

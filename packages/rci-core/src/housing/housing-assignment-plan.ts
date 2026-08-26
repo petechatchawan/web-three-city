@@ -1,4 +1,5 @@
 import { RciContractError } from '../contracts/errors.js';
+import type { MacroHourIndex } from '@web-three-city/simulation-core';
 import type { DwellingUnitId, HouseholdId } from '../contracts/ids.js';
 import type { HousingAssignmentRecord } from '../contracts/records.js';
 import { canonicalizeRciSnapshot, type RciSnapshot } from '../rci-snapshot.js';
@@ -8,7 +9,7 @@ export function planStartHousingAssignment(
     snapshot: RciSnapshot;
     householdId: HouseholdId;
     dwellingUnitId: DwellingUnitId;
-    startedAtTick: number;
+    startedAtMacroHourIndex: MacroHourIndex;
   }>,
 ): RciSnapshot {
   const household = input.snapshot.households.households.find(
@@ -19,16 +20,16 @@ export function planStartHousingAssignment(
   );
   if (
     household === undefined ||
-    household.dissolvedAtTick !== null ||
+    household.dissolvedAtMacroHourIndex !== null ||
     unit === undefined ||
-    unit.retiredAtTick !== null
+    unit.retiredAtMacroHourIndex !== null
   ) {
     throw new RciContractError('rci:invalid-state');
   }
   if (
     input.snapshot.housing.assignments.some(
       (assignment) =>
-        assignment.endedAtTick === null &&
+        assignment.endedAtMacroHourIndex === null &&
         (assignment.householdId === input.householdId ||
           assignment.dwellingUnitId === input.dwellingUnitId),
     )
@@ -39,8 +40,8 @@ export function planStartHousingAssignment(
     housingAssignmentId: `housing-assignment:${input.snapshot.sequences.nextHousingAssignment}`,
     householdId: input.householdId,
     dwellingUnitId: input.dwellingUnitId,
-    startedAtTick: input.startedAtTick,
-    endedAtTick: null,
+    startedAtMacroHourIndex: input.startedAtMacroHourIndex,
+    endedAtMacroHourIndex: null,
     endReasonDefinitionId: null,
   });
   return canonicalizeRciSnapshot({
@@ -61,7 +62,7 @@ export function planStartHousingAssignment(
 export function endHousingAssignments(
   snapshot: RciSnapshot,
   assignmentIds: ReadonlySet<string>,
-  endedAtTick: number,
+  endedAtMacroHourIndex: MacroHourIndex,
   endReasonDefinitionId: string,
 ): RciSnapshot {
   if (assignmentIds.size === 0) return snapshot;
@@ -72,8 +73,9 @@ export function endHousingAssignments(
       ...snapshot.housing,
       revision: snapshot.housing.revision + 1,
       assignments: snapshot.housing.assignments.map((assignment) =>
-        assignmentIds.has(assignment.housingAssignmentId) && assignment.endedAtTick === null
-          ? Object.freeze({ ...assignment, endedAtTick, endReasonDefinitionId })
+        assignmentIds.has(assignment.housingAssignmentId) &&
+        assignment.endedAtMacroHourIndex === null
+          ? Object.freeze({ ...assignment, endedAtMacroHourIndex, endReasonDefinitionId })
           : assignment,
       ),
     },

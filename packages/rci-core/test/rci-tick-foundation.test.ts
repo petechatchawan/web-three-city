@@ -23,7 +23,7 @@ const after: SimulationSnapshot = Object.freeze({
   growthSequence: 0,
 });
 
-describe('RCI tick plan and commit foundation', () => {
+describe('RCI macroHourIndex plan and commit foundation', () => {
   it('returns an immutable no-op plan outside lifecycle boundaries', () => {
     const rci = createSingleResidentSnapshot();
     const plan = planRciTick({

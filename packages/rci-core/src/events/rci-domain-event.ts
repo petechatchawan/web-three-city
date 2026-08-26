@@ -1,4 +1,5 @@
 import type { AgeBandDefinitionId } from '../population/age.js';
+import type { MacroHourIndex } from '@web-three-city/simulation-core';
 
 export type RciDomainEventType =
   | 'citizen.reached-age-band'
@@ -10,7 +11,7 @@ export type RciDomainEventType =
 
 export interface RciDomainEventBase {
   readonly type: RciDomainEventType;
-  readonly tick: number;
+  readonly macroHourIndex: MacroHourIndex;
   readonly priority: number;
   readonly entityKind: 'citizen' | 'relationship' | 'household' | 'qualification';
   readonly entityId: string;

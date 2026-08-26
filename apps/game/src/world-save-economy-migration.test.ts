@@ -3,6 +3,7 @@ import { createInitialRciSnapshot } from '@web-three-city/rci-core';
 import {
   createSimulationSnapshot,
   deriveGameCalendarFromGameMinute,
+  macroHourIndex,
 } from '@web-three-city/simulation-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { describe, expect, it } from 'vitest';
@@ -89,7 +90,7 @@ describe('WorldSave V1-V5 Economy migration', () => {
       world.zones,
       world.buildings,
       simulation,
-      createInitialRciSnapshot({ absoluteTick: tick }),
+      createInitialRciSnapshot({ absoluteMacroHourIndex: macroHourIndex(tick) }),
     );
     const decoded = decodeWorldSave(save, WORLD_CONFIG);
     expect(decoded.ok).toBe(true);

@@ -1,5 +1,10 @@
 import { buildingDefinitionForId, type BuildingSnapshot } from '@web-three-city/building-core';
-import { macroHourValue } from '@web-three-city/simulation-core';
+import {
+  addMacroHours,
+  macroHourDuration,
+  type MacroHourDuration,
+  type MacroHourIndex,
+} from '@web-three-city/simulation-core';
 import { compareStableId } from '../contracts/ids.js';
 import type { DwellingUnitId, HousingAssignmentId } from '../contracts/ids.js';
 import type { DisplacedHouseholdEntry, DwellingUnitRecord } from '../contracts/records.js';
@@ -20,8 +25,8 @@ export function synchronizeDwellingInventory(
     buildingsBefore: BuildingSnapshot;
     buildingsAfter: BuildingSnapshot;
     registries: RciDefinitionRegistries;
-    evaluationTick: number;
-    displacedExpiryTicks?: number;
+    evaluationMacroHourIndex: MacroHourIndex;
+    displacedExpiryMacroHours?: MacroHourDuration;
   }>,
 ): DwellingInventorySynchronizationResult {
   const existingById = new Map(
@@ -50,8 +55,8 @@ export function synchronizeDwellingInventory(
             buildingInstanceId: building.instanceId,
             capacityProfileDefinitionId: residential.id,
             unitIndex,
-            activatedAtTick: macroHourValue(building.activatedAtMacroHourIndex),
-            retiredAtTick: null,
+            activatedAtMacroHourIndex: building.activatedAtMacroHourIndex,
+            retiredAtMacroHourIndex: null,
           }),
       );
     }
@@ -60,9 +65,9 @@ export function synchronizeDwellingInventory(
   const activatedDwellingUnitIds: string[] = [];
   const retiredDwellingUnitIds: string[] = [];
   const units = input.snapshot.housing.dwellingUnits.map((unit) => {
-    if (unit.retiredAtTick !== null || expected.has(unit.dwellingUnitId)) return unit;
+    if (unit.retiredAtMacroHourIndex !== null || expected.has(unit.dwellingUnitId)) return unit;
     retiredDwellingUnitIds.push(unit.dwellingUnitId);
-    return Object.freeze({ ...unit, retiredAtTick: input.evaluationTick });
+    return Object.freeze({ ...unit, retiredAtMacroHourIndex: input.evaluationMacroHourIndex });
   });
   for (const [id, unit] of expected) {
     if (existingById.has(id)) continue;
@@ -76,19 +81,23 @@ export function synchronizeDwellingInventory(
     input.snapshot.migration.displacedHouseholds.map((entry) => [entry.householdId, entry]),
   );
   const assignments = input.snapshot.housing.assignments.map((assignment) => {
-    if (assignment.endedAtTick !== null || !retiredSet.has(assignment.dwellingUnitId)) {
+    if (assignment.endedAtMacroHourIndex !== null || !retiredSet.has(assignment.dwellingUnitId)) {
       return assignment;
     }
     endedHousingAssignmentIds.push(assignment.housingAssignmentId);
     if (!displacedByHousehold.has(assignment.householdId)) {
       const memberCount = input.snapshot.households.memberships.filter(
         (membership) =>
-          membership.householdId === assignment.householdId && membership.endedAtTick === null,
+          membership.householdId === assignment.householdId &&
+          membership.endedAtMacroHourIndex === null,
       ).length;
       const entry: DisplacedHouseholdEntry = Object.freeze({
         householdId: assignment.householdId,
-        displacedAtTick: input.evaluationTick,
-        expiresAtTick: input.evaluationTick + (input.displacedExpiryTicks ?? 720),
+        displacedAtMacroHourIndex: input.evaluationMacroHourIndex,
+        expiresAtMacroHourIndex: addMacroHours(
+          input.evaluationMacroHourIndex,
+          input.displacedExpiryMacroHours ?? macroHourDuration(720),
+        ),
         minimumResidentCapacity: Math.max(1, memberCount),
         displacementPressure: 100_000,
         deterministicSequence: input.snapshot.sequences.nextDomainEvent + displacedByHousehold.size,
@@ -97,7 +106,7 @@ export function synchronizeDwellingInventory(
     }
     return Object.freeze({
       ...assignment,
-      endedAtTick: input.evaluationTick,
+      endedAtMacroHourIndex: input.evaluationMacroHourIndex,
       endReasonDefinitionId: 'housing-ended.dwelling-retired',
     });
   });

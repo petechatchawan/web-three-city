@@ -10,6 +10,7 @@ import {
   createInitialRciSnapshot,
   validateRciSnapshot,
 } from '../src/index.js';
+import { ageOriginMacroHour, macroHour } from './temporal-fixtures.js';
 
 const buildings: BuildingSnapshot = Object.freeze({ revision: 0, instances: Object.freeze([]) });
 const simulation: SimulationSnapshot = Object.freeze({
@@ -22,7 +23,7 @@ const registries = createFoundationRciRegistries();
 describe('RCI validation', () => {
   it('accepts the empty coherent state', () => {
     const snapshot = createInitialRciSnapshot({
-      absoluteTick: deriveMacroHourIndex(simulation.absoluteGameMinute),
+      absoluteMacroHourIndex: deriveMacroHourIndex(simulation.absoluteGameMinute),
     });
     expect(validateRciSnapshot(snapshot, buildings, simulation, registries)).toEqual({
       valid: true,
@@ -32,7 +33,7 @@ describe('RCI validation', () => {
 
   it('reports sorted dangling and duplicate active references', () => {
     const initial = createInitialRciSnapshot({
-      absoluteTick: deriveMacroHourIndex(simulation.absoluteGameMinute),
+      absoluteMacroHourIndex: deriveMacroHourIndex(simulation.absoluteGameMinute),
     });
     const snapshot = {
       ...initial,
@@ -43,31 +44,37 @@ describe('RCI validation', () => {
             citizenId: 'citizen:1',
             presence: 'resident' as const,
             sexDefinitionId: 'sex.female',
-            bornAtTick: -20_000,
-            movedIntoCityAtTick: 0,
-            movedOutOfCityAtTick: null,
-            diedAtTick: null,
+            bornAtMacroHourIndex: ageOriginMacroHour(-20_000),
+            movedIntoCityAtMacroHourIndex: macroHour(0),
+            movedOutOfCityAtMacroHourIndex: null,
+            diedAtMacroHourIndex: null,
           },
         ],
       },
       households: {
         ...initial.households,
-        households: [{ householdId: 'household:1', foundedAtTick: 0, dissolvedAtTick: null }],
+        households: [
+          {
+            householdId: 'household:1',
+            foundedAtMacroHourIndex: macroHour(0),
+            dissolvedAtMacroHourIndex: null,
+          },
+        ],
         memberships: [
           {
             membershipId: 'household-membership:1',
             householdId: 'household:1',
             citizenId: 'citizen:1',
-            startedAtTick: 0,
-            endedAtTick: null,
+            startedAtMacroHourIndex: macroHour(0),
+            endedAtMacroHourIndex: null,
             endReasonDefinitionId: null,
           },
           {
             membershipId: 'household-membership:2',
             householdId: 'household:missing',
             citizenId: 'citizen:1',
-            startedAtTick: 1,
-            endedAtTick: null,
+            startedAtMacroHourIndex: macroHour(1),
+            endedAtMacroHourIndex: null,
             endReasonDefinitionId: null,
           },
         ],
@@ -89,9 +96,9 @@ describe('RCI validation', () => {
     ]);
   });
 
-  it('rejects an unknown definition and a future demand tick', () => {
+  it('rejects an unknown definition and a future demand macroHourIndex', () => {
     const initial = createInitialRciSnapshot({
-      absoluteTick: deriveMacroHourIndex(simulation.absoluteGameMinute),
+      absoluteMacroHourIndex: deriveMacroHourIndex(simulation.absoluteGameMinute),
     });
     const snapshot = {
       ...initial,
@@ -102,16 +109,16 @@ describe('RCI validation', () => {
             citizenId: 'citizen:1',
             presence: 'emigrated' as const,
             sexDefinitionId: 'sex.unknown',
-            bornAtTick: -20_000,
-            movedIntoCityAtTick: 0,
-            movedOutOfCityAtTick: 100,
-            diedAtTick: null,
+            bornAtMacroHourIndex: ageOriginMacroHour(-20_000),
+            movedIntoCityAtMacroHourIndex: macroHour(0),
+            movedOutOfCityAtMacroHourIndex: macroHour(100),
+            diedAtMacroHourIndex: null,
           },
         ],
       },
       demand: {
         ...initial.demand,
-        demand: { ...initial.demand.demand, evaluatedAtTick: 121 },
+        demand: { ...initial.demand.demand, evaluatedAtMacroHourIndex: macroHour(121) },
       },
       sequences: { ...initial.sequences, nextCitizen: 2 },
     };

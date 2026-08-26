@@ -5,6 +5,7 @@ import {
   createInitialRciSnapshot,
   type RciSnapshot,
 } from '../src/index.js';
+import { ageOriginMacroHour, macroHour } from './temporal-fixtures.js';
 
 export const housingRegistries = createFoundationRciRegistries();
 
@@ -23,8 +24,11 @@ export const activeCottageBuildings: BuildingSnapshot = Object.freeze({
   ]),
 });
 
-export function residentHouseholdSnapshot(absoluteTick = 32): RciSnapshot {
-  const initial = createInitialRciSnapshot({ absoluteTick, deterministicSeed: 7 });
+export function residentHouseholdSnapshot(absoluteMacroHour = 32): RciSnapshot {
+  const initial = createInitialRciSnapshot({
+    absoluteMacroHourIndex: macroHour(absoluteMacroHour),
+    deterministicSeed: 7,
+  });
   return {
     ...initial,
     population: {
@@ -34,10 +38,10 @@ export function residentHouseholdSnapshot(absoluteTick = 32): RciSnapshot {
           citizenId: 'citizen:1',
           presence: 'resident',
           sexDefinitionId: 'sex.female',
-          bornAtTick: absoluteTick - 30 * 8_640,
-          movedIntoCityAtTick: 0,
-          movedOutOfCityAtTick: null,
-          diedAtTick: null,
+          bornAtMacroHourIndex: ageOriginMacroHour(absoluteMacroHour - 30 * 288),
+          movedIntoCityAtMacroHourIndex: macroHour(0),
+          movedOutOfCityAtMacroHourIndex: null,
+          diedAtMacroHourIndex: null,
         },
       ],
       qualifications: [
@@ -45,22 +49,28 @@ export function residentHouseholdSnapshot(absoluteTick = 32): RciSnapshot {
           citizenQualificationId: 'citizen-qualification:1',
           citizenId: 'citizen:1',
           qualificationDefinitionId: 'qualification.skilled',
-          awardedAtTick: 0,
-          endedAtTick: null,
+          awardedAtMacroHourIndex: macroHour(0),
+          endedAtMacroHourIndex: null,
           sourceDefinitionId: 'fixture',
         },
       ],
     },
     households: {
       revision: 1,
-      households: [{ householdId: 'household:1', foundedAtTick: 0, dissolvedAtTick: null }],
+      households: [
+        {
+          householdId: 'household:1',
+          foundedAtMacroHourIndex: macroHour(0),
+          dissolvedAtMacroHourIndex: null,
+        },
+      ],
       memberships: [
         {
           membershipId: 'household-membership:1',
           householdId: 'household:1',
           citizenId: 'citizen:1',
-          startedAtTick: 0,
-          endedAtTick: null,
+          startedAtMacroHourIndex: macroHour(0),
+          endedAtMacroHourIndex: null,
           endReasonDefinitionId: null,
         },
       ],

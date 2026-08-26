@@ -1,6 +1,7 @@
 import type { CitizenId } from '../contracts/ids.js';
 import type { RciDefinitionRegistries } from '../definitions/contracts.js';
 import { deterministicSample, type ProbabilityUnit } from './deterministic-sample.js';
+import type { MacroHourIndex } from '@web-three-city/simulation-core';
 
 export type QualificationResolverContext =
   'working-age-immigrant' | 'resident-reaching-working-age';
@@ -8,7 +9,7 @@ export type QualificationResolverContext =
 export interface QualificationResolverInput {
   readonly citizenId: CitizenId;
   readonly context: QualificationResolverContext;
-  readonly evaluationTick: number;
+  readonly evaluationMacroHourIndex: MacroHourIndex;
   readonly deterministicSeed: number;
 }
 
@@ -30,7 +31,7 @@ export function createFoundationQualificationResolver(
       deterministicSample({
         seed: input.deterministicSeed,
         eventType: `qualification:${input.context}`,
-        evaluationTick: input.evaluationTick,
+        evaluationMacroHourIndex: input.evaluationMacroHourIndex,
         entityStableId: input.citizenId,
         attemptIndex: 0,
       }));

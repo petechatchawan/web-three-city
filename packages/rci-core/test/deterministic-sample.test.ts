@@ -12,7 +12,7 @@ describe('RCI deterministic counter-based sampling', () => {
       deterministicSample({
         seed: 1,
         eventType: 'birth',
-        evaluationTick: 32,
+        evaluationMacroHourIndex: macroHour(32),
         entityStableId: 'citizen:1',
         attemptIndex: 0,
       }),
@@ -21,7 +21,7 @@ describe('RCI deterministic counter-based sampling', () => {
       deterministicSample({
         seed: 1,
         eventType: 'death',
-        evaluationTick: 32,
+        evaluationMacroHourIndex: macroHour(32),
         entityStableId: 'citizen:1',
         attemptIndex: 0,
       }),
@@ -30,7 +30,7 @@ describe('RCI deterministic counter-based sampling', () => {
       deterministicSample({
         seed: 42,
         eventType: 'qualification',
-        evaluationTick: 8_640,
+        evaluationMacroHourIndex: macroHour(8_640),
         entityStableId: 'citizen:12',
         attemptIndex: 1,
       }),
@@ -39,7 +39,7 @@ describe('RCI deterministic counter-based sampling', () => {
       deterministicSample({
         seed: 42,
         eventType: 'qualification',
-        evaluationTick: 8_640,
+        evaluationMacroHourIndex: macroHour(8_640),
         entityStableId: 'ประชาชน:12',
         attemptIndex: 1,
       }),
@@ -51,7 +51,7 @@ describe('RCI deterministic counter-based sampling', () => {
       deterministicSample({
         seed: 1,
         eventType: 'birth',
-        evaluationTick: 32,
+        evaluationMacroHourIndex: macroHour(32),
         entityStableId: '\uD800',
         attemptIndex: 0,
       }),
@@ -62,7 +62,7 @@ describe('RCI deterministic counter-based sampling', () => {
     const sample = deterministicSample({
       seed: 0,
       eventType: 'sex',
-      evaluationTick: 0,
+      evaluationMacroHourIndex: macroHour(0),
       entityStableId: 'citizen:0',
       attemptIndex: 0,
     });
@@ -77,7 +77,7 @@ describe('RCI deterministic counter-based sampling', () => {
       deterministicSample({
         seed: 7,
         eventType: 'mortality',
-        evaluationTick: 32,
+        evaluationMacroHourIndex: macroHour(32),
         entityStableId: citizenId,
         attemptIndex: 0,
       });
@@ -88,3 +88,4 @@ describe('RCI deterministic counter-based sampling', () => {
     expect([...first].sort()).toEqual([...second].sort());
   });
 });
+import { macroHour } from './temporal-fixtures.js';

@@ -1,3 +1,4 @@
+import type { MacroHourIndex } from '@web-three-city/simulation-core';
 import { compareStableId } from '../contracts/ids.js';
 import type { RciDemandState } from '../contracts/records.js';
 import {
@@ -78,7 +79,7 @@ export function smoothRciDemand(
   input: Readonly<{
     previous: RciDemandState;
     evaluation: RciDemandEvaluation;
-    evaluationTick: number;
+    evaluationMacroHourIndex: MacroHourIndex;
     smoothingMilli?: number;
   }>,
 ): RciDemandState {
@@ -99,6 +100,6 @@ export function smoothRciDemand(
       input.evaluation.rawIndustrialMilli,
       smoothingMilli,
     ),
-    evaluatedAtTick: input.evaluationTick,
+    evaluatedAtMacroHourIndex: input.evaluationMacroHourIndex,
   });
 }

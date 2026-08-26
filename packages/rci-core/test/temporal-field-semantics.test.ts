@@ -12,22 +12,14 @@ type RciTemporalSemantic =
   | 'historical-event-point';
 
 const KNOWN_RCI_TEMPORAL_FIELDS = [
-  'absoluteTick',
   'activatedAtTick',
-  'afterAbsoluteTick',
-  'afterTick',
   'awardedAtTick',
-  'beforeAbsoluteTick',
-  'beforeTick',
   'bornAtTick',
   'diedAtTick',
   'displacedAtTick',
-  'displacedExpiryTicks',
   'dissolvedAtTick',
   'endedAtTick',
   'evaluatedAtTick',
-  'evaluationTick',
-  'expiresAfterTicks',
   'expiresAtTick',
   'foundedAtTick',
   'movedIntoCityAtTick',
@@ -35,28 +27,19 @@ const KNOWN_RCI_TEMPORAL_FIELDS = [
   'requestedAtTick',
   'retiredAtTick',
   'startedAtTick',
-  'tick',
 ] as const;
 
 const RCI_TEMPORAL_FIELD_SEMANTICS: Partial<
   Record<(typeof KNOWN_RCI_TEMPORAL_FIELDS)[number], RciTemporalSemantic>
 > = {
-  absoluteTick: 'macro-hour-point',
   activatedAtTick: 'historical-event-point',
-  afterAbsoluteTick: 'macro-hour-point',
-  afterTick: 'macro-hour-point',
   awardedAtTick: 'historical-event-point',
-  beforeAbsoluteTick: 'macro-hour-point',
-  beforeTick: 'macro-hour-point',
   bornAtTick: 'age-origin',
   diedAtTick: 'historical-event-point',
   displacedAtTick: 'historical-event-point',
-  displacedExpiryTicks: 'macro-hour-duration',
   dissolvedAtTick: 'historical-event-point',
   endedAtTick: 'historical-event-point',
   evaluatedAtTick: 'macro-hour-point',
-  evaluationTick: 'macro-hour-point',
-  expiresAfterTicks: 'macro-hour-duration',
   expiresAtTick: 'macro-hour-point',
   foundedAtTick: 'historical-event-point',
   movedIntoCityAtTick: 'historical-event-point',
@@ -64,7 +47,6 @@ const RCI_TEMPORAL_FIELD_SEMANTICS: Partial<
   requestedAtTick: 'historical-event-point',
   retiredAtTick: 'historical-event-point',
   startedAtTick: 'historical-event-point',
-  tick: 'historical-event-point',
 };
 
 const RCI_SOURCE_DIRECTORY = fileURLToPath(new URL('../src/', import.meta.url));

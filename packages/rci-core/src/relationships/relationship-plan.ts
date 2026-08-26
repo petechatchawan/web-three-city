@@ -1,4 +1,9 @@
 import {
+  compareMacroHours,
+  macroHourValue,
+  type MacroHourIndex,
+} from '@web-three-city/simulation-core';
+import {
   invalidRecordMutationPlan,
   validRecordMutationPlan,
   type RciRecordMutationPlan,
@@ -9,6 +14,7 @@ import type {
   RelationshipRecord,
   UndirectedRelationshipRecord,
 } from '../contracts/records.js';
+import { compareAgeOrigins } from '../population/age.js';
 import { canonicalizeRciSnapshot, type RciSnapshot } from '../rci-snapshot.js';
 
 function citizenFor(snapshot: RciSnapshot, citizenId: CitizenId) {
@@ -43,7 +49,7 @@ export function planCreatePartnerRelationship(
     snapshot: RciSnapshot;
     firstCitizenId: CitizenId;
     secondCitizenId: CitizenId;
-    startedAtTick: number;
+    startedAtMacroHourIndex: MacroHourIndex;
   }>,
 ): RciRecordMutationPlan {
   const { snapshot } = input;
@@ -54,8 +60,8 @@ export function planCreatePartnerRelationship(
     second === undefined ||
     first.presence !== 'resident' ||
     second.presence !== 'resident' ||
-    !Number.isSafeInteger(input.startedAtTick) ||
-    input.startedAtTick < 0
+    !Number.isSafeInteger(macroHourValue(input.startedAtMacroHourIndex)) ||
+    macroHourValue(input.startedAtMacroHourIndex) < 0
   ) {
     return invalidRecordMutationPlan(snapshot, 'rci:invalid-relationship');
   }
@@ -70,7 +76,7 @@ export function planCreatePartnerRelationship(
     (relationship) =>
       relationship.orientation === 'undirected' &&
       relationship.typeDefinitionId === 'relationship.partner' &&
-      relationship.endedAtTick === null &&
+      relationship.endedAtMacroHourIndex === null &&
       relationship.participantCitizenIds.some(
         (citizenId) => citizenId === participants[0] || citizenId === participants[1],
       ),
@@ -84,8 +90,8 @@ export function planCreatePartnerRelationship(
     orientation: 'undirected',
     typeDefinitionId: 'relationship.partner',
     participantCitizenIds: participants,
-    startedAtTick: input.startedAtTick,
-    endedAtTick: null,
+    startedAtMacroHourIndex: input.startedAtMacroHourIndex,
+    endedAtMacroHourIndex: null,
   });
   return appendRelationship(snapshot, relationship);
 }
@@ -94,7 +100,7 @@ export function planEndPartnerRelationship(
   input: Readonly<{
     snapshot: RciSnapshot;
     citizenId: CitizenId;
-    endedAtTick: number;
+    endedAtMacroHourIndex: MacroHourIndex;
   }>,
 ): RciRecordMutationPlan {
   const { snapshot } = input;
@@ -102,20 +108,20 @@ export function planEndPartnerRelationship(
     (relationship) =>
       relationship.orientation === 'undirected' &&
       relationship.typeDefinitionId === 'relationship.partner' &&
-      relationship.endedAtTick === null &&
+      relationship.endedAtMacroHourIndex === null &&
       relationship.participantCitizenIds.includes(input.citizenId),
   );
   if (
     target === undefined ||
-    !Number.isSafeInteger(input.endedAtTick) ||
-    input.endedAtTick < target.startedAtTick
+    !Number.isSafeInteger(macroHourValue(input.endedAtMacroHourIndex)) ||
+    compareMacroHours(input.endedAtMacroHourIndex, target.startedAtMacroHourIndex) < 0
   ) {
     return invalidRecordMutationPlan(snapshot, 'rci:invalid-relationship');
   }
 
   const relationships = snapshot.relationships.relationships.map((relationship) =>
     relationship.relationshipId === target.relationshipId
-      ? Object.freeze({ ...relationship, endedAtTick: input.endedAtTick })
+      ? Object.freeze({ ...relationship, endedAtMacroHourIndex: input.endedAtMacroHourIndex })
       : relationship,
   );
   const proposed = canonicalizeRciSnapshot({
@@ -135,7 +141,7 @@ export function planCreateDirectionalRelationship(
     typeDefinitionId: string;
     sourceCitizenId: CitizenId;
     targetCitizenId: CitizenId;
-    startedAtTick: number;
+    startedAtMacroHourIndex: MacroHourIndex;
   }>,
 ): RciRecordMutationPlan {
   const { snapshot } = input;
@@ -150,9 +156,9 @@ export function planCreateDirectionalRelationship(
     target === undefined ||
     source.citizenId === target.citizenId ||
     compareStableId(source.citizenId, target.citizenId) === 0 ||
-    source.bornAtTick >= target.bornAtTick ||
-    !Number.isSafeInteger(input.startedAtTick) ||
-    input.startedAtTick < 0
+    compareAgeOrigins(source.bornAtMacroHourIndex, target.bornAtMacroHourIndex) >= 0 ||
+    !Number.isSafeInteger(macroHourValue(input.startedAtMacroHourIndex)) ||
+    macroHourValue(input.startedAtMacroHourIndex) < 0
   ) {
     return invalidRecordMutationPlan(snapshot, 'rci:invalid-relationship');
   }
@@ -172,8 +178,8 @@ export function planCreateDirectionalRelationship(
     typeDefinitionId: input.typeDefinitionId,
     sourceCitizenId: input.sourceCitizenId,
     targetCitizenId: input.targetCitizenId,
-    startedAtTick: input.startedAtTick,
-    endedAtTick: null,
+    startedAtMacroHourIndex: input.startedAtMacroHourIndex,
+    endedAtMacroHourIndex: null,
   });
   return appendRelationship(snapshot, relationship);
 }

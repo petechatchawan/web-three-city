@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { orderRciDomainEvents, type RciDomainEvent } from '../src/index.js';
+import { macroHour } from './temporal-fixtures.js';
 
 const events: readonly RciDomainEvent[] = [
   {
     type: 'citizen.died',
-    tick: 32,
+    macroHourIndex: macroHour(32),
     priority: 40,
     entityKind: 'citizen',
     entityId: 'citizen:2',
@@ -12,7 +13,7 @@ const events: readonly RciDomainEvent[] = [
   },
   {
     type: 'citizen.born',
-    tick: 32,
+    macroHourIndex: macroHour(32),
     priority: 30,
     entityKind: 'citizen',
     entityId: 'citizen:3',
@@ -20,7 +21,7 @@ const events: readonly RciDomainEvent[] = [
   },
   {
     type: 'citizen.reached-age-band',
-    tick: 32,
+    macroHourIndex: macroHour(32),
     priority: 10,
     entityKind: 'citizen',
     entityId: 'citizen:1',
@@ -30,7 +31,7 @@ const events: readonly RciDomainEvent[] = [
 ];
 
 describe('RCI domain event ordering', () => {
-  it('orders by tick, priority, entity kind, stable id, and sequence', () => {
+  it('orders by macroHourIndex, priority, entity kind, stable id, and sequence', () => {
     const ordered = orderRciDomainEvents(events);
     expect(ordered.map((event) => event.priority)).toEqual([10, 30, 40]);
     expect(ordered.map((event) => event.type)).toEqual([

@@ -363,7 +363,7 @@ function createFixtureRci(
 
 function createFixtureEconomy(): EconomySnapshotV1 {
   return createInitialEconomySnapshot(
-    { year: 1, month: 1, latestDailySettlementTick: 0 },
+    { year: 1, month: 1, latestCycleSettlementAtMacroHourIndex: macroHourIndex(0) },
     FOUNDATION_ECONOMY_RULES,
   );
 }

@@ -328,8 +328,8 @@ function planGameMinuteTransactionCore(
       ? settleScheduledEconomy(
           world.economy,
           {
-            beforeTick: macroHourTransition.beforeMacroHourIndex,
-            afterTick: macroHourTransition.afterMacroHourIndex,
+            beforeMacroHourIndex: macroHourTransition.beforeMacroHourIndex,
+            afterMacroHourIndex: macroHourTransition.afterMacroHourIndex,
             macroHourTransition,
             calendar: deriveGameCalendarFromGameMinute(simulation.absoluteGameMinute),
             taxableActivity: {

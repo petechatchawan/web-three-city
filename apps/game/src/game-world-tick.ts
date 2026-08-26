@@ -246,8 +246,8 @@ export function planGameWorldTick(
   const settlement = settleScheduledEconomy(
     state.economy,
     {
-      beforeTick: macroHourTransition.beforeMacroHourIndex,
-      afterTick: macroHourTransition.crossed
+      beforeMacroHourIndex: macroHourTransition.beforeMacroHourIndex,
+      afterMacroHourIndex: macroHourTransition.crossed
         ? macroHourTransition.afterMacroHourIndex
         : addMacroHours(macroHourTransition.beforeMacroHourIndex, macroHourDuration(1)),
       macroHourTransition,

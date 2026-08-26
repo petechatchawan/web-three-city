@@ -414,7 +414,9 @@ export function bootstrapGame(
       {
         year: 1,
         month: 1,
-        latestDailySettlementTick: deriveMacroHourIndex(initialSimulation.absoluteGameMinute),
+        latestCycleSettlementAtMacroHourIndex: deriveMacroHourIndex(
+          initialSimulation.absoluteGameMinute,
+        ),
       },
       FOUNDATION_ECONOMY_RULES,
     ),

@@ -1,3 +1,5 @@
+import { compareMacroHours, macroHourIndex, macroHourValue } from '@web-three-city/simulation-core';
+import type { MacroHourIndex } from '@web-three-city/simulation-core';
 import {
   cloneEconomySnapshot,
   type EconomyPeriodTotals,
@@ -56,7 +58,7 @@ export interface ApplyEconomyDeltaInput {
 
 export interface CloseAccountingPeriodInput {
   readonly baseRevision: number;
-  readonly atTick: number;
+  readonly atMacroHourIndex: MacroHourIndex;
   readonly nextPeriod: { readonly year: number; readonly month: number };
 }
 
@@ -241,8 +243,13 @@ export const closeAccountingPeriod = (
   if (input.baseRevision !== snapshot.revision) {
     return { ok: false, reason: 'stale-revision' };
   }
+  let atMacroHourIndex: MacroHourIndex;
+  try {
+    atMacroHourIndex = macroHourIndex(macroHourValue(input.atMacroHourIndex));
+  } catch {
+    return { ok: false, reason: 'invalid-period' };
+  }
   if (
-    !isNonNegativeSafeInteger(input.atTick) ||
     !isNonNegativeSafeInteger(input.nextPeriod.year) ||
     input.nextPeriod.year < 1 ||
     !isNonNegativeSafeInteger(input.nextPeriod.month) ||
@@ -251,7 +258,10 @@ export const closeAccountingPeriod = (
   ) {
     return { ok: false, reason: 'invalid-period' };
   }
-  if (snapshot.lastMonthlyCloseTick === input.atTick) {
+  if (
+    snapshot.lastMonthlyCloseAtMacroHourIndex !== null &&
+    compareMacroHours(snapshot.lastMonthlyCloseAtMacroHourIndex, atMacroHourIndex) === 0
+  ) {
     return snapshot.currentPeriod.year === input.nextPeriod.year &&
       snapshot.currentPeriod.month === input.nextPeriod.month
       ? { ok: true, snapshot }
@@ -265,7 +275,8 @@ export const closeAccountingPeriod = (
   if (
     input.nextPeriod.year !== expectedNext.year ||
     input.nextPeriod.month !== expectedNext.month ||
-    (snapshot.lastMonthlyCloseTick !== null && input.atTick < snapshot.lastMonthlyCloseTick) ||
+    (snapshot.lastMonthlyCloseAtMacroHourIndex !== null &&
+      compareMacroHours(atMacroHourIndex, snapshot.lastMonthlyCloseAtMacroHourIndex) < 0) ||
     !Number.isSafeInteger(snapshot.revision + 1)
   ) {
     return { ok: false, reason: 'invalid-period' };
@@ -276,7 +287,7 @@ export const closeAccountingPeriod = (
     revision: snapshot.revision + 1,
     currentPeriod: createEmptyPeriod(input.nextPeriod.year, input.nextPeriod.month),
     previousPeriod: snapshot.currentPeriod,
-    lastMonthlyCloseTick: input.atTick,
+    lastMonthlyCloseAtMacroHourIndex: atMacroHourIndex,
   };
   if (!validateEconomySnapshot(candidate, rules)) {
     return { ok: false, reason: 'invalid-period' };

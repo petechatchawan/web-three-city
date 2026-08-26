@@ -206,7 +206,11 @@ importers:
 
   packages/citizen-mobility-core: {}
 
-  packages/economy-core: {}
+  packages/economy-core:
+    dependencies:
+      '@web-three-city/simulation-core':
+        specifier: workspace:*
+        version: link:../simulation-core
 
   packages/rci-core:
     dependencies:

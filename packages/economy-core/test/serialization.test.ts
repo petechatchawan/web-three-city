@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import * as economy from '../src/index.js';
+import { macroHourIndex } from '@web-three-city/simulation-core';
 
 describe('EconomySaveV1', () => {
   const rules = economy.FOUNDATION_ECONOMY_RULES;
   const snapshot = economy.createInitialEconomySnapshot(
-    { year: 2, month: 12, latestDailySettlementTick: 8_600 },
+    { year: 2, month: 12, latestCycleSettlementAtMacroHourIndex: macroHourIndex(8_600) },
     rules,
   );
 

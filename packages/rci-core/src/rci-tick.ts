@@ -1,7 +1,10 @@
 import { fingerprintBuildingSnapshot, type BuildingSnapshot } from '@web-three-city/building-core';
 import {
+  compareGameMinutes,
   deriveMacroHourTransition,
+  gameMinuteValue,
   isMacroHourTransition,
+  macroHourValue,
   type MacroHourTransition,
   type SimulationSnapshot,
 } from '@web-three-city/simulation-core';
@@ -117,9 +120,12 @@ function tickInputsValid(input: RciTickInput): boolean {
     Number.isSafeInteger(input.simulationBefore.revision) &&
     Number.isSafeInteger(input.simulationAfter.revision) &&
     input.simulationAfter.revision === input.simulationBefore.revision + 1 &&
-    Number.isSafeInteger(input.simulationBefore.absoluteGameMinute) &&
-    Number.isSafeInteger(input.simulationAfter.absoluteGameMinute) &&
-    input.simulationAfter.absoluteGameMinute > input.simulationBefore.absoluteGameMinute &&
+    Number.isSafeInteger(gameMinuteValue(input.simulationBefore.absoluteGameMinute)) &&
+    Number.isSafeInteger(gameMinuteValue(input.simulationAfter.absoluteGameMinute)) &&
+    compareGameMinutes(
+      input.simulationAfter.absoluteGameMinute,
+      input.simulationBefore.absoluteGameMinute,
+    ) === 1 &&
     Number.isSafeInteger(input.buildingsBefore.revision) &&
     Number.isSafeInteger(input.buildingsAfter.revision) &&
     input.configuration.populationRateProfileDefinitionId.length > 0 &&
@@ -307,14 +313,18 @@ export function commitRciTick(input: RciTickCommitInput): Readonly<{
   }
   if (
     input.simulationBefore.revision !== plan.baseSimulationRevision ||
-    deriveMacroHourTransition(
-      input.simulationBefore.absoluteGameMinute,
-      input.simulationBefore.absoluteGameMinute,
-    ).beforeMacroHourIndex !== plan.beforeAbsoluteTick ||
-    deriveMacroHourTransition(
-      input.simulationAfter.absoluteGameMinute,
-      input.simulationAfter.absoluteGameMinute,
-    ).afterMacroHourIndex !== plan.afterAbsoluteTick ||
+    macroHourValue(
+      deriveMacroHourTransition(
+        input.simulationBefore.absoluteGameMinute,
+        input.simulationBefore.absoluteGameMinute,
+      ).beforeMacroHourIndex,
+    ) !== plan.beforeAbsoluteTick ||
+    macroHourValue(
+      deriveMacroHourTransition(
+        input.simulationAfter.absoluteGameMinute,
+        input.simulationAfter.absoluteGameMinute,
+      ).afterMacroHourIndex,
+    ) !== plan.afterAbsoluteTick ||
     input.simulationAfter.revision !== input.simulationBefore.revision + 1
   ) {
     throw new RciContractError('rci:stale-simulation-plan');

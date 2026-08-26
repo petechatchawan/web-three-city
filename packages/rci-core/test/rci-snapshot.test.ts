@@ -1,5 +1,9 @@
 import type { BuildingSnapshot } from '@web-three-city/building-core';
-import { deriveMacroHourIndex, type SimulationSnapshot } from '@web-three-city/simulation-core';
+import {
+  absoluteGameMinute,
+  deriveMacroHourIndex,
+  type SimulationSnapshot,
+} from '@web-three-city/simulation-core';
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_RCI_DETERMINISTIC_SEED,
@@ -12,7 +16,7 @@ import {
 const buildings: BuildingSnapshot = Object.freeze({ revision: 0, instances: Object.freeze([]) });
 const simulation: SimulationSnapshot = Object.freeze({
   revision: 0,
-  absoluteGameMinute: 120 * 60,
+  absoluteGameMinute: absoluteGameMinute(120 * 60),
   growthSequence: 0,
 });
 const registries = createFoundationRciRegistries();

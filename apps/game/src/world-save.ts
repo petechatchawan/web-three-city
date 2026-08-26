@@ -34,6 +34,9 @@ import {
   encodeSimulationSaveV1,
   encodeSimulationSaveV2,
   encodeSimulationSaveV3,
+  absoluteGameMinute,
+  gameMinuteValue,
+  macroHourValue,
   type SimulationSaveV2,
   type SimulationSaveV3,
 } from '@web-three-city/simulation-core';
@@ -206,11 +209,11 @@ export function encodeWorldSaveV8(
       : migrateTrafficSaveV1ToV2({
           snapshot: traffic as TrafficSnapshotV1,
           graph: trafficGraph,
-          legacyCurrentGameSecond: simulation.absoluteGameMinute,
+          legacyCurrentGameSecond: gameMinuteValue(simulation.absoluteGameMinute),
           timeCursor: Object.freeze({
-            sourceGameMinute: simulation.absoluteGameMinute,
+            sourceGameMinute: gameMinuteValue(simulation.absoluteGameMinute),
             completedTransportQuantaWithinMinute: 0,
-            absoluteTransportSecond: simulation.absoluteGameMinute * 4,
+            absoluteTransportSecond: gameMinuteValue(simulation.absoluteGameMinute) * 4,
             temporalPolicyVersion: 1,
           }),
         });
@@ -226,7 +229,7 @@ export function encodeWorldSaveV8(
 function migratedEconomy(simulation: legacy.DecodedWorldState['simulation']): EconomySnapshotV1 {
   const macroHourIndex = deriveMacroHourIndex(simulation.absoluteGameMinute);
   const calendar = deriveGameCalendarFromGameMinute(simulation.absoluteGameMinute);
-  const dayStart = macroHourIndex - calendar.hour;
+  const dayStart = macroHourValue(macroHourIndex) - calendar.hour;
   const latestBoundary = Math.max(0, calendar.hour >= 8 ? dayStart + 8 : dayStart - 16);
   return createInitialEconomySnapshot(
     { year: calendar.year, month: calendar.month, latestDailySettlementTick: latestBoundary },
@@ -237,14 +240,14 @@ function migratedEconomy(simulation: legacy.DecodedWorldState['simulation']): Ec
 function migratedMobility(
   rci: RciSnapshot,
   buildings: DecodedWorldState['buildings'],
-  absoluteGameMinute: number,
+  absoluteGameMinuteValue: number,
 ): MobilitySnapshotV1 {
   return reconcileMobilityCitizens({
     snapshot: createEmptyMobilitySnapshot(),
     citizens: createPresentCitizenMobilityProjection(
       rci,
       buildings,
-      deriveMacroHourIndex(absoluteGameMinute),
+      deriveMacroHourIndex(absoluteGameMinute(absoluteGameMinuteValue)),
     ),
   }).snapshot;
 }
@@ -398,11 +401,11 @@ export function decodeWorldSave(
     const migratedTraffic = migrateTrafficSaveV1ToV2({
       snapshot: decodedTraffic.value,
       graph,
-      legacyCurrentGameSecond: upstream.value.simulation.absoluteGameMinute,
+      legacyCurrentGameSecond: gameMinuteValue(upstream.value.simulation.absoluteGameMinute),
       timeCursor: Object.freeze({
-        sourceGameMinute: upstream.value.simulation.absoluteGameMinute,
+        sourceGameMinute: gameMinuteValue(upstream.value.simulation.absoluteGameMinute),
         completedTransportQuantaWithinMinute: 0,
-        absoluteTransportSecond: upstream.value.simulation.absoluteGameMinute * 4,
+        absoluteTransportSecond: gameMinuteValue(upstream.value.simulation.absoluteGameMinute) * 4,
         temporalPolicyVersion: 1,
       }),
     });

@@ -1,4 +1,9 @@
 import {
+  addGameMinutes,
+  gameMinuteDuration,
+  gameMinuteValue,
+} from '@web-three-city/simulation-core';
+import {
   createEmptyBuildingSnapshot,
   type BuildingDevelopmentEnvironment,
 } from '@web-three-city/building-core';
@@ -120,8 +125,8 @@ describe('atomic game-world tick', () => {
     expect(first).toEqual(second);
     expect(first.valid).toBe(true);
     expect(first.proposedState.revision).toBe(1);
-    expect(first.proposedState.simulation.absoluteGameMinute).toBe(
-      state.simulation.absoluteGameMinute + 1,
+    expect(gameMinuteValue(first.proposedState.simulation.absoluteGameMinute)).toBe(
+      gameMinuteValue(addGameMinutes(state.simulation.absoluteGameMinute, gameMinuteDuration(1))),
     );
     expect(first.proposedState.buildings).toBe(state.buildings);
   });

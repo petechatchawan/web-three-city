@@ -1,4 +1,4 @@
-import type { SimulationSnapshot } from '@web-three-city/simulation-core';
+import { absoluteGameMinute, type SimulationSnapshot } from '@web-three-city/simulation-core';
 import { describe, expect, it } from 'vitest';
 import {
   FOUNDATION_RCI_CONFIGURATION,
@@ -14,12 +14,12 @@ import {
 
 const before: SimulationSnapshot = Object.freeze({
   revision: 8,
-  absoluteGameMinute: 32 * 60,
+  absoluteGameMinute: absoluteGameMinute(32 * 60),
   growthSequence: 0,
 });
 const after: SimulationSnapshot = Object.freeze({
   revision: 9,
-  absoluteGameMinute: 33 * 60,
+  absoluteGameMinute: absoluteGameMinute(33 * 60),
   growthSequence: 0,
 });
 

@@ -1,7 +1,10 @@
 import {
+  addMacroHours,
   commitSimulationMinute,
   createSimulationSnapshot,
   deriveMacroHourTransition,
+  macroHourDuration,
+  macroHourValue,
   isDevelopmentEvaluationTick,
   isMacroHourTransition,
   planSimulationMinute,
@@ -138,7 +141,8 @@ function normalizeGrowthBuildings(
         const authoritative = normalizeBuildingInstance(instance);
         if (
           authoritative.lifecycle === 'construction' &&
-          authoritative.constructionCompletesAtTick <= macroHourTransition.afterMacroHourIndex
+          authoritative.constructionCompletesAtTick <=
+            macroHourValue(macroHourTransition.afterMacroHourIndex)
         ) {
           completedIds.push(authoritative.instanceId);
           for (const cell of occupiedCellsForBuilding(authoritative))
@@ -196,8 +200,10 @@ function applyScheduledGrowth(input: {
     rotationQuarterTurns: selected.instance.rotationQuarterTurns,
     lifecycle: 'construction',
     constructionStartedAtTick: input.macroHourTransition.afterMacroHourIndex,
-    constructionCompletesAtTick:
-      input.macroHourTransition.afterMacroHourIndex + definition.constructionDurationTicks,
+    constructionCompletesAtTick: addMacroHours(
+      input.macroHourTransition.afterMacroHourIndex,
+      macroHourDuration(definition.constructionDurationTicks),
+    ),
   });
   input.proposed.push(construction);
   startedIds.push(construction.instanceId);
@@ -300,10 +306,12 @@ export function commitBuildingGrowthTick(input: {
   if (
     input.simulation.revision !== plan.baseSimulationRevision ||
     (plan.simulationAdvanceOwnedByBuilding &&
-      deriveMacroHourTransition(
-        input.simulation.absoluteGameMinute,
-        input.simulation.absoluteGameMinute,
-      ).beforeMacroHourIndex !== plan.beforeAbsoluteTick)
+      macroHourValue(
+        deriveMacroHourTransition(
+          input.simulation.absoluteGameMinute,
+          input.simulation.absoluteGameMinute,
+        ).beforeMacroHourIndex,
+      ) !== plan.beforeAbsoluteTick)
   ) {
     throw new BuildingContractError('building-growth:stale-simulation-plan');
   }
@@ -319,10 +327,12 @@ export function commitBuildingGrowthTick(input: {
   if (
     plan.simulationAdvanceOwnedByBuilding &&
     (!tickPlan.valid ||
-      deriveMacroHourTransition(
-        input.simulation.absoluteGameMinute,
-        tickPlan.afterAbsoluteGameMinute,
-      ).afterMacroHourIndex !== plan.afterAbsoluteTick)
+      macroHourValue(
+        deriveMacroHourTransition(
+          input.simulation.absoluteGameMinute,
+          tickPlan.afterAbsoluteGameMinute,
+        ).afterMacroHourIndex,
+      ) !== plan.afterAbsoluteTick)
   ) {
     throw new BuildingContractError('building-growth:stale-simulation-plan');
   }

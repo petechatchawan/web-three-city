@@ -5,6 +5,7 @@ import {
 import {
   createInitialSimulationSnapshot,
   createSimulationSnapshot,
+  gameMinuteValue,
 } from '@web-three-city/simulation-core';
 import { createFoundationRciRegistries } from '@web-three-city/rci-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
@@ -27,7 +28,8 @@ function worldAtMinute(absoluteGameMinute: number) {
   return createCommittedWorld({
     ...base,
     simulation: createSimulationSnapshot({
-      revision: absoluteGameMinute - createInitialSimulationSnapshot().absoluteGameMinute,
+      revision:
+        absoluteGameMinute - gameMinuteValue(createInitialSimulationSnapshot().absoluteGameMinute),
       absoluteGameMinute,
       growthSequence: base.simulation.growthSequence,
     }),

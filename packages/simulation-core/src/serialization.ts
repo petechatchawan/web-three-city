@@ -1,6 +1,7 @@
 import { createSimulationSnapshot } from './simulation-snapshot.js';
 import type { SimulationSnapshot } from './contracts.js';
 import { assertAbsoluteTick, MINUTES_PER_HOUR } from './calendar.js';
+import { absoluteGameMinute, gameMinuteValue, type AbsoluteGameMinute } from './temporal-units.js';
 
 export interface SimulationSaveV1 {
   readonly kind: 'simulation-save';
@@ -34,13 +35,13 @@ export type SimulationSaveResult =
       }>;
     }>;
 
-function absoluteGameMinuteFromLegacyTick(absoluteTick: number): number {
+function absoluteGameMinuteFromLegacyTick(absoluteTick: number): AbsoluteGameMinute {
   assertAbsoluteTick(absoluteTick);
-  const absoluteGameMinute = absoluteTick * MINUTES_PER_HOUR;
-  if (!Number.isSafeInteger(absoluteGameMinute)) {
+  const absoluteGameMinuteValue = absoluteTick * MINUTES_PER_HOUR;
+  if (!Number.isSafeInteger(absoluteGameMinuteValue)) {
     throw new RangeError('simulation-save:minute-overflow');
   }
-  return absoluteGameMinute;
+  return absoluteGameMinute(absoluteGameMinuteValue);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -52,7 +53,7 @@ export function encodeSimulationSaveV1(snapshot: SimulationSnapshot): Simulation
   return Object.freeze({
     kind: 'simulation-save',
     schemaVersion: 1,
-    absoluteTick: Math.floor(validated.absoluteGameMinute / MINUTES_PER_HOUR),
+    absoluteTick: Math.floor(gameMinuteValue(validated.absoluteGameMinute) / MINUTES_PER_HOUR),
     growthSequence: validated.growthSequence,
   });
 }
@@ -93,7 +94,7 @@ export function encodeSimulationSaveV2(snapshot: SimulationSnapshot): Simulation
     kind: 'simulation-save',
     schemaVersion: 2,
     revision: validated.revision,
-    absoluteTick: Math.floor(validated.absoluteGameMinute / MINUTES_PER_HOUR),
+    absoluteTick: Math.floor(gameMinuteValue(validated.absoluteGameMinute) / MINUTES_PER_HOUR),
     growthSequence: validated.growthSequence,
   });
 }
@@ -134,7 +135,7 @@ export function migrateSimulationSaveV2ToV3(v2: SimulationSaveV2): SimulationSav
     kind: 'simulation-save',
     schemaVersion: 3,
     revision: v2.revision,
-    absoluteGameMinute: absoluteGameMinuteFromLegacyTick(v2.absoluteTick),
+    absoluteGameMinute: gameMinuteValue(absoluteGameMinuteFromLegacyTick(v2.absoluteTick)),
     growthSequence: v2.growthSequence,
   });
 }
@@ -145,7 +146,7 @@ export function encodeSimulationSaveV3(snapshot: SimulationSnapshot): Simulation
     kind: 'simulation-save',
     schemaVersion: 3,
     revision: validated.revision,
-    absoluteGameMinute: validated.absoluteGameMinute,
+    absoluteGameMinute: gameMinuteValue(validated.absoluteGameMinute),
     growthSequence: validated.growthSequence,
   });
 }

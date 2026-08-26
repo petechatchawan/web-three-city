@@ -1,3 +1,4 @@
+import { addGameMinutes, gameMinuteDuration } from '@web-three-city/simulation-core';
 import { describe, expect, it } from 'vitest';
 import { createApplicationFixture } from '../../test/application-fixtures.js';
 import { staticPresentationNeedsRebuild } from './static-presentation-refresh.js';
@@ -11,7 +12,10 @@ describe('static presentation refresh policy', () => {
       simulation: Object.freeze({
         ...initial.simulation,
         revision: initial.simulation.revision + 1,
-        absoluteGameMinute: initial.simulation.absoluteGameMinute + 1,
+        absoluteGameMinute: addGameMinutes(
+          initial.simulation.absoluteGameMinute,
+          gameMinuteDuration(1),
+        ),
       }),
     });
 

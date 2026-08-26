@@ -4,12 +4,18 @@ import {
   type SimulationMinuteReceipt,
   type SimulationSnapshot,
 } from './contracts.js';
+import {
+  addGameMinutes,
+  compareGameMinutes,
+  gameMinuteDuration,
+  gameMinuteValue,
+} from './temporal-units.js';
 import { createSimulationSnapshot } from './simulation-snapshot.js';
 
 export function planSimulationMinute(snapshot: SimulationSnapshot): SimulationMinutePlan {
   try {
     const validated = createSimulationSnapshot(snapshot);
-    if (validated.absoluteGameMinute === Number.MAX_SAFE_INTEGER) {
+    if (gameMinuteValue(validated.absoluteGameMinute) === Number.MAX_SAFE_INTEGER) {
       return Object.freeze({
         baseRevision: validated.revision,
         beforeAbsoluteGameMinute: validated.absoluteGameMinute,
@@ -21,7 +27,7 @@ export function planSimulationMinute(snapshot: SimulationSnapshot): SimulationMi
     return Object.freeze({
       baseRevision: validated.revision,
       beforeAbsoluteGameMinute: validated.absoluteGameMinute,
-      afterAbsoluteGameMinute: validated.absoluteGameMinute + 1,
+      afterAbsoluteGameMinute: addGameMinutes(validated.absoluteGameMinute, gameMinuteDuration(1)),
       valid: true,
       invalidReason: null,
     });
@@ -47,7 +53,7 @@ export function commitSimulationMinute(
   const validated = createSimulationSnapshot(snapshot);
   if (
     validated.revision !== plan.baseRevision ||
-    validated.absoluteGameMinute !== plan.beforeAbsoluteGameMinute
+    compareGameMinutes(validated.absoluteGameMinute, plan.beforeAbsoluteGameMinute) !== 0
   ) {
     throw new SimulationContractError('simulation:stale-plan');
   }

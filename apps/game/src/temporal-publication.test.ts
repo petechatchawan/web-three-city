@@ -3,7 +3,7 @@ import {
   type ConstructionBuildingInstance,
 } from '@web-three-city/building-core';
 import { createFoundationRciRegistries } from '@web-three-city/rci-core';
-import { createSimulationSnapshot } from '@web-three-city/simulation-core';
+import { createSimulationSnapshot, type AbsoluteGameMinute } from '@web-three-city/simulation-core';
 import { type TrafficGraph } from '@web-three-city/traffic-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { describe, expect, it } from 'vitest';
@@ -372,6 +372,9 @@ function runPublicationCadence(
   } else {
     const result = controller.advanceTemporalMinute();
     if (result.status !== 'committed') throw new Error(`test:temporal-rejected:${result.reason}`);
+    const beforeGameMinute: AbsoluteGameMinute = result.beforeGameMinute;
+    const afterGameMinute: AbsoluteGameMinute = result.afterGameMinute;
+    expect(afterGameMinute).not.toBe(beforeGameMinute);
     world = result.world;
   }
 

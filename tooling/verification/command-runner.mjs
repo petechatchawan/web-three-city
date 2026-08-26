@@ -3,6 +3,16 @@ import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFileCallback);
 
+function workspaceRoot(workspace) {
+  const name = workspace.replace(/^@web-three-city\//, '');
+  return name === 'game' || name === 'terrain-lab' ? `apps/${name}` : `packages/${name}`;
+}
+
+function workspaceRelativeFiles(workspace, files) {
+  const root = `${workspaceRoot(workspace)}/`;
+  return files.map((file) => (file.startsWith(root) ? file.slice(root.length) : file));
+}
+
 function packageTestCommand(target, kind) {
   if (target.mode === 'package') {
     return {
@@ -16,14 +26,28 @@ function packageTestCommand(target, kind) {
     return {
       kind,
       executable: 'pnpm',
-      args: ['--filter', target.workspace, 'exec', 'vitest', 'run', ...target.files],
+      args: [
+        '--filter',
+        target.workspace,
+        'exec',
+        'vitest',
+        'run',
+        ...workspaceRelativeFiles(target.workspace, target.files),
+      ],
     };
   }
 
   return {
     kind,
     executable: 'pnpm',
-    args: ['--filter', target.workspace, 'exec', 'vitest', 'related', ...target.files],
+    args: [
+      '--filter',
+      target.workspace,
+      'exec',
+      'vitest',
+      'related',
+      ...workspaceRelativeFiles(target.workspace, target.files),
+    ],
   };
 }
 

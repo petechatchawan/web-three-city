@@ -46,7 +46,7 @@ test('builds owner, typecheck, and targeted browser commands as safe argument ar
         'exec',
         'vitest',
         'run',
-        'apps/game/src/traffic-release-fixture.test.ts',
+        'src/traffic-release-fixture.test.ts',
       ],
     },
     {
@@ -73,11 +73,29 @@ test('keeps shell metacharacters inside one file argument', () => {
   });
 
   assert.equal(command.executable, 'pnpm');
-  assert.equal(command.args.at(-1), file);
+  assert.equal(command.args.at(-1), 'src/fixture with spaces;$(touch-do-not-run).test.ts');
   assert.equal(
     command.args.some((arg) => arg.includes('touch-do-not-run')),
     true,
   );
+});
+
+test('normalizes repository-relative paths for filtered package workspaces', () => {
+  const [command] = buildExecutionCommands({
+    ownerTests: [
+      {
+        workspace: '@web-three-city/building-core',
+        files: ['packages/building-core/test/building-growth.test.ts'],
+        mode: 'files',
+      },
+    ],
+    consumerTests: [],
+    typechecks: [],
+    deploymentChecks: false,
+    browser: { mode: 'none', tags: [], fullBrowserRequired: false },
+  });
+
+  assert.equal(command.args.at(-1), 'test/building-growth.test.ts');
 });
 
 test('runCommand passes executable and arguments without shell interpolation', async () => {

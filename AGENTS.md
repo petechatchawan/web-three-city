@@ -182,7 +182,7 @@ This is a **conservative verification map**, not the architectural dependency gr
 | --- | --- |
 | `world-core` | `terrain-core`, `road-core`, `water-core`, `zone-core`, `building-core`, `rci-core`, `building-three`, `road-three`, `terrain-three`, `water-three`, `zone-three`, `game`, `terrain-lab` |
 | `terrain-core` | `road-core`, `water-core`, `zone-core`, `building-core`, `road-three`, `terrain-three`, `game`, `terrain-lab` |
-| `simulation-core` | `building-core`, `rci-core`, `game` |
+| `simulation-core` | `building-core`, `rci-core`, `building-three`, `game` |
 | `zone-core` | `building-core`, `rci-core`, `zone-three`, `game` |
 | `building-core` | `rci-core`, `building-three`, `game` |
 | `rci-core` | `game` |

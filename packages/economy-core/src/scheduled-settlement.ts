@@ -7,7 +7,11 @@ import {
   macroHourIndex,
   macroHourValue,
 } from '@web-three-city/simulation-core';
-import type { MacroHourIndex, MacroHourTransition } from '@web-three-city/simulation-core';
+import type {
+  GameCalendar,
+  MacroHourIndex,
+  MacroHourTransition,
+} from '@web-three-city/simulation-core';
 import type { EconomySnapshotV1 } from './economy-snapshot.js';
 import { cloneEconomySnapshot, validateEconomySnapshot } from './economy-snapshot.js';
 import type { BasisPoints, MoneyMinor } from './money.js';
@@ -116,7 +120,7 @@ export interface ScheduledSettlementInput {
   readonly beforeMacroHourIndex: MacroHourIndex;
   readonly afterMacroHourIndex: MacroHourIndex;
   readonly macroHourTransition?: MacroHourTransition;
-  readonly calendar: Readonly<{ year: number; month: number; day: number; hour: number }>;
+  readonly calendar: Pick<GameCalendar, 'year' | 'month' | 'hour'>;
   readonly taxableActivity: TaxableActivityProjection;
   readonly roadMaintenance: RoadMaintenanceProjection;
 }

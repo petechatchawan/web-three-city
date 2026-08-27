@@ -11,7 +11,7 @@ const projection: GameHudProjection = {
   residentialDemand: 42,
   commercialDemand: 18,
   industrialDemand: 0,
-  gameTime: 'Y1 M5 D19 06:45',
+  gameTime: 'Y1 M5 06:45',
   construction: '2',
   active: '5',
   total: '7',
@@ -33,7 +33,7 @@ describe('M6.4 mobile game HUD', () => {
     expect(hud.element.textContent).toContain('337');
     expect(hud.element.textContent).toContain('100K');
     expect(hud.element.textContent).toContain('+7K');
-    expect(hud.element.textContent).toContain('Y1 M5 D19 06:45');
+    expect(hud.element.textContent).toContain('Y1 M5 06:45');
     expect(hud.element.textContent).not.toContain('R↑ C↑ I→');
     expect(hud.element.textContent).not.toContain('Construction');
   });

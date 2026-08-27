@@ -117,6 +117,17 @@ describe('Simulation runtime', () => {
     expect(runtime.getState().accumulatedMilliseconds).toBe(0);
   });
 
+  it('resets pending wall-clock accumulation when playback speed changes', () => {
+    const runtime = createSimulationRuntime('normal');
+    collectAdvanceEvents(runtime, 750);
+    expect(runtime.getState().accumulatedMilliseconds).toBe(750);
+
+    runtime.setSpeed('fast');
+
+    expect(runtime.getState().accumulatedMilliseconds).toBe(0);
+    expect(collectAdvanceEvents(runtime, 500)).toEqual(ONE_GAME_MINUTE_EVENTS);
+  });
+
   it('pauses and clears accumulated time when a temporal minute is rejected', () => {
     const runtime = createSimulationRuntime('normal');
     const rejectedHandler = ((event: SimulationRuntimeEvent) => {

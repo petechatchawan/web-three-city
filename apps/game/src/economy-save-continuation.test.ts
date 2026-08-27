@@ -18,7 +18,7 @@ import {
 import { decodeWorldSave, encodeWorldSaveV6 } from './world-save.js';
 
 describe('Economy save continuation determinism', () => {
-  it('matches uninterrupted execution across daily settlement and monthly close', () => {
+  it('matches uninterrupted execution across cycle settlement and compressed period close', () => {
     const base = createApplicationFixture();
     const simulation = createSimulationSnapshot({
       revision: 719,
@@ -35,7 +35,7 @@ describe('Economy save continuation determinism', () => {
         deterministicSeed: 41,
       }),
       economy: createInitialEconomySnapshot(
-        { year: 1, month: 1, latestCycleSettlementAtMacroHourIndex: macroHourIndex(704) },
+        { year: 3, month: 6, latestCycleSettlementAtMacroHourIndex: macroHourIndex(704) },
         FOUNDATION_ECONOMY_RULES,
       ),
     });

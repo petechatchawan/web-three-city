@@ -1,6 +1,6 @@
 # Simulation Time System
 
-**Status:** PR #83 temporal authority is merged on `master`; T1 — Explicit Temporal Units + Architecture Enforcement is implemented on `feat/temporal-explicit-units-v1`; T2A–T7 remain not started. Temporal Authority & Simulation Clock Standard v1 remains the approved successor design from planning PR #94.
+**Status:** PR #83 temporal authority and T1–T3B are merged on `master`; T4 — Compressed Calendar Projection + Playback Preservation is implemented on `feat/t4-compressed-calendar-projection` and is in final verification. T5–T7 remain not started. Temporal Authority & Simulation Clock Standard v1 remains the approved successor design from planning PR #94.
 **Primary ownership:** `packages/simulation-core`, `apps/game/src/simulation-runtime.ts`, temporal Game orchestration, and time/calendar presentation.  
 **Current persistence:** `SimulationSaveV3` inside `WorldSaveV8`; successor targets `SimulationSaveV4` inside `WorldSaveV9`.
 
@@ -11,7 +11,7 @@ Own deterministic in-game time, calendar projection, minute planning/commit, pla
 ## Merged Authority Today
 
 - `absoluteGameMinute` is the one persisted Simulation time authority.
-- Current calendar projection on `master` remains legacy `24h/day`, `30 days/month`, `12 months/year` until T4.
+- The T4 projection is `24 hours/cycle = 1 calendar month`, `12 months/year`, with no canonical calendar day; the clock remains `HH:mm`.
 - Current nominal playback remains Pause / x1 / x2 / x4 with `1000ms` base and multipliers `1/2/4`.
 - `macroHourIndex = floor(absoluteGameMinute / 60)` is the compatibility projection used by Building/RCI/Economy.
 - Building Growth evaluates at `00/06/12/18`; RCI/Economy cycle work crosses the existing `08:00` boundary.
@@ -31,6 +31,33 @@ The complete candidate chain is validated before internal batch publication. Suc
 The application and directly affected Building/RCI boundary adapters use the named temporal helpers without migrating their domain field semantics. A TypeScript compiler-API architecture test scans production source for incompatible temporal operators and direct/escape casts, and runs as part of `pnpm test:deployment`.
 
 T1 does not introduce the compressed calendar, playback changes, domain lifecycle renames, Save V9, or a new temporal package. Those remain owned by the approved T2–T7 execution order below. See the [T1 verification record](verification/2026-08-26-t1-explicit-temporal-units.md) for exact local evidence.
+
+## T4 Implementation on This Branch
+
+T4 projects the unchanged `AbsoluteGameMinute` authority through the
+versioned compressed calendar policy:
+
+```text
+60 GameMinutes = 1 GameHour
+24 GameHours   = 1 Simulation Cycle = 1 Calendar Month
+12 Months      = 1 Calendar Year
+```
+
+`GameCalendar` exposes `year`, `month`, `hour`, and `minute`; the legacy
+calendar `day` is no longer part of the canonical projection. Operational
+cycle consumers continue to run on their existing 24-hour boundaries, and
+WorldSaveV8 still stores the same numeric `absoluteGameMinute` value.
+
+T4 preserves the merged playback request policy exactly:
+
+```text
+x1 = 1.000s / GameMinute
+x2 = 0.500s / GameMinute
+x4 = 0.250s / GameMinute
+```
+
+The five-phase temporal transaction remains
+`GameMinute -> Q1 -> Q2 -> Q3 -> Q4`, with successful revision delta `+5`.
 
 ## Approved Successor Direction
 
@@ -70,13 +97,13 @@ Traffic owns `AbsoluteTransportSecond` / `TransportSecondDuration` while consumi
 ## Approved Migration Order
 
 ```text
-T1  Explicit Temporal Units + architecture enforcement
-T2A Building macro-hour migration
-T2B RCI temporal/calendar migration
-T2C Economy temporal migration
-T3A Mobility temporal migration
-T3B Traffic temporal migration
-T4  Compressed calendar + unchanged playback
+T1  Explicit Temporal Units + architecture enforcement       (merged)
+T2A Building macro-hour migration                            (merged)
+T2B RCI temporal/calendar migration                          (merged)
+T2C Economy temporal migration                                (merged)
+T3A Mobility temporal migration                               (merged)
+T3B Traffic temporal migration                                (merged)
+T4  Compressed calendar + unchanged playback                  (this branch)
 T5  WorldSaveV9 + V1-V8 golden migration
 T6  Game/UI/release cutover
 T7  Legacy runtime naming/facade cleanup

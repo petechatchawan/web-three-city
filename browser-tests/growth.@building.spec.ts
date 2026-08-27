@@ -60,7 +60,7 @@ test('exposes the simple calendar and deterministic time controls', async ({ pag
   await expect(page.locator('[data-metric="gameTime"] strong')).toHaveText('Y1 M1 09:00');
 });
 
-test('production playback crosses hour and day boundaries with Growth enabled', async ({
+test('production playback crosses compressed hour and month boundaries with Growth enabled', async ({
   page,
 }) => {
   // This regression deliberately advances every logical minute from the
@@ -109,6 +109,38 @@ test('production playback crosses hour and day boundaries with Growth enabled', 
     (after.simulation.absoluteGameMinute - before.simulation.absoluteGameMinute) * 5,
   );
   expect(after.buildingCount).toBeGreaterThan(before.buildingCount);
+});
+
+test('projects compressed month and year boundaries without rejecting the minute', async ({
+  page,
+}) => {
+  test.setTimeout(180_000);
+  await openGrowthGame(page);
+  await prepareDeterministicGrowthClock(page);
+
+  let before = await stepLogicalMinutes(page, 1439 - 8 * 60);
+  expect(before.simulation.absoluteGameMinute).toBe(1439);
+  await expect(page.locator('[data-metric="gameTime"] strong')).toHaveText('Y1 M1 23:59');
+
+  let after = await stepLogicalMinutes(page, 1);
+  expect(after.simulation.absoluteGameMinute).toBe(1440);
+  expect(after.revision - before.revision).toBe(5);
+  await expect(page.locator('[data-metric="gameTime"] strong')).toHaveText('Y1 M2 00:00');
+  expect(await page.locator('[data-testid="tool-context-status"]').allTextContents()).not.toContain(
+    'Simulation paused: world update rejected',
+  );
+
+  before = await stepLogicalMinutes(page, 17279 - 1440);
+  expect(before.simulation.absoluteGameMinute).toBe(17279);
+  await expect(page.locator('[data-metric="gameTime"] strong')).toHaveText('Y1 M12 23:59');
+
+  after = await stepLogicalMinutes(page, 1);
+  expect(after.simulation.absoluteGameMinute).toBe(17280);
+  expect(after.revision - before.revision).toBe(5);
+  await expect(page.locator('[data-metric="gameTime"] strong')).toHaveText('Y2 M1 00:00');
+  expect(await page.locator('[data-testid="tool-context-status"]').allTextContents()).not.toContain(
+    'Simulation paused: world update rejected',
+  );
 });
 
 test('starts at most one automatic Construction per evaluation tick', async ({ page }) => {

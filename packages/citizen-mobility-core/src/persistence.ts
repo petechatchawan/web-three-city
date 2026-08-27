@@ -153,6 +153,32 @@ function parseTrip(value: unknown): MobilityTrip | null {
   });
 }
 
+function encodeCitizenState(state: CitizenMobilityState): MobilitySaveCitizenState {
+  return Object.freeze({
+    citizenId: state.citizenId,
+    currentActivity: state.currentActivity,
+    stationaryBuildingId: state.stationaryBuildingId,
+    activeTripId: state.activeTripId,
+    scheduleCursorDay: state.scheduleCursorCycle,
+    nextBoundaryGameMinute:
+      state.nextBoundaryGameMinute === null ? null : gameMinuteValue(state.nextBoundaryGameMinute),
+  });
+}
+
+function encodeTrip(trip: MobilityTrip): MobilitySaveTrip {
+  return Object.freeze({
+    tripId: trip.tripId,
+    citizenId: trip.citizenId,
+    purpose: trip.purpose,
+    originBuildingId: trip.originBuildingId,
+    destinationBuildingId: trip.destinationBuildingId,
+    mode: trip.mode,
+    departureGameMinute: gameMinuteValue(trip.departureGameMinute),
+    status: trip.status,
+    failureReason: trip.failureReason,
+  });
+}
+
 export function encodeMobilitySaveV1(snapshot: MobilitySnapshotV1): MobilitySaveV1 {
   const canonical = createMobilitySnapshot(snapshot);
   return Object.freeze({
@@ -161,36 +187,8 @@ export function encodeMobilitySaveV1(snapshot: MobilitySnapshotV1): MobilitySave
     policyVersion: MOBILITY_POLICY_VERSION,
     scheduleSeedVersion: MOBILITY_SCHEDULE_SEED_VERSION,
     nextTripSequence: canonical.nextTripSequence,
-    citizenStates: Object.freeze(
-      canonical.citizenStates.map((state) =>
-        Object.freeze({
-          citizenId: state.citizenId,
-          currentActivity: state.currentActivity,
-          stationaryBuildingId: state.stationaryBuildingId,
-          activeTripId: state.activeTripId,
-          scheduleCursorDay: state.scheduleCursorCycle,
-          nextBoundaryGameMinute:
-            state.nextBoundaryGameMinute === null
-              ? null
-              : gameMinuteValue(state.nextBoundaryGameMinute),
-        }),
-      ),
-    ),
-    trips: Object.freeze(
-      canonical.trips.map((trip) =>
-        Object.freeze({
-          tripId: trip.tripId,
-          citizenId: trip.citizenId,
-          purpose: trip.purpose,
-          originBuildingId: trip.originBuildingId,
-          destinationBuildingId: trip.destinationBuildingId,
-          mode: trip.mode,
-          departureGameMinute: gameMinuteValue(trip.departureGameMinute),
-          status: trip.status,
-          failureReason: trip.failureReason,
-        }),
-      ),
-    ),
+    citizenStates: Object.freeze(canonical.citizenStates.map(encodeCitizenState)),
+    trips: Object.freeze(canonical.trips.map(encodeTrip)),
   });
 }
 
@@ -245,36 +243,8 @@ export function encodeMobilitySaveV2(snapshot: MobilitySnapshotV1): MobilitySave
     schedulePolicyVersion: 2,
     scheduleSeedVersion: canonical.scheduleSeedVersion,
     nextTripSequence: canonical.nextTripSequence,
-    citizenStates: Object.freeze(
-      canonical.citizenStates.map((state) =>
-        Object.freeze({
-          citizenId: state.citizenId,
-          currentActivity: state.currentActivity,
-          stationaryBuildingId: state.stationaryBuildingId,
-          activeTripId: state.activeTripId,
-          scheduleCursorDay: state.scheduleCursorCycle,
-          nextBoundaryGameMinute:
-            state.nextBoundaryGameMinute === null
-              ? null
-              : gameMinuteValue(state.nextBoundaryGameMinute),
-        }),
-      ),
-    ),
-    trips: Object.freeze(
-      canonical.trips.map((trip) =>
-        Object.freeze({
-          tripId: trip.tripId,
-          citizenId: trip.citizenId,
-          purpose: trip.purpose,
-          originBuildingId: trip.originBuildingId,
-          destinationBuildingId: trip.destinationBuildingId,
-          mode: trip.mode,
-          departureGameMinute: gameMinuteValue(trip.departureGameMinute),
-          status: trip.status,
-          failureReason: trip.failureReason,
-        }),
-      ),
-    ),
+    citizenStates: Object.freeze(canonical.citizenStates.map(encodeCitizenState)),
+    trips: Object.freeze(canonical.trips.map(encodeTrip)),
   });
 }
 

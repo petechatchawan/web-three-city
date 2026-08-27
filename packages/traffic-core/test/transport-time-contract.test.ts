@@ -6,6 +6,8 @@ import {
   addTransportSeconds,
   compareTransportSeconds,
   createTrafficTimeCursor,
+  legacyGameSecondAtTransportSecond,
+  transportSecondAtLegacyGameSecond,
   transportSecondAtGameMinute,
   transportSecondDuration,
   transportSecondDurationBetween,
@@ -81,5 +83,11 @@ describe('Traffic transport temporal contracts', () => {
 
     expect(cursor.sourceGameMinute).toBe(480);
     expect(transportSecondValue(cursor.absoluteTransportSecond)).toBe(1_920);
+  });
+
+  it('keeps legacy GameSecond compatibility conversions inside Traffic authority', () => {
+    expect(transportSecondValue(transportSecondAtLegacyGameSecond(998))).toBe(3_992);
+    expect(legacyGameSecondAtTransportSecond(absoluteTransportSecond(3_999))).toBe(999);
+    expect(() => transportSecondAtLegacyGameSecond(-1)).toThrow('traffic:invalid-state');
   });
 });

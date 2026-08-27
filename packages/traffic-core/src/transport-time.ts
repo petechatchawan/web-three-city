@@ -50,6 +50,20 @@ export function transportSecondAtGameMinute(minute: AbsoluteGameMinute): Absolut
   return absoluteTransportSecond(minuteValue * TRANSPORT_QUANTA_PER_GAME_MINUTE);
 }
 
+export function transportSecondAtLegacyGameSecond(value: number): AbsoluteTransportSecond {
+  assertTrafficSafeInteger(value);
+  if (value > Math.floor(Number.MAX_SAFE_INTEGER / TRANSPORT_QUANTA_PER_GAME_MINUTE)) {
+    throw new TrafficContractError('traffic:invalid-state');
+  }
+  return absoluteTransportSecond(value * TRANSPORT_QUANTA_PER_GAME_MINUTE);
+}
+
+export function legacyGameSecondAtTransportSecond(value: AbsoluteTransportSecond): number {
+  const transportValue = transportSecondValue(value);
+  assertTrafficSafeInteger(transportValue);
+  return Math.floor(transportValue / TRANSPORT_QUANTA_PER_GAME_MINUTE);
+}
+
 export function addTransportSeconds(
   point: AbsoluteTransportSecond,
   duration: TransportSecondDuration,

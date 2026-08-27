@@ -41,9 +41,7 @@ function fixture(name) {
 }
 
 function trustedTemporalTypes(file) {
-  return (
-    TRUSTED_TEMPORAL_BOUNDARIES.get(normalize(path.relative(repoRoot, file))) ?? new Set()
-  );
+  return TRUSTED_TEMPORAL_BOUNDARIES.get(normalize(path.relative(repoRoot, file))) ?? new Set();
 }
 
 async function productionFiles() {
@@ -222,9 +220,9 @@ test('Traffic temporal operators are rejected with stable categories', () => {
   assert.deepEqual(
     violations.map(({ category, line }) => ({ category, line })),
     [
-      { category: 'temporal-incompatible-arithmetic', line: 8 },
-      { category: 'temporal-incompatible-comparison', line: 9 },
-      { category: 'temporal-incompatible-arithmetic', line: 10 },
+      { category: 'temporal-incompatible-arithmetic', line: 11 },
+      { category: 'temporal-incompatible-comparison', line: 12 },
+      { category: 'temporal-incompatible-arithmetic', line: 13 },
     ],
   );
 });

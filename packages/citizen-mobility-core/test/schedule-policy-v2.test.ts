@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { absoluteGameMinute } from '@web-three-city/simulation-core';
 import {
   FOUNDATION_MOBILITY_SCHEDULE_POLICY_V1,
   FOUNDATION_MOBILITY_SCHEDULE_POLICY_V2,
@@ -89,8 +90,8 @@ describe('Mobility schedule policy V2', () => {
       Object.freeze({ ...citizen, citizenId: 'citizen-schedule-v2-c' }),
     ]);
     const input = {
-      fromGameMinuteExclusive: 6 * 60,
-      toGameMinuteInclusive: 20 * 60,
+      fromGameMinuteExclusive: absoluteGameMinute(6 * 60),
+      toGameMinuteInclusive: absoluteGameMinute(20 * 60),
     };
 
     expect(collectDueMobilityBoundaries({ ...input, citizens })).toEqual(

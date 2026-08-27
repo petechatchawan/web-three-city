@@ -8,6 +8,7 @@ import {
 import { MobilityContractError } from './errors.js';
 import { createMobilitySnapshot, type MobilitySnapshotV1 } from './mobility-snapshot.js';
 import { deriveCitizenScheduleForDay, type DueMobilityBoundary } from './schedule-policy.js';
+import { gameMinuteValue, type AbsoluteGameMinute } from '@web-three-city/simulation-core';
 
 export interface MobilityPlanResult {
   readonly baseRevision: number;
@@ -29,8 +30,8 @@ function compareDueMobilityBoundaries(
   first: DueMobilityBoundary,
   second: DueMobilityBoundary,
 ): number {
-  if (first.atGameMinute !== second.atGameMinute) {
-    return first.atGameMinute - second.atGameMinute;
+  if (gameMinuteValue(first.atGameMinute) !== gameMinuteValue(second.atGameMinute)) {
+    return gameMinuteValue(first.atGameMinute) - gameMinuteValue(second.atGameMinute);
   }
   if (first.nextActivity !== second.nextActivity) {
     return first.nextActivity === 'Work' ? -1 : 1;
@@ -57,12 +58,12 @@ function resolveTripEndpoints(
 
 function desiredActivityAtGameMinute(
   citizen: PresentCitizenMobilityProjection,
-  currentGameMinute: number,
+  currentGameMinute: AbsoluteGameMinute,
 ): DueMobilityBoundary['nextActivity'] {
-  const dayIndex = Math.floor(currentGameMinute / 1440);
+  const dayIndex = Math.floor(gameMinuteValue(currentGameMinute) / 1440);
   let desiredActivity: DueMobilityBoundary['nextActivity'] = 'Home';
   for (const boundary of deriveCitizenScheduleForDay(citizen, dayIndex)) {
-    if (boundary.atGameMinute > currentGameMinute) break;
+    if (gameMinuteValue(boundary.atGameMinute) > gameMinuteValue(currentGameMinute)) break;
     desiredActivity = boundary.nextActivity;
   }
   return desiredActivity;
@@ -158,10 +159,12 @@ export function planMobilityCatchUp(
   input: Readonly<{
     snapshot: MobilitySnapshotV1;
     citizens: readonly PresentCitizenMobilityProjection[];
-    currentGameMinute: number;
+    currentGameMinute: AbsoluteGameMinute;
   }>,
 ): MobilityPlanResult {
-  if (!Number.isSafeInteger(input.currentGameMinute) || input.currentGameMinute < 0) {
+  try {
+    gameMinuteValue(input.currentGameMinute);
+  } catch {
     throw new MobilityContractError('mobility:invalid-time');
   }
   const snapshot = createMobilitySnapshot(input.snapshot);

@@ -21,7 +21,11 @@ import {
   type TrafficGraph,
 } from '@web-three-city/traffic-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
-import { deriveMacroHourIndex, macroHourIndex } from '@web-three-city/simulation-core';
+import {
+  absoluteGameMinute,
+  deriveMacroHourIndex,
+  macroHourIndex,
+} from '@web-three-city/simulation-core';
 import { createCommittedWorldFromDomainState } from './application/committed-world.js';
 import {
   createBuildingTrafficAccessProjection,
@@ -290,7 +294,7 @@ export function createTrafficPerformanceReleaseFixture(): TrafficPerformanceRele
         currentActivity: 'Travel',
         stationaryBuildingId: null,
         activeTripId: tripId,
-        scheduleCursorDay: 0,
+        scheduleCursorCycle: 0,
         nextBoundaryGameMinute: null,
       }),
     );
@@ -302,7 +306,7 @@ export function createTrafficPerformanceReleaseFixture(): TrafficPerformanceRele
         originBuildingId,
         destinationBuildingId,
         mode,
-        departureGameMinute: 420 + (index % 121),
+        departureGameMinute: absoluteGameMinute(420 + (index % 121)),
         status: 'Active',
         failureReason: null,
       }),

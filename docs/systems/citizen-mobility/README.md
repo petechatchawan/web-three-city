@@ -34,7 +34,10 @@ RCI Citizen / Household / Home / Employment
      Walking / Driving transport state
 ```
 
-The package has no dependency on `rci-core`, `building-core`, `road-core`, `traffic-core`, DOM, or Three.js. Cross-system translation stays in `apps/game`.
+The package consumes the validated `AbsoluteGameMinute` authority from
+`simulation-core`, but has no dependency on `rci-core`, `building-core`,
+`road-core`, `traffic-core`, DOM, or Three.js. Cross-system translation stays
+in `apps/game`.
 
 ## Implemented Authority and Behavior
 
@@ -44,7 +47,9 @@ The package has no dependency on `rci-core`, `building-core`, `road-core`, `traf
 - typed activity/trip/mode/failure contracts and strict referential validation;
 - fail-closed `MobilitySaveV2` codec plus explicit `MobilitySaveV1 -> V2` migration;
 - `SchedulePolicyV2`: versioned deterministic 07:00–09:00 work-start distribution, bounded daily jitter, and 9-hour work duration;
-- integer `GameMinute` due-boundary collection with stable ordering and desired-activity catch-up;
+- integer `AbsoluteGameMinute` due-boundary collection with stable ordering and desired-activity catch-up;
+- explicit Mobility temporal contracts: schedule/trip points use `AbsoluteGameMinute`, while the in-memory `scheduleCursorCycle` remains a 24-hour recurrence counter;
+- V1/V2 compatibility decoding validates legacy numeric time fields at the codec boundary and preserves the historical `scheduleCursorDay` wire key and numeric payload;
 - latest-authority Home↔Work planning requests with tentative deterministic trip IDs;
 - deterministic generalized-cost mode choice, exact tie → Walk;
 - committed Active/Failed trip creation without storing Traffic route/progress;

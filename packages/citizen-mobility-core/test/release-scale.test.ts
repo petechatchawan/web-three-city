@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { absoluteGameMinute } from '@web-three-city/simulation-core';
 import {
   collectDueMobilityBoundaries,
   createEmptyMobilitySnapshot,
@@ -27,8 +28,8 @@ function planningFingerprint() {
   }).snapshot;
   const boundaries = collectDueMobilityBoundaries({
     citizens: inputCitizens,
-    fromGameMinuteExclusive: 6 * 60,
-    toGameMinuteInclusive: 10 * 60,
+    fromGameMinuteExclusive: absoluteGameMinute(6 * 60),
+    toGameMinuteInclusive: absoluteGameMinute(10 * 60),
   });
   const plan = planMobilityBoundaries({ snapshot, boundaries, citizens: inputCitizens });
   return JSON.stringify({

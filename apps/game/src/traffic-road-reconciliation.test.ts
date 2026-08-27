@@ -23,6 +23,7 @@ import {
   createRoadSnapshot,
 } from '@web-three-city/road-core';
 import { WORLD_CONFIG, type CellCoord } from '@web-three-city/world-core';
+import { absoluteGameMinute } from '@web-three-city/simulation-core';
 import { describe, expect, it } from 'vitest';
 import { createBuildingDevelopmentEnvironment } from './building-development-environment.js';
 import { reconcileTrafficAfterRoadChange } from './traffic-road-reconciliation.js';
@@ -81,7 +82,7 @@ function activeDriveState() {
     purpose: 'CommuteToWork',
     originBuildingId,
     destinationBuildingId,
-    departureGameMinute: fixture.summary.departureGameMinutes[citizenId]!,
+    departureGameMinute: absoluteGameMinute(fixture.summary.departureGameMinutes[citizenId]!),
   });
   const driveOnly: readonly MobilityModeCandidate[] = Object.freeze([
     Object.freeze({

@@ -36,6 +36,7 @@ import {
   encodeSimulationSaveV3,
   absoluteGameMinute,
   gameMinuteValue,
+  macroHourIndex,
   macroHourValue,
   type SimulationSaveV2,
   type SimulationSaveV3,
@@ -231,12 +232,16 @@ export function encodeWorldSaveV8(
 }
 
 function migratedEconomy(simulation: legacy.DecodedWorldState['simulation']): EconomySnapshotV1 {
-  const macroHourIndex = deriveMacroHourIndex(simulation.absoluteGameMinute);
+  const currentMacroHourIndex = deriveMacroHourIndex(simulation.absoluteGameMinute);
   const calendar = deriveGameCalendarFromGameMinute(simulation.absoluteGameMinute);
-  const dayStart = macroHourValue(macroHourIndex) - calendar.hour;
+  const dayStart = macroHourValue(currentMacroHourIndex) - calendar.hour;
   const latestBoundary = Math.max(0, calendar.hour >= 8 ? dayStart + 8 : dayStart - 16);
   return createInitialEconomySnapshot(
-    { year: calendar.year, month: calendar.month, latestDailySettlementTick: latestBoundary },
+    {
+      year: calendar.year,
+      month: calendar.month,
+      latestCycleSettlementAtMacroHourIndex: macroHourIndex(latestBoundary),
+    },
     FOUNDATION_ECONOMY_RULES,
   );
 }

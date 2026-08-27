@@ -6,7 +6,7 @@
 
 **Primary ownership:** `packages/economy-core`; composition by `apps/game`
 
-**Persistence:** `EconomySaveV1` within `WorldSaveV6`; deterministic migration from V1–V5
+**Persistence:** `EconomySaveV1` within the existing `WorldSaveV6`/`WorldSaveV8` compatibility paths; deterministic migration from V1–V5
 
 ## Purpose
 
@@ -21,7 +21,7 @@ Economy owns only:
 - integer minor-unit money and basis-point tax-rate contracts;
 - treasury and tax policy;
 - current and previous municipal accounting periods;
-- daily settlement and monthly-close markers;
+- 24-hour cycle settlement and monthly-close markers;
 - versioned Economy rules, validation, quotes, deltas, and snapshots.
 
 Economy does not own citizens, households, jobs, buildings, roads, terrain, simulation time, RCI demand, or presentation state. The application supplies immutable projections from those authorities and publishes dependent changes through the existing committed-world transaction coordinator.
@@ -30,7 +30,7 @@ Economy does not own citizens, households, jobs, buildings, roads, terrain, simu
 
 - Paid road, terraform, and bulldoze commands are planned, quoted, checked for affordability, staged with an Economy debit, cross-validated, and published atomically.
 - Zoning and automatic/private RCI growth remain free in v0.1.
-- At the canonical daily 08:00 boundary, Economy derives tax revenue and road maintenance from application projections.
+- At 08:00 once per 24-hour Simulation Cycle, Economy derives tax revenue and road maintenance from application projections. This operational settlement is not a calendar-month settlement.
 - At Day 1 08:00, the previous month closes before the new day's settlement is recorded in the newly opened period.
 - RCI reads tax-pressure factors derived from the previously committed Economy state; Economy then settles from the newly staged RCI state. There is no same-tick cycle.
 - Presentation consumes an Economy projection and submits typed application commands; it never mutates Economy state.
@@ -42,12 +42,12 @@ Economy does not own citizens, households, jobs, buildings, roads, terrain, simu
 - [`economy-snapshot.ts`](../../../packages/economy-core/src/economy-snapshot.ts) creates, clones, validates, and fingerprints `EconomySnapshotV1`.
 - [`treasury-accounting.ts`](../../../packages/economy-core/src/treasury-accounting.ts) applies revision-fenced policy changes and categorized Economy deltas, enforces immediate affordability, permits recurring deficits, closes periods, and derives cost/accounting summaries.
 - [`scheduled-settlement.ts`](../../../packages/economy-core/src/scheduled-settlement.ts) validates narrow RCI/Road projections and applies once-only 08:00 tax and maintenance settlement.
-- The package has no runtime dependency and no DOM/Three.js library access.
+- The package depends one-way on `@web-three-city/simulation-core` for validated temporal constructors, values, comparisons, and transition contracts; it has no DOM/Three.js library access.
 - `apps/game` derives projections from staged RCI and authoritative Road state, validates Economy in `CommittedWorld`, fingerprints it, and publishes Simulation/Building/RCI/Economy once.
 - Paid Road construction, Terraform, and Bulldoze plans are quoted from validated mutation counts; unaffordable commands publish nothing.
 - Undo restores the affected domain through the current world and records an exact refund, preserving later settlement and closed accounting history.
 - Tax policy produces stable, clamped R/C/I demand factors consumed by the next RCI evaluation through an application-supplied seam.
-- `EconomySaveV1` validates untrusted JSON against validated rules; `WorldSaveV6` persists Economy while older saves receive zero-history deterministic initialization from saved GameTime.
+- `EconomySaveV1` validates untrusted JSON against validated rules. Its legacy wire fields `lastDailySettlementTick` and `lastMonthlyCloseTick` decode 1:1 into the runtime fields `latestCycleSettlementAtMacroHourIndex` and `lastMonthlyCloseAtMacroHourIndex`; the existing writer/schema remains unchanged while later save migration is deferred.
 - The municipal HUD renders treasury, income, expenses, net, categorized accounts, periods, and tax policy from an immutable projection. Typed tax commands publish through the committed-world coordinator.
 
 ## Determinism and Failure
@@ -58,6 +58,16 @@ Economy does not own citizens, households, jobs, buildings, roads, terrain, simu
 - Recurring expenses may make treasury negative; a positive-cost player command is rejected when unaffordable.
 - Undo applies an exact compensating Economy delta to the current world. It does not restore an old Economy snapshot.
 - Pause advances nothing; Step advances exactly one ordinary authoritative tick.
+
+## Explicit temporal contract
+
+Economy runtime state uses `MacroHourIndex` for settlement and accounting-period points:
+
+- `latestCycleSettlementAtMacroHourIndex` records the last accepted 08:00 settlement boundary.
+- `lastMonthlyCloseAtMacroHourIndex` records the macro-hour point at which the accounting period closed.
+- Settlement input uses `beforeMacroHourIndex` and `afterMacroHourIndex`; `MacroHourDuration` and named `simulation-core` helpers define temporal arithmetic.
+- The existing 24-hour cycle and 08:00 cadence, treasury formulas, ledger ordering, and settlement values are unchanged.
+- T2C does not change compressed calendar presentation, playback pacing, or the WorldSave writer version.
 
 ## Deliberate Limits
 

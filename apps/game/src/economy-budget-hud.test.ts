@@ -2,13 +2,14 @@ import {
   createInitialEconomySnapshot,
   FOUNDATION_ECONOMY_RULES,
 } from '@web-three-city/economy-core';
+import { macroHourIndex } from '@web-three-city/simulation-core';
 import { describe, expect, it } from 'vitest';
 import { createEconomyViewProjection } from './economy-budget-hud.js';
 
 describe('Economy budget projection', () => {
   it('projects immutable accounting into deterministic display values', () => {
     const initial = createInitialEconomySnapshot(
-      { year: 1, month: 2, latestDailySettlementTick: 728 },
+      { year: 1, month: 2, latestCycleSettlementAtMacroHourIndex: macroHourIndex(728) },
       FOUNDATION_ECONOMY_RULES,
     );
     const snapshot = {

@@ -2,6 +2,7 @@ import {
   createInitialEconomySnapshot,
   FOUNDATION_ECONOMY_RULES,
 } from '@web-three-city/economy-core';
+import { macroHourIndex } from '@web-three-city/simulation-core';
 import { describe, expect, it } from 'vitest';
 import {
   applyPaidActionCost,
@@ -13,7 +14,10 @@ import {
 
 const rules = FOUNDATION_ECONOMY_RULES;
 const snapshot = () =>
-  createInitialEconomySnapshot({ year: 1, month: 1, latestDailySettlementTick: 8 }, rules);
+  createInitialEconomySnapshot(
+    { year: 1, month: 1, latestCycleSettlementAtMacroHourIndex: macroHourIndex(8) },
+    rules,
+  );
 
 describe('paid world-action Economy costs', () => {
   it('quotes validated plan counts and keeps road removal in bulldoze accounting', () => {

@@ -4,6 +4,7 @@ import {
   createSimulationSnapshot,
   deriveGameCalendarFromGameMinute,
   macroHourIndex,
+  macroHourValue,
 } from '@web-three-city/simulation-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { describe, expect, it } from 'vitest';
@@ -94,6 +95,10 @@ describe('WorldSave V1-V5 Economy migration', () => {
     );
     const decoded = decodeWorldSave(save, WORLD_CONFIG);
     expect(decoded.ok).toBe(true);
-    if (decoded.ok) expect(decoded.value.economy.lastDailySettlementTick).toBe(marker);
+    if (decoded.ok) {
+      expect(macroHourValue(decoded.value.economy.latestCycleSettlementAtMacroHourIndex)).toBe(
+        marker,
+      );
+    }
   });
 });

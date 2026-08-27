@@ -138,7 +138,7 @@ export function createApplicationFixture(
       {
         year: 1,
         month: 1,
-        latestDailySettlementTick: Math.floor(simulation.absoluteGameMinute / 60),
+        latestCycleSettlementAtMacroHourIndex: deriveMacroHourIndex(simulation.absoluteGameMinute),
       },
       FOUNDATION_ECONOMY_RULES,
     ),

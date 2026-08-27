@@ -65,7 +65,9 @@ describe('WorldSaveV5 RCI integration', () => {
       {
         year: 1,
         month: 1,
-        latestDailySettlementTick: deriveMacroHourIndex(world.simulation.absoluteGameMinute),
+        latestCycleSettlementAtMacroHourIndex: deriveMacroHourIndex(
+          world.simulation.absoluteGameMinute,
+        ),
       },
       FOUNDATION_ECONOMY_RULES,
     );

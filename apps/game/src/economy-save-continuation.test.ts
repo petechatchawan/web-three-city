@@ -35,7 +35,7 @@ describe('Economy save continuation determinism', () => {
         deterministicSeed: 41,
       }),
       economy: createInitialEconomySnapshot(
-        { year: 1, month: 1, latestDailySettlementTick: 704 },
+        { year: 1, month: 1, latestCycleSettlementAtMacroHourIndex: macroHourIndex(704) },
         FOUNDATION_ECONOMY_RULES,
       ),
     });

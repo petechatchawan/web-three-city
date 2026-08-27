@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as economy from '../src/index.js';
+import { macroHourIndex } from '@web-three-city/simulation-core';
 
 describe('EconomySnapshotV1', () => {
   it('exposes the snapshot lifecycle API', () => {
@@ -11,7 +12,7 @@ describe('EconomySnapshotV1', () => {
 
   it('creates a zero-history snapshot from rules and canonical calendar input', () => {
     const snapshot = economy.createInitialEconomySnapshot(
-      { year: 1, month: 1, latestDailySettlementTick: 8 },
+      { year: 1, month: 1, latestCycleSettlementAtMacroHourIndex: macroHourIndex(8) },
       economy.FOUNDATION_ECONOMY_RULES,
     );
 
@@ -33,8 +34,8 @@ describe('EconomySnapshotV1', () => {
         refundsMinor: 0,
       },
       previousPeriod: null,
-      lastDailySettlementTick: 8,
-      lastMonthlyCloseTick: null,
+      latestCycleSettlementAtMacroHourIndex: macroHourIndex(8),
+      lastMonthlyCloseAtMacroHourIndex: null,
     });
     expect(Object.isFrozen(snapshot)).toBe(true);
     expect(Object.isFrozen(snapshot.taxPolicy)).toBe(true);
@@ -44,7 +45,7 @@ describe('EconomySnapshotV1', () => {
 
   it('deep-clones snapshots and produces a stable structural fingerprint', () => {
     const snapshot = economy.createInitialEconomySnapshot(
-      { year: 2, month: 3, latestDailySettlementTick: 800 },
+      { year: 2, month: 3, latestCycleSettlementAtMacroHourIndex: macroHourIndex(800) },
       economy.FOUNDATION_ECONOMY_RULES,
     );
     const clone = economy.cloneEconomySnapshot(snapshot);
@@ -65,13 +66,13 @@ describe('EconomySnapshotV1', () => {
   it('refuses to construct a snapshot from invalid calendar input or rules', () => {
     expect(() =>
       economy.createInitialEconomySnapshot(
-        { year: 1, month: 13, latestDailySettlementTick: 8 },
+        { year: 1, month: 13, latestCycleSettlementAtMacroHourIndex: macroHourIndex(8) },
         economy.FOUNDATION_ECONOMY_RULES,
       ),
     ).toThrow('economy:invalid-initial-snapshot');
     expect(() =>
       economy.createInitialEconomySnapshot(
-        { year: 1, month: 1, latestDailySettlementTick: 8 },
+        { year: 1, month: 1, latestCycleSettlementAtMacroHourIndex: macroHourIndex(8) },
         { ...economy.FOUNDATION_ECONOMY_RULES, initialTreasuryMinor: 0.5 },
       ),
     ).toThrow('economy:invalid-rules');
@@ -79,7 +80,7 @@ describe('EconomySnapshotV1', () => {
 
   it('rejects invalid revisions, calendar values, rates, money, and rule versions', () => {
     const snapshot = economy.createInitialEconomySnapshot(
-      { year: 1, month: 1, latestDailySettlementTick: 8 },
+      { year: 1, month: 1, latestCycleSettlementAtMacroHourIndex: macroHourIndex(8) },
       economy.FOUNDATION_ECONOMY_RULES,
     );
 

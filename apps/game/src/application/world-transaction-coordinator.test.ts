@@ -208,7 +208,9 @@ describe('WorldTransactionCoordinator', () => {
         {
           year: 1,
           month: 1,
-          latestDailySettlementTick: deriveMacroHourIndex(simulation.absoluteGameMinute),
+          latestCycleSettlementAtMacroHourIndex: deriveMacroHourIndex(
+            simulation.absoluteGameMinute,
+          ),
         },
         FOUNDATION_ECONOMY_RULES,
       ),

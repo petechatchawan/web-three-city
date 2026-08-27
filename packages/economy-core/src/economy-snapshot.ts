@@ -1,3 +1,5 @@
+import { macroHourIndex, macroHourValue } from '@web-three-city/simulation-core';
+import type { MacroHourIndex } from '@web-three-city/simulation-core';
 import type { BasisPoints, MoneyMinor } from './money.js';
 import type { EconomyRulesV1 } from './rules.js';
 import { validateEconomyRules } from './rules.js';
@@ -30,14 +32,14 @@ export interface EconomySnapshotV1 {
   };
   readonly currentPeriod: EconomyPeriodTotals;
   readonly previousPeriod: EconomyPeriodTotals | null;
-  readonly lastDailySettlementTick: number;
-  readonly lastMonthlyCloseTick: number | null;
+  readonly latestCycleSettlementAtMacroHourIndex: MacroHourIndex;
+  readonly lastMonthlyCloseAtMacroHourIndex: MacroHourIndex | null;
 }
 
 export interface InitialEconomyInput {
   readonly year: number;
   readonly month: number;
-  readonly latestDailySettlementTick: number;
+  readonly latestCycleSettlementAtMacroHourIndex: MacroHourIndex;
 }
 
 export const createInitialEconomySnapshot = (
@@ -58,8 +60,10 @@ export const createInitialEconomySnapshot = (
     },
     currentPeriod: createEmptyPeriod(input.year, input.month),
     previousPeriod: null,
-    lastDailySettlementTick: input.latestDailySettlementTick,
-    lastMonthlyCloseTick: null,
+    latestCycleSettlementAtMacroHourIndex: macroHourIndex(
+      macroHourValue(input.latestCycleSettlementAtMacroHourIndex),
+    ),
+    lastMonthlyCloseAtMacroHourIndex: null,
   };
   if (!validateEconomySnapshot(candidate, rules)) {
     throw new RangeError('economy:invalid-initial-snapshot');
@@ -161,8 +165,9 @@ export const validateEconomySnapshot = (
     ) &&
     isPeriod(value.currentPeriod) &&
     (value.previousPeriod === null || isPeriod(value.previousPeriod)) &&
-    isNonNegativeSafeInteger(value.lastDailySettlementTick) &&
-    (value.lastMonthlyCloseTick === null || isNonNegativeSafeInteger(value.lastMonthlyCloseTick))
+    isNonNegativeSafeInteger(value.latestCycleSettlementAtMacroHourIndex) &&
+    (value.lastMonthlyCloseAtMacroHourIndex === null ||
+      isNonNegativeSafeInteger(value.lastMonthlyCloseAtMacroHourIndex))
   );
 };
 
@@ -192,6 +197,8 @@ export const fingerprintEconomySnapshot = (snapshot: EconomySnapshotV1): string 
     snapshot.taxPolicy.industrialBp,
     periodFingerprint(snapshot.currentPeriod),
     periodFingerprint(snapshot.previousPeriod),
-    snapshot.lastDailySettlementTick,
-    snapshot.lastMonthlyCloseTick,
+    macroHourValue(snapshot.latestCycleSettlementAtMacroHourIndex),
+    snapshot.lastMonthlyCloseAtMacroHourIndex === null
+      ? null
+      : macroHourValue(snapshot.lastMonthlyCloseAtMacroHourIndex),
   ]);

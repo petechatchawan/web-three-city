@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import * as economy from '../src/index.js';
+import { macroHourIndex } from '@web-three-city/simulation-core';
 
 describe('treasury, policy, and accounting commands', () => {
   const createSnapshot = () =>
     economy.createInitialEconomySnapshot(
-      { year: 1, month: 1, latestDailySettlementTick: 8 },
+      { year: 1, month: 1, latestCycleSettlementAtMacroHourIndex: macroHourIndex(8) },
       economy.FOUNDATION_ECONOMY_RULES,
     );
 
@@ -254,7 +255,11 @@ describe('treasury, policy, and accounting commands', () => {
 
     const closed = economy.closeAccountingPeriod(
       accounted.snapshot,
-      { baseRevision: 1, atTick: 728, nextPeriod: { year: 1, month: 2 } },
+      {
+        baseRevision: 1,
+        atMacroHourIndex: macroHourIndex(728),
+        nextPeriod: { year: 1, month: 2 },
+      },
       economy.FOUNDATION_ECONOMY_RULES,
     );
     expect(closed).toMatchObject({
@@ -280,7 +285,7 @@ describe('treasury, policy, and accounting commands', () => {
           taxRevenue: { residentialMinor: 1_000 },
           expenses: { roadMaintenanceMinor: 250 },
         },
-        lastMonthlyCloseTick: 728,
+        lastMonthlyCloseAtMacroHourIndex: macroHourIndex(728),
       },
     });
   });
@@ -288,7 +293,11 @@ describe('treasury, policy, and accounting commands', () => {
   it('makes the same monthly close tick idempotent without another revision', () => {
     const first = economy.closeAccountingPeriod(
       createSnapshot(),
-      { baseRevision: 0, atTick: 728, nextPeriod: { year: 1, month: 2 } },
+      {
+        baseRevision: 0,
+        atMacroHourIndex: macroHourIndex(728),
+        nextPeriod: { year: 1, month: 2 },
+      },
       economy.FOUNDATION_ECONOMY_RULES,
     );
     expect(first.ok).toBe(true);
@@ -296,14 +305,22 @@ describe('treasury, policy, and accounting commands', () => {
 
     const duplicate = economy.closeAccountingPeriod(
       first.snapshot,
-      { baseRevision: 1, atTick: 728, nextPeriod: { year: 1, month: 2 } },
+      {
+        baseRevision: 1,
+        atMacroHourIndex: macroHourIndex(728),
+        nextPeriod: { year: 1, month: 2 },
+      },
       economy.FOUNDATION_ECONOMY_RULES,
     );
     expect(duplicate).toEqual({ ok: true, snapshot: first.snapshot });
     expect(
       economy.closeAccountingPeriod(
         first.snapshot,
-        { baseRevision: 1, atTick: 728, nextPeriod: { year: 1, month: 3 } },
+        {
+          baseRevision: 1,
+          atMacroHourIndex: macroHourIndex(728),
+          nextPeriod: { year: 1, month: 3 },
+        },
         economy.FOUNDATION_ECONOMY_RULES,
       ),
     ).toEqual({ ok: false, reason: 'invalid-period' });
@@ -314,14 +331,22 @@ describe('treasury, policy, and accounting commands', () => {
     expect(
       economy.closeAccountingPeriod(
         before,
-        { baseRevision: 1, atTick: 728, nextPeriod: { year: 1, month: 2 } },
+        {
+          baseRevision: 1,
+          atMacroHourIndex: macroHourIndex(728),
+          nextPeriod: { year: 1, month: 2 },
+        },
         economy.FOUNDATION_ECONOMY_RULES,
       ),
     ).toEqual({ ok: false, reason: 'stale-revision' });
     expect(
       economy.closeAccountingPeriod(
         before,
-        { baseRevision: 0, atTick: 728, nextPeriod: { year: 1, month: 3 } },
+        {
+          baseRevision: 0,
+          atMacroHourIndex: macroHourIndex(728),
+          nextPeriod: { year: 1, month: 3 },
+        },
         economy.FOUNDATION_ECONOMY_RULES,
       ),
     ).toEqual({ ok: false, reason: 'invalid-period' });
@@ -329,12 +354,20 @@ describe('treasury, policy, and accounting commands', () => {
 
   it('rolls December into the next year and records later refunds only in the open period', () => {
     const december = economy.createInitialEconomySnapshot(
-      { year: 1, month: 12, latestDailySettlementTick: 7_928 },
+      {
+        year: 1,
+        month: 12,
+        latestCycleSettlementAtMacroHourIndex: macroHourIndex(7_928),
+      },
       economy.FOUNDATION_ECONOMY_RULES,
     );
     const closed = economy.closeAccountingPeriod(
       december,
-      { baseRevision: 0, atTick: 8_648, nextPeriod: { year: 2, month: 1 } },
+      {
+        baseRevision: 0,
+        atMacroHourIndex: macroHourIndex(8_648),
+        nextPeriod: { year: 2, month: 1 },
+      },
       economy.FOUNDATION_ECONOMY_RULES,
     );
     expect(closed.ok).toBe(true);
@@ -446,7 +479,11 @@ describe('treasury, policy, and accounting commands', () => {
 
       const close = economy.closeAccountingPeriod(
         refund.snapshot,
-        { baseRevision: 3, atTick: 728, nextPeriod: { year: 1, month: 2 } },
+        {
+          baseRevision: 3,
+          atMacroHourIndex: macroHourIndex(728),
+          nextPeriod: { year: 1, month: 2 },
+        },
         economy.FOUNDATION_ECONOMY_RULES,
       );
       if (!close.ok) throw new Error(close.reason);

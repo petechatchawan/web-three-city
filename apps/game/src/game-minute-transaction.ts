@@ -24,11 +24,14 @@ import {
   deriveGameCalendarFromGameMinute,
   deriveMacroHourTransition,
   planSimulationMinute,
+  type AbsoluteGameMinute,
   type MacroHourTransition,
 } from '@web-three-city/simulation-core';
 import { WORLD_CONFIG, type CellCoord } from '@web-three-city/world-core';
 import {
   createTrafficSnapshotV2,
+  transportSecondAtGameMinute,
+  transportSecondAtLegacyGameSecond,
   type ActiveTransportTripV2,
   type TrafficSnapshotV1,
   type TrafficSnapshotV2,
@@ -59,7 +62,7 @@ function trafficV2AtMinute(
   input: Readonly<{
     before: TrafficSnapshotV1 | TrafficSnapshotV2;
     after: TrafficSnapshotV1;
-    sourceGameMinute: number;
+    sourceGameMinute: AbsoluteGameMinute;
   }>,
 ): TrafficSnapshotV2 {
   const previous =
@@ -75,7 +78,7 @@ function trafficV2AtMinute(
     timeCursor: {
       sourceGameMinute: input.sourceGameMinute,
       completedTransportQuantaWithinMinute: 0,
-      absoluteTransportSecond: input.sourceGameMinute * 4,
+      absoluteTransportSecond: transportSecondAtGameMinute(input.sourceGameMinute),
       temporalPolicyVersion: 1,
     },
     activeTrips: input.after.activeTrips.map((trip) => {
@@ -87,7 +90,9 @@ function trafficV2AtMinute(
           : {
               fromEdgeId: trip.queuedMovement.fromEdgeId,
               toEdgeId: trip.queuedMovement.toEdgeId,
-              arrivedAtTransportSecond: trip.queuedMovement.arrivedAtGameSecond * 4,
+              arrivedAtTransportSecond: transportSecondAtLegacyGameSecond(
+                trip.queuedMovement.arrivedAtGameSecond,
+              ),
             };
       return {
         ...trip,

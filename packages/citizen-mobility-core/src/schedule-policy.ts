@@ -1,5 +1,11 @@
 import { assertMobilityId, type PresentCitizenMobilityProjection } from './contracts.js';
 import { MobilityContractError } from './errors.js';
+import {
+  absoluteGameMinute,
+  addGameMinutes,
+  gameMinuteDuration,
+  type AbsoluteGameMinute,
+} from '@web-three-city/simulation-core';
 
 export interface FoundationMobilitySchedulePolicyV1 {
   readonly version: 1;
@@ -27,7 +33,7 @@ export type FoundationMobilitySchedulePolicy =
 
 export interface DueMobilityBoundary {
   readonly citizenId: string;
-  readonly atGameMinute: number;
+  readonly atGameMinute: AbsoluteGameMinute;
   readonly nextActivity: 'Work' | 'Home';
 }
 
@@ -58,6 +64,8 @@ const DERIVED_SCHEDULE_CACHE = new WeakMap<
   object,
   WeakMap<object, Map<string, readonly DueMobilityBoundary[]>>
 >();
+const MINUTES_PER_CYCLE = 24 * 60;
+const ZERO_GAME_MINUTE = absoluteGameMinute(0);
 
 function assertDayIndex(dayIndex: number): void {
   if (!Number.isSafeInteger(dayIndex) || dayIndex < 0) {
@@ -195,24 +203,22 @@ export function commuteDepartureGameMinuteForCitizen(
   dayIndex: number,
   policy: FoundationMobilitySchedulePolicy = FOUNDATION_MOBILITY_SCHEDULE_POLICY_V2,
   scheduleSeedVersion = 1,
-): number {
+): AbsoluteGameMinute {
   assertMobilityId(citizenId);
   assertDayIndex(dayIndex);
   assertScheduleSeedVersion(scheduleSeedVersion);
-  const dayStart = dayIndex * 1440;
-  if (!Number.isSafeInteger(dayStart)) throw new MobilityContractError('mobility:invalid-time');
-  if (policy.version === 2) {
-    return (
-      dayStart +
-      stableCommuteBaseMinuteOfDayForCitizen(citizenId, scheduleSeedVersion) +
-      v2MorningJitterMinutes(citizenId, dayIndex, scheduleSeedVersion)
-    );
-  }
-  return (
-    dayStart +
-    policy.workStartEarliestMinuteOfDay +
-    deterministicScheduleOffset(citizenId, dayIndex, scheduleSeedVersion, policy.version)
+  const cycleStart = addGameMinutes(
+    ZERO_GAME_MINUTE,
+    gameMinuteDuration(dayIndex * MINUTES_PER_CYCLE),
   );
+  const minuteOfCycle =
+    policy.version === 2
+      ? stableCommuteBaseMinuteOfDayForCitizen(citizenId, scheduleSeedVersion) +
+        v2MorningJitterMinutes(citizenId, dayIndex, scheduleSeedVersion)
+      : policy.workStartEarliestMinuteOfDay +
+        deterministicScheduleOffset(citizenId, dayIndex, scheduleSeedVersion, policy.version);
+  if (minuteOfCycle < 0) throw new MobilityContractError('mobility:invalid-time');
+  return addGameMinutes(cycleStart, gameMinuteDuration(minuteOfCycle));
 }
 
 export function deriveCitizenScheduleForDay(
@@ -255,11 +261,16 @@ export function deriveCitizenScheduleForDay(
   );
   const returnHome =
     policy.version === 2
-      ? dayIndex * 1440 +
-        stableCommuteBaseMinuteOfDayForCitizen(citizen.citizenId, scheduleSeedVersion) +
-        policy.workDurationMinutes +
-        v2ReturnJitterMinutes(citizen.citizenId, dayIndex, scheduleSeedVersion)
-      : workStart + policy.workDurationMinutes;
+      ? addGameMinutes(
+          ZERO_GAME_MINUTE,
+          gameMinuteDuration(
+            dayIndex * MINUTES_PER_CYCLE +
+              stableCommuteBaseMinuteOfDayForCitizen(citizen.citizenId, scheduleSeedVersion) +
+              policy.workDurationMinutes +
+              v2ReturnJitterMinutes(citizen.citizenId, dayIndex, scheduleSeedVersion),
+          ),
+        )
+      : addGameMinutes(workStart, gameMinuteDuration(policy.workDurationMinutes));
   const schedule = Object.freeze([
     Object.freeze({
       citizenId: citizen.citizenId,

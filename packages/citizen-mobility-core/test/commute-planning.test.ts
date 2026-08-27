@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { absoluteGameMinute } from '@web-three-city/simulation-core';
 import {
   chooseMobilityMode,
   collectDueMobilityBoundaries,
@@ -38,8 +39,8 @@ describe('Citizen Mobility commute planning', () => {
     );
     const boundaries = collectDueMobilityBoundaries({
       citizens,
-      fromGameMinuteExclusive: 6 * 60,
-      toGameMinuteInclusive: 10 * 60,
+      fromGameMinuteExclusive: absoluteGameMinute(6 * 60),
+      toGameMinuteInclusive: absoluteGameMinute(10 * 60),
     });
     expect(boundaries.length).toBe(32);
     expect([...boundaries].sort((a, b) => a.atGameMinute - b.atGameMinute)).toEqual(boundaries);
@@ -53,8 +54,8 @@ describe('Citizen Mobility commute planning', () => {
     }).snapshot;
     const boundary = collectDueMobilityBoundaries({
       citizens: [citizen],
-      fromGameMinuteExclusive: 6 * 60,
-      toGameMinuteInclusive: 10 * 60,
+      fromGameMinuteExclusive: absoluteGameMinute(6 * 60),
+      toGameMinuteInclusive: absoluteGameMinute(10 * 60),
     })[0]!;
     const plan = planMobilityBoundaries({
       snapshot: initialized,
@@ -92,8 +93,8 @@ describe('Citizen Mobility commute planning', () => {
     }).snapshot;
     const boundary = collectDueMobilityBoundaries({
       citizens: [citizen],
-      fromGameMinuteExclusive: 6 * 60,
-      toGameMinuteInclusive: 10 * 60,
+      fromGameMinuteExclusive: absoluteGameMinute(6 * 60),
+      toGameMinuteInclusive: absoluteGameMinute(10 * 60),
     })[0]!;
     const request = planMobilityBoundaries({
       snapshot: initialized,
@@ -134,7 +135,13 @@ describe('Citizen Mobility commute planning', () => {
     }).snapshot;
     const outbound = planMobilityBoundaries({
       snapshot: initialized,
-      boundaries: [{ citizenId: citizen.citizenId, atGameMinute: 480, nextActivity: 'Work' }],
+      boundaries: [
+        {
+          citizenId: citizen.citizenId,
+          atGameMinute: absoluteGameMinute(480),
+          nextActivity: 'Work',
+        },
+      ],
       citizens: [citizen],
     }).planningRequests[0]!;
     const travelling = commitPlannedMobilityTrip({
@@ -145,7 +152,13 @@ describe('Citizen Mobility commute planning', () => {
 
     const laterDueWhileTravelling = planMobilityBoundaries({
       snapshot: travelling,
-      boundaries: [{ citizenId: citizen.citizenId, atGameMinute: 1020, nextActivity: 'Home' }],
+      boundaries: [
+        {
+          citizenId: citizen.citizenId,
+          atGameMinute: absoluteGameMinute(1020),
+          nextActivity: 'Home',
+        },
+      ],
       citizens: [citizen],
     });
     expect(laterDueWhileTravelling.planningRequests).toEqual([]);
@@ -159,7 +172,7 @@ describe('Citizen Mobility commute planning', () => {
     const catchUp = planMobilityCatchUp({
       snapshot: settled,
       citizens: [citizen],
-      currentGameMinute: 1020,
+      currentGameMinute: absoluteGameMinute(1020),
     });
 
     expect(catchUp.planningRequests).toEqual([
@@ -182,7 +195,13 @@ describe('Citizen Mobility commute planning', () => {
 
     const plan = planMobilityBoundaries({
       snapshot: initialized,
-      boundaries: [{ citizenId: citizen.citizenId, atGameMinute: 480, nextActivity: 'Work' }],
+      boundaries: [
+        {
+          citizenId: citizen.citizenId,
+          atGameMinute: absoluteGameMinute(480),
+          nextActivity: 'Work',
+        },
+      ],
       citizens: [citizen],
     });
 
@@ -197,8 +216,8 @@ describe('Citizen Mobility commute planning', () => {
     }).snapshot;
     const boundary = collectDueMobilityBoundaries({
       citizens: [citizen],
-      fromGameMinuteExclusive: 6 * 60,
-      toGameMinuteInclusive: 10 * 60,
+      fromGameMinuteExclusive: absoluteGameMinute(6 * 60),
+      toGameMinuteInclusive: absoluteGameMinute(10 * 60),
     })[0]!;
     const request = planMobilityBoundaries({
       snapshot: initialized,

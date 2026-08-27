@@ -1,4 +1,5 @@
 import { createMobilitySnapshot, type MobilitySnapshotV1 } from './mobility-snapshot.js';
+import { gameMinuteValue } from '@web-three-city/simulation-core';
 
 export function fingerprintMobilitySnapshot(snapshot: MobilitySnapshotV1): string {
   const canonical = createMobilitySnapshot(snapshot);
@@ -13,8 +14,8 @@ export function fingerprintMobilitySnapshot(snapshot: MobilitySnapshotV1): strin
       state.currentActivity,
       state.stationaryBuildingId,
       state.activeTripId,
-      state.scheduleCursorDay,
-      state.nextBoundaryGameMinute,
+      state.scheduleCursorCycle,
+      state.nextBoundaryGameMinute === null ? null : gameMinuteValue(state.nextBoundaryGameMinute),
     ]),
     trips: canonical.trips.map((trip) => [
       trip.tripId,
@@ -23,7 +24,7 @@ export function fingerprintMobilitySnapshot(snapshot: MobilitySnapshotV1): strin
       trip.originBuildingId,
       trip.destinationBuildingId,
       trip.mode,
-      trip.departureGameMinute,
+      gameMinuteValue(trip.departureGameMinute),
       trip.status,
       trip.failureReason,
     ]),

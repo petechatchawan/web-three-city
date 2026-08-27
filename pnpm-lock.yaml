@@ -204,7 +204,11 @@ importers:
         specifier: 0.185.0
         version: 0.185.0
 
-  packages/citizen-mobility-core: {}
+  packages/citizen-mobility-core:
+    dependencies:
+      '@web-three-city/simulation-core':
+        specifier: workspace:*
+        version: link:../simulation-core
 
   packages/economy-core:
     dependencies:

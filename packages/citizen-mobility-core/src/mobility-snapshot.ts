@@ -6,6 +6,7 @@ import {
   type MobilityTrip,
 } from './contracts.js';
 import { MobilityContractError } from './errors.js';
+import { absoluteGameMinute, gameMinuteValue } from '@web-three-city/simulation-core';
 
 export const MOBILITY_SCHEMA_VERSION = 1 as const;
 export const MOBILITY_POLICY_VERSION = 1 as const;
@@ -25,12 +26,21 @@ export interface MobilitySnapshotV1 {
 
 function cloneState(state: CitizenMobilityState): CitizenMobilityState {
   validateCitizenMobilityState(state);
-  return Object.freeze({ ...state });
+  return Object.freeze({
+    ...state,
+    nextBoundaryGameMinute:
+      state.nextBoundaryGameMinute === null
+        ? null
+        : absoluteGameMinute(gameMinuteValue(state.nextBoundaryGameMinute)),
+  });
 }
 
 function cloneTrip(trip: MobilityTrip): MobilityTrip {
   validateMobilityTrip(trip);
-  return Object.freeze({ ...trip });
+  return Object.freeze({
+    ...trip,
+    departureGameMinute: absoluteGameMinute(gameMinuteValue(trip.departureGameMinute)),
+  });
 }
 
 function assertSnapshotHeader(input: MobilitySnapshotV1): void {

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { absoluteGameMinute } from '@web-three-city/simulation-core';
 import {
   createEmptyMobilitySnapshot,
   createMobilitySnapshot,
@@ -27,7 +28,7 @@ describe('MobilitySnapshotV1', () => {
           currentActivity: 'Idle',
           stationaryBuildingId: null,
           activeTripId: null,
-          scheduleCursorDay: 0,
+          scheduleCursorCycle: 0,
           nextBoundaryGameMinute: null,
         },
         {
@@ -35,8 +36,8 @@ describe('MobilitySnapshotV1', () => {
           currentActivity: 'Home',
           stationaryBuildingId: 'home-1',
           activeTripId: null,
-          scheduleCursorDay: 0,
-          nextBoundaryGameMinute: 480,
+          scheduleCursorCycle: 0,
+          nextBoundaryGameMinute: absoluteGameMinute(480),
         },
       ],
       trips: [],
@@ -61,7 +62,7 @@ describe('MobilitySnapshotV1', () => {
             currentActivity: 'Travel',
             stationaryBuildingId: null,
             activeTripId: 'mobility-trip-0000000001',
-            scheduleCursorDay: 0,
+            scheduleCursorCycle: 0,
             nextBoundaryGameMinute: null,
           },
         ],
@@ -80,8 +81,8 @@ describe('MobilitySnapshotV1', () => {
           currentActivity: 'Travel',
           stationaryBuildingId: null,
           activeTripId: 'mobility-trip-0000000001',
-          scheduleCursorDay: 1,
-          nextBoundaryGameMinute: 1860,
+          scheduleCursorCycle: 1,
+          nextBoundaryGameMinute: absoluteGameMinute(1860),
         },
       ],
       trips: [
@@ -92,7 +93,7 @@ describe('MobilitySnapshotV1', () => {
           originBuildingId: 'home-1',
           destinationBuildingId: 'work-1',
           mode: 'Drive',
-          departureGameMinute: 450,
+          departureGameMinute: absoluteGameMinute(450),
           status: 'Active',
           failureReason: null,
         },

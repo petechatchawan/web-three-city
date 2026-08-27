@@ -26,7 +26,7 @@ function initialStateFor(citizen: PresentCitizenMobilityProjection): CitizenMobi
       currentActivity: 'Home',
       stationaryBuildingId: citizen.homeBuildingId,
       activeTripId: null,
-      scheduleCursorDay: 0,
+      scheduleCursorCycle: 0,
       nextBoundaryGameMinute: null,
     });
   }
@@ -36,7 +36,7 @@ function initialStateFor(citizen: PresentCitizenMobilityProjection): CitizenMobi
       currentActivity: 'Work',
       stationaryBuildingId: citizen.workBuildingId,
       activeTripId: null,
-      scheduleCursorDay: 0,
+      scheduleCursorCycle: 0,
       nextBoundaryGameMinute: null,
     });
   }
@@ -45,7 +45,7 @@ function initialStateFor(citizen: PresentCitizenMobilityProjection): CitizenMobi
     currentActivity: 'Idle',
     stationaryBuildingId: null,
     activeTripId: null,
-    scheduleCursorDay: 0,
+    scheduleCursorCycle: 0,
     nextBoundaryGameMinute: null,
   });
 }

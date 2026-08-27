@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as mobilityCore from '../src/index.js';
+import { absoluteGameMinute } from '@web-three-city/simulation-core';
 import type { MobilitySaveV1, MobilitySnapshotV1 } from '../src/index.js';
 
 type MobilitySaveV2Api = Readonly<{
@@ -26,8 +27,8 @@ const activeDriveSnapshot: MobilitySnapshotV1 = Object.freeze({
       currentActivity: 'Travel' as const,
       stationaryBuildingId: null,
       activeTripId: 'mobility-trip-0000000001',
-      scheduleCursorDay: 0,
-      nextBoundaryGameMinute: 540,
+      scheduleCursorCycle: 0,
+      nextBoundaryGameMinute: absoluteGameMinute(540),
     }),
   ]),
   trips: Object.freeze([
@@ -38,7 +39,7 @@ const activeDriveSnapshot: MobilitySnapshotV1 = Object.freeze({
       originBuildingId: 'home-1',
       destinationBuildingId: 'work-1',
       mode: 'Drive' as const,
-      departureGameMinute: 480,
+      departureGameMinute: absoluteGameMinute(480),
       status: 'Active' as const,
       failureReason: null,
     }),

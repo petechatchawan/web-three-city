@@ -1,5 +1,18 @@
-import type { CitizenMobilityState, MobilityTrip } from './contracts.js';
+import type {
+  CitizenMobilityState,
+  MobilityActivityKind,
+  MobilityTrip,
+  MobilityTripFailureReason,
+  MobilityTripMode,
+  MobilityTripPurpose,
+  MobilityTripStatus,
+} from './contracts.js';
 import { MobilityContractError } from './errors.js';
+import {
+  absoluteGameMinute,
+  gameMinuteValue,
+  type AbsoluteGameMinute,
+} from '@web-three-city/simulation-core';
 import {
   MOBILITY_POLICY_VERSION,
   MOBILITY_SCHEMA_VERSION,
@@ -14,8 +27,8 @@ export interface MobilitySaveV1 {
   readonly policyVersion: 1;
   readonly scheduleSeedVersion: 1;
   readonly nextTripSequence: number;
-  readonly citizenStates: readonly CitizenMobilityState[];
-  readonly trips: readonly MobilityTrip[];
+  readonly citizenStates: readonly MobilitySaveCitizenState[];
+  readonly trips: readonly MobilitySaveTrip[];
 }
 
 /**
@@ -30,8 +43,33 @@ export interface MobilitySaveV2 {
   readonly schedulePolicyVersion: 2;
   readonly scheduleSeedVersion: 1;
   readonly nextTripSequence: number;
-  readonly citizenStates: readonly CitizenMobilityState[];
-  readonly trips: readonly MobilityTrip[];
+  readonly citizenStates: readonly MobilitySaveCitizenState[];
+  readonly trips: readonly MobilitySaveTrip[];
+}
+
+/**
+ * Legacy V1/V2 wire fields intentionally retain their historical names and
+ * numeric payloads. They are decoded into the typed in-memory authority below.
+ */
+export interface MobilitySaveCitizenState {
+  readonly citizenId: string;
+  readonly currentActivity: MobilityActivityKind;
+  readonly stationaryBuildingId: string | null;
+  readonly activeTripId: string | null;
+  readonly scheduleCursorDay: number;
+  readonly nextBoundaryGameMinute: number | null;
+}
+
+export interface MobilitySaveTrip {
+  readonly tripId: string;
+  readonly citizenId: string;
+  readonly purpose: MobilityTripPurpose;
+  readonly originBuildingId: string;
+  readonly destinationBuildingId: string;
+  readonly mode: MobilityTripMode | null;
+  readonly departureGameMinute: number;
+  readonly status: MobilityTripStatus;
+  readonly failureReason: MobilityTripFailureReason | null;
 }
 
 export type MobilitySaveDecodeResult =
@@ -48,6 +86,15 @@ const modes = new Set(['Walk', 'Drive']);
 const statuses = new Set(['Planned', 'Active', 'Arrived', 'Failed', 'Cancelled']);
 const failureReasons = new Set(['Unreachable', 'OriginUnavailable', 'DestinationUnavailable']);
 
+function parseAbsoluteGameMinute(value: unknown): AbsoluteGameMinute | null {
+  if (typeof value !== 'number') return null;
+  try {
+    return absoluteGameMinute(value);
+  } catch {
+    return null;
+  }
+}
+
 function parseCitizenState(value: unknown): CitizenMobilityState | null {
   if (!isRecord(value)) return null;
   if (typeof value.citizenId !== 'string') return null;
@@ -56,16 +103,24 @@ function parseCitizenState(value: unknown): CitizenMobilityState | null {
   if (value.stationaryBuildingId !== null && typeof value.stationaryBuildingId !== 'string')
     return null;
   if (value.activeTripId !== null && typeof value.activeTripId !== 'string') return null;
-  if (!Number.isSafeInteger(value.scheduleCursorDay)) return null;
-  if (value.nextBoundaryGameMinute !== null && !Number.isSafeInteger(value.nextBoundaryGameMinute))
+  if (
+    typeof value.scheduleCursorDay !== 'number' ||
+    !Number.isSafeInteger(value.scheduleCursorDay) ||
+    value.scheduleCursorDay < 0
+  )
     return null;
+  const nextBoundaryGameMinute =
+    value.nextBoundaryGameMinute === null
+      ? null
+      : parseAbsoluteGameMinute(value.nextBoundaryGameMinute);
+  if (value.nextBoundaryGameMinute !== null && nextBoundaryGameMinute === null) return null;
   return Object.freeze({
     citizenId: value.citizenId,
     currentActivity: value.currentActivity as CitizenMobilityState['currentActivity'],
     stationaryBuildingId: value.stationaryBuildingId as string | null,
     activeTripId: value.activeTripId as string | null,
-    scheduleCursorDay: value.scheduleCursorDay as number,
-    nextBoundaryGameMinute: value.nextBoundaryGameMinute as number | null,
+    scheduleCursorCycle: value.scheduleCursorDay as number,
+    nextBoundaryGameMinute,
   });
 }
 
@@ -77,7 +132,8 @@ function parseTrip(value: unknown): MobilityTrip | null {
     return null;
   if (value.mode !== null && (typeof value.mode !== 'string' || !modes.has(value.mode)))
     return null;
-  if (!Number.isSafeInteger(value.departureGameMinute)) return null;
+  const departureGameMinute = parseAbsoluteGameMinute(value.departureGameMinute);
+  if (departureGameMinute === null) return null;
   if (typeof value.status !== 'string' || !statuses.has(value.status)) return null;
   if (
     value.failureReason !== null &&
@@ -91,7 +147,7 @@ function parseTrip(value: unknown): MobilityTrip | null {
     originBuildingId: value.originBuildingId,
     destinationBuildingId: value.destinationBuildingId,
     mode: value.mode as MobilityTrip['mode'],
-    departureGameMinute: value.departureGameMinute as number,
+    departureGameMinute,
     status: value.status as MobilityTrip['status'],
     failureReason: value.failureReason as MobilityTrip['failureReason'],
   });
@@ -106,9 +162,35 @@ export function encodeMobilitySaveV1(snapshot: MobilitySnapshotV1): MobilitySave
     scheduleSeedVersion: MOBILITY_SCHEDULE_SEED_VERSION,
     nextTripSequence: canonical.nextTripSequence,
     citizenStates: Object.freeze(
-      canonical.citizenStates.map((state) => Object.freeze({ ...state })),
+      canonical.citizenStates.map((state) =>
+        Object.freeze({
+          citizenId: state.citizenId,
+          currentActivity: state.currentActivity,
+          stationaryBuildingId: state.stationaryBuildingId,
+          activeTripId: state.activeTripId,
+          scheduleCursorDay: state.scheduleCursorCycle,
+          nextBoundaryGameMinute:
+            state.nextBoundaryGameMinute === null
+              ? null
+              : gameMinuteValue(state.nextBoundaryGameMinute),
+        }),
+      ),
     ),
-    trips: Object.freeze(canonical.trips.map((trip) => Object.freeze({ ...trip }))),
+    trips: Object.freeze(
+      canonical.trips.map((trip) =>
+        Object.freeze({
+          tripId: trip.tripId,
+          citizenId: trip.citizenId,
+          purpose: trip.purpose,
+          originBuildingId: trip.originBuildingId,
+          destinationBuildingId: trip.destinationBuildingId,
+          mode: trip.mode,
+          departureGameMinute: gameMinuteValue(trip.departureGameMinute),
+          status: trip.status,
+          failureReason: trip.failureReason,
+        }),
+      ),
+    ),
   });
 }
 
@@ -164,9 +246,35 @@ export function encodeMobilitySaveV2(snapshot: MobilitySnapshotV1): MobilitySave
     scheduleSeedVersion: canonical.scheduleSeedVersion,
     nextTripSequence: canonical.nextTripSequence,
     citizenStates: Object.freeze(
-      canonical.citizenStates.map((state) => Object.freeze({ ...state })),
+      canonical.citizenStates.map((state) =>
+        Object.freeze({
+          citizenId: state.citizenId,
+          currentActivity: state.currentActivity,
+          stationaryBuildingId: state.stationaryBuildingId,
+          activeTripId: state.activeTripId,
+          scheduleCursorDay: state.scheduleCursorCycle,
+          nextBoundaryGameMinute:
+            state.nextBoundaryGameMinute === null
+              ? null
+              : gameMinuteValue(state.nextBoundaryGameMinute),
+        }),
+      ),
     ),
-    trips: Object.freeze(canonical.trips.map((trip) => Object.freeze({ ...trip }))),
+    trips: Object.freeze(
+      canonical.trips.map((trip) =>
+        Object.freeze({
+          tripId: trip.tripId,
+          citizenId: trip.citizenId,
+          purpose: trip.purpose,
+          originBuildingId: trip.originBuildingId,
+          destinationBuildingId: trip.destinationBuildingId,
+          mode: trip.mode,
+          departureGameMinute: gameMinuteValue(trip.departureGameMinute),
+          status: trip.status,
+          failureReason: trip.failureReason,
+        }),
+      ),
+    ),
   });
 }
 

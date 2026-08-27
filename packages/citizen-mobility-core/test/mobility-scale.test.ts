@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { absoluteGameMinute } from '@web-three-city/simulation-core';
 import {
   collectDueMobilityBoundaries,
   createEmptyMobilitySnapshot,
@@ -36,8 +37,8 @@ describe('Citizen Mobility production scale', () => {
     );
     const due = collectDueMobilityBoundaries({
       citizens,
-      fromGameMinuteExclusive: 6 * 60,
-      toGameMinuteInclusive: 10 * 60,
+      fromGameMinuteExclusive: absoluteGameMinute(6 * 60),
+      toGameMinuteInclusive: absoluteGameMinute(10 * 60),
     });
     expect(due).toHaveLength(20_000);
     expect(new Set(due.map((boundary) => boundary.atGameMinute)).size).toBeGreaterThan(60);

@@ -1,4 +1,5 @@
 import { MobilityContractError } from './errors.js';
+import { absoluteGameMinute, type AbsoluteGameMinute } from '@web-three-city/simulation-core';
 
 export type MobilityTripId = string;
 export type MobilityActivityKind = 'Home' | 'Work' | 'Idle' | 'Travel';
@@ -13,8 +14,8 @@ export interface CitizenMobilityState {
   readonly currentActivity: MobilityActivityKind;
   readonly stationaryBuildingId: string | null;
   readonly activeTripId: MobilityTripId | null;
-  readonly scheduleCursorDay: number;
-  readonly nextBoundaryGameMinute: number | null;
+  readonly scheduleCursorCycle: number;
+  readonly nextBoundaryGameMinute: AbsoluteGameMinute | null;
 }
 
 export interface MobilityTrip {
@@ -24,7 +25,7 @@ export interface MobilityTrip {
   readonly originBuildingId: string;
   readonly destinationBuildingId: string;
   readonly mode: MobilityTripMode | null;
-  readonly departureGameMinute: number;
+  readonly departureGameMinute: AbsoluteGameMinute;
   readonly status: MobilityTripStatus;
   readonly failureReason: MobilityTripFailureReason | null;
 }
@@ -41,7 +42,7 @@ export interface MobilityTripPlanningRequest {
   readonly purpose: MobilityTripPurpose;
   readonly originBuildingId: string;
   readonly destinationBuildingId: string;
-  readonly departureGameMinute: number;
+  readonly departureGameMinute: AbsoluteGameMinute;
 }
 
 export interface PresentCitizenMobilityProjection {
@@ -67,11 +68,21 @@ export function assertNonNegativeSafeInteger(value: unknown): asserts value is n
   }
 }
 
+function assertAbsoluteGameMinute(value: unknown): asserts value is AbsoluteGameMinute {
+  if (typeof value !== 'number') {
+    throw new MobilityContractError('mobility:invalid-time');
+  }
+  try {
+    absoluteGameMinute(value);
+  } catch {
+    throw new MobilityContractError('mobility:invalid-time');
+  }
+}
+
 export function validateCitizenMobilityState(state: CitizenMobilityState): void {
   assertMobilityId(state.citizenId);
-  assertNonNegativeSafeInteger(state.scheduleCursorDay);
-  if (state.nextBoundaryGameMinute !== null)
-    assertNonNegativeSafeInteger(state.nextBoundaryGameMinute);
+  assertNonNegativeSafeInteger(state.scheduleCursorCycle);
+  if (state.nextBoundaryGameMinute !== null) assertAbsoluteGameMinute(state.nextBoundaryGameMinute);
   if (state.stationaryBuildingId !== null) assertMobilityId(state.stationaryBuildingId);
   if (state.activeTripId !== null) assertMobilityId(state.activeTripId);
 
@@ -102,7 +113,7 @@ export function validateMobilityTrip(trip: MobilityTrip): void {
   assertMobilityId(trip.citizenId);
   assertMobilityId(trip.originBuildingId);
   assertMobilityId(trip.destinationBuildingId);
-  assertNonNegativeSafeInteger(trip.departureGameMinute);
+  assertAbsoluteGameMinute(trip.departureGameMinute);
 
   if (trip.originBuildingId === trip.destinationBuildingId) {
     throw new MobilityContractError('mobility:invalid-trip');

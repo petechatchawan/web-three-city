@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { absoluteGameMinute } from '@web-three-city/simulation-core';
 import {
   collectDueMobilityBoundaries,
   commuteDepartureGameMinuteForCitizen,
@@ -32,8 +33,8 @@ describe('Mobility schedule cycle characterization', () => {
     const citizenId = citizenDepartingAt(8 * 60);
     const due = collectDueMobilityBoundaries({
       citizens: [Object.freeze({ ...citizen, citizenId })],
-      fromGameMinuteExclusive: 7 * 60 + 59,
-      toGameMinuteInclusive: 8 * 60,
+      fromGameMinuteExclusive: absoluteGameMinute(7 * 60 + 59),
+      toGameMinuteInclusive: absoluteGameMinute(8 * 60),
     });
 
     expect(due).toEqual([
@@ -56,14 +57,14 @@ describe('Mobility schedule cycle characterization', () => {
     expect(
       collectDueMobilityBoundaries({
         citizens: [citizen],
-        fromGameMinuteExclusive: departure!.atGameMinute - 1,
+        fromGameMinuteExclusive: absoluteGameMinute(departure!.atGameMinute - 1),
         toGameMinuteInclusive: departure!.atGameMinute,
       }),
     ).toEqual([departure]);
     expect(
       collectDueMobilityBoundaries({
         citizens: [citizen],
-        fromGameMinuteExclusive: returnHome!.atGameMinute - 1,
+        fromGameMinuteExclusive: absoluteGameMinute(returnHome!.atGameMinute - 1),
         toGameMinuteInclusive: returnHome!.atGameMinute,
       }),
     ).toEqual([returnHome]);
@@ -76,8 +77,8 @@ describe('Mobility schedule cycle characterization', () => {
     expect(
       collectDueMobilityBoundaries({
         citizens: [citizen],
-        fromGameMinuteExclusive: 23 * 60 + 59,
-        toGameMinuteInclusive: MINUTES_PER_CYCLE,
+        fromGameMinuteExclusive: absoluteGameMinute(23 * 60 + 59),
+        toGameMinuteInclusive: absoluteGameMinute(MINUTES_PER_CYCLE),
       }),
     ).toEqual([]);
 
@@ -91,7 +92,7 @@ describe('Mobility schedule cycle characterization', () => {
 
     const nextCycleDeparture = collectDueMobilityBoundaries({
       citizens: [citizen],
-      fromGameMinuteExclusive: MINUTES_PER_CYCLE - 1,
+      fromGameMinuteExclusive: absoluteGameMinute(MINUTES_PER_CYCLE - 1),
       toGameMinuteInclusive: dayOne[0]!.atGameMinute,
     }).find((boundary) => boundary.nextActivity === 'Work');
     expect(nextCycleDeparture).toEqual(dayOne[0]);

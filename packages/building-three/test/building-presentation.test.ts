@@ -1,4 +1,9 @@
-import { createBuildingSnapshot, type BuildingInstance } from '@web-three-city/building-core';
+import {
+  createBuildingSnapshot,
+  type BuildingInstance,
+  type ConstructionBuildingInstance,
+} from '@web-three-city/building-core';
+import { macroHourIndex } from '@web-three-city/simulation-core';
 import type { WorldConfig } from '@web-three-city/world-core';
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
@@ -69,6 +74,28 @@ const ENTRANCE_PART_NAMES = new Set([
 ]);
 
 describe('BuildingPresentation', () => {
+  it('derives construction visuals from explicit macro-hour lifecycle at a midpoint', () => {
+    const scene = new THREE.Scene();
+    const presentation = new BuildingPresentation(scene, () => 1, CONFIG);
+    const construction: ConstructionBuildingInstance = {
+      instanceId: 'construction',
+      buildingDefinitionId: 'residential-cottage-1x1',
+      buildingDefinitionVersion: 1,
+      originCell: { x: 0, z: 0 },
+      rotationQuarterTurns: 0,
+      lifecycle: 'construction',
+      constructionStartedAtMacroHourIndex: macroHourIndex(12),
+      constructionCompletesAtMacroHourIndex: macroHourIndex(18),
+    };
+    const snapshot = createBuildingSnapshot({ revision: 1, instances: [construction] }, CONFIG);
+
+    presentation.load(snapshot, macroHourIndex(15));
+
+    expect(presentation.root.children[0]?.name).toBe('building-construction-frame');
+    expect(presentation.root.children[0]?.userData.constructionPhase).toBe('frame');
+    presentation.dispose();
+  });
+
   it('derives one named, oriented prototype group per authoritative instance', () => {
     const scene = new THREE.Scene();
     const presentation = new BuildingPresentation(scene, () => 1, CONFIG);

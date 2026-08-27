@@ -1,10 +1,9 @@
 import {
   addMacroHours,
   commitSimulationMinute,
+  compareMacroHours,
   createSimulationSnapshot,
   deriveMacroHourTransition,
-  macroHourDuration,
-  macroHourValue,
   isDevelopmentEvaluationTick,
   isMacroHourTransition,
   planSimulationMinute,
@@ -15,7 +14,11 @@ import { chunkForCell, type ChunkCoord } from '@web-three-city/terrain-core';
 import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
 import { buildingDefinitionForId } from './building-definitions.js';
 import { occupiedCellsForBuilding } from './building-footprint.js';
-import { activateCompletedBuilding, normalizeBuildingInstance } from './building-lifecycle.js';
+import {
+  activateCompletedBuilding,
+  isBuildingConstructionCompleteAtMacroHour,
+  normalizeBuildingInstance,
+} from './building-lifecycle.js';
 import { selectGrowthBuildingPlacement } from './building-selection.js';
 import { createBuildingSnapshot } from './building-snapshot.js';
 import type { BuildingGrowthPolicy } from './growth-policy.js';
@@ -65,11 +68,11 @@ function invalidPlan(
     baseWaterSourceTerrainRevision: environment.waterSourceTerrainRevision,
     baseRoadRevision: environment.roadRevision,
     baseZoneRevision: environment.zoneRevision,
-    beforeAbsoluteTick: deriveMacroHourTransition(
+    beforeMacroHourIndex: deriveMacroHourTransition(
       simulation.absoluteGameMinute,
       simulation.absoluteGameMinute,
     ).beforeMacroHourIndex,
-    afterAbsoluteTick: deriveMacroHourTransition(
+    afterMacroHourIndex: deriveMacroHourTransition(
       simulation.absoluteGameMinute,
       simulation.absoluteGameMinute,
     ).afterMacroHourIndex,
@@ -141,8 +144,10 @@ function normalizeGrowthBuildings(
         const authoritative = normalizeBuildingInstance(instance);
         if (
           authoritative.lifecycle === 'construction' &&
-          authoritative.constructionCompletesAtTick <=
-            macroHourValue(macroHourTransition.afterMacroHourIndex)
+          isBuildingConstructionCompleteAtMacroHour(
+            authoritative,
+            macroHourTransition.afterMacroHourIndex,
+          )
         ) {
           completedIds.push(authoritative.instanceId);
           for (const cell of occupiedCellsForBuilding(authoritative))
@@ -184,7 +189,7 @@ function applyScheduledGrowth(input: {
     buildings: intermediate,
     environment: input.environment,
     config: input.config,
-    absoluteTick: input.macroHourTransition.afterMacroHourIndex,
+    macroHourIndex: input.macroHourTransition.afterMacroHourIndex,
     growthSequence: input.simulation.growthSequence,
     ...(input.reservedCells === undefined ? {} : { reservedCells: input.reservedCells }),
     ...(input.growthPolicy === undefined ? {} : { growthPolicy: input.growthPolicy }),
@@ -199,10 +204,10 @@ function applyScheduledGrowth(input: {
     originCell: Object.freeze({ ...selected.instance.originCell }),
     rotationQuarterTurns: selected.instance.rotationQuarterTurns,
     lifecycle: 'construction',
-    constructionStartedAtTick: input.macroHourTransition.afterMacroHourIndex,
-    constructionCompletesAtTick: addMacroHours(
+    constructionStartedAtMacroHourIndex: input.macroHourTransition.afterMacroHourIndex,
+    constructionCompletesAtMacroHourIndex: addMacroHours(
       input.macroHourTransition.afterMacroHourIndex,
-      macroHourDuration(definition.constructionDurationTicks),
+      definition.constructionDurationMacroHours,
     ),
   });
   input.proposed.push(construction);
@@ -253,7 +258,7 @@ export function planBuildingGrowthTick(input: {
     );
   }
 
-  const afterAbsoluteTick = macroHourTransition.afterMacroHourIndex;
+  const afterMacroHourIndex = macroHourTransition.afterMacroHourIndex;
   const normalized = normalizeGrowthBuildings(buildings, macroHourTransition, input.config);
   const scheduled = applyScheduledGrowth({
     buildings,
@@ -273,8 +278,8 @@ export function planBuildingGrowthTick(input: {
     baseWaterSourceTerrainRevision: input.environment.waterSourceTerrainRevision,
     baseRoadRevision: input.environment.roadRevision,
     baseZoneRevision: input.environment.zoneRevision,
-    beforeAbsoluteTick: macroHourTransition.beforeMacroHourIndex,
-    afterAbsoluteTick,
+    beforeMacroHourIndex: macroHourTransition.beforeMacroHourIndex,
+    afterMacroHourIndex,
     macroHourTransition,
     simulationAdvanceOwnedByBuilding,
     proposedInstances: Object.freeze(normalized.proposed.map(normalizeBuildingInstance)),
@@ -306,12 +311,13 @@ export function commitBuildingGrowthTick(input: {
   if (
     input.simulation.revision !== plan.baseSimulationRevision ||
     (plan.simulationAdvanceOwnedByBuilding &&
-      macroHourValue(
+      compareMacroHours(
         deriveMacroHourTransition(
           input.simulation.absoluteGameMinute,
           input.simulation.absoluteGameMinute,
         ).beforeMacroHourIndex,
-      ) !== plan.beforeAbsoluteTick)
+        plan.beforeMacroHourIndex,
+      ) !== 0)
   ) {
     throw new BuildingContractError('building-growth:stale-simulation-plan');
   }
@@ -327,12 +333,13 @@ export function commitBuildingGrowthTick(input: {
   if (
     plan.simulationAdvanceOwnedByBuilding &&
     (!tickPlan.valid ||
-      macroHourValue(
+      compareMacroHours(
         deriveMacroHourTransition(
           input.simulation.absoluteGameMinute,
           tickPlan.afterAbsoluteGameMinute,
         ).afterMacroHourIndex,
-      ) !== plan.afterAbsoluteTick)
+        plan.afterMacroHourIndex,
+      ) !== 0)
   ) {
     throw new BuildingContractError('building-growth:stale-simulation-plan');
   }
@@ -354,8 +361,8 @@ export function commitBuildingGrowthTick(input: {
       afterBuildingRevision: buildings.revision,
       beforeSimulationRevision: input.simulation.revision,
       afterSimulationRevision: simulationCommit.snapshot.revision,
-      beforeAbsoluteTick: plan.beforeAbsoluteTick,
-      afterAbsoluteTick: plan.afterAbsoluteTick,
+      beforeMacroHourIndex: plan.beforeMacroHourIndex,
+      afterMacroHourIndex: plan.afterMacroHourIndex,
       startedInstanceIds: plan.startedInstanceIds,
       completedInstanceIds: plan.completedInstanceIds,
       dirtyChunks: plan.dirtyChunks,

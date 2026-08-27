@@ -1,3 +1,4 @@
+import { macroHourDuration, macroHourValue } from '@web-three-city/simulation-core';
 import { zoneDefinitionForId } from '@web-three-city/zone-core';
 import type {
   BuildingDefinition,
@@ -26,7 +27,8 @@ function definition(value: BuildingDefinition): BuildingDefinition {
     value.selectionPriority < 0 ||
     !Number.isSafeInteger(value.selectionWeight) ||
     value.selectionWeight <= 0 ||
-    value.constructionDurationTicks !== 24 * value.footprintWidth * value.footprintDepth ||
+    macroHourValue(value.constructionDurationMacroHours) !==
+      24 * value.footprintWidth * value.footprintDepth ||
     rotations.length === 0 ||
     new Set(rotations).size !== rotations.length ||
     rotations.some((rotation) => rotation < 0 || rotation > 3) ||
@@ -56,7 +58,7 @@ const VALUES: readonly BuildingDefinition[] = Object.freeze([
     compatibleZoneDefinitionIds: Object.freeze(['residential']),
     selectionPriority: 10,
     selectionWeight: 40,
-    constructionDurationTicks: 24,
+    constructionDurationMacroHours: macroHourDuration(24),
     prototypeId: 'cottage',
     prototypeHeight: 0.8,
     capacityProfileDefinitionId: 'capacity.residential.cottage.v1',
@@ -71,7 +73,7 @@ const VALUES: readonly BuildingDefinition[] = Object.freeze([
     compatibleZoneDefinitionIds: Object.freeze(['residential']),
     selectionPriority: 20,
     selectionWeight: 30,
-    constructionDurationTicks: 48,
+    constructionDurationMacroHours: macroHourDuration(48),
     prototypeId: 'rowhouse',
     prototypeHeight: 1.25,
     capacityProfileDefinitionId: 'capacity.residential.rowhouse.v1',
@@ -86,7 +88,7 @@ const VALUES: readonly BuildingDefinition[] = Object.freeze([
     compatibleZoneDefinitionIds: Object.freeze(['residential']),
     selectionPriority: 20,
     selectionWeight: 20,
-    constructionDurationTicks: 48,
+    constructionDurationMacroHours: macroHourDuration(48),
     prototypeId: 'duplex',
     prototypeHeight: 1.1,
     capacityProfileDefinitionId: 'capacity.residential.duplex.v1',
@@ -101,7 +103,7 @@ const VALUES: readonly BuildingDefinition[] = Object.freeze([
     compatibleZoneDefinitionIds: Object.freeze(['residential']),
     selectionPriority: 30,
     selectionWeight: 10,
-    constructionDurationTicks: 96,
+    constructionDurationMacroHours: macroHourDuration(96),
     prototypeId: 'apartment',
     prototypeHeight: 2.4,
     capacityProfileDefinitionId: 'capacity.residential.apartment.v1',
@@ -116,7 +118,7 @@ const VALUES: readonly BuildingDefinition[] = Object.freeze([
     compatibleZoneDefinitionIds: Object.freeze(['commercial']),
     selectionPriority: 10,
     selectionWeight: 40,
-    constructionDurationTicks: 24,
+    constructionDurationMacroHours: macroHourDuration(24),
     prototypeId: 'shop',
     prototypeHeight: 0.9,
     capacityProfileDefinitionId: 'capacity.commercial.shop.v1',
@@ -131,7 +133,7 @@ const VALUES: readonly BuildingDefinition[] = Object.freeze([
     compatibleZoneDefinitionIds: Object.freeze(['commercial']),
     selectionPriority: 10,
     selectionWeight: 30,
-    constructionDurationTicks: 24,
+    constructionDurationMacroHours: macroHourDuration(24),
     prototypeId: 'cafe',
     prototypeHeight: 0.85,
     capacityProfileDefinitionId: 'capacity.commercial.cafe.v1',
@@ -146,7 +148,7 @@ const VALUES: readonly BuildingDefinition[] = Object.freeze([
     compatibleZoneDefinitionIds: Object.freeze(['commercial']),
     selectionPriority: 20,
     selectionWeight: 20,
-    constructionDurationTicks: 48,
+    constructionDurationMacroHours: macroHourDuration(48),
     prototypeId: 'market',
     prototypeHeight: 1.2,
     capacityProfileDefinitionId: 'capacity.commercial.market.v1',
@@ -161,7 +163,7 @@ const VALUES: readonly BuildingDefinition[] = Object.freeze([
     compatibleZoneDefinitionIds: Object.freeze(['commercial']),
     selectionPriority: 30,
     selectionWeight: 10,
-    constructionDurationTicks: 96,
+    constructionDurationMacroHours: macroHourDuration(96),
     prototypeId: 'office',
     prototypeHeight: 2.1,
     capacityProfileDefinitionId: 'capacity.commercial.office.v1',
@@ -176,7 +178,7 @@ const VALUES: readonly BuildingDefinition[] = Object.freeze([
     compatibleZoneDefinitionIds: Object.freeze(['industrial']),
     selectionPriority: 20,
     selectionWeight: 35,
-    constructionDurationTicks: 48,
+    constructionDurationMacroHours: macroHourDuration(48),
     prototypeId: 'workshop',
     prototypeHeight: 1.05,
     capacityProfileDefinitionId: 'capacity.industrial.workshop.v1',
@@ -191,7 +193,7 @@ const VALUES: readonly BuildingDefinition[] = Object.freeze([
     compatibleZoneDefinitionIds: Object.freeze(['industrial']),
     selectionPriority: 10,
     selectionWeight: 30,
-    constructionDurationTicks: 24,
+    constructionDurationMacroHours: macroHourDuration(24),
     prototypeId: 'depot',
     prototypeHeight: 0.75,
     capacityProfileDefinitionId: 'capacity.industrial.depot.v1',
@@ -206,7 +208,7 @@ const VALUES: readonly BuildingDefinition[] = Object.freeze([
     compatibleZoneDefinitionIds: Object.freeze(['industrial']),
     selectionPriority: 30,
     selectionWeight: 20,
-    constructionDurationTicks: 96,
+    constructionDurationMacroHours: macroHourDuration(96),
     prototypeId: 'warehouse',
     prototypeHeight: 1.35,
     capacityProfileDefinitionId: 'capacity.industrial.warehouse.v1',
@@ -221,7 +223,7 @@ const VALUES: readonly BuildingDefinition[] = Object.freeze([
     compatibleZoneDefinitionIds: Object.freeze(['industrial']),
     selectionPriority: 30,
     selectionWeight: 15,
-    constructionDurationTicks: 96,
+    constructionDurationMacroHours: macroHourDuration(96),
     prototypeId: 'factory',
     prototypeHeight: 1.8,
     capacityProfileDefinitionId: 'capacity.industrial.factory.v1',

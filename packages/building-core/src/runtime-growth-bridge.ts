@@ -1,3 +1,10 @@
+import {
+  addMacroHours,
+  compareMacroHours,
+  macroHourIndex,
+  macroHourValue,
+  type MacroHourIndex,
+} from '@web-three-city/simulation-core';
 import { chunkForCell, type ChunkCoord } from '@web-three-city/terrain-core';
 import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
 import { buildingDefinitionForId } from './building-definitions.js';
@@ -20,7 +27,7 @@ import {
 } from './contracts.js';
 
 export interface AutomaticBuildingGrowthContext {
-  readonly absoluteTick: number;
+  readonly macroHourIndex: MacroHourIndex;
   readonly growthSequence: number;
   readonly evaluation: boolean;
 }
@@ -29,19 +36,26 @@ let automaticContext: AutomaticBuildingGrowthContext | null = null;
 let suppressNextBuildingUndo = false;
 const automaticPlans = new WeakSet<object>();
 
+function normalizedMacroHourIndex(value: MacroHourIndex): MacroHourIndex {
+  try {
+    return macroHourIndex(macroHourValue(value));
+  } catch {
+    throw new RangeError('building-growth-runtime:invalid-context');
+  }
+}
+
 export function configureAutomaticBuildingGrowth(
   context: AutomaticBuildingGrowthContext | null,
 ): void {
-  if (
-    context !== null &&
-    (!Number.isSafeInteger(context.absoluteTick) ||
-      context.absoluteTick < 0 ||
-      !Number.isSafeInteger(context.growthSequence) ||
-      context.growthSequence < 0)
-  ) {
+  if (context === null) {
+    automaticContext = null;
+    return;
+  }
+  const macroHourIndexValue = normalizedMacroHourIndex(context.macroHourIndex);
+  if (!Number.isSafeInteger(context.growthSequence) || context.growthSequence < 0) {
     throw new RangeError('building-growth-runtime:invalid-context');
   }
-  automaticContext = context === null ? null : Object.freeze({ ...context });
+  automaticContext = Object.freeze({ ...context, macroHourIndex: macroHourIndexValue });
 }
 
 export function consumeAutomaticBuildingUndoSuppression(): boolean {
@@ -84,9 +98,9 @@ function automaticPlan(
     const instance = normalizeBuildingInstance(rawInstance);
     if (
       instance.lifecycle === 'construction' &&
-      instance.constructionCompletesAtTick <= context.absoluteTick
+      compareMacroHours(instance.constructionCompletesAtMacroHourIndex, context.macroHourIndex) <= 0
     ) {
-      const active = activateCompletedBuilding(instance, context.absoluteTick);
+      const active = activateCompletedBuilding(instance, context.macroHourIndex);
       completed.push(active);
       changed = true;
       for (const cell of occupiedCellsForBuilding(active)) {
@@ -107,7 +121,7 @@ function automaticPlan(
       buildings: staged,
       environment,
       config,
-      absoluteTick: context.absoluteTick,
+      macroHourIndex: context.macroHourIndex,
       growthSequence: context.growthSequence,
     });
     if (selected !== null) {
@@ -119,8 +133,11 @@ function automaticPlan(
         originCell: Object.freeze({ ...selected.instance.originCell }),
         rotationQuarterTurns: selected.instance.rotationQuarterTurns,
         lifecycle: 'construction',
-        constructionStartedAtTick: context.absoluteTick,
-        constructionCompletesAtTick: context.absoluteTick + definition.constructionDurationTicks,
+        constructionStartedAtMacroHourIndex: context.macroHourIndex,
+        constructionCompletesAtMacroHourIndex: addMacroHours(
+          context.macroHourIndex,
+          definition.constructionDurationMacroHours,
+        ),
       });
       completed.push(construction);
       added.push(construction);

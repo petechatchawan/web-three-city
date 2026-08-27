@@ -1,3 +1,4 @@
+import { macroHourValue, type MacroHourIndex } from '@web-three-city/simulation-core';
 import type { CellCoord, WorldConfig } from '@web-three-city/world-core';
 import { buildingDefinitions } from './building-definitions.js';
 import { buildingEntranceDirection, occupiedCellsForBuilding } from './building-footprint.js';
@@ -23,7 +24,7 @@ export interface BuildingSelectionCandidate {
 }
 
 export interface BuildingSelectionContext {
-  readonly absoluteTick: number;
+  readonly macroHourIndex: MacroHourIndex;
   readonly growthSequence: number;
   readonly originCell: CellCoord;
   readonly zoneDefinitionId: string;
@@ -63,7 +64,7 @@ function candidateOrder(a: BuildingSelectionCandidate, b: BuildingSelectionCandi
 export function stableBuildingSelectionHash(
   context: Omit<BuildingSelectionContext, 'adjacentDefinitionIds'>,
 ): number {
-  const input = `${context.absoluteTick}|${context.growthSequence}|${context.originCell.x},${context.originCell.z}|${context.zoneDefinitionId}`;
+  const input = `${macroHourValue(context.macroHourIndex)}|${context.growthSequence}|${context.originCell.x},${context.originCell.z}|${context.zoneDefinitionId}`;
   let hash = 0x811c9dc5;
   for (let index = 0; index < input.length; index += 1) {
     hash ^= input.charCodeAt(index);
@@ -134,7 +135,7 @@ export function selectGrowthBuildingPlacement(input: {
   readonly buildings: BuildingSnapshot;
   readonly environment: BuildingDevelopmentEnvironment;
   readonly config: WorldConfig;
-  readonly absoluteTick: number;
+  readonly macroHourIndex: MacroHourIndex;
   readonly growthSequence: number;
   readonly reservedCells?: readonly CellCoord[];
   readonly growthPolicy?: BuildingGrowthPolicy;
@@ -193,7 +194,7 @@ export function selectGrowthBuildingPlacement(input: {
       }
       if (candidates.length === 0) continue;
       const selected = selectBuildingCandidate(candidates, {
-        absoluteTick: input.absoluteTick,
+        macroHourIndex: input.macroHourIndex,
         growthSequence: input.growthSequence,
         originCell,
         zoneDefinitionId,
@@ -216,7 +217,7 @@ export function selectGrowthBuildingPlacement(input: {
   );
   const totalWeight = ordered.reduce((sum, value) => sum + value.policyWeightMilli, 0);
   const seed = stableBuildingSelectionHash({
-    absoluteTick: input.absoluteTick,
+    macroHourIndex: input.macroHourIndex,
     growthSequence: input.growthSequence,
     originCell: ordered[0]!.candidate.instance.originCell,
     zoneDefinitionId: `policy:${policy.policyRevision}`,

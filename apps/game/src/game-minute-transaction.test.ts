@@ -6,6 +6,7 @@ import {
   createInitialSimulationSnapshot,
   createSimulationSnapshot,
   gameMinuteValue,
+  macroHourIndex,
 } from '@web-three-city/simulation-core';
 import { createFoundationRciRegistries } from '@web-three-city/rci-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
@@ -46,16 +47,16 @@ function worldAtGrowthCompletion() {
   const construction: ConstructionBuildingInstance = {
     ...activeBuilding,
     lifecycle: 'construction',
-    constructionStartedAtTick: 8,
-    constructionCompletesAtTick: 9,
+    constructionStartedAtMacroHourIndex: macroHourIndex(12),
+    constructionCompletesAtMacroHourIndex: macroHourIndex(18),
   };
   const buildings = createBuildingSnapshot(
     { revision: base.buildings.revision, instances: [construction] },
     WORLD_CONFIG,
   );
   const simulation = createSimulationSnapshot({
-    revision: 539,
-    absoluteGameMinute: 8 * 60 + 59,
+    revision: 17 * 60 + 59,
+    absoluteGameMinute: 17 * 60 + 59,
     growthSequence: base.simulation.growthSequence,
   });
 
@@ -129,7 +130,7 @@ describe('Game minute transaction', () => {
     expect(plan.rciReceipt).toMatchObject({ beforeAbsoluteTick: 8, afterAbsoluteTick: 9 });
   });
 
-  it('reconciles static environment provenance when Growth completes at 09:00', () => {
+  it('reconciles static environment provenance when Growth completes at 18:00', () => {
     const before = worldAtGrowthCompletion();
     const coordinator = new DefaultWorldTransactionCoordinator({
       worldStore: new CommittedWorldStore(before),
@@ -141,12 +142,21 @@ describe('Game minute transaction', () => {
 
     expect(plan.invalidReason).toBeNull();
     expect(plan.valid).toBe(true);
+    expect(plan.buildingReceipt).toMatchObject({
+      beforeMacroHourIndex: macroHourIndex(17),
+      afterMacroHourIndex: macroHourIndex(18),
+      completedInstanceIds: ['building:commercial:1'],
+    });
 
     const committed = commitGameMinuteTransaction(coordinator, plan);
     expect(committed.status).toBe('committed');
     if (committed.status !== 'committed') return;
 
     const after = committed.world;
+    expect(after.buildings.instances[0]).toMatchObject({
+      lifecycle: 'active',
+      activatedAtMacroHourIndex: macroHourIndex(18),
+    });
     expect(after.buildings.revision).toBeGreaterThan(before.buildings.revision);
     expect(after.environments.zone.occupancyRevision).toBe(after.buildings.revision);
     expect(after.environments.building.terrainRevision).toBe(after.terrain.revision);

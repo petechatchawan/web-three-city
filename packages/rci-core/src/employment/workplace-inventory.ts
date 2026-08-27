@@ -1,4 +1,5 @@
 import { buildingDefinitionForId, type BuildingSnapshot } from '@web-three-city/building-core';
+import { macroHourValue } from '@web-three-city/simulation-core';
 import { compareStableId } from '../contracts/ids.js';
 import type { EmploymentAssignmentId, WorkplaceId } from '../contracts/ids.js';
 import type { WorkplaceRecord } from '../contracts/records.js';
@@ -42,7 +43,7 @@ export function synchronizeWorkplaceInventory(
           workplaceId,
           buildingInstanceId: building.instanceId,
           capacityProfileDefinitionId: profile.id,
-          activatedAtTick: building.activatedAtTick,
+          activatedAtTick: macroHourValue(building.activatedAtMacroHourIndex),
           retiredAtTick: null,
         }),
     );

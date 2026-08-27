@@ -17,6 +17,7 @@ import {
   createInitialSimulationSnapshot,
   createSimulationSnapshot,
   deriveMacroHourIndex,
+  macroHourIndex,
 } from '@web-three-city/simulation-core';
 import { generateCoastalTerrain } from '@web-three-city/terrain-generator';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
@@ -135,8 +136,8 @@ describe('WorldTransactionCoordinator', () => {
       const construction: ConstructionBuildingInstance = {
         ...activeBuilding,
         lifecycle: 'construction',
-        constructionStartedAtTick: afterMacroHour,
-        constructionCompletesAtTick: afterMacroHour + 8,
+        constructionStartedAtMacroHourIndex: macroHourIndex(afterMacroHour),
+        constructionCompletesAtMacroHourIndex: macroHourIndex(afterMacroHour + 8),
       };
       const before = createCommittedWorldFromDomainState({
         revision: base.revision,

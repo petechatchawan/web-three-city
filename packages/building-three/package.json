@@ -6,6 +6,7 @@
   "exports": "./src/index.ts",
   "dependencies": {
     "@web-three-city/building-core": "workspace:*",
+    "@web-three-city/simulation-core": "workspace:*",
     "@web-three-city/world-core": "workspace:*",
     "three": "0.185.1"
   },

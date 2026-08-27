@@ -4,7 +4,7 @@ import './ui/city-ui.css';
 import './ui/m6-3-figma.css';
 import './ui/m6-3-fidelity-remediation.css';
 import './ui/m6-4-mobile-declutter.css';
-import { constructionProgressAtMacroHour } from '@web-three-city/building-core';
+import { deriveConstructionProgressAtMacroHour } from '@web-three-city/building-core';
 import {
   constructionVisualPhase,
   latestBuildingPresentationScene,
@@ -148,7 +148,7 @@ function refreshConstructionPhaseIfNeeded(world = runtime.snapshot()): void {
   for (const instance of world.buildings.instances) {
     const phase =
       instance.lifecycle === 'construction'
-        ? constructionVisualPhase(constructionProgressAtMacroHour(instance, macroHourIndex))
+        ? constructionVisualPhase(deriveConstructionProgressAtMacroHour(instance, macroHourIndex))
         : 'active';
     next.set(instance.instanceId, phase);
     if (phaseByInstance.get(instance.instanceId) !== phase) changed = true;

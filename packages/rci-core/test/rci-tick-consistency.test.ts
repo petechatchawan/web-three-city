@@ -2,6 +2,7 @@ import { createBuildingSnapshot, type ActiveBuildingInstance } from '@web-three-
 import {
   absoluteGameMinute,
   deriveMacroHourIndex,
+  macroHourIndex,
   type SimulationSnapshot,
 } from '@web-three-city/simulation-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
@@ -34,7 +35,7 @@ function active(x: number): ActiveBuildingInstance {
     originCell: Object.freeze({ x, z: 2 }),
     rotationQuarterTurns: 0,
     lifecycle: 'active',
-    activatedAtTick: 0,
+    activatedAtMacroHourIndex: macroHourIndex(0),
   });
 }
 

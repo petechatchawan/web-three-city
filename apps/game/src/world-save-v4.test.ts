@@ -1,10 +1,14 @@
-import { createBuildingSnapshot } from '@web-three-city/building-core';
-import { createSimulationSnapshot } from '@web-three-city/simulation-core';
+import {
+  createBuildingSnapshot,
+  type ConstructionBuildingInstance,
+} from '@web-three-city/building-core';
+import { createSimulationSnapshot, macroHourIndex } from '@web-three-city/simulation-core';
 import { generateCoastalTerrain } from '@web-three-city/terrain-generator';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { createEmptyRoadSnapshot } from '@web-three-city/road-core';
 import { createEmptyZoneSnapshot } from '@web-three-city/zone-core';
 import { describe, expect, it } from 'vitest';
+import { createApplicationFixture } from '../test/application-fixtures.js';
 import { decodeWorldSave, encodeWorldSaveV4 } from './world-save.js';
 
 describe('WorldSaveV4', () => {
@@ -52,5 +56,41 @@ describe('WorldSaveV4', () => {
       WORLD_CONFIG,
     );
     expect(result.ok).toBe(false);
+  });
+
+  it('rejects construction whose completion boundary has arrived', () => {
+    const world = createApplicationFixture({ withCommercialBuilding: true });
+    const active = world.buildings.instances[0];
+    if (active === undefined || active.lifecycle !== 'active') {
+      throw new Error('test:expected-active-building');
+    }
+    const construction: ConstructionBuildingInstance = {
+      ...active,
+      lifecycle: 'construction',
+      constructionStartedAtMacroHourIndex: macroHourIndex(12),
+      constructionCompletesAtMacroHourIndex: macroHourIndex(18),
+    };
+    const buildings = createBuildingSnapshot(
+      { revision: world.buildings.revision, instances: [construction] },
+      WORLD_CONFIG,
+    );
+    const simulation = createSimulationSnapshot({
+      revision: 18 * 60,
+      absoluteGameMinute: 18 * 60,
+      growthSequence: world.simulation.growthSequence,
+    });
+
+    const result = decodeWorldSave(
+      encodeWorldSaveV4(world.terrain, world.roads, world.zones, buildings, simulation),
+      WORLD_CONFIG,
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: 'world-save:invalid-building-lifecycle',
+        details: { instanceId: active.instanceId },
+      },
+    });
   });
 });

@@ -7,6 +7,7 @@ import {
   encodeBuildingSaveV2,
   occupiedCellsForBuilding,
   resolveBuildingFrontage,
+  validateBuildingLifecycleAtMacroHour,
   type BuildingSaveV1,
   type BuildingSaveV2,
   type BuildingSnapshot,
@@ -27,7 +28,6 @@ import {
   decodeSimulationSaveV1,
   encodeSimulationSaveV1,
   deriveMacroHourIndex,
-  macroHourValue,
   type SimulationSaveV1,
   type SimulationSnapshot,
 } from '@web-three-city/simulation-core';
@@ -346,12 +346,12 @@ export function decodeWorldSave(
     });
   }
 
+  const currentMacroHourIndex = deriveMacroHourIndex(simulation.absoluteGameMinute);
   for (const instance of buildings.instances) {
-    if (
-      instance.lifecycle === 'construction' &&
-      instance.constructionCompletesAtTick <=
-        macroHourValue(deriveMacroHourIndex(simulation.absoluteGameMinute))
-    ) {
+    if (instance.lifecycle !== 'construction') continue;
+    try {
+      validateBuildingLifecycleAtMacroHour(instance, currentMacroHourIndex);
+    } catch {
       return err({
         code: 'world-save:invalid-building-lifecycle',
         details: Object.freeze({ instanceId: instance.instanceId }),

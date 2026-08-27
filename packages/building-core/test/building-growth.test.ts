@@ -2,6 +2,7 @@ import type { TerrainCellSurfaceProfile } from '@web-three-city/terrain-core';
 import {
   absoluteGameMinute,
   createSimulationSnapshot,
+  deriveMacroHourTransition,
   macroHourIndex,
   type MacroHourTransition,
 } from '@web-three-city/simulation-core';
@@ -62,16 +63,43 @@ function macroHourTransition(
   beforeAbsoluteGameMinute: number,
   afterAbsoluteGameMinute: number,
 ): MacroHourTransition {
-  return Object.freeze({
-    beforeAbsoluteGameMinute: absoluteGameMinute(beforeAbsoluteGameMinute),
-    afterAbsoluteGameMinute: absoluteGameMinute(afterAbsoluteGameMinute),
-    beforeMacroHourIndex: macroHourIndex(Math.floor(beforeAbsoluteGameMinute / 60)),
-    afterMacroHourIndex: macroHourIndex(Math.floor(afterAbsoluteGameMinute / 60)),
-    crossed: Math.floor(beforeAbsoluteGameMinute / 60) !== Math.floor(afterAbsoluteGameMinute / 60),
-  });
+  return deriveMacroHourTransition(
+    absoluteGameMinute(beforeAbsoluteGameMinute),
+    absoluteGameMinute(afterAbsoluteGameMinute),
+  );
 }
 
 describe('automatic Building Growth tick', () => {
+  it.each([
+    { label: '00', before: 24 * 60 - 1, after: 24 * 60, expectedStart: 24 },
+    { label: '06', before: 6 * 60 - 1, after: 6 * 60, expectedStart: 6 },
+    { label: '12', before: 12 * 60 - 1, after: 12 * 60, expectedStart: 12 },
+    { label: '18', before: 18 * 60 - 1, after: 18 * 60, expectedStart: 18 },
+  ])('starts Growth at the $label macro-hour boundary', ({ before, after, expectedStart }) => {
+    const buildings = createEmptyBuildingSnapshot(CONFIG);
+    const simulation = createSimulationSnapshot({
+      revision: 0,
+      absoluteGameMinute: before,
+      growthSequence: 0,
+    });
+
+    const plan = planBuildingGrowthTick({
+      buildings,
+      simulation,
+      macroHourTransition: macroHourTransition(before, after),
+      environment: environment(),
+      config: CONFIG,
+    });
+
+    expect(plan.valid).toBe(true);
+    expect(plan.startedInstanceIds).toEqual(['building:growth:1']);
+    expect(plan.proposedInstances).toHaveLength(1);
+    expect(plan.proposedInstances[0]).toMatchObject({
+      lifecycle: 'construction',
+      constructionStartedAtMacroHourIndex: macroHourIndex(expectedStart),
+    });
+  });
+
   it('does not advance Construction during a minute that remains in macro hour 08', () => {
     const buildings = {
       revision: 0,
@@ -83,8 +111,8 @@ describe('automatic Building Growth tick', () => {
           originCell: { x: 0, z: 0 },
           rotationQuarterTurns: 0 as const,
           lifecycle: 'construction' as const,
-          constructionStartedAtTick: 8,
-          constructionCompletesAtTick: 9,
+          constructionStartedAtMacroHourIndex: macroHourIndex(8),
+          constructionCompletesAtMacroHourIndex: macroHourIndex(9),
         },
       ],
     };
@@ -117,8 +145,8 @@ describe('automatic Building Growth tick', () => {
           originCell: { x: 0, z: 0 },
           rotationQuarterTurns: 0 as const,
           lifecycle: 'construction' as const,
-          constructionStartedAtTick: 8,
-          constructionCompletesAtTick: 9,
+          constructionStartedAtMacroHourIndex: macroHourIndex(8),
+          constructionCompletesAtMacroHourIndex: macroHourIndex(9),
         },
       ],
     };
@@ -185,7 +213,7 @@ describe('automatic Building Growth tick', () => {
     expect(plan.proposedInstances).toHaveLength(1);
     expect(plan.proposedInstances[0]?.lifecycle).toBe('construction');
     expect(plan.proposedInstances[0]).toMatchObject({
-      constructionStartedAtTick: 12,
+      constructionStartedAtMacroHourIndex: macroHourIndex(12),
     });
   });
 

@@ -17,7 +17,7 @@ import {
   createEmptyRoadSnapshot,
   type RoadSnapshot,
 } from '@web-three-city/road-core';
-import { createInitialSimulationSnapshot } from '@web-three-city/simulation-core';
+import { createInitialSimulationSnapshot, macroHourIndex } from '@web-three-city/simulation-core';
 import { createTerrainMap } from '@web-three-city/terrain-core';
 import { deriveWaterSnapshot } from '@web-three-city/water-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
@@ -53,7 +53,7 @@ function commercialBuilding(): ActiveBuildingInstance {
     originCell: Object.freeze({ x: 4, z: 4 }),
     rotationQuarterTurns: 0,
     lifecycle: 'active',
-    activatedAtTick: 0,
+    activatedAtMacroHourIndex: macroHourIndex(0),
   });
 }
 

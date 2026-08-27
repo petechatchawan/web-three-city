@@ -181,6 +181,9 @@ importers:
       '@web-three-city/building-core':
         specifier: workspace:*
         version: link:../building-core
+      '@web-three-city/simulation-core':
+        specifier: workspace:*
+        version: link:../simulation-core
       '@web-three-city/world-core':
         specifier: workspace:*
         version: link:../world-core

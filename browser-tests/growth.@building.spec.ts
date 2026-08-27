@@ -26,7 +26,7 @@ async function openGrowthGame(page: import('@playwright/test').Page): Promise<vo
 
 test('exposes the simple calendar and deterministic time controls', async ({ page }) => {
   await openGrowthGame(page);
-  await expect(page.locator('[data-metric="gameTime"] strong')).toHaveText('Y1 M1 D1 08:00');
+  await expect(page.locator('[data-metric="gameTime"] strong')).toHaveText('Y1 M1 08:00');
   const paused = page.locator('[data-simulation-speed="paused"]');
   const normal = page.locator('[data-simulation-speed="normal"]');
   const fast = page.locator('[data-simulation-speed="fast"]');
@@ -42,7 +42,7 @@ test('exposes the simple calendar and deterministic time controls', async ({ pag
       timeout: 4_000,
       message: 'automatic simulation must refresh the visible calendar',
     })
-    .not.toBe('Y1 M1 D1 08:00');
+    .not.toBe('Y1 M1 08:00');
   await fast.click();
   await expect(fast).toHaveAttribute('aria-pressed', 'true');
   await faster.click();
@@ -57,7 +57,7 @@ test('exposes the simple calendar and deterministic time controls', async ({ pag
   const after = await stepLogicalTicks(page, 1);
   expect(after.simulation.absoluteTick).toBe(9);
   expect(after.speed).toBe('paused');
-  await expect(page.locator('[data-metric="gameTime"] strong')).toHaveText('Y1 M1 D1 09:00');
+  await expect(page.locator('[data-metric="gameTime"] strong')).toHaveText('Y1 M1 09:00');
 });
 
 test('production playback crosses hour and day boundaries with Growth enabled', async ({

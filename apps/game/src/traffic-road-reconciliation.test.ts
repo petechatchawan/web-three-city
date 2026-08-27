@@ -5,6 +5,7 @@ import {
   type MobilityTripPlanningRequest,
 } from '@web-three-city/citizen-mobility-core';
 import {
+  absoluteTransportSecond,
   createActiveTransportTrip,
   createTrafficSnapshot,
   createTrafficSnapshotV2,
@@ -12,6 +13,7 @@ import {
   derivePedestrianTrafficGraph,
   deriveVehicleTrafficGraph,
   planModeCandidates,
+  transportSecondAtLegacyGameSecond,
   type TrafficGraph,
 } from '@web-three-city/traffic-core';
 import {
@@ -225,9 +227,9 @@ describe('Traffic reconciliation after committed Road changes', () => {
       graphSourceRoadRevision: state.traffic.graphSourceRoadRevision,
       graphSourceBuildingRevision: state.traffic.graphSourceBuildingRevision,
       timeCursor: {
-        sourceGameMinute: 540,
+        sourceGameMinute: absoluteGameMinute(540),
         completedTransportQuantaWithinMinute: 2,
-        absoluteTransportSecond: 2_162,
+        absoluteTransportSecond: absoluteTransportSecond(2_162),
         temporalPolicyVersion: 1,
       },
       activeTrips: [
@@ -239,7 +241,9 @@ describe('Traffic reconciliation after committed Road changes', () => {
               : {
                   fromEdgeId: state.trip.queuedMovement.fromEdgeId,
                   toEdgeId: state.trip.queuedMovement.toEdgeId,
-                  arrivedAtTransportSecond: state.trip.queuedMovement.arrivedAtGameSecond * 4,
+                  arrivedAtTransportSecond: transportSecondAtLegacyGameSecond(
+                    state.trip.queuedMovement.arrivedAtGameSecond,
+                  ),
                 },
           driveMovementPhase: 'Travelling',
           entryReservationResourceIds: Object.freeze(['entry:home']),

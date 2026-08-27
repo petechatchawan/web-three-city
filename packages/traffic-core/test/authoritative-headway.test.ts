@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   advanceTrafficQuantum,
+  absoluteTransportSecond,
   createTrafficSnapshotV2,
   type ActiveTransportTripV2,
   type TrafficGraph,
   type TrafficSnapshotV2,
 } from '../src/index.js';
+import { absoluteGameMinute } from '@web-three-city/simulation-core';
 
 const POSITION_Q_PER_EDGE = 1_000_000;
 
@@ -68,9 +70,9 @@ function snapshot(activeTrips: readonly ActiveTransportTripV2[]): TrafficSnapsho
     graphSourceRoadRevision: 1,
     graphSourceBuildingRevision: 1,
     timeCursor: {
-      sourceGameMinute: 480,
+      sourceGameMinute: absoluteGameMinute(480),
       completedTransportQuantaWithinMinute: 0,
-      absoluteTransportSecond: 1_920,
+      absoluteTransportSecond: absoluteTransportSecond(1_920),
       temporalPolicyVersion: 1,
     },
     activeTrips,
@@ -89,7 +91,7 @@ describe('authoritative Drive headway', () => {
         travellingDrive('leader', ['ab'], 0, 900_000, {
           fromEdgeId: 'ab',
           toEdgeId: 'ab',
-          arrivedAtTransportSecond: 1_900,
+          arrivedAtTransportSecond: absoluteTransportSecond(1_900),
         }),
         travellingDrive('follower', ['ab'], 0, 100_000),
       ]),
@@ -110,7 +112,7 @@ describe('authoritative Drive headway', () => {
         travellingDrive('leader', ['ab', 'bc', 'cd'], 1, 100_000, {
           fromEdgeId: 'bc',
           toEdgeId: 'cd',
-          arrivedAtTransportSecond: 1_900,
+          arrivedAtTransportSecond: absoluteTransportSecond(1_900),
         }),
         travellingDrive('follower', ['ab', 'bc', 'cd'], 0, 200_000),
       ]),
@@ -131,7 +133,7 @@ describe('authoritative Drive headway', () => {
         travellingDrive('leader', ['ab', 'bc-bend', 'cd'], 1, 100_000, {
           fromEdgeId: 'bc-bend',
           toEdgeId: 'cd',
-          arrivedAtTransportSecond: 1_900,
+          arrivedAtTransportSecond: absoluteTransportSecond(1_900),
         }),
         travellingDrive('follower', ['ab', 'bc-bend', 'cd'], 0, 200_000),
       ]),
@@ -152,7 +154,7 @@ describe('authoritative Drive headway', () => {
         travellingDrive('leader', ['ab', 'bc'], 0, 900_000, {
           fromEdgeId: 'ab',
           toEdgeId: 'bc',
-          arrivedAtTransportSecond: 1_900,
+          arrivedAtTransportSecond: absoluteTransportSecond(1_900),
         }),
         travellingDrive('follower', ['ab', 'bd'], 0, 100_000),
       ]),

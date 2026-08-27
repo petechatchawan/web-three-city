@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { transportSecondAtGameMinute } from '@web-three-city/traffic-core';
 import { createApplicationFixture, MemoryWorldStorage } from '../../test/application-fixtures.js';
 import { CommittedWorldStore } from './committed-world.js';
 import { fingerprintCommittedWorld } from './committed-world-fingerprint.js';
@@ -53,7 +54,9 @@ describe('SaveCoordinator', () => {
         timeCursor: {
           sourceGameMinute: original.simulation.absoluteGameMinute,
           completedTransportQuantaWithinMinute: 0,
-          absoluteTransportSecond: original.simulation.absoluteGameMinute * 4,
+          absoluteTransportSecond: transportSecondAtGameMinute(
+            original.simulation.absoluteGameMinute,
+          ),
         },
       });
     }

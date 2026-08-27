@@ -22,6 +22,7 @@ import {
   deriveBuildingAccessNodes,
   derivePedestrianTrafficGraph,
   deriveVehicleTrafficGraph,
+  legacyGameSecondAtTransportSecond,
   planModeCandidates,
   type ActiveTransportTrip,
   type BuildingTrafficAccessProjection,
@@ -97,7 +98,9 @@ function trafficV1View(traffic: TrafficSnapshotV1 | TrafficSnapshotV2): TrafficS
           : {
               fromEdgeId: trip.queuedMovement.fromEdgeId,
               toEdgeId: trip.queuedMovement.toEdgeId,
-              arrivedAtGameSecond: Math.floor(trip.queuedMovement.arrivedAtTransportSecond / 4),
+              arrivedAtGameSecond: legacyGameSecondAtTransportSecond(
+                trip.queuedMovement.arrivedAtTransportSecond,
+              ),
             },
       status: trip.status,
       failureReason: trip.failureReason,

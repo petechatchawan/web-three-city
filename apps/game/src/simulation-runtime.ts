@@ -1,4 +1,5 @@
 import type { SimulationSpeed } from '@web-three-city/simulation-core';
+import { TRANSPORT_QUANTA_PER_GAME_MINUTE } from '@web-three-city/traffic-core';
 
 const SPEED_MULTIPLIER: Readonly<Record<SimulationSpeed, number>> = Object.freeze({
   paused: 0,
@@ -7,7 +8,6 @@ const SPEED_MULTIPLIER: Readonly<Record<SimulationSpeed, number>> = Object.freez
   faster: 4,
 });
 const GAME_MINUTE_MILLISECONDS = 1000;
-const TRANSPORT_QUANTA_PER_GAME_MINUTE = 4;
 const MAX_GAME_MINUTES_PER_ADVANCE = 4;
 
 export type SimulationRuntimeEvent =

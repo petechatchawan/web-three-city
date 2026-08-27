@@ -1,4 +1,5 @@
 import type { TrafficGraph, TrafficSnapshotV2 } from '@web-three-city/traffic-core';
+import { absoluteGameMinute } from '@web-three-city/simulation-core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApplicationFixture } from '../test/application-fixtures.js';
 
@@ -15,7 +16,7 @@ vi.mock('@web-three-city/traffic-core', async (importOriginal) => {
   };
 });
 
-import { createTrafficSnapshotV2 } from '@web-three-city/traffic-core';
+import { absoluteTransportSecond, createTrafficSnapshotV2 } from '@web-three-city/traffic-core';
 import { planTrafficTransportTransaction } from './traffic-transport-transaction.js';
 
 const graph: TrafficGraph = Object.freeze({
@@ -39,9 +40,9 @@ describe('Traffic transport normalization', () => {
       graphSourceRoadRevision: 0,
       graphSourceBuildingRevision: 0,
       timeCursor: {
-        sourceGameMinute: 480,
+        sourceGameMinute: absoluteGameMinute(480),
         completedTransportQuantaWithinMinute: 0,
-        absoluteTransportSecond: 1_920,
+        absoluteTransportSecond: absoluteTransportSecond(1_920),
         temporalPolicyVersion: 1,
       },
       activeTrips: [],

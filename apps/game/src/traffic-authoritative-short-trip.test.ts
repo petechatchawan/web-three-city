@@ -3,6 +3,7 @@ import {
   type MobilitySnapshotV1,
 } from '@web-three-city/citizen-mobility-core';
 import {
+  absoluteTransportSecond,
   createTrafficSnapshotV2,
   type ActiveTransportTripV2,
   type TrafficGraph,
@@ -93,9 +94,9 @@ function traffic(
     graphSourceRoadRevision: 0,
     graphSourceBuildingRevision: 0,
     timeCursor: {
-      sourceGameMinute: 480,
+      sourceGameMinute: absoluteGameMinute(480),
       completedTransportQuantaWithinMinute: 0,
-      absoluteTransportSecond: 1_920,
+      absoluteTransportSecond: absoluteTransportSecond(1_920),
       temporalPolicyVersion: 1,
     },
     activeTrips: [

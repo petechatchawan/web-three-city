@@ -7,7 +7,9 @@ import {
   deriveBuildingAccessNodes,
   derivePedestrianTrafficGraph,
   deriveVehicleTrafficGraph,
+  legacyGameSecondAtTransportSecond,
   recoverInvalidatedRoute,
+  transportSecondAtLegacyGameSecond,
   type ActiveTransportTripV2,
   type BuildingTrafficAccessProjection,
   type RoadTrafficSourceProjection,
@@ -45,7 +47,9 @@ function v1TrafficView(traffic: TrafficSnapshotV1 | TrafficSnapshotV2): TrafficS
           : {
               fromEdgeId: trip.queuedMovement.fromEdgeId,
               toEdgeId: trip.queuedMovement.toEdgeId,
-              arrivedAtGameSecond: Math.floor(trip.queuedMovement.arrivedAtTransportSecond / 4),
+              arrivedAtGameSecond: legacyGameSecondAtTransportSecond(
+                trip.queuedMovement.arrivedAtTransportSecond,
+              ),
             },
       status: trip.status,
       failureReason: trip.failureReason,
@@ -72,7 +76,9 @@ function restoreV2Traffic(
           : {
               fromEdgeId: queuedMovement.fromEdgeId,
               toEdgeId: queuedMovement.toEdgeId,
-              arrivedAtTransportSecond: queuedMovement.arrivedAtGameSecond * 4,
+              arrivedAtTransportSecond: transportSecondAtLegacyGameSecond(
+                queuedMovement.arrivedAtGameSecond,
+              ),
             },
       driveMovementPhase: originalTrip.driveMovementPhase,
       entryReservationResourceIds: Object.freeze([]),

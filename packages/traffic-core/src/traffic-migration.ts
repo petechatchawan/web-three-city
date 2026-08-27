@@ -11,6 +11,12 @@ import {
   type TrafficSnapshotV1,
   type TrafficSnapshotV2,
 } from './traffic-snapshot.js';
+import {
+  subtractTransportSeconds,
+  transportSecondDuration,
+  transportSecondValue,
+  type AbsoluteTransportSecond,
+} from './transport-time.js';
 
 const LEGACY_MIGRATION_HEADWAY_MILLIMETERS = 1_000;
 
@@ -23,24 +29,27 @@ function phaseForLegacyTrip(
 function rebaseQueuedMovement(
   queuedMovement: ActiveTransportTrip['queuedMovement'],
   legacyCurrentGameSecond: number,
-  currentTransportSecond: number,
+  currentTransportSecond: AbsoluteTransportSecond,
 ): ActiveTransportTripV2['queuedMovement'] {
   if (queuedMovement === null) return null;
   const age = legacyCurrentGameSecond - queuedMovement.arrivedAtGameSecond;
-  if (!Number.isSafeInteger(age) || age < 0 || age > currentTransportSecond) {
+  if (!Number.isSafeInteger(age) || age < 0 || age > transportSecondValue(currentTransportSecond)) {
     throw new TrafficContractError('traffic:invalid-state');
   }
   return Object.freeze({
     fromEdgeId: queuedMovement.fromEdgeId,
     toEdgeId: queuedMovement.toEdgeId,
-    arrivedAtTransportSecond: currentTransportSecond - age,
+    arrivedAtTransportSecond: subtractTransportSeconds(
+      currentTransportSecond,
+      transportSecondDuration(age),
+    ),
   });
 }
 
 function migrateTrip(
   trip: ActiveTransportTrip,
   legacyCurrentGameSecond: number,
-  currentTransportSecond: number,
+  currentTransportSecond: AbsoluteTransportSecond,
 ): ActiveTransportTripV2 {
   return Object.freeze({
     ...trip,

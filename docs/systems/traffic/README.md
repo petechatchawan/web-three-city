@@ -58,13 +58,14 @@ Roads + Buildings + Simulation + Citizen Mobility
 - disposable revision-keyed route cache;
 - fixed-point `progressQ` trip progression with logical `lastStableNodeId`;
 - V2-only authoritative Drive lifecycle phases: `WaitingForEntry`, `Entering`, `Travelling`, and `Leaving`, separate from terminal trip status; a transport quantum crosses at most one lifecycle boundary, and final-road completion enters `Leaving` before a later terminal arrival;
-- subordinate `TrafficTimeCursor` (`4` transport quanta per GameMinute) with versioned pacing, rather than a second calendar;
+- subordinate `TrafficTimeCursor` with explicit `AbsoluteTransportSecond` point and `TransportSecondDuration` types (`4` transport quanta per GameMinute), versioned pacing, and no second calendar; `traffic-core` consumes `AbsoluteGameMinute` from `simulation-core` one way;
 - indexed canonical lane occupancy/headway caps and physical vehicle-envelope facts; the PR3.1 `650 mm` visual headway is not canonical Traffic capacity;
 - all-or-nothing ingress/receiving/merge/conflict reservation bundles with owner-checked physical-clearance release and no timeout;
 - derived Drive node classification (`SimpleContinuation`, `Diverge`, `Merge`, `ConflictJunction`) and deterministic compatible-bundle arbitration;
 - load/capacity/congestion/effective-travel-time projections and next lagged cost field;
 - topology/destination route recovery from a stable logical node;
 - fail-closed `TrafficSaveV2` codec and explicit V1 -> V2 migration that persist cursor, route/progress, Drive phase, and reservation/traversal facts, never graph/cache/render state;
+- transport-time constructors and named conversion/addition/comparison helpers own all authoritative transport-point arithmetic; V2 numeric timestamps enter through validated constructors, while V1 queue-age migration remains an explicit legacy compatibility boundary;
 - no imports from RCI, Mobility, Road, Building, DOM, or Three.js;
 - `apps/game` atomic integration with real Mobility trips, Road/Building projections, Simulation time, and deterministic Road-change recovery;
 - Game Road source projection preserves canonical Road definition codes `1/2/3` and derives connectivity from non-empty Road occupancy across mixed Road types;

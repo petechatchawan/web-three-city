@@ -1,3 +1,4 @@
+import { absoluteGameMinute } from '@web-three-city/simulation-core';
 import {
   TRAFFIC_PROGRESS_MAX_Q,
   type ActiveNodeTraversal,
@@ -16,6 +17,11 @@ import {
   type TrafficSnapshotV2,
 } from './traffic-snapshot.js';
 import { hasCanonicalDriveOverlap } from './traffic-migration.js';
+import {
+  absoluteTransportSecond,
+  createTrafficTimeCursor,
+  TRAFFIC_TEMPORAL_POLICY_VERSION,
+} from './transport-time.js';
 
 export interface TrafficSaveV1 {
   readonly schemaVersion: 1;
@@ -46,6 +52,10 @@ export type TrafficSaveDecodeResult =
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isNonNegativeSafeInteger(value: unknown): value is number {
+  return Number.isSafeInteger(value) && (value as number) >= 0;
 }
 
 function parseQueuedMovement(value: unknown): ActiveTransportTrip['queuedMovement'] | undefined {
@@ -163,16 +173,38 @@ function parseQueuedMovementV2(
   if (
     typeof value.fromEdgeId !== 'string' ||
     typeof value.toEdgeId !== 'string' ||
-    !Number.isSafeInteger(value.arrivedAtTransportSecond) ||
-    (value.arrivedAtTransportSecond as number) < 0
+    !isNonNegativeSafeInteger(value.arrivedAtTransportSecond)
   ) {
     return undefined;
   }
   return Object.freeze({
     fromEdgeId: value.fromEdgeId,
     toEdgeId: value.toEdgeId,
-    arrivedAtTransportSecond: value.arrivedAtTransportSecond as number,
+    arrivedAtTransportSecond: absoluteTransportSecond(value.arrivedAtTransportSecond),
   });
+}
+
+function parseTrafficTimeCursor(value: unknown): TrafficSnapshotV2['timeCursor'] | undefined {
+  if (
+    !isRecord(value) ||
+    !isNonNegativeSafeInteger(value.sourceGameMinute) ||
+    !isNonNegativeSafeInteger(value.completedTransportQuantaWithinMinute) ||
+    !isNonNegativeSafeInteger(value.absoluteTransportSecond) ||
+    value.temporalPolicyVersion !== TRAFFIC_TEMPORAL_POLICY_VERSION
+  ) {
+    return undefined;
+  }
+  try {
+    return createTrafficTimeCursor({
+      sourceGameMinute: absoluteGameMinute(value.sourceGameMinute),
+      completedTransportQuantaWithinMinute: value.completedTransportQuantaWithinMinute,
+      absoluteTransportSecond: absoluteTransportSecond(value.absoluteTransportSecond),
+      temporalPolicyVersion: TRAFFIC_TEMPORAL_POLICY_VERSION,
+    });
+  } catch (error) {
+    if (error instanceof TrafficContractError) return undefined;
+    throw error;
+  }
 }
 
 function parseDriveMovementPhase(value: unknown): DriveMovementPhase | null | undefined {
@@ -359,6 +391,7 @@ export function decodeTrafficSaveV2(
 ): TrafficSaveV2DecodeResult {
   const fail = (): TrafficSaveV2DecodeResult =>
     Object.freeze({ ok: false, error: Object.freeze({ code: 'traffic-save:invalid' }) });
+  const timeCursor = isRecord(input) ? parseTrafficTimeCursor(input.timeCursor) : undefined;
   if (
     !isRecord(input) ||
     input.schemaVersion !== 2 ||
@@ -366,7 +399,7 @@ export function decodeTrafficSaveV2(
     !Number.isSafeInteger(input.revision) ||
     !Number.isSafeInteger(input.graphSourceRoadRevision) ||
     !Number.isSafeInteger(input.graphSourceBuildingRevision) ||
-    !isRecord(input.timeCursor) ||
+    timeCursor === undefined ||
     !Array.isArray(input.activeTrips)
   )
     return fail();
@@ -379,7 +412,7 @@ export function decodeTrafficSaveV2(
       policyVersion: 1,
       graphSourceRoadRevision: input.graphSourceRoadRevision as number,
       graphSourceBuildingRevision: input.graphSourceBuildingRevision as number,
-      timeCursor: input.timeCursor as unknown as TrafficSnapshotV2['timeCursor'],
+      timeCursor,
       activeTrips: activeTrips as ActiveTransportTripV2[],
     });
     validateAgainstGraph(snapshot as unknown as TrafficSnapshotV1, validationGraph);

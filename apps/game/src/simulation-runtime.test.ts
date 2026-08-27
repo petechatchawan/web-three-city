@@ -1,4 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import {
+  absoluteGameMinute,
+  deriveGameCalendarFromGameMinute,
+} from '@web-three-city/simulation-core';
 import { createSimulationRuntime, type SimulationRuntimeEvent } from './simulation-runtime.js';
 
 const ONE_GAME_MINUTE_EVENTS: readonly SimulationRuntimeEvent[] = Object.freeze([
@@ -8,6 +12,10 @@ const ONE_GAME_MINUTE_EVENTS: readonly SimulationRuntimeEvent[] = Object.freeze(
   Object.freeze({ type: 'transport-quantum' as const, ordinal: 3 as const }),
   Object.freeze({ type: 'transport-quantum' as const, ordinal: 4 as const }),
 ]);
+
+function eventsForMinutes(count: number): readonly SimulationRuntimeEvent[] {
+  return Array.from({ length: count }, () => ONE_GAME_MINUTE_EVENTS).flat();
+}
 
 function collectAdvanceEvents(
   runtime: ReturnType<typeof createSimulationRuntime>,
@@ -34,14 +42,20 @@ function collectStepEvents(
 
 describe('Simulation runtime', () => {
   it.each([
-    ['normal', 1000],
-    ['fast', 500],
-    ['faster', 250],
-  ] as const)('emits one minute and four ordered transport quanta at %s speed', (speed, delta) => {
-    expect(collectAdvanceEvents(createSimulationRuntime(speed), delta)).toEqual(
-      ONE_GAME_MINUTE_EVENTS,
-    );
-  });
+    ['normal', 500, 1],
+    ['normal', 1000, 2],
+    ['fast', 250, 1],
+    ['fast', 1000, 4],
+    ['faster', 125, 1],
+    ['faster', 1000, 8],
+  ] as const)(
+    'emits the target minute sequence for each playback preset',
+    (speed, delta, minutes) => {
+      expect(collectAdvanceEvents(createSimulationRuntime(speed), delta)).toEqual(
+        eventsForMinutes(minutes),
+      );
+    },
+  );
 
   it('emits no automatic minute or transport event while paused', () => {
     const runtime = createSimulationRuntime('paused');
@@ -86,13 +100,40 @@ describe('Simulation runtime', () => {
     });
   });
 
+  it('stops later minutes when one minute rejects during a multi-minute advance', () => {
+    const runtime = createSimulationRuntime('faster');
+    const events: SimulationRuntimeEvent[] = [];
+    let gameMinuteCount = 0;
+
+    expect(
+      runtime.advance(1000, (event) => {
+        events.push(event);
+        if (event.type === 'game-minute') {
+          gameMinuteCount += 1;
+          return gameMinuteCount < 3;
+        }
+        return true;
+      }),
+    ).toBe(3);
+
+    expect(events).toEqual([
+      ...eventsForMinutes(2),
+      Object.freeze({ type: 'game-minute' as const }),
+    ]);
+    expect(runtime.getState()).toMatchObject({
+      speed: 'paused',
+      status: 'paused-world-rejected',
+      accumulatedMilliseconds: 0,
+    });
+  });
+
   it('emits the same ordered sequence when a frame is sliced', () => {
     const unsliced = collectAdvanceEvents(createSimulationRuntime('normal'), 1000);
     const slicedRuntime = createSimulationRuntime('normal');
     const sliced = [250, 250, 250, 250].flatMap((delta) =>
       collectAdvanceEvents(slicedRuntime, delta),
     );
-    expect(unsliced).toEqual(ONE_GAME_MINUTE_EVENTS);
+    expect(unsliced).toEqual(eventsForMinutes(2));
     expect(sliced).toEqual(unsliced);
   });
 
@@ -102,12 +143,68 @@ describe('Simulation runtime', () => {
     runtime.advance(10_000, (event) => {
       events.push(event);
     });
-    while (runtime.getState().accumulatedMilliseconds >= 1000) {
+    while (runtime.getState().accumulatedMilliseconds >= 500) {
       runtime.advance(0, (event) => {
         events.push(event);
       });
     }
-    expect(events).toEqual(Array.from({ length: 10 }, () => ONE_GAME_MINUTE_EVENTS).flat());
+    expect(events).toEqual(eventsForMinutes(20));
+  });
+
+  it('caps each advance while retaining the remaining playback budget', () => {
+    const runtime = createSimulationRuntime('faster');
+    const events: SimulationRuntimeEvent[] = [];
+
+    expect(
+      runtime.advance(10_000, (event) => {
+        events.push(event);
+      }),
+    ).toBe(8);
+    expect(runtime.getState().accumulatedMilliseconds).toBe(9_000);
+
+    expect(
+      runtime.advance(0, (event) => {
+        events.push(event);
+      }),
+    ).toBe(8);
+    expect(runtime.getState().accumulatedMilliseconds).toBe(8_000);
+    expect(events).toEqual(eventsForMinutes(16));
+  });
+
+  it('does not skip calendar boundaries when one advance requests multiple minutes', () => {
+    const runtime = createSimulationRuntime('normal');
+    let currentMinute = 1_438;
+    const calendars: ReturnType<typeof deriveGameCalendarFromGameMinute>[] = [];
+
+    runtime.advance(1_000, (event) => {
+      if (event.type === 'game-minute') {
+        currentMinute += 1;
+        calendars.push(deriveGameCalendarFromGameMinute(absoluteGameMinute(currentMinute)));
+      }
+    });
+
+    expect(calendars).toEqual([
+      { year: 1, month: 1, hour: 23, minute: 59 },
+      { year: 1, month: 2, hour: 0, minute: 0 },
+    ]);
+  });
+
+  it('does not skip the calendar year boundary when one advance requests multiple minutes', () => {
+    const runtime = createSimulationRuntime('normal');
+    let currentMinute = 17_278;
+    const calendars: ReturnType<typeof deriveGameCalendarFromGameMinute>[] = [];
+
+    runtime.advance(1_000, (event) => {
+      if (event.type === 'game-minute') {
+        currentMinute += 1;
+        calendars.push(deriveGameCalendarFromGameMinute(absoluteGameMinute(currentMinute)));
+      }
+    });
+
+    expect(calendars).toEqual([
+      { year: 1, month: 12, hour: 23, minute: 59 },
+      { year: 2, month: 1, hour: 0, minute: 0 },
+    ]);
   });
 
   it('resets pending wall-clock accumulation after visibility changes', () => {
@@ -119,13 +216,13 @@ describe('Simulation runtime', () => {
 
   it('resets pending wall-clock accumulation when playback speed changes', () => {
     const runtime = createSimulationRuntime('normal');
-    collectAdvanceEvents(runtime, 750);
-    expect(runtime.getState().accumulatedMilliseconds).toBe(750);
+    collectAdvanceEvents(runtime, 250);
+    expect(runtime.getState().accumulatedMilliseconds).toBe(250);
 
     runtime.setSpeed('fast');
 
     expect(runtime.getState().accumulatedMilliseconds).toBe(0);
-    expect(collectAdvanceEvents(runtime, 500)).toEqual(ONE_GAME_MINUTE_EVENTS);
+    expect(collectAdvanceEvents(runtime, 250)).toEqual(ONE_GAME_MINUTE_EVENTS);
   });
 
   it('pauses and clears accumulated time when a temporal minute is rejected', () => {

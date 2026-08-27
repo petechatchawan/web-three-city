@@ -1,14 +1,14 @@
 import type { SimulationSpeed } from '@web-three-city/simulation-core';
 import { TRANSPORT_QUANTA_PER_GAME_MINUTE } from '@web-three-city/traffic-core';
 
-const SPEED_MULTIPLIER: Readonly<Record<SimulationSpeed, number>> = Object.freeze({
+const PLAYBACK_GAME_MINUTES_PER_SECOND: Readonly<Record<SimulationSpeed, number>> = Object.freeze({
   paused: 0,
-  normal: 1,
-  fast: 2,
-  faster: 4,
+  normal: 2,
+  fast: 4,
+  faster: 8,
 });
 const GAME_MINUTE_MILLISECONDS = 1000;
-const MAX_GAME_MINUTES_PER_ADVANCE = 4;
+const MAX_GAME_MINUTES_PER_ADVANCE = 8;
 
 export type SimulationRuntimeEvent =
   | Readonly<{ readonly type: 'game-minute' }>
@@ -57,7 +57,7 @@ export function createSimulationRuntime(initialSpeed: SimulationSpeed): Simulati
       return Object.freeze({ speed, accumulatedMilliseconds, status, failure });
     },
     setSpeed(nextSpeed: SimulationSpeed): void {
-      if (!(nextSpeed in SPEED_MULTIPLIER)) {
+      if (!(nextSpeed in PLAYBACK_GAME_MINUTES_PER_SECOND)) {
         throw new RangeError('simulation-runtime:invalid-speed');
       }
       speed = nextSpeed;
@@ -73,13 +73,15 @@ export function createSimulationRuntime(initialSpeed: SimulationSpeed): Simulati
         accumulatedMilliseconds = 0;
         return 0;
       }
-      accumulatedMilliseconds += realDeltaMilliseconds * SPEED_MULTIPLIER[speed];
+      accumulatedMilliseconds += realDeltaMilliseconds;
+      const millisecondsPerGameMinute =
+        GAME_MINUTE_MILLISECONDS / PLAYBACK_GAME_MINUTES_PER_SECOND[speed];
       let emitted = 0;
       while (
-        accumulatedMilliseconds >= GAME_MINUTE_MILLISECONDS &&
+        accumulatedMilliseconds >= millisecondsPerGameMinute &&
         emitted < MAX_GAME_MINUTES_PER_ADVANCE
       ) {
-        accumulatedMilliseconds -= GAME_MINUTE_MILLISECONDS;
+        accumulatedMilliseconds -= millisecondsPerGameMinute;
         const accepted = emitGameMinute(onEvent);
         emitted += 1;
         if (!accepted.accepted) {

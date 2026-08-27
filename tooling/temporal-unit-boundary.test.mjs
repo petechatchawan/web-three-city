@@ -17,6 +17,19 @@ const TEMPORAL_TYPE_NAMES = new Set([
   'GameMinuteDuration',
   'MacroHourIndex',
   'MacroHourDuration',
+  'AbsoluteTransportSecond',
+  'TransportSecondDuration',
+]);
+
+const TRUSTED_TEMPORAL_BOUNDARIES = new Map([
+  [
+    'packages/simulation-core/src/temporal-units.ts',
+    new Set(['AbsoluteGameMinute', 'GameMinuteDuration', 'MacroHourIndex', 'MacroHourDuration']),
+  ],
+  [
+    'packages/traffic-core/src/transport-time.ts',
+    new Set(['AbsoluteTransportSecond', 'TransportSecondDuration']),
+  ],
 ]);
 
 function normalize(file) {
@@ -27,9 +40,9 @@ function fixture(name) {
   return path.join(fixtureRoot, name);
 }
 
-function isTrustedBoundary(file) {
+function trustedTemporalTypes(file) {
   return (
-    normalize(path.relative(repoRoot, file)) === 'packages/simulation-core/src/temporal-units.ts'
+    TRUSTED_TEMPORAL_BOUNDARIES.get(normalize(path.relative(repoRoot, file))) ?? new Set()
   );
 }
 
@@ -146,11 +159,16 @@ function findTemporalUnitViolations({ files, root = repoRoot }) {
   };
   for (const file of rootFiles) {
     const sourceFile = program.getSourceFile(file);
-    if (sourceFile === undefined || isTrustedBoundary(file)) continue;
+    if (sourceFile === undefined) continue;
+    const trustedTypes = trustedTemporalTypes(file);
     const visit = (node) => {
       if (ts.isAsExpression(node)) {
         const targetTypes = temporalTypesInType(checker.getTypeFromTypeNode(node.type));
-        if (targetTypes.size > 0)
+        const isApprovedConstructorCast =
+          targetTypes.size > 0 &&
+          trustedTypes.size > 0 &&
+          [...targetTypes].every((name) => trustedTypes.has(name));
+        if (targetTypes.size > 0 && !isApprovedConstructorCast)
           report(node, isEscapedCast(node) ? 'temporal-escape-cast' : 'temporal-direct-cast');
       }
       if (ts.isBinaryExpression(node)) {
@@ -199,10 +217,36 @@ test('direct and escaped temporal casts are rejected', () => {
   );
 });
 
+test('Traffic temporal operators are rejected with stable categories', () => {
+  const violations = findTemporalUnitViolations({ files: [fixture('traffic-operator.ts')] });
+  assert.deepEqual(
+    violations.map(({ category, line }) => ({ category, line })),
+    [
+      { category: 'temporal-incompatible-arithmetic', line: 8 },
+      { category: 'temporal-incompatible-comparison', line: 9 },
+      { category: 'temporal-incompatible-arithmetic', line: 10 },
+    ],
+  );
+});
+
+test('Traffic temporal casts are rejected', () => {
+  const violations = findTemporalUnitViolations({ files: [fixture('traffic-cast.ts')] });
+  assert.deepEqual(
+    violations.map(({ category, line }) => ({ category, line })),
+    [
+      { category: 'temporal-direct-cast', line: 5 },
+      { category: 'temporal-escape-cast', line: 6 },
+      { category: 'temporal-direct-cast', line: 9 },
+    ],
+  );
+});
+
+test('mixed Simulation and Traffic temporal usage without operators is accepted', () => {
+  const violations = findTemporalUnitViolations({ files: [fixture('traffic-valid.ts')] });
+  assert.deepEqual(violations, []);
+});
+
 test('production temporal usage has no unapproved boundary violations', async () => {
   const violations = findTemporalUnitViolations({ files: await productionFiles() });
-  assert.deepEqual(
-    violations.filter(({ file }) => !isTrustedBoundary(file)),
-    [],
-  );
+  assert.deepEqual(violations, []);
 });

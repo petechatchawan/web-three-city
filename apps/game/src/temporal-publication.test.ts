@@ -28,10 +28,23 @@ import {
   commitGameMinuteTransaction,
   planGameMinuteTransaction,
 } from './game-minute-transaction.js';
+import { createSimulationRuntime, type SimulationRuntimeEvent } from './simulation-runtime.js';
 import {
   commitTrafficTransportTransaction,
   planTrafficTransportTransaction,
 } from './traffic-transport-transaction.js';
+
+const ONE_RUNTIME_MINUTE_EVENTS: readonly SimulationRuntimeEvent[] = Object.freeze([
+  Object.freeze({ type: 'game-minute' as const }),
+  Object.freeze({ type: 'transport-quantum' as const, ordinal: 1 as const }),
+  Object.freeze({ type: 'transport-quantum' as const, ordinal: 2 as const }),
+  Object.freeze({ type: 'transport-quantum' as const, ordinal: 3 as const }),
+  Object.freeze({ type: 'transport-quantum' as const, ordinal: 4 as const }),
+]);
+
+function runtimeEventsForMinutes(count: number): readonly SimulationRuntimeEvent[] {
+  return Array.from({ length: count }, () => ONE_RUNTIME_MINUTE_EVENTS).flat();
+}
 
 type PublicationMode = 'legacy-per-commit' | 'reference-coalesced';
 type A2PublicationMode = 'legacy-per-commit' | 'coalesced';
@@ -496,5 +509,57 @@ describe('temporal publication cadence contract', () => {
     expect(counters.authorityPublishCount).toBe(0);
     expect(counters.completePresentationCount).toBe(0);
     expect(counters.externalNotifyCount).toBe(0);
+  });
+
+  it('keeps earlier complete minutes when a later multi-minute transaction rejects', () => {
+    const before = worldAtMinute(8 * 60 + 1);
+    const coordinator = new DefaultWorldTransactionCoordinator({
+      worldStore: new CommittedWorldStore(before),
+    });
+    const presentation = {
+      synchronize() {},
+      rebuildFromCommitted() {},
+    };
+    let graphCalls = 0;
+    const controller = createTemporalPublicationController({
+      coordinator,
+      registries: createFoundationRciRegistries(),
+      graphForWorld: (world) => {
+        graphCalls += 1;
+        if (graphCalls === 11) throw new Error('test:q3-rejected');
+        return emptyTrafficGraph(world);
+      },
+      reservedCells: () => Object.freeze([]),
+      intermediatePresentation: presentation,
+      finalDynamicPresentation: presentation,
+      completePresentation: presentation,
+      presentationSuppressed: () => false,
+      adoptCommittedWorld: () => {},
+    });
+    const runtime = createSimulationRuntime('faster');
+    const events: SimulationRuntimeEvent[] = [];
+
+    expect(
+      runtime.advance(1_000, (event) => {
+        events.push(event);
+        if (event.type !== 'game-minute') return true;
+        const result = controller.advanceTemporalMinute({ automaticGrowth: false });
+        return result.status === 'committed';
+      }),
+    ).toBe(3);
+
+    expect(events).toEqual([
+      ...runtimeEventsForMinutes(2),
+      Object.freeze({ type: 'game-minute' as const }),
+    ]);
+    expect(coordinator.snapshot().simulation.absoluteGameMinute).toBe(
+      before.simulation.absoluteGameMinute + 2,
+    );
+    expect(coordinator.snapshot().revision).toBe(before.revision + 10);
+    expect(runtime.getState()).toMatchObject({
+      speed: 'paused',
+      status: 'paused-world-rejected',
+      accumulatedMilliseconds: 0,
+    });
   });
 });

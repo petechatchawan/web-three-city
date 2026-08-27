@@ -61,6 +61,31 @@ describe('Simulation runtime', () => {
     expect(events).toEqual([]);
   });
 
+  it('stops the staged minute after a transport quantum rejects', () => {
+    const runtime = createSimulationRuntime('normal');
+    const events: SimulationRuntimeEvent[] = [];
+
+    expect(
+      runtime.advance(1000, (event) => {
+        events.push(event);
+        if (event.type === 'transport-quantum' && event.ordinal === 3) return false;
+        return true;
+      }),
+    ).toBe(1);
+
+    expect(events).toEqual([
+      ONE_GAME_MINUTE_EVENTS[0],
+      ONE_GAME_MINUTE_EVENTS[1],
+      ONE_GAME_MINUTE_EVENTS[2],
+      ONE_GAME_MINUTE_EVENTS[3],
+    ]);
+    expect(runtime.getState()).toMatchObject({
+      speed: 'paused',
+      status: 'paused-world-rejected',
+      accumulatedMilliseconds: 0,
+    });
+  });
+
   it('emits the same ordered sequence when a frame is sliced', () => {
     const unsliced = collectAdvanceEvents(createSimulationRuntime('normal'), 1000);
     const slicedRuntime = createSimulationRuntime('normal');

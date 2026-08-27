@@ -6,6 +6,7 @@ import type {
   TrafficSnapshotV1,
   TrafficSnapshotV2,
 } from '../src/index.js';
+import { absoluteGameMinute } from '@web-three-city/simulation-core';
 
 type TrafficV2PersistenceApi = Readonly<{
   encodeTrafficSaveV2?: (snapshot: TrafficSnapshotV2) => unknown;
@@ -58,9 +59,9 @@ const graph: TrafficGraph = Object.freeze({
 });
 
 const cursor: TrafficSnapshotV2['timeCursor'] = Object.freeze({
-  sourceGameMinute: 480,
+  sourceGameMinute: absoluteGameMinute(480),
   completedTransportQuantaWithinMinute: 2,
-  absoluteTransportSecond: 1_922,
+  absoluteTransportSecond: trafficCore.absoluteTransportSecond(1_922),
   temporalPolicyVersion: 1,
 });
 
@@ -112,7 +113,7 @@ function queuedDriveV2(): TrafficSnapshotV2['activeTrips'][number] {
     queuedMovement: Object.freeze({
       fromEdgeId: 'ab',
       toEdgeId: 'bc',
-      arrivedAtTransportSecond: 1_919,
+      arrivedAtTransportSecond: trafficCore.absoluteTransportSecond(1_919),
     }),
   });
 }

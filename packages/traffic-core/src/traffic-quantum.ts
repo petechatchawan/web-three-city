@@ -13,7 +13,7 @@ import {
   enterDriveMovementPhase,
 } from './drive-lifecycle.js';
 import { createTrafficSnapshotV2, type TrafficSnapshotV2 } from './traffic-snapshot.js';
-import { advanceTrafficTimeCursor } from './transport-time.js';
+import { advanceTrafficTimeCursor, type AbsoluteTransportSecond } from './transport-time.js';
 import { canonicalHeadwayCapProgressQ, createLaneOccupancyIndex } from './lane-occupancy.js';
 import { TrafficGraphMetadataCache, type TrafficGraphMetadata } from './traffic-graph-metadata.js';
 import {
@@ -232,7 +232,7 @@ function advanceRouteSegment(
   trip: ActiveTransportTripV2,
   graph: TrafficGraph,
   metadata: TrafficGraphMetadata,
-  arrivedAtTransportSecond: number,
+  arrivedAtTransportSecond: AbsoluteTransportSecond,
   scaleInstrumentation: TrafficScaleInstrumentation | undefined,
   occupancy: ReturnType<typeof createLaneOccupancyIndex>,
   entryAdmission: Readonly<{
@@ -371,7 +371,7 @@ function advanceOneQuantum(
   trip: ActiveTransportTripV2,
   graph: TrafficGraph,
   metadata: TrafficGraphMetadata,
-  arrivedAtTransportSecond: number,
+  arrivedAtTransportSecond: AbsoluteTransportSecond,
   scaleInstrumentation: TrafficScaleInstrumentation | undefined,
   occupancy = createLaneOccupancyIndex({ graph, trips: [trip] }),
   entryAdmission: Readonly<{

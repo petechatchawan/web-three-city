@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   advanceTrafficQuantum,
+  absoluteTransportSecond,
   createTrafficSnapshotV2,
   type ActiveTransportTripV2,
   type TrafficGraph,
   type TrafficSnapshotV2,
 } from '../src/index.js';
+import { absoluteGameMinute } from '@web-three-city/simulation-core';
 
 type DriveLifecycleTrip = Omit<ActiveTransportTripV2, 'driveMovementPhase'> &
   Readonly<{
@@ -59,9 +61,9 @@ function snapshot(trip: DriveLifecycleTrip): TrafficSnapshotV2 {
     graphSourceRoadRevision: 1,
     graphSourceBuildingRevision: 1,
     timeCursor: {
-      sourceGameMinute: 480,
+      sourceGameMinute: absoluteGameMinute(480),
       completedTransportQuantaWithinMinute: 0,
-      absoluteTransportSecond: 1_920,
+      absoluteTransportSecond: absoluteTransportSecond(1_920),
       temporalPolicyVersion: 1,
     },
     activeTrips: [trip as unknown as ActiveTransportTripV2],

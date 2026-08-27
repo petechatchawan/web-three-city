@@ -1,5 +1,5 @@
-import { createSimulationSnapshot } from '@web-three-city/simulation-core';
-import { createTrafficSnapshotV2 } from '@web-three-city/traffic-core';
+import { absoluteGameMinute, createSimulationSnapshot } from '@web-three-city/simulation-core';
+import { absoluteTransportSecond, createTrafficSnapshotV2 } from '@web-three-city/traffic-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { describe, expect, it } from 'vitest';
 import { createApplicationFixture } from '../test/application-fixtures.js';
@@ -51,9 +51,9 @@ describe('WorldSaveV8', () => {
       graphSourceRoadRevision: world.roads.revision,
       graphSourceBuildingRevision: world.buildings.revision,
       timeCursor: {
-        sourceGameMinute: 480,
+        sourceGameMinute: absoluteGameMinute(480),
         completedTransportQuantaWithinMinute: 2,
-        absoluteTransportSecond: 1922,
+        absoluteTransportSecond: absoluteTransportSecond(1922),
         temporalPolicyVersion: 1,
       },
       activeTrips: [],

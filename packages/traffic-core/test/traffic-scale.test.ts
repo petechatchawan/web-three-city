@@ -6,6 +6,7 @@ import {
   type ActiveTransportTrip,
   type TrafficGraph,
 } from '../src/index.js';
+import { absoluteGameMinute } from '@web-three-city/simulation-core';
 
 type ScaleApi = Readonly<{
   createTrafficScaleInstrumentation: () => Readonly<{
@@ -76,9 +77,9 @@ function scaleSnapshot() {
     graphSourceRoadRevision: 20,
     graphSourceBuildingRevision: 20,
     timeCursor: {
-      sourceGameMinute: 480,
+      sourceGameMinute: absoluteGameMinute(480),
       completedTransportQuantaWithinMinute: 0,
-      absoluteTransportSecond: 1_920,
+      absoluteTransportSecond: trafficCore.absoluteTransportSecond(1_920),
       temporalPolicyVersion: 1,
     },
     activeTrips: Array.from({ length: SCALE_TRIP_COUNT }, (_, index) =>

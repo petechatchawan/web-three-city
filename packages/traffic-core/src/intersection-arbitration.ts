@@ -10,6 +10,15 @@ import {
   type TrafficReservationLedger,
 } from './traffic-reservation.js';
 import { type TrafficScaleInstrumentation } from './traffic-scale-instrumentation.js';
+import {
+  compareTransportSeconds,
+  transportSecondDuration,
+  transportSecondDurationBetween,
+  transportSecondValue,
+  type AbsoluteTransportSecond,
+} from './transport-time.js';
+
+const intersectionAgePromotion = transportSecondDuration(INTERSECTION_AGE_PROMOTION_SECONDS);
 
 export interface IntersectionArbitrationCandidate {
   readonly tripId: string;
@@ -18,7 +27,7 @@ export interface IntersectionArbitrationCandidate {
   readonly incomingEdgeId: string;
   readonly outgoingEdgeId: string;
   readonly movementKind?: IntersectionMovementKind;
-  readonly queuedAtTransportSecond: number;
+  readonly queuedAtTransportSecond: AbsoluteTransportSecond;
   /** Larger progress is physically closer to the node. */
   readonly lanePositionQ: number;
   readonly resourceIds: readonly string[];
@@ -40,25 +49,37 @@ function compareFront(
 ): number {
   if (first.lanePositionQ !== second.lanePositionQ)
     return second.lanePositionQ - first.lanePositionQ;
-  if (first.queuedAtTransportSecond !== second.queuedAtTransportSecond) {
-    return first.queuedAtTransportSecond - second.queuedAtTransportSecond;
-  }
+  const queuedAtOrder = compareTransportSeconds(
+    first.queuedAtTransportSecond,
+    second.queuedAtTransportSecond,
+  );
+  if (queuedAtOrder !== 0) return queuedAtOrder;
   return compareTrafficId(first.tripId, second.tripId);
 }
 
 function comparePriority(
   first: IntersectionArbitrationCandidate,
   second: IntersectionArbitrationCandidate,
-  currentTransportSecond: number,
+  currentTransportSecond: AbsoluteTransportSecond,
 ): number {
+  const ageOf = (queuedAtTransportSecond: AbsoluteTransportSecond) =>
+    compareTransportSeconds(currentTransportSecond, queuedAtTransportSecond) < 0
+      ? null
+      : transportSecondDurationBetween(currentTransportSecond, queuedAtTransportSecond);
+  const firstAge = ageOf(first.queuedAtTransportSecond);
+  const secondAge = ageOf(second.queuedAtTransportSecond);
   const firstPromoted =
-    currentTransportSecond - first.queuedAtTransportSecond >= INTERSECTION_AGE_PROMOTION_SECONDS;
+    firstAge !== null &&
+    transportSecondValue(firstAge) >= transportSecondValue(intersectionAgePromotion);
   const secondPromoted =
-    currentTransportSecond - second.queuedAtTransportSecond >= INTERSECTION_AGE_PROMOTION_SECONDS;
+    secondAge !== null &&
+    transportSecondValue(secondAge) >= transportSecondValue(intersectionAgePromotion);
   if (firstPromoted !== secondPromoted) return firstPromoted ? -1 : 1;
-  if (first.queuedAtTransportSecond !== second.queuedAtTransportSecond) {
-    return first.queuedAtTransportSecond - second.queuedAtTransportSecond;
-  }
+  const queuedAtOrder = compareTransportSeconds(
+    first.queuedAtTransportSecond,
+    second.queuedAtTransportSecond,
+  );
+  if (queuedAtOrder !== 0) return queuedAtOrder;
   const firstPriority = movementPriority(first.movementKind);
   const secondPriority = movementPriority(second.movementKind);
   if (firstPriority !== secondPriority) return firstPriority - secondPriority;
@@ -73,7 +94,7 @@ export function arbitrateIntersectionMovements(
   input: Readonly<{
     candidates: readonly IntersectionArbitrationCandidate[];
     ledger?: TrafficReservationLedger;
-    currentTransportSecond: number;
+    currentTransportSecond: AbsoluteTransportSecond;
     scaleInstrumentation?: TrafficScaleInstrumentation;
   }>,
 ): IntersectionArbitrationResult {

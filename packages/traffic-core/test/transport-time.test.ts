@@ -1,40 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as trafficCore from '../src/index.js';
-import type { ActiveTransportTrip, TrafficGraph } from '../src/index.js';
-
-interface TrafficTimeCursor {
-  readonly sourceGameMinute: number;
-  readonly completedTransportQuantaWithinMinute: number;
-  readonly absoluteTransportSecond: number;
-  readonly temporalPolicyVersion: number;
-}
-
-interface TrafficSnapshotV2 {
-  readonly schemaVersion: 2;
-  readonly revision: number;
-  readonly policyVersion: 1;
-  readonly graphSourceRoadRevision: number;
-  readonly graphSourceBuildingRevision: number;
-  readonly timeCursor: TrafficTimeCursor;
-  readonly activeTrips: readonly ActiveTransportTrip[];
-}
-
-interface TrafficQuantumReceipt {
-  readonly elapsedTransportSeconds: 1;
-  readonly newlyQueuedTripIds: readonly string[];
-}
-
-type TrafficV2Api = Readonly<{
-  createTrafficSnapshotV2: (input: TrafficSnapshotV2) => TrafficSnapshotV2;
-  advanceTrafficQuantum: (
-    input: Readonly<{
-      snapshot: TrafficSnapshotV2;
-      graph: TrafficGraph;
-    }>,
-  ) => Readonly<{ snapshot: TrafficSnapshotV2; receipt: TrafficQuantumReceipt }>;
-}>;
-
-const api = trafficCore as unknown as TrafficV2Api;
+import type { ActiveTransportTripV2, TrafficGraph, TrafficSnapshotV2 } from '../src/index.js';
+import { absoluteGameMinute } from '@web-three-city/simulation-core';
 
 const graph: TrafficGraph = Object.freeze({
   sourceRoadRevision: 1,
@@ -86,7 +53,7 @@ const graph: TrafficGraph = Object.freeze({
   ]),
 });
 
-type TravellingDriveTrip = ActiveTransportTrip & Readonly<{ driveMovementPhase: 'Travelling' }>;
+type TravellingDriveTrip = ActiveTransportTripV2 & Readonly<{ driveMovementPhase: 'Travelling' }>;
 
 function activeTrip(overrides: Partial<TravellingDriveTrip> = {}): TravellingDriveTrip {
   return Object.freeze({
@@ -104,22 +71,26 @@ function activeTrip(overrides: Partial<TravellingDriveTrip> = {}): TravellingDri
     status: 'Active',
     failureReason: null,
     driveMovementPhase: 'Travelling',
+    entryServiceCredit: 0,
+    entryReservationResourceIds: Object.freeze([]),
     ...overrides,
   });
 }
 
-function snapshot(activeTrips: readonly ActiveTransportTrip[] = [activeTrip()]): TrafficSnapshotV2 {
-  return api.createTrafficSnapshotV2({
+function snapshot(
+  activeTrips: readonly ActiveTransportTripV2[] = [activeTrip()],
+): TrafficSnapshotV2 {
+  return trafficCore.createTrafficSnapshotV2({
     schemaVersion: 2,
     revision: 7,
     policyVersion: 1,
     graphSourceRoadRevision: 1,
     graphSourceBuildingRevision: 1,
     timeCursor: {
-      sourceGameMinute: 480,
+      sourceGameMinute: absoluteGameMinute(480),
       completedTransportQuantaWithinMinute: 0,
-      absoluteTransportSecond: 1_920,
-      temporalPolicyVersion: 1,
+      absoluteTransportSecond: trafficCore.absoluteTransportSecond(1_920),
+      temporalPolicyVersion: 1 as const,
     },
     activeTrips,
   });
@@ -127,7 +98,7 @@ function snapshot(activeTrips: readonly ActiveTransportTrip[] = [activeTrip()]):
 
 describe('Traffic transport time', () => {
   it('advances an empty transport quantum without requiring graph metadata', () => {
-    const result = api.advanceTrafficQuantum({
+    const result = trafficCore.advanceTrafficQuantum({
       snapshot: snapshot([]),
       graph: Object.freeze({}) as unknown as TrafficGraph,
     });
@@ -143,7 +114,7 @@ describe('Traffic transport time', () => {
   it('advances exactly one transport second per quantum', () => {
     let current = snapshot();
     for (let index = 0; index < 4; index += 1) {
-      current = api.advanceTrafficQuantum({ snapshot: current, graph }).snapshot;
+      current = trafficCore.advanceTrafficQuantum({ snapshot: current, graph }).snapshot;
     }
 
     expect(current.timeCursor).toEqual({
@@ -161,7 +132,7 @@ describe('Traffic transport time', () => {
   });
 
   it('records a new intersection queue arrival in transport seconds without releasing it', () => {
-    const result = api.advanceTrafficQuantum({
+    const result = trafficCore.advanceTrafficQuantum({
       snapshot: snapshot([activeTrip({ progressQ: 875_000 })]),
       graph,
     });
@@ -179,22 +150,25 @@ describe('Traffic transport time', () => {
 
   it('rejects a cursor that skips the active minute policy or advances beyond its fourth quantum', () => {
     expect(() =>
-      api.createTrafficSnapshotV2({
+      trafficCore.createTrafficSnapshotV2({
         ...snapshot(),
         timeCursor: {
-          sourceGameMinute: 480,
+          sourceGameMinute: absoluteGameMinute(480),
           completedTransportQuantaWithinMinute: 1,
-          absoluteTransportSecond: 1_925,
-          temporalPolicyVersion: 1,
+          absoluteTransportSecond: trafficCore.absoluteTransportSecond(1_925),
+          temporalPolicyVersion: 1 as const,
         },
       }),
     ).toThrow('traffic:invalid-state');
 
     let completedMinute = snapshot([]);
     for (let index = 0; index < 4; index += 1) {
-      completedMinute = api.advanceTrafficQuantum({ snapshot: completedMinute, graph }).snapshot;
+      completedMinute = trafficCore.advanceTrafficQuantum({
+        snapshot: completedMinute,
+        graph,
+      }).snapshot;
     }
-    expect(() => api.advanceTrafficQuantum({ snapshot: completedMinute, graph })).toThrow(
+    expect(() => trafficCore.advanceTrafficQuantum({ snapshot: completedMinute, graph })).toThrow(
       'traffic:invalid-state',
     );
   });

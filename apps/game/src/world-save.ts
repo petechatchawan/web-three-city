@@ -49,6 +49,7 @@ import {
   deriveVehicleTrafficGraph,
   encodeTrafficSaveV1,
   encodeTrafficSaveV2,
+  transportSecondAtGameMinute,
   migrateTrafficSaveV1ToV2,
   type TrafficGraph,
   type TrafficSaveV1,
@@ -216,9 +217,9 @@ export function encodeWorldSaveV8(
           graph: trafficGraph,
           legacyCurrentGameSecond: gameMinuteValue(simulation.absoluteGameMinute),
           timeCursor: Object.freeze({
-            sourceGameMinute: gameMinuteValue(simulation.absoluteGameMinute),
+            sourceGameMinute: simulation.absoluteGameMinute,
             completedTransportQuantaWithinMinute: 0,
-            absoluteTransportSecond: gameMinuteValue(simulation.absoluteGameMinute) * 4,
+            absoluteTransportSecond: transportSecondAtGameMinute(simulation.absoluteGameMinute),
             temporalPolicyVersion: 1,
           }),
         });
@@ -412,9 +413,11 @@ export function decodeWorldSave(
       graph,
       legacyCurrentGameSecond: gameMinuteValue(upstream.value.simulation.absoluteGameMinute),
       timeCursor: Object.freeze({
-        sourceGameMinute: gameMinuteValue(upstream.value.simulation.absoluteGameMinute),
+        sourceGameMinute: upstream.value.simulation.absoluteGameMinute,
         completedTransportQuantaWithinMinute: 0,
-        absoluteTransportSecond: gameMinuteValue(upstream.value.simulation.absoluteGameMinute) * 4,
+        absoluteTransportSecond: transportSecondAtGameMinute(
+          upstream.value.simulation.absoluteGameMinute,
+        ),
         temporalPolicyVersion: 1,
       }),
     });

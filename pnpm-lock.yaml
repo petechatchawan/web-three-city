@@ -302,7 +302,11 @@ importers:
         specifier: 0.185.0
         version: 0.185.0
 
-  packages/traffic-core: {}
+  packages/traffic-core:
+    dependencies:
+      '@web-three-city/simulation-core':
+        specifier: workspace:*
+        version: link:../simulation-core
 
   packages/traffic-three:
     dependencies:

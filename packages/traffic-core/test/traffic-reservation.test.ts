@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as trafficCore from '../src/index.js';
 import type { ActiveTransportTripV2, TrafficGraph, TrafficSnapshotV2 } from '../src/index.js';
+import { absoluteGameMinute } from '@web-three-city/simulation-core';
 
 type TrafficReservationApi = Readonly<{
   createTrafficSnapshotV2: (input: TrafficSnapshotV2) => TrafficSnapshotV2;
@@ -102,9 +103,9 @@ function snapshot(activeTrips: readonly ReservationTrip[]): TrafficSnapshotV2 {
     graphSourceRoadRevision: 1,
     graphSourceBuildingRevision: 1,
     timeCursor: {
-      sourceGameMinute: 480,
+      sourceGameMinute: absoluteGameMinute(480),
       completedTransportQuantaWithinMinute: 0,
-      absoluteTransportSecond: 1_920,
+      absoluteTransportSecond: trafficCore.absoluteTransportSecond(1_920),
       temporalPolicyVersion: 1,
     },
     activeTrips,
@@ -197,7 +198,11 @@ describe('Traffic entry reservations', () => {
           citizenId: 'citizen-stopped-leader',
           driveMovementPhase: 'Travelling',
           progressQ: 900_000,
-          queuedMovement: { fromEdgeId: 'ab', toEdgeId: 'ab', arrivedAtTransportSecond: 1_900 },
+          queuedMovement: {
+            fromEdgeId: 'ab',
+            toEdgeId: 'ab',
+            arrivedAtTransportSecond: trafficCore.absoluteTransportSecond(1_900),
+          },
         }),
       ]),
       graph,

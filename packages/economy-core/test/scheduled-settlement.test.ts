@@ -34,7 +34,7 @@ describe('scheduled municipal settlement', () => {
           absoluteGameMinute(8 * 60),
           absoluteGameMinute(8 * 60 + 1),
         ),
-        calendar: { year: 1, month: 1, day: 1, hour: 8 },
+        calendar: { year: 1, month: 1, hour: 8 },
         ...projections,
       },
       rules,
@@ -53,7 +53,7 @@ describe('scheduled municipal settlement', () => {
           absoluteGameMinute(7 * 60 + 59),
           absoluteGameMinute(8 * 60),
         ),
-        calendar: { year: 1, month: 1, day: 1, hour: 8 },
+        calendar: { year: 1, month: 1, hour: 8 },
         ...projections,
       },
       rules,
@@ -83,7 +83,7 @@ describe('scheduled municipal settlement', () => {
           absoluteGameMinute(8 * 60),
           absoluteGameMinute(9 * 60),
         ),
-        calendar: { year: 1, month: 1, day: 1, hour: 9 },
+        calendar: { year: 1, month: 1, hour: 9 },
         ...projections,
       },
       rules,
@@ -99,7 +99,7 @@ describe('scheduled municipal settlement', () => {
           absoluteGameMinute(31 * 60),
           absoluteGameMinute(32 * 60),
         ),
-        calendar: { year: 1, month: 1, day: 2, hour: 8 },
+        calendar: { year: 1, month: 2, hour: 8 },
         ...projections,
       },
       rules,
@@ -169,7 +169,7 @@ describe('scheduled municipal settlement', () => {
       {
         beforeMacroHourIndex: macroHourIndex(8),
         afterMacroHourIndex: macroHourIndex(9),
-        calendar: { year: 1, month: 1, day: 1, hour: 9 },
+        calendar: { year: 1, month: 1, hour: 9 },
         ...projections,
       },
       rules,
@@ -181,7 +181,7 @@ describe('scheduled municipal settlement', () => {
       {
         beforeMacroHourIndex: macroHourIndex(31),
         afterMacroHourIndex: macroHourIndex(32),
-        calendar: { year: 1, month: 1, day: 2, hour: 8 },
+        calendar: { year: 1, month: 2, hour: 8 },
         ...projections,
       },
       rules,
@@ -205,7 +205,7 @@ describe('scheduled municipal settlement', () => {
         {
           beforeMacroHourIndex: macroHourIndex(31),
           afterMacroHourIndex: macroHourIndex(32),
-          calendar: { year: 1, month: 1, day: 2, hour: 8 },
+          calendar: { year: 1, month: 2, hour: 8 },
           ...projections,
         },
         rules,
@@ -219,7 +219,7 @@ describe('scheduled municipal settlement', () => {
       {
         beforeMacroHourIndex: macroHourIndex(31),
         afterMacroHourIndex: macroHourIndex(32),
-        calendar: { year: 1, month: 1, day: 2, hour: 8 },
+        calendar: { year: 1, month: 2, hour: 8 },
         ...projections,
       },
       rules,
@@ -229,9 +229,9 @@ describe('scheduled municipal settlement', () => {
     const nextMonth = economy.settleScheduledEconomy(
       seeded.snapshot,
       {
-        beforeMacroHourIndex: macroHourIndex(727),
-        afterMacroHourIndex: macroHourIndex(728),
-        calendar: { year: 1, month: 2, day: 1, hour: 8 },
+        beforeMacroHourIndex: macroHourIndex(55),
+        afterMacroHourIndex: macroHourIndex(56),
+        calendar: { year: 1, month: 3, hour: 8 },
         ...projections,
       },
       rules,
@@ -240,9 +240,9 @@ describe('scheduled municipal settlement', () => {
       ok: true,
       status: 'settled',
       snapshot: {
-        currentPeriod: { year: 1, month: 2, taxRevenue: { residentialMinor: 2_100 } },
-        previousPeriod: { year: 1, month: 1, taxRevenue: { residentialMinor: 2_100 } },
-        lastMonthlyCloseAtMacroHourIndex: macroHourIndex(728),
+        currentPeriod: { year: 1, month: 3, taxRevenue: { residentialMinor: 2_100 } },
+        previousPeriod: { year: 1, month: 2, taxRevenue: { residentialMinor: 2_100 } },
+        lastMonthlyCloseAtMacroHourIndex: macroHourIndex(56),
       },
     });
   });

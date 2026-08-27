@@ -24,6 +24,53 @@ async function openGrowthGame(page: import('@playwright/test').Page): Promise<vo
   await prepareDeterministicGrowthClock(page);
 }
 
+async function loadGrowthWorldAtMinute(
+  page: import('@playwright/test').Page,
+  absoluteGameMinute: number,
+): Promise<void> {
+  if (!Number.isSafeInteger(absoluteGameMinute) || absoluteGameMinute < 0) {
+    throw new RangeError('growth:invalid-calendar-boundary');
+  }
+  await page.evaluate(
+    ({ key, targetMinute }) => {
+      const timeWindow = window as Window & {
+        __WEB_THREE_CITY_TIME__?: { savePayload(): unknown };
+        __WEB_THREE_CITY_TRAFFIC__?: { loadWorld(): void };
+      };
+      const timeApi = timeWindow.__WEB_THREE_CITY_TIME__;
+      const trafficApi = timeWindow.__WEB_THREE_CITY_TRAFFIC__;
+      if (timeApi === undefined || trafficApi === undefined) {
+        throw new Error('growth:missing-save-load-api');
+      }
+      const payload = timeApi.savePayload();
+      if (
+        typeof payload !== 'object' ||
+        payload === null ||
+        !('simulation' in payload) ||
+        typeof payload.simulation !== 'object' ||
+        payload.simulation === null
+      ) {
+        throw new Error('growth:invalid-save-payload');
+      }
+      const patchedPayload = {
+        ...payload,
+        simulation: {
+          ...payload.simulation,
+          absoluteGameMinute: targetMinute,
+        },
+      };
+      localStorage.setItem(key, JSON.stringify(patchedPayload));
+      trafficApi.loadWorld();
+    },
+    { key: SAVE_KEY, targetMinute: absoluteGameMinute },
+  );
+  await expect(page.getByTestId('tool-context-status')).toHaveText('Loaded');
+  await expect(page.locator('[data-simulation-speed="paused"]')).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+}
+
 test('exposes the simple calendar and deterministic time controls', async ({ page }) => {
   await openGrowthGame(page);
   await expect(page.locator('[data-metric="gameTime"] strong')).toHaveText('Y1 M1 08:00');
@@ -114,11 +161,11 @@ test('production playback crosses compressed hour and month boundaries with Grow
 test('projects compressed month and year boundaries without rejecting the minute', async ({
   page,
 }) => {
-  test.setTimeout(180_000);
   await openGrowthGame(page);
   await prepareDeterministicGrowthClock(page);
 
-  let before = await stepLogicalMinutes(page, 1439 - 8 * 60);
+  await loadGrowthWorldAtMinute(page, 1439);
+  let before = await readTimeSnapshot(page);
   expect(before.simulation.absoluteGameMinute).toBe(1439);
   await expect(page.locator('[data-metric="gameTime"] strong')).toHaveText('Y1 M1 23:59');
 
@@ -130,7 +177,8 @@ test('projects compressed month and year boundaries without rejecting the minute
     'Simulation paused: world update rejected',
   );
 
-  before = await stepLogicalMinutes(page, 17279 - 1440);
+  await loadGrowthWorldAtMinute(page, 17279);
+  before = await readTimeSnapshot(page);
   expect(before.simulation.absoluteGameMinute).toBe(17279);
   await expect(page.locator('[data-metric="gameTime"] strong')).toHaveText('Y1 M12 23:59');
 

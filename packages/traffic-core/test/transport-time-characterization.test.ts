@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
+  addTransportSeconds,
   advanceTrafficQuantum,
   createTrafficSnapshotV2,
+  transportSecondAtGameMinute,
+  transportSecondDuration,
+  transportSecondValue,
   type ActiveTransportTripV2,
   type TrafficGraph,
   type TrafficSnapshotV2,
 } from '../src/index.js';
+import { absoluteGameMinute } from '@web-three-city/simulation-core';
 
 const emptyGraph: TrafficGraph = Object.freeze({
   sourceRoadRevision: 1,
@@ -45,9 +50,9 @@ function snapshot(
     graphSourceRoadRevision: 1,
     graphSourceBuildingRevision: 1,
     timeCursor: {
-      sourceGameMinute,
+      sourceGameMinute: absoluteGameMinute(sourceGameMinute),
       completedTransportQuantaWithinMinute: 0,
-      absoluteTransportSecond: sourceGameMinute * 4,
+      absoluteTransportSecond: transportSecondAtGameMinute(absoluteGameMinute(sourceGameMinute)),
       temporalPolicyVersion: 1,
     },
     activeTrips,
@@ -84,7 +89,12 @@ describe('Traffic transport-time characterization', () => {
         expect(current.timeCursor).toEqual({
           sourceGameMinute,
           completedTransportQuantaWithinMinute: ordinal,
-          absoluteTransportSecond: sourceGameMinute * 4 + ordinal,
+          absoluteTransportSecond: transportSecondValue(
+            addTransportSeconds(
+              transportSecondAtGameMinute(absoluteGameMinute(sourceGameMinute)),
+              transportSecondDuration(ordinal),
+            ),
+          ),
           temporalPolicyVersion: 1,
         });
       }

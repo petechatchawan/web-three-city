@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as trafficCore from '../src/index.js';
 import type { ActiveTransportTripV2, TrafficGraph, TrafficSnapshotV2 } from '../src/index.js';
+import { absoluteGameMinute } from '@web-three-city/simulation-core';
 
 type RoadMutationApi = Readonly<{
   createTrafficSnapshotV2: (input: TrafficSnapshotV2) => TrafficSnapshotV2;
@@ -112,9 +113,9 @@ function snapshot(trip: ActiveTransportTripV2): TrafficSnapshotV2 {
     graphSourceRoadRevision: 1,
     graphSourceBuildingRevision: 1,
     timeCursor: {
-      sourceGameMinute: 480,
+      sourceGameMinute: absoluteGameMinute(480),
       completedTransportQuantaWithinMinute: 0,
-      absoluteTransportSecond: 1_920,
+      absoluteTransportSecond: trafficCore.absoluteTransportSecond(1_920),
       temporalPolicyVersion: 1,
     },
     activeTrips: [trip],

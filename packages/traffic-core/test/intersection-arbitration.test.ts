@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as trafficCore from '../src/index.js';
 import type { ActiveTransportTripV2, TrafficGraph, TrafficSnapshotV2 } from '../src/index.js';
+import { absoluteGameMinute } from '@web-three-city/simulation-core';
 
 type Candidate = Readonly<{
   tripId: string;
@@ -113,10 +114,10 @@ function snapshot(activeTrips: readonly ActiveTransportTripV2[]): TrafficSnapsho
     graphSourceRoadRevision: 1,
     graphSourceBuildingRevision: 1,
     timeCursor: {
-      sourceGameMinute: 480,
+      sourceGameMinute: absoluteGameMinute(480),
       completedTransportQuantaWithinMinute: 0,
-      absoluteTransportSecond: 1_920,
-      temporalPolicyVersion: 1,
+      absoluteTransportSecond: trafficCore.absoluteTransportSecond(1_920),
+      temporalPolicyVersion: 1 as const,
     },
     activeTrips,
   });

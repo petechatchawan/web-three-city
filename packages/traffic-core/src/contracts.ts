@@ -1,4 +1,5 @@
 import { TrafficContractError } from './errors.js';
+import type { AbsoluteTransportSecond } from './transport-time.js';
 
 export type TrafficNodeId = string;
 export type TrafficEdgeId = string;
@@ -108,7 +109,7 @@ export interface ActiveTransportTripV2 {
   readonly queuedMovement: Readonly<{
     fromEdgeId: TrafficEdgeId;
     toEdgeId: TrafficEdgeId;
-    arrivedAtTransportSecond: number;
+    arrivedAtTransportSecond: AbsoluteTransportSecond;
   }> | null;
   readonly status: TrafficTripStatus;
   readonly failureReason: TrafficTripFailureReason | null;

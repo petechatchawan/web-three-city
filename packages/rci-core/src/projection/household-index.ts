@@ -19,7 +19,7 @@ export function createHouseholdCurrentStateIndex(
   const mutableMembersByHouseholdId = new Map<HouseholdId, CitizenId[]>();
 
   for (const membership of memberships) {
-    if (membership.endedAtTick !== null) continue;
+    if (membership.endedAtMacroHourIndex !== null) continue;
     if (activeMembershipByCitizenId.has(membership.citizenId)) {
       throw new RciContractError('rci:duplicate-active-membership');
     }

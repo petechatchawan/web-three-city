@@ -127,7 +127,10 @@ describe('Game minute transaction', () => {
     if (committed.status !== 'committed') return;
     expect(committed.world.simulation.absoluteGameMinute).toBe(9 * 60);
     expect(committed.world.simulation.revision).toBe(60);
-    expect(plan.rciReceipt).toMatchObject({ beforeAbsoluteTick: 8, afterAbsoluteTick: 9 });
+    expect(plan.rciReceipt).toMatchObject({
+      beforeAbsoluteMacroHourIndex: 8,
+      afterAbsoluteMacroHourIndex: 9,
+    });
   });
 
   it('reconciles static environment provenance when Growth completes at 18:00', () => {

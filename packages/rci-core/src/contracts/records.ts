@@ -16,29 +16,31 @@ import type {
   SexDefinitionId,
   WorkplaceId,
 } from './ids.js';
+import type { MacroHourIndex } from '@web-three-city/simulation-core';
+import type { AgeOriginMacroHourIndex } from '../population/age.js';
 
 export interface CitizenRecord {
   readonly citizenId: CitizenId;
   readonly presence: 'resident' | 'emigrated' | 'deceased';
   readonly sexDefinitionId: SexDefinitionId;
-  readonly bornAtTick: number;
-  readonly movedIntoCityAtTick: number;
-  readonly movedOutOfCityAtTick: number | null;
-  readonly diedAtTick: number | null;
+  readonly bornAtMacroHourIndex: AgeOriginMacroHourIndex;
+  readonly movedIntoCityAtMacroHourIndex: MacroHourIndex;
+  readonly movedOutOfCityAtMacroHourIndex: MacroHourIndex | null;
+  readonly diedAtMacroHourIndex: MacroHourIndex | null;
 }
 
 export interface HouseholdRecord {
   readonly householdId: HouseholdId;
-  readonly foundedAtTick: number;
-  readonly dissolvedAtTick: number | null;
+  readonly foundedAtMacroHourIndex: MacroHourIndex;
+  readonly dissolvedAtMacroHourIndex: MacroHourIndex | null;
 }
 
 export interface HouseholdMembershipRecord {
   readonly membershipId: HouseholdMembershipId;
   readonly householdId: HouseholdId;
   readonly citizenId: CitizenId;
-  readonly startedAtTick: number;
-  readonly endedAtTick: number | null;
+  readonly startedAtMacroHourIndex: MacroHourIndex;
+  readonly endedAtMacroHourIndex: MacroHourIndex | null;
   readonly endReasonDefinitionId: string | null;
 }
 
@@ -48,8 +50,8 @@ export interface DirectionalRelationshipRecord {
   readonly typeDefinitionId: RelationshipTypeDefinitionId;
   readonly sourceCitizenId: CitizenId;
   readonly targetCitizenId: CitizenId;
-  readonly startedAtTick: number;
-  readonly endedAtTick: number | null;
+  readonly startedAtMacroHourIndex: MacroHourIndex;
+  readonly endedAtMacroHourIndex: MacroHourIndex | null;
 }
 
 export interface UndirectedRelationshipRecord {
@@ -57,8 +59,8 @@ export interface UndirectedRelationshipRecord {
   readonly orientation: 'undirected';
   readonly typeDefinitionId: RelationshipTypeDefinitionId;
   readonly participantCitizenIds: readonly [CitizenId, CitizenId];
-  readonly startedAtTick: number;
-  readonly endedAtTick: number | null;
+  readonly startedAtMacroHourIndex: MacroHourIndex;
+  readonly endedAtMacroHourIndex: MacroHourIndex | null;
 }
 
 export type RelationshipRecord = DirectionalRelationshipRecord | UndirectedRelationshipRecord;
@@ -67,8 +69,8 @@ export interface CitizenQualificationRecord {
   readonly citizenQualificationId: CitizenQualificationId;
   readonly citizenId: CitizenId;
   readonly qualificationDefinitionId: QualificationDefinitionId;
-  readonly awardedAtTick: number;
-  readonly endedAtTick: number | null;
+  readonly awardedAtMacroHourIndex: MacroHourIndex;
+  readonly endedAtMacroHourIndex: MacroHourIndex | null;
   readonly sourceDefinitionId: string;
 }
 
@@ -77,16 +79,16 @@ export interface DwellingUnitRecord {
   readonly buildingInstanceId: string;
   readonly capacityProfileDefinitionId: CapacityProfileDefinitionId;
   readonly unitIndex: number;
-  readonly activatedAtTick: number;
-  readonly retiredAtTick: number | null;
+  readonly activatedAtMacroHourIndex: MacroHourIndex;
+  readonly retiredAtMacroHourIndex: MacroHourIndex | null;
 }
 
 export interface HousingAssignmentRecord {
   readonly housingAssignmentId: HousingAssignmentId;
   readonly householdId: HouseholdId;
   readonly dwellingUnitId: DwellingUnitId;
-  readonly startedAtTick: number;
-  readonly endedAtTick: number | null;
+  readonly startedAtMacroHourIndex: MacroHourIndex;
+  readonly endedAtMacroHourIndex: MacroHourIndex | null;
   readonly endReasonDefinitionId: string | null;
 }
 
@@ -94,8 +96,8 @@ export interface WorkplaceRecord {
   readonly workplaceId: WorkplaceId;
   readonly buildingInstanceId: string;
   readonly capacityProfileDefinitionId: CapacityProfileDefinitionId;
-  readonly activatedAtTick: number;
-  readonly retiredAtTick: number | null;
+  readonly activatedAtMacroHourIndex: MacroHourIndex;
+  readonly retiredAtMacroHourIndex: MacroHourIndex | null;
 }
 
 export interface EmploymentAssignmentRecord {
@@ -103,15 +105,15 @@ export interface EmploymentAssignmentRecord {
   readonly citizenId: CitizenId;
   readonly workplaceId: WorkplaceId;
   readonly positionGroupDefinitionId: PositionGroupDefinitionId;
-  readonly startedAtTick: number;
-  readonly endedAtTick: number | null;
+  readonly startedAtMacroHourIndex: MacroHourIndex;
+  readonly endedAtMacroHourIndex: MacroHourIndex | null;
   readonly endReasonDefinitionId: string | null;
 }
 
 export interface IncomingHouseholdRequest {
   readonly requestId: IncomingHouseholdRequestId;
   readonly archetypeDefinitionId: MigrationArchetypeDefinitionId;
-  readonly requestedAtTick: number;
+  readonly requestedAtMacroHourIndex: MacroHourIndex;
   readonly minimumResidentCapacity: number;
   readonly queuePriority: number;
   readonly deterministicSequence: number;
@@ -119,8 +121,8 @@ export interface IncomingHouseholdRequest {
 
 export interface DisplacedHouseholdEntry {
   readonly householdId: HouseholdId;
-  readonly displacedAtTick: number;
-  readonly expiresAtTick: number;
+  readonly displacedAtMacroHourIndex: MacroHourIndex;
+  readonly expiresAtMacroHourIndex: MacroHourIndex;
   readonly minimumResidentCapacity: number;
   readonly displacementPressure: number;
   readonly deterministicSequence: number;
@@ -132,12 +134,12 @@ export interface RciDemandState {
   readonly residentialMilli: DemandMilliPoint;
   readonly commercialMilli: DemandMilliPoint;
   readonly industrialMilli: DemandMilliPoint;
-  readonly evaluatedAtTick: number;
+  readonly evaluatedAtMacroHourIndex: MacroHourIndex;
 }
 
 export interface RciGrowthGateState {
   readonly residentialOpen: boolean;
   readonly commercialOpen: boolean;
   readonly industrialOpen: boolean;
-  readonly evaluatedAtTick: number;
+  readonly evaluatedAtMacroHourIndex: MacroHourIndex;
 }

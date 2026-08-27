@@ -59,7 +59,7 @@ describe('WorldSaveV5 RCI integration', () => {
   it('round-trips Economy authority in WorldSaveV6 and rejects malformed Economy', () => {
     const world = emptyWorld();
     const rci = createInitialRciSnapshot({
-      absoluteTick: deriveMacroHourIndex(world.simulation.absoluteGameMinute),
+      absoluteMacroHourIndex: deriveMacroHourIndex(world.simulation.absoluteGameMinute),
     });
     const economy = createInitialEconomySnapshot(
       {
@@ -91,7 +91,7 @@ describe('WorldSaveV5 RCI integration', () => {
   it('round-trips the authoritative RCI snapshot with Simulation and Buildings', () => {
     const world = emptyWorld();
     const initial = createInitialRciSnapshot({
-      absoluteTick: deriveMacroHourIndex(world.simulation.absoluteGameMinute),
+      absoluteMacroHourIndex: deriveMacroHourIndex(world.simulation.absoluteGameMinute),
       deterministicSeed: 73,
     });
     const rci = {
@@ -102,13 +102,13 @@ describe('WorldSaveV5 RCI integration', () => {
           residentialMilli: 20_000,
           commercialMilli: -5_000,
           industrialMilli: 10_000,
-          evaluatedAtTick: deriveMacroHourIndex(world.simulation.absoluteGameMinute),
+          evaluatedAtMacroHourIndex: deriveMacroHourIndex(world.simulation.absoluteGameMinute),
         },
         growthGates: {
           residentialOpen: true,
           commercialOpen: false,
           industrialOpen: true,
-          evaluatedAtTick: deriveMacroHourIndex(world.simulation.absoluteGameMinute),
+          evaluatedAtMacroHourIndex: deriveMacroHourIndex(world.simulation.absoluteGameMinute),
         },
       },
     };
@@ -141,7 +141,7 @@ describe('WorldSaveV5 RCI integration', () => {
     expect(decoded.value.rci.population.citizens).toEqual([]);
     expect(decoded.value.rci.housing.assignments).toEqual([]);
     expect(decoded.value.rci.employment.assignments).toEqual([]);
-    expect(decoded.value.rci.demand.demand.evaluatedAtTick).toBe(
+    expect(decoded.value.rci.demand.demand.evaluatedAtMacroHourIndex).toBe(
       deriveMacroHourIndex(world.simulation.absoluteGameMinute),
     );
     expect(decoded.value.economy.treasuryBalanceMinor).toBe(
@@ -159,7 +159,7 @@ describe('WorldSaveV5 RCI integration', () => {
       world.buildings,
       world.simulation,
       createInitialRciSnapshot({
-        absoluteTick: deriveMacroHourIndex(world.simulation.absoluteGameMinute),
+        absoluteMacroHourIndex: deriveMacroHourIndex(world.simulation.absoluteGameMinute),
       }),
     );
     const decoded = decodeWorldSave(

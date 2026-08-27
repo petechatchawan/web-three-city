@@ -5,6 +5,7 @@ import {
   type MobilityTrip,
 } from '@web-three-city/citizen-mobility-core';
 import {
+  ageOriginMacroHour,
   createFoundationRciRegistries,
   createInitialRciSnapshot,
   createRciSnapshot,
@@ -20,7 +21,7 @@ import {
   type TrafficGraph,
 } from '@web-three-city/traffic-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
-import { deriveMacroHourIndex } from '@web-three-city/simulation-core';
+import { deriveMacroHourIndex, macroHourIndex } from '@web-three-city/simulation-core';
 import { createCommittedWorldFromDomainState } from './application/committed-world.js';
 import {
   createBuildingTrafficAccessProjection,
@@ -74,17 +75,17 @@ function performanceRci(
   base: ReturnType<typeof createTrafficReleaseFixture>['world'],
 ): RciSnapshot {
   const initial = createInitialRciSnapshot({
-    absoluteTick: deriveMacroHourIndex(base.simulation.absoluteGameMinute),
+    absoluteMacroHourIndex: deriveMacroHourIndex(base.simulation.absoluteGameMinute),
     deterministicSeed: 20260816,
   });
   const citizens = Array.from({ length: TRAFFIC_PERFORMANCE_LOGICAL_CITIZENS }, (_, index) => ({
     citizenId: `citizen:${index + 1}`,
     presence: 'resident' as const,
     sexDefinitionId: index % 2 === 0 ? 'sex.female' : 'sex.male',
-    bornAtTick: 0,
-    movedIntoCityAtTick: 0,
-    movedOutOfCityAtTick: null,
-    diedAtTick: null,
+    bornAtMacroHourIndex: ageOriginMacroHour(0),
+    movedIntoCityAtMacroHourIndex: macroHourIndex(0),
+    movedOutOfCityAtMacroHourIndex: null,
+    diedAtMacroHourIndex: null,
   }));
   return createRciSnapshot(
     {
@@ -98,15 +99,19 @@ function performanceRci(
       households: {
         revision: 1,
         households: Object.freeze([
-          Object.freeze({ householdId: 'household:1', foundedAtTick: 0, dissolvedAtTick: null }),
+          Object.freeze({
+            householdId: 'household:1',
+            foundedAtMacroHourIndex: macroHourIndex(0),
+            dissolvedAtMacroHourIndex: null,
+          }),
         ]),
         memberships: citizens.map((citizen, index) =>
           Object.freeze({
             membershipId: `household-membership:${index + 1}`,
             householdId: 'household:1',
             citizenId: citizen.citizenId,
-            startedAtTick: 0,
-            endedAtTick: null,
+            startedAtMacroHourIndex: macroHourIndex(0),
+            endedAtMacroHourIndex: null,
             endReasonDefinitionId: null,
           }),
         ),

@@ -27,15 +27,16 @@ describe('housing determinism', () => {
       buildingsBefore: { revision: 0, instances: [] },
       buildingsAfter: forwardBuildings,
       registries: housingRegistries,
-      evaluationTick: 32,
+      evaluationMacroHourIndex: macroHour(32),
     }).proposedSnapshot;
     const reverse = synchronizeDwellingInventory({
       snapshot: input,
       buildingsBefore: { revision: 0, instances: [] },
       buildingsAfter: reverseBuildings,
       registries: housingRegistries,
-      evaluationTick: 32,
+      evaluationMacroHourIndex: macroHour(32),
     }).proposedSnapshot;
     expect(encodeRciSaveV1(forward)).toEqual(encodeRciSaveV1(reverse));
   });
 });
+import { macroHour } from './temporal-fixtures.js';

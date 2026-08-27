@@ -72,8 +72,8 @@ function emptyRciReceipt(state: GameWorldState): RciTickReceipt {
   return Object.freeze({
     beforeRevision: state.rci.revision,
     afterRevision: state.rci.revision,
-    beforeAbsoluteTick: state.simulation.absoluteGameMinute,
-    afterAbsoluteTick: state.simulation.absoluteGameMinute,
+    beforeAbsoluteMacroHourIndex: deriveMacroHourIndex(state.simulation.absoluteGameMinute),
+    afterAbsoluteMacroHourIndex: deriveMacroHourIndex(state.simulation.absoluteGameMinute),
     emittedEventCount: 0,
   });
 }
@@ -193,7 +193,7 @@ export function planGameWorldTick(
     const citizensAfter = createPresentCitizenMobilityProjection(
       rciCommit.snapshot,
       buildingCommit.buildings,
-      buildingCommit.simulation.absoluteGameMinute,
+      deriveMacroHourIndex(buildingCommit.simulation.absoluteGameMinute),
     );
     const trafficSource = requiresMobilityTrafficSourceDerivation({
       citizenCount: citizensAfter.length,
@@ -241,7 +241,7 @@ export function planGameWorldTick(
   const rciProjection = createRciProjection(
     rciCommit.snapshot,
     input.registries,
-    buildingCommit.simulation.absoluteGameMinute,
+    deriveMacroHourIndex(buildingCommit.simulation.absoluteGameMinute),
   );
   const settlement = settleScheduledEconomy(
     state.economy,

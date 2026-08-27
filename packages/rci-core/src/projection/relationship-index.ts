@@ -20,7 +20,7 @@ export function createRelationshipCurrentStateIndex(
     if (
       relationship.orientation !== 'undirected' ||
       relationship.typeDefinitionId !== 'relationship.partner' ||
-      relationship.endedAtTick !== null
+      relationship.endedAtMacroHourIndex !== null
     ) {
       continue;
     }

@@ -24,7 +24,7 @@ describe('RCI Household membership planners', () => {
       snapshot: withoutMembership,
       householdId: 'household:1',
       citizenId: 'citizen:1',
-      startedAtTick: 10,
+      startedAtMacroHourIndex: macroHour(10),
     });
 
     expect(plan.valid).toBe(true);
@@ -32,8 +32,8 @@ describe('RCI Household membership planners', () => {
       membershipId: 'household-membership:1',
       householdId: 'household:1',
       citizenId: 'citizen:1',
-      startedAtTick: 10,
-      endedAtTick: null,
+      startedAtMacroHourIndex: macroHour(10),
+      endedAtMacroHourIndex: null,
       endReasonDefinitionId: null,
     });
     expect(plan.proposedSnapshot.sequences.nextHouseholdMembership).toBe(2);
@@ -45,7 +45,7 @@ describe('RCI Household membership planners', () => {
       snapshot,
       householdId: 'household:1',
       citizenId: 'citizen:1',
-      startedAtTick: 10,
+      startedAtMacroHourIndex: macroHour(10),
     });
 
     expect(plan.valid).toBe(false);
@@ -59,19 +59,19 @@ describe('RCI Household membership planners', () => {
     const plan = planEndHouseholdMembership({
       snapshot,
       citizenId: 'citizen:1',
-      endedAtTick: 20,
+      endedAtMacroHourIndex: macroHour(20),
       endReasonDefinitionId: 'household-membership-ended.fixture',
     });
 
     expect(plan.valid).toBe(true);
     expect(plan.proposedSnapshot.households.memberships[0]).toEqual({
       ...snapshot.households.memberships[0],
-      endedAtTick: 20,
+      endedAtMacroHourIndex: macroHour(20),
       endReasonDefinitionId: 'household-membership-ended.fixture',
     });
     expect(plan.proposedSnapshot.households.households[0]).toEqual({
       ...snapshot.households.households[0],
-      dissolvedAtTick: 20,
+      dissolvedAtMacroHourIndex: macroHour(20),
     });
   });
 
@@ -80,11 +80,12 @@ describe('RCI Household membership planners', () => {
     const plan = planEndHouseholdMembership({
       snapshot,
       citizenId: 'citizen:1',
-      endedAtTick: 20,
+      endedAtMacroHourIndex: macroHour(20),
       endReasonDefinitionId: 'household-membership-ended.fixture',
     });
 
     expect(plan.valid).toBe(true);
-    expect(plan.proposedSnapshot.households.households[0]?.dissolvedAtTick).toBeNull();
+    expect(plan.proposedSnapshot.households.households[0]?.dissolvedAtMacroHourIndex).toBeNull();
   });
 });
+import { macroHour } from './temporal-fixtures.js';

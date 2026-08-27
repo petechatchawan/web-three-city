@@ -5,7 +5,7 @@ const requests = [
   {
     requestId: 'incoming-household:2',
     archetypeDefinitionId: 'migration.couple.v1',
-    requestedAtTick: 32,
+    requestedAtMacroHourIndex: macroHour(32),
     minimumResidentCapacity: 2,
     queuePriority: 0,
     deterministicSequence: 2,
@@ -13,7 +13,7 @@ const requests = [
   {
     requestId: 'incoming-household:1',
     archetypeDefinitionId: 'migration.single-adult.v1',
-    requestedAtTick: 32,
+    requestedAtMacroHourIndex: macroHour(32),
     minimumResidentCapacity: 1,
     queuePriority: 1,
     deterministicSequence: 1,
@@ -31,3 +31,4 @@ describe('incoming Household queue', () => {
     ).toEqual(expected);
   });
 });
+import { macroHour } from './temporal-fixtures.js';

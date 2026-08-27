@@ -17,7 +17,11 @@ import {
   createEmptyRoadSnapshot,
   type RoadSnapshot,
 } from '@web-three-city/road-core';
-import { createInitialSimulationSnapshot, macroHourIndex } from '@web-three-city/simulation-core';
+import {
+  createInitialSimulationSnapshot,
+  deriveMacroHourIndex,
+  macroHourIndex,
+} from '@web-three-city/simulation-core';
 import { createTerrainMap } from '@web-three-city/terrain-core';
 import { deriveWaterSnapshot } from '@web-three-city/water-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
@@ -101,7 +105,7 @@ export function createApplicationFixture(
   const simulation = createInitialSimulationSnapshot();
   const rci = createRciMigrationInventory({
     buildings,
-    absoluteTick: Math.floor(simulation.absoluteGameMinute / 60),
+    absoluteMacroHourIndex: deriveMacroHourIndex(simulation.absoluteGameMinute),
     registries: createFoundationRciRegistries(),
   });
   const environments = Object.freeze({

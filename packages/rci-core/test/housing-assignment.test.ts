@@ -13,13 +13,13 @@ describe('housing assignments', () => {
       buildingsBefore: { revision: 0, instances: [] },
       buildingsAfter: activeCottageBuildings,
       registries: housingRegistries,
-      evaluationTick: 32,
+      evaluationMacroHourIndex: macroHour(32),
     }).proposedSnapshot;
     const assigned = planStartHousingAssignment({
       snapshot: withUnit,
       householdId: 'household:1',
       dwellingUnitId: 'dwelling:building:growth:1:0',
-      startedAtTick: 32,
+      startedAtMacroHourIndex: macroHour(32),
     });
     expect(assigned.housing.assignments[0]?.housingAssignmentId).toBe('housing-assignment:1');
     expect(() =>
@@ -27,8 +27,9 @@ describe('housing assignments', () => {
         snapshot: assigned,
         householdId: 'household:1',
         dwellingUnitId: 'dwelling:building:growth:1:0',
-        startedAtTick: 33,
+        startedAtMacroHourIndex: macroHour(33),
       }),
     ).toThrow('rci:duplicate-active-housing');
   });
 });
+import { macroHour } from './temporal-fixtures.js';

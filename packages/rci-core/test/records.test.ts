@@ -18,21 +18,22 @@ describe('RCI foundation contracts', () => {
       citizenId: 'citizen:1',
       presence: 'resident',
       sexDefinitionId: 'sex.female',
-      bornAtTick: -8_640,
-      movedIntoCityAtTick: 0,
-      movedOutOfCityAtTick: null,
-      diedAtTick: null,
+      bornAtMacroHourIndex: ageOriginMacroHour(-8_640),
+      movedIntoCityAtMacroHourIndex: macroHour(0),
+      movedOutOfCityAtMacroHourIndex: null,
+      diedAtMacroHourIndex: null,
     });
 
     expect(citizen).toEqual({
       citizenId: 'citizen:1',
       presence: 'resident',
       sexDefinitionId: 'sex.female',
-      bornAtTick: -8_640,
-      movedIntoCityAtTick: 0,
-      movedOutOfCityAtTick: null,
-      diedAtTick: null,
+      bornAtMacroHourIndex: ageOriginMacroHour(-8_640),
+      movedIntoCityAtMacroHourIndex: macroHour(0),
+      movedOutOfCityAtMacroHourIndex: null,
+      diedAtMacroHourIndex: null,
     });
     expect(Object.isFrozen(citizen)).toBe(true);
   });
 });
+import { ageOriginMacroHour, macroHour } from './temporal-fixtures.js';

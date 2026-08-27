@@ -22,7 +22,7 @@ const after: SimulationSnapshot = Object.freeze({
   growthSequence: 0,
 });
 
-describe('RCI housing tick phase', () => {
+describe('RCI housing macroHourIndex phase', () => {
   it('runs hourly reconciliation once when 08:59 crosses into 09:00', () => {
     const plan = planRciTick({
       rci: residentHouseholdSnapshot(8),

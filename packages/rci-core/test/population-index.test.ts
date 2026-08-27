@@ -7,7 +7,7 @@ import {
 } from '../src/index.js';
 
 function populatedSnapshot(): RciSnapshot {
-  const initial = createInitialRciSnapshot({ absoluteTick: 120 });
+  const initial = createInitialRciSnapshot({ absoluteMacroHourIndex: macroHour(120) });
   return {
     ...initial,
     population: {
@@ -17,19 +17,19 @@ function populatedSnapshot(): RciSnapshot {
           citizenId: 'citizen:2',
           presence: 'resident',
           sexDefinitionId: 'sex.male',
-          bornAtTick: -20_000,
-          movedIntoCityAtTick: 0,
-          movedOutOfCityAtTick: null,
-          diedAtTick: null,
+          bornAtMacroHourIndex: ageOriginMacroHour(-20_000),
+          movedIntoCityAtMacroHourIndex: macroHour(0),
+          movedOutOfCityAtMacroHourIndex: null,
+          diedAtMacroHourIndex: null,
         },
         {
           citizenId: 'citizen:1',
           presence: 'resident',
           sexDefinitionId: 'sex.female',
-          bornAtTick: -20_000,
-          movedIntoCityAtTick: 0,
-          movedOutOfCityAtTick: null,
-          diedAtTick: null,
+          bornAtMacroHourIndex: ageOriginMacroHour(-20_000),
+          movedIntoCityAtMacroHourIndex: macroHour(0),
+          movedOutOfCityAtMacroHourIndex: null,
+          diedAtMacroHourIndex: null,
         },
       ],
       qualifications: [
@@ -37,16 +37,16 @@ function populatedSnapshot(): RciSnapshot {
           citizenQualificationId: 'citizen-qualification:2',
           citizenId: 'citizen:2',
           qualificationDefinitionId: 'qualification.skilled',
-          awardedAtTick: 0,
-          endedAtTick: null,
+          awardedAtMacroHourIndex: macroHour(0),
+          endedAtMacroHourIndex: null,
           sourceDefinitionId: 'qualification-source.fixture',
         },
         {
           citizenQualificationId: 'citizen-qualification:1',
           citizenId: 'citizen:1',
           qualificationDefinitionId: 'qualification.entry',
-          awardedAtTick: 0,
-          endedAtTick: null,
+          awardedAtMacroHourIndex: macroHour(0),
+          endedAtMacroHourIndex: null,
           sourceDefinitionId: 'qualification-source.fixture',
         },
       ],
@@ -59,8 +59,8 @@ function populatedSnapshot(): RciSnapshot {
           orientation: 'undirected',
           typeDefinitionId: 'relationship.partner',
           participantCitizenIds: ['citizen:1', 'citizen:2'],
-          startedAtTick: 0,
-          endedAtTick: null,
+          startedAtMacroHourIndex: macroHour(0),
+          endedAtMacroHourIndex: null,
         },
       ],
     },
@@ -69,8 +69,8 @@ function populatedSnapshot(): RciSnapshot {
       households: [
         {
           householdId: 'household:1',
-          foundedAtTick: 0,
-          dissolvedAtTick: null,
+          foundedAtMacroHourIndex: macroHour(0),
+          dissolvedAtMacroHourIndex: null,
         },
       ],
       memberships: [
@@ -78,16 +78,16 @@ function populatedSnapshot(): RciSnapshot {
           membershipId: 'household-membership:2',
           householdId: 'household:1',
           citizenId: 'citizen:2',
-          startedAtTick: 0,
-          endedAtTick: null,
+          startedAtMacroHourIndex: macroHour(0),
+          endedAtMacroHourIndex: null,
           endReasonDefinitionId: null,
         },
         {
           membershipId: 'household-membership:1',
           householdId: 'household:1',
           citizenId: 'citizen:1',
-          startedAtTick: 0,
-          endedAtTick: null,
+          startedAtMacroHourIndex: macroHour(0),
+          endedAtMacroHourIndex: null,
           endReasonDefinitionId: null,
         },
       ],
@@ -138,8 +138,8 @@ describe('RCI current-state indexes', () => {
             membershipId: 'household-membership:3',
             householdId: 'household:1',
             citizenId: 'citizen:1',
-            startedAtTick: 1,
-            endedAtTick: null,
+            startedAtMacroHourIndex: macroHour(1),
+            endedAtMacroHourIndex: null,
             endReasonDefinitionId: null,
           },
         ],
@@ -176,3 +176,4 @@ describe('RCI current-state indexes', () => {
     ]);
   });
 });
+import { ageOriginMacroHour, macroHour } from './temporal-fixtures.js';

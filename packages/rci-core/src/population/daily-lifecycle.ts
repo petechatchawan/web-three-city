@@ -1,4 +1,9 @@
 import { compareStableId } from '../contracts/ids.js';
+import {
+  macroHourIndex,
+  macroHourValue,
+  type MacroHourIndex,
+} from '@web-three-city/simulation-core';
 import type {
   CitizenQualificationRecord,
   CitizenRecord,
@@ -14,9 +19,9 @@ import type {
 import type { RciDomainEvent } from '../events/rci-domain-event.js';
 import { orderRciDomainEvents } from '../events/event-ordering.js';
 import { canonicalizeRciSnapshot, type RciSnapshot } from '../rci-snapshot.js';
-import { ageBandAtTick, ageYearsAtTick } from './age.js';
+import { ageBandAtMacroHour, ageOriginMacroHour, ageYearsAtMacroHour } from './age.js';
 import { deterministicSample, PROBABILITY_SCALE } from './deterministic-sample.js';
-import { compileAnnualRateToDailyHazard, sampleSucceeds } from './hazard.js';
+import { compileAnnualRateToCycleHazard, sampleSucceeds } from './hazard.js';
 import {
   createFoundationQualificationResolver,
   type QualificationResolver,
@@ -39,7 +44,7 @@ function activeMembershipFor(
   citizenId: string,
 ): HouseholdMembershipRecord | undefined {
   return memberships.find(
-    (membership) => membership.citizenId === citizenId && membership.endedAtTick === null,
+    (membership) => membership.citizenId === citizenId && membership.endedAtMacroHourIndex === null,
   );
 }
 
@@ -51,7 +56,7 @@ function activePartnerFor(
     (candidate) =>
       candidate.orientation === 'undirected' &&
       candidate.typeDefinitionId === 'relationship.partner' &&
-      candidate.endedAtTick === null &&
+      candidate.endedAtMacroHourIndex === null &&
       candidate.participantCitizenIds.includes(citizenId),
   );
   if (relationship === undefined || relationship.orientation !== 'undirected') return null;
@@ -62,19 +67,19 @@ function activePartnerFor(
 
 function eventBase(
   type: RciDomainEvent['type'],
-  tick: number,
+  macroHourIndex: MacroHourIndex,
   priority: number,
   entityKind: RciDomainEvent['entityKind'],
   entityId: string,
   sequence: number,
 ) {
-  return { type, tick, priority, entityKind, entityId, sequence } as const;
+  return { type, macroHourIndex, priority, entityKind, entityId, sequence };
 }
 
-export function evaluateDailyPopulationLifecycle(
+export function evaluatePopulationLifecycleCycle(
   input: Readonly<{
     snapshot: RciSnapshot;
-    evaluationTick: number;
+    evaluationMacroHourIndex: MacroHourIndex;
     registries: RciDefinitionRegistries;
     populationRateProfile: PopulationRateProfileDefinition;
     qualificationResolver?: QualificationResolver;
@@ -102,14 +107,20 @@ export function evaluateDailyPopulationLifecycle(
     input.qualificationResolver ?? createFoundationQualificationResolver(input.registries);
 
   for (const citizen of originalResidents) {
-    const beforeBand = ageBandAtTick(citizen.bornAtTick, input.evaluationTick - 1);
-    const afterBand = ageBandAtTick(citizen.bornAtTick, input.evaluationTick);
+    const beforeBand = ageBandAtMacroHour(
+      citizen.bornAtMacroHourIndex,
+      macroHourIndex(macroHourValue(input.evaluationMacroHourIndex) - 1),
+    );
+    const afterBand = ageBandAtMacroHour(
+      citizen.bornAtMacroHourIndex,
+      input.evaluationMacroHourIndex,
+    );
     if (beforeBand === afterBand) continue;
     events.push(
       Object.freeze({
         ...eventBase(
           'citizen.reached-age-band',
-          input.evaluationTick,
+          input.evaluationMacroHourIndex,
           10,
           'citizen',
           citizen.citizenId,
@@ -123,21 +134,22 @@ export function evaluateDailyPopulationLifecycle(
       afterBand === 'age-band.working-age' &&
       !qualifications.some(
         (qualification) =>
-          qualification.citizenId === citizen.citizenId && qualification.endedAtTick === null,
+          qualification.citizenId === citizen.citizenId &&
+          qualification.endedAtMacroHourIndex === null,
       )
     ) {
       const qualificationDefinitionId = resolver.resolve({
         citizenId: citizen.citizenId,
         context: 'resident-reaching-working-age',
-        evaluationTick: input.evaluationTick,
+        evaluationMacroHourIndex: input.evaluationMacroHourIndex,
         deterministicSeed: base.deterministicSeed,
       });
       const qualification: CitizenQualificationRecord = Object.freeze({
         citizenQualificationId: `citizen-qualification:${nextQualification}`,
         citizenId: citizen.citizenId,
         qualificationDefinitionId,
-        awardedAtTick: input.evaluationTick,
-        endedAtTick: null,
+        awardedAtMacroHourIndex: input.evaluationMacroHourIndex,
+        endedAtMacroHourIndex: null,
         sourceDefinitionId: 'qualification-source.reached-working-age.v1',
       });
       qualifications.push(qualification);
@@ -145,7 +157,7 @@ export function evaluateDailyPopulationLifecycle(
         Object.freeze({
           ...eventBase(
             'qualification.awarded',
-            input.evaluationTick,
+            input.evaluationMacroHourIndex,
             20,
             'qualification',
             qualification.citizenQualificationId,
@@ -169,14 +181,14 @@ export function evaluateDailyPopulationLifecycle(
     }
     const membership = activeMembershipFor(memberships, mother.citizenId);
     if (membership === undefined) continue;
-    const age = ageYearsAtTick(mother.bornAtTick, input.evaluationTick);
-    const hazard = compileAnnualRateToDailyHazard(
+    const age = ageYearsAtMacroHour(mother.bornAtMacroHourIndex, input.evaluationMacroHourIndex);
+    const hazard = compileAnnualRateToCycleHazard(
       annualRateForAge(input.populationRateProfile.fertilityBands, age),
     );
     const sample = deterministicSample({
       seed: base.deterministicSeed,
       eventType: 'fertility',
-      evaluationTick: input.evaluationTick,
+      evaluationMacroHourIndex: input.evaluationMacroHourIndex,
       entityStableId: mother.citizenId,
       attemptIndex: 0,
     });
@@ -186,7 +198,7 @@ export function evaluateDailyPopulationLifecycle(
     const sexSample = deterministicSample({
       seed: base.deterministicSeed,
       eventType: 'birth-sex',
-      evaluationTick: input.evaluationTick,
+      evaluationMacroHourIndex: input.evaluationMacroHourIndex,
       entityStableId: childId,
       attemptIndex: 0,
     });
@@ -194,10 +206,10 @@ export function evaluateDailyPopulationLifecycle(
       citizenId: childId,
       presence: 'resident',
       sexDefinitionId: sexSample < PROBABILITY_SCALE / 2 ? 'sex.female' : 'sex.male',
-      bornAtTick: input.evaluationTick,
-      movedIntoCityAtTick: input.evaluationTick,
-      movedOutOfCityAtTick: null,
-      diedAtTick: null,
+      bornAtMacroHourIndex: ageOriginMacroHour(macroHourValue(input.evaluationMacroHourIndex)),
+      movedIntoCityAtMacroHourIndex: input.evaluationMacroHourIndex,
+      movedOutOfCityAtMacroHourIndex: null,
+      diedAtMacroHourIndex: null,
     });
     citizens.push(child);
     memberships.push(
@@ -205,8 +217,8 @@ export function evaluateDailyPopulationLifecycle(
         membershipId: `household-membership:${nextMembership}`,
         householdId: membership.householdId,
         citizenId: childId,
-        startedAtTick: input.evaluationTick,
-        endedAtTick: null,
+        startedAtMacroHourIndex: input.evaluationMacroHourIndex,
+        endedAtMacroHourIndex: null,
         endReasonDefinitionId: null,
       }),
     );
@@ -217,8 +229,8 @@ export function evaluateDailyPopulationLifecycle(
         typeDefinitionId: 'relationship.parent.biological.mother',
         sourceCitizenId: mother.citizenId,
         targetCitizenId: childId,
-        startedAtTick: input.evaluationTick,
-        endedAtTick: null,
+        startedAtMacroHourIndex: input.evaluationMacroHourIndex,
+        endedAtMacroHourIndex: null,
       }),
     );
     nextRelationship += 1;
@@ -232,15 +244,22 @@ export function evaluateDailyPopulationLifecycle(
           typeDefinitionId: 'relationship.parent.biological.father',
           sourceCitizenId: partner.citizenId,
           targetCitizenId: childId,
-          startedAtTick: input.evaluationTick,
-          endedAtTick: null,
+          startedAtMacroHourIndex: input.evaluationMacroHourIndex,
+          endedAtMacroHourIndex: null,
         }),
       );
       nextRelationship += 1;
     }
     events.push(
       Object.freeze({
-        ...eventBase('citizen.born', input.evaluationTick, 30, 'citizen', childId, nextEvent),
+        ...eventBase(
+          'citizen.born',
+          input.evaluationMacroHourIndex,
+          30,
+          'citizen',
+          childId,
+          nextEvent,
+        ),
       }),
     );
     nextCitizen += 1;
@@ -252,14 +271,14 @@ export function evaluateDailyPopulationLifecycle(
   }
 
   for (const citizen of originalResidents) {
-    const age = ageYearsAtTick(citizen.bornAtTick, input.evaluationTick);
-    const hazard = compileAnnualRateToDailyHazard(
+    const age = ageYearsAtMacroHour(citizen.bornAtMacroHourIndex, input.evaluationMacroHourIndex);
+    const hazard = compileAnnualRateToCycleHazard(
       annualRateForAge(input.populationRateProfile.mortalityBands, age),
     );
     const sample = deterministicSample({
       seed: base.deterministicSeed,
       eventType: 'mortality',
-      evaluationTick: input.evaluationTick,
+      evaluationMacroHourIndex: input.evaluationMacroHourIndex,
       entityStableId: citizen.citizenId,
       attemptIndex: 0,
     });
@@ -270,37 +289,37 @@ export function evaluateDailyPopulationLifecycle(
         ? Object.freeze({
             ...candidate,
             presence: 'deceased' as const,
-            diedAtTick: input.evaluationTick,
+            diedAtMacroHourIndex: input.evaluationMacroHourIndex,
           })
         : candidate,
     );
     memberships = memberships.map((membership) =>
-      membership.citizenId === citizen.citizenId && membership.endedAtTick === null
+      membership.citizenId === citizen.citizenId && membership.endedAtMacroHourIndex === null
         ? Object.freeze({
             ...membership,
-            endedAtTick: input.evaluationTick,
+            endedAtMacroHourIndex: input.evaluationMacroHourIndex,
             endReasonDefinitionId: 'household-membership-ended.citizen-deceased',
           })
         : membership,
     );
     qualifications = qualifications.map((qualification) =>
-      qualification.citizenId === citizen.citizenId && qualification.endedAtTick === null
-        ? Object.freeze({ ...qualification, endedAtTick: input.evaluationTick })
+      qualification.citizenId === citizen.citizenId && qualification.endedAtMacroHourIndex === null
+        ? Object.freeze({ ...qualification, endedAtMacroHourIndex: input.evaluationMacroHourIndex })
         : qualification,
     );
     relationships = relationships.map((relationship) =>
       relationship.orientation === 'undirected' &&
       relationship.typeDefinitionId === 'relationship.partner' &&
-      relationship.endedAtTick === null &&
+      relationship.endedAtMacroHourIndex === null &&
       relationship.participantCitizenIds.includes(citizen.citizenId)
-        ? Object.freeze({ ...relationship, endedAtTick: input.evaluationTick })
+        ? Object.freeze({ ...relationship, endedAtMacroHourIndex: input.evaluationMacroHourIndex })
         : relationship,
     );
     events.push(
       Object.freeze({
         ...eventBase(
           'citizen.died',
-          input.evaluationTick,
+          input.evaluationMacroHourIndex,
           40,
           'citizen',
           citizen.citizenId,
@@ -316,18 +335,21 @@ export function evaluateDailyPopulationLifecycle(
 
   const activeHouseholdIds = new Set(
     memberships
-      .filter((membership) => membership.endedAtTick === null)
+      .filter((membership) => membership.endedAtMacroHourIndex === null)
       .map((membership) => membership.householdId),
   );
   households = households.map((household) => {
-    if (household.dissolvedAtTick !== null || activeHouseholdIds.has(household.householdId)) {
+    if (
+      household.dissolvedAtMacroHourIndex !== null ||
+      activeHouseholdIds.has(household.householdId)
+    ) {
       return household;
     }
     events.push(
       Object.freeze({
         ...eventBase(
           'household.dissolved',
-          input.evaluationTick,
+          input.evaluationMacroHourIndex,
           60,
           'household',
           household.householdId,
@@ -337,7 +359,10 @@ export function evaluateDailyPopulationLifecycle(
     );
     nextEvent += 1;
     householdChanged = true;
-    return Object.freeze({ ...household, dissolvedAtTick: input.evaluationTick });
+    return Object.freeze({
+      ...household,
+      dissolvedAtMacroHourIndex: input.evaluationMacroHourIndex,
+    });
   });
 
   const changed = populationChanged || relationshipChanged || householdChanged;

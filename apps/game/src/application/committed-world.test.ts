@@ -16,6 +16,7 @@ import {
   addGameMinutes,
   createInitialSimulationSnapshot,
   createSimulationSnapshot,
+  deriveMacroHourIndex,
   gameMinuteDuration,
 } from '@web-three-city/simulation-core';
 import { createTerrainMap } from '@web-three-city/terrain-core';
@@ -74,7 +75,9 @@ function sourceWorld(revision = 0): CommittedWorldInput {
   };
   const buildings = createEmptyBuildingSnapshot(WORLD_CONFIG);
   const simulation = createInitialSimulationSnapshot();
-  const rci = createInitialRciSnapshot({ absoluteTick: simulation.absoluteGameMinute });
+  const rci = createInitialRciSnapshot({
+    absoluteMacroHourIndex: deriveMacroHourIndex(simulation.absoluteGameMinute),
+  });
   const environments = Object.freeze({
     road: createRoadPlacementEnvironment(terrain, waterResult.value, WORLD_CONFIG),
     zone: createZonePlacementEnvironment(

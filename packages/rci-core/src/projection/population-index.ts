@@ -21,7 +21,7 @@ export function createRciCurrentStateIndex(snapshot: RciSnapshot): RciCurrentSta
   const relationship = createRelationshipCurrentStateIndex(snapshot);
   const mutableQualificationsByCitizenId = new Map<CitizenId, string[]>();
   const activeQualifications = [...snapshot.population.qualifications]
-    .filter((qualification) => qualification.endedAtTick === null)
+    .filter((qualification) => qualification.endedAtMacroHourIndex === null)
     .sort((first, second) =>
       compareStableId(first.citizenQualificationId, second.citizenQualificationId),
     );

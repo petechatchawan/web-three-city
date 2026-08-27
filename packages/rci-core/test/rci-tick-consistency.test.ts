@@ -51,7 +51,7 @@ describe('RCI exact Building after-state fence', () => {
       WORLD_CONFIG,
     );
     const rci = createInitialRciSnapshot({
-      absoluteTick: deriveMacroHourIndex(before.absoluteGameMinute),
+      absoluteMacroHourIndex: deriveMacroHourIndex(before.absoluteGameMinute),
     });
     const registries = createFoundationRciRegistries();
     const plan = planRciTick({
@@ -88,7 +88,7 @@ describe('RCI exact Building after-state fence', () => {
       WORLD_CONFIG,
     );
     const rci = createInitialRciSnapshot({
-      absoluteTick: deriveMacroHourIndex(before.absoluteGameMinute),
+      absoluteMacroHourIndex: deriveMacroHourIndex(before.absoluteGameMinute),
     });
     const registries = createFoundationRciRegistries();
     const plan = planRciTick({

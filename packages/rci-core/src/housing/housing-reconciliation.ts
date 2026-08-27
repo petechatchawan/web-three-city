@@ -1,3 +1,4 @@
+import { compareMacroHours, type MacroHourIndex } from '@web-three-city/simulation-core';
 import { compareStableId } from '../contracts/ids.js';
 import type { RciDefinitionRegistries } from '../definitions/contracts.js';
 import { orderDisplacedHouseholds } from '../migration/displaced-queue.js';
@@ -28,13 +29,14 @@ function suitableVacantUnits(
 ): readonly string[] {
   const occupied = new Set(
     snapshot.housing.assignments
-      .filter((assignment) => assignment.endedAtTick === null)
+      .filter((assignment) => assignment.endedAtMacroHourIndex === null)
       .map((assignment) => assignment.dwellingUnitId),
   );
   return Object.freeze(
     snapshot.housing.dwellingUnits
       .filter((unit) => {
-        if (unit.retiredAtTick !== null || occupied.has(unit.dwellingUnitId)) return false;
+        if (unit.retiredAtMacroHourIndex !== null || occupied.has(unit.dwellingUnitId))
+          return false;
         return (
           residentialCapacityProfileForId(
             registries.capacityProfiles,
@@ -63,7 +65,7 @@ function suitableVacantUnits(
 export function planHousingReconciliation(
   input: Readonly<{
     snapshot: RciSnapshot;
-    evaluationTick: number;
+    evaluationMacroHourIndex: MacroHourIndex;
     registries: RciDefinitionRegistries;
   }>,
 ): HousingReconciliationPlan {
@@ -83,7 +85,7 @@ export function planHousingReconciliation(
         snapshot,
         householdId: displaced.householdId,
         dwellingUnitId: unitId,
-        startedAtTick: input.evaluationTick,
+        startedAtMacroHourIndex: input.evaluationMacroHourIndex,
       });
       snapshot = canonicalizeRciSnapshot({
         ...snapshot,
@@ -99,11 +101,11 @@ export function planHousingReconciliation(
       relocatedHouseholdIds.push(displaced.householdId);
       continue;
     }
-    if (input.evaluationTick >= displaced.expiresAtTick) {
+    if (compareMacroHours(input.evaluationMacroHourIndex, displaced.expiresAtMacroHourIndex) >= 0) {
       snapshot = planEmigrateHousehold({
         snapshot,
         householdId: displaced.householdId,
-        evaluationTick: input.evaluationTick,
+        evaluationMacroHourIndex: input.evaluationMacroHourIndex,
         endReasonDefinitionId: 'household-membership-ended.household-emigrated',
       });
       emigratedHouseholdIds.push(displaced.householdId);
@@ -122,7 +124,7 @@ export function planHousingReconciliation(
       snapshot,
       requestId: request.requestId,
       dwellingUnitId: unitId,
-      evaluationTick: input.evaluationTick,
+      evaluationMacroHourIndex: input.evaluationMacroHourIndex,
       registries: input.registries,
       qualificationResolver,
     });

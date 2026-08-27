@@ -3,6 +3,7 @@ import {
   type RciDefinitionRegistries,
   type RciSnapshot,
 } from '@web-three-city/rci-core';
+import type { MacroHourIndex } from '@web-three-city/simulation-core';
 
 export interface RciHudModel {
   readonly population: number;
@@ -24,9 +25,9 @@ function demandPoints(valueMilli: number): number {
 export function createRciHudModel(
   snapshot: RciSnapshot,
   registries: RciDefinitionRegistries,
-  evaluationTick: number,
+  evaluationMacroHourIndex: MacroHourIndex,
 ): RciHudModel {
-  const projection = createRciProjection(snapshot, registries, evaluationTick);
+  const projection = createRciProjection(snapshot, registries, evaluationMacroHourIndex);
   return Object.freeze({
     population: projection.population.residentCount,
     households: projection.population.householdCount,

@@ -1,4 +1,5 @@
-import { ageBandAtTick } from '../population/age.js';
+import type { MacroHourIndex } from '@web-three-city/simulation-core';
+import { ageBandAtMacroHour } from '../population/age.js';
 import type { RciDefinitionRegistries } from '../definitions/contracts.js';
 import type { RciSnapshot } from '../rci-snapshot.js';
 import { workplaceCapacityProfileForId } from './workplace-capacity.js';
@@ -28,11 +29,11 @@ export function positionKey(workplaceId: string, positionGroupDefinitionId: stri
 export function createEmploymentIndex(
   snapshot: RciSnapshot,
   registries: RciDefinitionRegistries,
-  evaluationTick: number,
+  evaluationMacroHourIndex: MacroHourIndex,
 ): EmploymentIndex {
   const activeQualificationByCitizenId = new Map<string, string>();
   for (const qualification of snapshot.population.qualifications) {
-    if (qualification.endedAtTick === null) {
+    if (qualification.endedAtMacroHourIndex === null) {
       activeQualificationByCitizenId.set(
         qualification.citizenId,
         qualification.qualificationDefinitionId,
@@ -42,7 +43,7 @@ export function createEmploymentIndex(
   const activeAssignmentByCitizenId = new Map<string, string>();
   const occupiedCountByPositionKey = new Map<string, number>();
   for (const assignment of snapshot.employment.assignments) {
-    if (assignment.endedAtTick !== null) continue;
+    if (assignment.endedAtMacroHourIndex !== null) continue;
     activeAssignmentByCitizenId.set(assignment.citizenId, assignment.employmentAssignmentId);
     const key = positionKey(assignment.workplaceId, assignment.positionGroupDefinitionId);
     occupiedCountByPositionKey.set(key, (occupiedCountByPositionKey.get(key) ?? 0) + 1);
@@ -51,13 +52,14 @@ export function createEmploymentIndex(
   const workingAgeResidents = snapshot.population.citizens.filter(
     (citizen) =>
       citizen.presence === 'resident' &&
-      ageBandAtTick(citizen.bornAtTick, evaluationTick) === 'age-band.working-age',
+      ageBandAtMacroHour(citizen.bornAtMacroHourIndex, evaluationMacroHourIndex) ===
+        'age-band.working-age',
   );
   let totalPositionCapacity = 0;
   let compatibleVacantPositionCount = 0;
   let underemployedResidentCount = 0;
   for (const workplace of snapshot.employment.workplaces) {
-    if (workplace.retiredAtTick !== null) continue;
+    if (workplace.retiredAtMacroHourIndex !== null) continue;
     const profile = workplaceCapacityProfileForId(
       registries.capacityProfiles,
       workplace.capacityProfileDefinitionId,

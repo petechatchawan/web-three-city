@@ -22,7 +22,7 @@ describe('RCI Relationship planners', () => {
       snapshot: withoutPartner,
       firstCitizenId: 'citizen:2',
       secondCitizenId: 'citizen:1',
-      startedAtTick: 10,
+      startedAtMacroHourIndex: macroHour(10),
     });
 
     expect(plan.valid).toBe(true);
@@ -31,8 +31,8 @@ describe('RCI Relationship planners', () => {
       orientation: 'undirected',
       typeDefinitionId: 'relationship.partner',
       participantCitizenIds: ['citizen:1', 'citizen:2'],
-      startedAtTick: 10,
-      endedAtTick: null,
+      startedAtMacroHourIndex: macroHour(10),
+      endedAtMacroHourIndex: null,
     });
     expect(plan.proposedSnapshot.sequences.nextRelationship).toBe(2);
   });
@@ -43,7 +43,7 @@ describe('RCI Relationship planners', () => {
       snapshot,
       firstCitizenId: 'citizen:1',
       secondCitizenId: 'citizen:2',
-      startedAtTick: 20,
+      startedAtMacroHourIndex: macroHour(20),
     });
 
     expect(plan.valid).toBe(false);
@@ -57,13 +57,13 @@ describe('RCI Relationship planners', () => {
     const plan = planEndPartnerRelationship({
       snapshot,
       citizenId: 'citizen:2',
-      endedAtTick: 21,
+      endedAtMacroHourIndex: macroHour(21),
     });
 
     expect(plan.valid).toBe(true);
     expect(plan.proposedSnapshot.relationships.relationships[0]).toEqual({
       ...snapshot.relationships.relationships[0],
-      endedAtTick: 21,
+      endedAtMacroHourIndex: macroHour(21),
     });
     expect(plan.proposedSnapshot.sequences.nextRelationship).toBe(
       snapshot.sequences.nextRelationship,
@@ -82,10 +82,10 @@ describe('RCI Relationship planners', () => {
             citizenId: 'citizen:2',
             presence: 'resident' as const,
             sexDefinitionId: 'sex.male',
-            bornAtTick: 0,
-            movedIntoCityAtTick: 0,
-            movedOutOfCityAtTick: null,
-            diedAtTick: null,
+            bornAtMacroHourIndex: ageOriginMacroHour(0),
+            movedIntoCityAtMacroHourIndex: macroHour(0),
+            movedOutOfCityAtMacroHourIndex: null,
+            diedAtMacroHourIndex: null,
           },
         ],
       },
@@ -97,8 +97,8 @@ describe('RCI Relationship planners', () => {
             membershipId: 'household-membership:2',
             householdId: 'household:1',
             citizenId: 'citizen:2',
-            startedAtTick: 0,
-            endedAtTick: null,
+            startedAtMacroHourIndex: macroHour(0),
+            endedAtMacroHourIndex: null,
             endReasonDefinitionId: null,
           },
         ],
@@ -115,7 +115,7 @@ describe('RCI Relationship planners', () => {
       typeDefinitionId: 'relationship.parent.biological.mother',
       sourceCitizenId: 'citizen:1',
       targetCitizenId: 'citizen:2',
-      startedAtTick: 0,
+      startedAtMacroHourIndex: macroHour(0),
     });
 
     expect(plan.valid).toBe(true);
@@ -130,9 +130,10 @@ describe('RCI Relationship planners', () => {
       typeDefinitionId: 'relationship.parent.biological.mother',
       sourceCitizenId: 'citizen:2',
       targetCitizenId: 'citizen:1',
-      startedAtTick: 0,
+      startedAtMacroHourIndex: macroHour(0),
     });
     expect(invalid.valid).toBe(false);
     expect(invalid.invalidReason).toBe('rci:invalid-relationship');
   });
 });
+import { ageOriginMacroHour, macroHour } from './temporal-fixtures.js';

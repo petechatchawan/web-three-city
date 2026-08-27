@@ -9,6 +9,7 @@ import {
   recallMobilityTrafficState,
   rememberMobilityTrafficState,
 } from '../mobility-traffic-state-registry.js';
+import type { MacroHourIndex } from '@web-three-city/simulation-core';
 
 export function reconcileRciForBuildingChange(
   input: Readonly<{
@@ -16,7 +17,7 @@ export function reconcileRciForBuildingChange(
     buildingsBefore: BuildingSnapshot;
     buildingsAfter: BuildingSnapshot;
     registries: RciDefinitionRegistries;
-    evaluationTick: number;
+    evaluationMacroHourIndex: MacroHourIndex;
   }>,
 ): RciSnapshot {
   const housing = synchronizeDwellingInventory({ ...input, snapshot: input.rci }).proposedSnapshot;

@@ -4,6 +4,7 @@ import { createEconomyViewProjection } from '../economy-budget-hud.js';
 import type { GameToolMode } from '../game-tool-mode.js';
 import { createGameTimePresentation } from '../game-time-presentation.js';
 import { createRciHudModel } from '../rci-hud.js';
+import { deriveMacroHourIndex } from '@web-three-city/simulation-core';
 import { createCityIcon, type CityIconName } from './components/icon.js';
 import type { DialogHost } from './dialog/dialog-host.js';
 import { createInspectProjection } from './inspect/inspect-projections.js';
@@ -347,7 +348,7 @@ export function mountCityUi(parent: HTMLElement, ports: CityUiPorts): CityUiRunt
       const rci = createRciHudModel(
         world.rci,
         ports.rciRegistries,
-        world.simulation.absoluteGameMinute,
+        deriveMacroHourIndex(world.simulation.absoluteGameMinute),
       );
       const time = createGameTimePresentation(world.simulation, world.buildings);
       shell.update({

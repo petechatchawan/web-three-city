@@ -7,15 +7,16 @@ describe('Household emigration', () => {
     const result = planEmigrateHousehold({
       snapshot: residentHouseholdSnapshot(),
       householdId: 'household:1',
-      evaluationTick: 100,
+      evaluationMacroHourIndex: macroHour(100),
       endReasonDefinitionId: 'household-membership-ended.household-emigrated',
     });
     expect(result.population.citizens[0]).toMatchObject({
       presence: 'emigrated',
-      movedOutOfCityAtTick: 100,
+      movedOutOfCityAtMacroHourIndex: macroHour(100),
     });
-    expect(result.households.memberships[0]?.endedAtTick).toBe(100);
-    expect(result.households.households[0]?.dissolvedAtTick).toBe(100);
+    expect(result.households.memberships[0]?.endedAtMacroHourIndex).toBe(100);
+    expect(result.households.households[0]?.dissolvedAtMacroHourIndex).toBe(100);
     expect(result.population.citizens).toHaveLength(1);
   });
 });
+import { macroHour } from './temporal-fixtures.js';

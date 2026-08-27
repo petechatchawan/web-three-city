@@ -1,6 +1,11 @@
 import { absoluteGameMinute, macroHourIndex } from '@web-three-city/simulation-core';
 import { describe, expect, it } from 'vitest';
-import { RCI_TICKS_PER_YEAR, createFoundationRciRegistries, planRciTick } from '../src/index.js';
+import {
+  RCI_MACRO_HOURS_PER_CALENDAR_YEAR,
+  ageOriginMacroHour,
+  createFoundationRciRegistries,
+  planRciTick,
+} from '../src/index.js';
 import {
   createPartneredHouseholdSnapshot,
   createSingleResidentSnapshot,
@@ -87,16 +92,16 @@ describe('RCI daily population lifecycle', () => {
     );
     expect(child).toMatchObject({
       presence: 'resident',
-      bornAtTick: 32,
-      movedIntoCityAtTick: 32,
+      bornAtMacroHourIndex: ageOriginMacroHour(32),
+      movedIntoCityAtMacroHourIndex: 32,
     });
     expect(['sex.female', 'sex.male']).toContain(child?.sexDefinitionId);
     expect(plan.proposedSnapshot.households.memberships).toContainEqual({
       membershipId: 'household-membership:3',
       householdId: 'household:1',
       citizenId: 'citizen:3',
-      startedAtTick: 32,
-      endedAtTick: null,
+      startedAtMacroHourIndex: 32,
+      endedAtMacroHourIndex: null,
       endReasonDefinitionId: null,
     });
     expect(plan.proposedSnapshot.relationships.relationships).toEqual(
@@ -133,10 +138,10 @@ describe('RCI daily population lifecycle', () => {
     expect(plan.valid).toBe(true);
     expect(plan.proposedSnapshot.population.citizens[0]).toMatchObject({
       presence: 'deceased',
-      diedAtTick: 32,
+      diedAtMacroHourIndex: 32,
     });
-    expect(plan.proposedSnapshot.households.memberships[0]?.endedAtTick).toBe(32);
-    expect(plan.proposedSnapshot.households.households[0]?.dissolvedAtTick).toBe(32);
+    expect(plan.proposedSnapshot.households.memberships[0]?.endedAtMacroHourIndex).toBe(32);
+    expect(plan.proposedSnapshot.households.households[0]?.dissolvedAtMacroHourIndex).toBe(32);
     expect(plan.emittedEvents.map((event) => event.type)).toContain('citizen.died');
   });
 
@@ -149,7 +154,7 @@ describe('RCI daily population lifecycle', () => {
         citizens: [
           {
             ...snapshot.population.citizens[0]!,
-            bornAtTick: 32 - 18 * RCI_TICKS_PER_YEAR,
+            bornAtMacroHourIndex: ageOriginMacroHour(32 - 18 * RCI_MACRO_HOURS_PER_CALENDAR_YEAR),
           },
         ],
       },

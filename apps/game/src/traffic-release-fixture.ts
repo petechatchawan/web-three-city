@@ -16,6 +16,7 @@ import {
   type EconomySnapshotV1,
 } from '@web-three-city/economy-core';
 import {
+  ageOriginMacroHour,
   createFoundationRciRegistries,
   createInitialRciSnapshot,
   createRciSnapshot,
@@ -256,7 +257,7 @@ function createFixtureRci(
 ): RciSnapshot {
   const registries = createFoundationRciRegistries();
   const initial = createInitialRciSnapshot({
-    absoluteTick: deriveMacroHourIndex(simulation.absoluteGameMinute),
+    absoluteMacroHourIndex: deriveMacroHourIndex(simulation.absoluteGameMinute),
     deterministicSeed: 20260816,
   });
   const numericCitizenIds = citizens.map((citizen) =>
@@ -271,19 +272,19 @@ function createFixtureRci(
         citizenId: citizen.citizenId,
         presence: 'resident' as const,
         sexDefinitionId: index % 2 === 0 ? 'sex.female' : 'sex.male',
-        bornAtTick:
-          macroHourValue(deriveMacroHourIndex(simulation.absoluteGameMinute)) -
-          (28 + index) * 8_640,
-        movedIntoCityAtTick: 0,
-        movedOutOfCityAtTick: null,
-        diedAtTick: null,
+        bornAtMacroHourIndex: ageOriginMacroHour(
+          macroHourValue(deriveMacroHourIndex(simulation.absoluteGameMinute)) - (28 + index) * 288,
+        ),
+        movedIntoCityAtMacroHourIndex: macroHourIndex(0),
+        movedOutOfCityAtMacroHourIndex: null,
+        diedAtMacroHourIndex: null,
       })),
       qualifications: citizens.map((citizen, index) => ({
         citizenQualificationId: `citizen-qualification:${index + 1}`,
         citizenId: citizen.citizenId,
         qualificationDefinitionId: 'qualification.entry',
-        awardedAtTick: 0,
-        endedAtTick: null,
+        awardedAtMacroHourIndex: macroHourIndex(0),
+        endedAtMacroHourIndex: null,
         sourceDefinitionId: 'traffic-release-fixture',
       })),
     },
@@ -291,15 +292,15 @@ function createFixtureRci(
       revision: 1,
       households: citizens.map((citizen) => ({
         householdId: citizen.householdId,
-        foundedAtTick: 0,
-        dissolvedAtTick: null,
+        foundedAtMacroHourIndex: macroHourIndex(0),
+        dissolvedAtMacroHourIndex: null,
       })),
       memberships: citizens.map((citizen, index) => ({
         membershipId: `household-membership:${index + 1}`,
         householdId: citizen.householdId,
         citizenId: citizen.citizenId,
-        startedAtTick: 0,
-        endedAtTick: null,
+        startedAtMacroHourIndex: macroHourIndex(0),
+        endedAtMacroHourIndex: null,
         endReasonDefinitionId: null,
       })),
     },
@@ -319,14 +320,14 @@ function createFixtureRci(
     buildingsBefore: emptyBuildings,
     buildingsAfter: buildings,
     registries,
-    evaluationTick: deriveMacroHourIndex(simulation.absoluteGameMinute),
+    evaluationMacroHourIndex: deriveMacroHourIndex(simulation.absoluteGameMinute),
   }).proposedSnapshot;
   const withWorkplaces = synchronizeWorkplaceInventory({
     snapshot: withDwellings,
     buildingsBefore: emptyBuildings,
     buildingsAfter: buildings,
     registries,
-    evaluationTick: deriveMacroHourIndex(simulation.absoluteGameMinute),
+    evaluationMacroHourIndex: deriveMacroHourIndex(simulation.absoluteGameMinute),
   }).proposedSnapshot;
   const finalCandidate: RciSnapshot = {
     ...withWorkplaces,
@@ -338,8 +339,8 @@ function createFixtureRci(
         housingAssignmentId: `housing-assignment:${index + 1}`,
         householdId: citizen.householdId,
         dwellingUnitId: citizen.dwellingUnitId,
-        startedAtTick: 0,
-        endedAtTick: null,
+        startedAtMacroHourIndex: macroHourIndex(0),
+        endedAtMacroHourIndex: null,
         endReasonDefinitionId: null,
       })),
     },
@@ -351,8 +352,8 @@ function createFixtureRci(
         citizenId: citizen.citizenId,
         workplaceId: citizen.workplaceId,
         positionGroupDefinitionId: 'position.entry',
-        startedAtTick: 0,
-        endedAtTick: null,
+        startedAtMacroHourIndex: macroHourIndex(0),
+        endedAtMacroHourIndex: null,
         endReasonDefinitionId: null,
       })),
     },
@@ -374,7 +375,11 @@ function createFixtureMobility(
 ): MobilitySnapshotV1 {
   return reconcileMobilityCitizens({
     snapshot: createEmptyMobilitySnapshot(),
-    citizens: createPresentCitizenMobilityProjection(rci, buildings, simulation.absoluteGameMinute),
+    citizens: createPresentCitizenMobilityProjection(
+      rci,
+      buildings,
+      deriveMacroHourIndex(simulation.absoluteGameMinute),
+    ),
   }).snapshot;
 }
 

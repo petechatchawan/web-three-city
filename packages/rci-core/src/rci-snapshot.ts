@@ -1,5 +1,10 @@
 import type { BuildingSnapshot } from '@web-three-city/building-core';
-import type { SimulationSnapshot } from '@web-three-city/simulation-core';
+import {
+  macroHourIndex,
+  macroHourValue,
+  type MacroHourIndex,
+  type SimulationSnapshot,
+} from '@web-three-city/simulation-core';
 import { RciContractError } from './contracts/errors.js';
 import { compareStableId } from './contracts/ids.js';
 import type {
@@ -182,10 +187,13 @@ export function canonicalizeRciSnapshot(input: RciSnapshot): RciSnapshot {
 }
 
 export function createInitialRciSnapshot(input: {
-  readonly absoluteTick: number;
+  readonly absoluteMacroHourIndex: MacroHourIndex;
   readonly deterministicSeed?: number;
 }): RciSnapshot {
-  if (!Number.isSafeInteger(input.absoluteTick) || input.absoluteTick < 0) {
+  let absoluteMacroHourIndex: MacroHourIndex;
+  try {
+    absoluteMacroHourIndex = macroHourIndex(macroHourValue(input.absoluteMacroHourIndex));
+  } catch {
     throw new RciContractError('rci:invalid-state');
   }
   const seed = input.deterministicSeed ?? DEFAULT_RCI_DETERMINISTIC_SEED;
@@ -213,13 +221,13 @@ export function createInitialRciSnapshot(input: {
         residentialMilli: 0,
         commercialMilli: 0,
         industrialMilli: 0,
-        evaluatedAtTick: input.absoluteTick,
+        evaluatedAtMacroHourIndex: absoluteMacroHourIndex,
       },
       growthGates: {
         residentialOpen: false,
         commercialOpen: false,
         industrialOpen: false,
-        evaluatedAtTick: input.absoluteTick,
+        evaluatedAtMacroHourIndex: absoluteMacroHourIndex,
       },
     },
     sequences: {

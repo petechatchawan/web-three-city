@@ -24,7 +24,7 @@ const registries = createFoundationRciRegistries();
 describe('RCI snapshots', () => {
   it('creates an empty immutable foundation snapshot', () => {
     const snapshot = createInitialRciSnapshot({
-      absoluteTick: deriveMacroHourIndex(simulation.absoluteGameMinute),
+      absoluteMacroHourIndex: deriveMacroHourIndex(simulation.absoluteGameMinute),
     });
 
     expect(snapshot.revision).toBe(0);
@@ -39,13 +39,13 @@ describe('RCI snapshots', () => {
       residentialMilli: 0,
       commercialMilli: 0,
       industrialMilli: 0,
-      evaluatedAtTick: 120,
+      evaluatedAtMacroHourIndex: macroHour(120),
     });
     expect(snapshot.demand.growthGates).toEqual({
       residentialOpen: false,
       commercialOpen: false,
       industrialOpen: false,
-      evaluatedAtTick: 120,
+      evaluatedAtMacroHourIndex: macroHour(120),
     });
     expect(Object.values(snapshot.sequences).every((value) => value === 1)).toBe(true);
     expect(Object.isFrozen(snapshot.sequences)).toBe(true);
@@ -54,26 +54,26 @@ describe('RCI snapshots', () => {
 
   it('canonicalizes records without mutating caller arrays', () => {
     const initial = createInitialRciSnapshot({
-      absoluteTick: deriveMacroHourIndex(simulation.absoluteGameMinute),
+      absoluteMacroHourIndex: deriveMacroHourIndex(simulation.absoluteGameMinute),
     });
     const citizens = [
       {
         citizenId: 'citizen:2',
         presence: 'emigrated' as const,
         sexDefinitionId: 'sex.male',
-        bornAtTick: -20_000,
-        movedIntoCityAtTick: 0,
-        movedOutOfCityAtTick: 100,
-        diedAtTick: null,
+        bornAtMacroHourIndex: ageOriginMacroHour(-20_000),
+        movedIntoCityAtMacroHourIndex: macroHour(0),
+        movedOutOfCityAtMacroHourIndex: macroHour(100),
+        diedAtMacroHourIndex: null,
       },
       {
         citizenId: 'citizen:1',
         presence: 'emigrated' as const,
         sexDefinitionId: 'sex.female',
-        bornAtTick: -30_000,
-        movedIntoCityAtTick: 0,
-        movedOutOfCityAtTick: 110,
-        diedAtTick: null,
+        bornAtMacroHourIndex: ageOriginMacroHour(-30_000),
+        movedIntoCityAtMacroHourIndex: macroHour(0),
+        movedOutOfCityAtMacroHourIndex: macroHour(110),
+        diedAtMacroHourIndex: null,
       },
     ];
 
@@ -96,7 +96,7 @@ describe('RCI snapshots', () => {
 
   it('rejects unsafe revisions and sequence reuse', () => {
     const initial = createInitialRciSnapshot({
-      absoluteTick: deriveMacroHourIndex(simulation.absoluteGameMinute),
+      absoluteMacroHourIndex: deriveMacroHourIndex(simulation.absoluteGameMinute),
     });
     expect(() =>
       createRciSnapshot({ ...initial, revision: -1 }, { buildings, simulation, registries }),
@@ -113,10 +113,10 @@ describe('RCI snapshots', () => {
                 citizenId: 'citizen:1',
                 presence: 'emigrated',
                 sexDefinitionId: 'sex.female',
-                bornAtTick: -20_000,
-                movedIntoCityAtTick: 0,
-                movedOutOfCityAtTick: 100,
-                diedAtTick: null,
+                bornAtMacroHourIndex: ageOriginMacroHour(-20_000),
+                movedIntoCityAtMacroHourIndex: macroHour(0),
+                movedOutOfCityAtMacroHourIndex: macroHour(100),
+                diedAtMacroHourIndex: null,
               },
             ],
           },
@@ -127,3 +127,4 @@ describe('RCI snapshots', () => {
     ).toThrowError(new RciContractError('rci:invalid-state'));
   });
 });
+import { ageOriginMacroHour, macroHour } from './temporal-fixtures.js';

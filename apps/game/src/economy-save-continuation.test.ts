@@ -3,7 +3,7 @@ import {
   FOUNDATION_ECONOMY_RULES,
 } from '@web-three-city/economy-core';
 import { createFoundationRciRegistries, createInitialRciSnapshot } from '@web-three-city/rci-core';
-import { createSimulationSnapshot } from '@web-three-city/simulation-core';
+import { createSimulationSnapshot, macroHourIndex } from '@web-three-city/simulation-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
 import { describe, expect, it } from 'vitest';
 import { createApplicationFixture } from '../test/application-fixtures.js';
@@ -30,7 +30,10 @@ describe('Economy save continuation determinism', () => {
       simulation,
       buildings: base.buildings,
       roads: base.roads,
-      rci: createInitialRciSnapshot({ absoluteTick: 727, deterministicSeed: 41 }),
+      rci: createInitialRciSnapshot({
+        absoluteMacroHourIndex: macroHourIndex(727),
+        deterministicSeed: 41,
+      }),
       economy: createInitialEconomySnapshot(
         { year: 1, month: 1, latestDailySettlementTick: 704 },
         FOUNDATION_ECONOMY_RULES,

@@ -13,7 +13,7 @@ describe('RCI qualification resolver and history', () => {
       }).resolve({
         citizenId: 'citizen:1',
         context: 'working-age-immigrant',
-        evaluationTick: 32,
+        evaluationMacroHourIndex: macroHour(32),
         deterministicSeed: 7,
       });
 
@@ -31,7 +31,7 @@ describe('RCI qualification resolver and history', () => {
       }).resolve({
         citizenId: 'citizen:1',
         context: 'resident-reaching-working-age',
-        evaluationTick: 32,
+        evaluationMacroHourIndex: macroHour(32),
         deterministicSeed: 7,
       });
 
@@ -47,7 +47,7 @@ describe('RCI qualification resolver and history', () => {
       snapshot,
       citizenId: 'citizen:1',
       qualificationDefinitionId: 'qualification.skilled',
-      awardedAtTick: 20,
+      awardedAtMacroHourIndex: macroHour(20),
       sourceDefinitionId: 'qualification-source.fixture',
       registries: testRegistries,
     });
@@ -57,8 +57,8 @@ describe('RCI qualification resolver and history', () => {
       citizenQualificationId: 'citizen-qualification:1',
       citizenId: 'citizen:1',
       qualificationDefinitionId: 'qualification.skilled',
-      awardedAtTick: 20,
-      endedAtTick: null,
+      awardedAtMacroHourIndex: macroHour(20),
+      endedAtMacroHourIndex: null,
       sourceDefinitionId: 'qualification-source.fixture',
     });
     expect(plan.proposedSnapshot.sequences.nextCitizenQualification).toBe(2);
@@ -70,7 +70,7 @@ describe('RCI qualification resolver and history', () => {
       snapshot,
       citizenId: 'citizen:1',
       qualificationDefinitionId: 'qualification.entry',
-      awardedAtTick: 20,
+      awardedAtMacroHourIndex: macroHour(20),
       sourceDefinitionId: 'qualification-source.fixture',
       registries: testRegistries,
     });
@@ -78,7 +78,7 @@ describe('RCI qualification resolver and history', () => {
       snapshot: first.proposedSnapshot,
       citizenId: 'citizen:1',
       qualificationDefinitionId: 'qualification.skilled',
-      awardedAtTick: 21,
+      awardedAtMacroHourIndex: macroHour(21),
       sourceDefinitionId: 'qualification-source.fixture',
       registries: testRegistries,
     });
@@ -88,3 +88,4 @@ describe('RCI qualification resolver and history', () => {
     expect(second.proposedSnapshot.sequences.nextCitizenQualification).toBe(2);
   });
 });
+import { macroHour } from './temporal-fixtures.js';

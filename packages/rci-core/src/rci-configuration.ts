@@ -1,6 +1,8 @@
+import { macroHourDuration, type MacroHourDuration } from '@web-three-city/simulation-core';
+
 export interface RciConfiguration {
   readonly populationRateProfileDefinitionId: string;
-  readonly displacedExpiryTicks?: number;
+  readonly displacedExpiryMacroHours?: MacroHourDuration;
   readonly incomingQueueCapacity?: number;
   readonly incomingBaselineMilli?: number;
   readonly incomingVacantJobContributionMilli?: number;
@@ -9,7 +11,7 @@ export interface RciConfiguration {
 
 export const FOUNDATION_RCI_CONFIGURATION: RciConfiguration = Object.freeze({
   populationRateProfileDefinitionId: 'population-rate.synthetic.v1',
-  displacedExpiryTicks: 720,
+  displacedExpiryMacroHours: macroHourDuration(720),
   incomingQueueCapacity: 64,
   incomingBaselineMilli: 350,
   incomingVacantJobContributionMilli: 50,

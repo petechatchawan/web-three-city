@@ -8,6 +8,7 @@ import { createEmptyRoadSnapshot } from '@web-three-city/road-core';
 import {
   addGameMinutes,
   createInitialSimulationSnapshot,
+  deriveMacroHourIndex,
   gameMinuteDuration,
 } from '@web-three-city/simulation-core';
 import { WORLD_CONFIG } from '@web-three-city/world-core';
@@ -24,7 +25,9 @@ function initialState(): GameWorldStateInput {
     revision: 0,
     simulation,
     buildings: createEmptyBuildingSnapshot(WORLD_CONFIG),
-    rci: createInitialRciSnapshot({ absoluteTick: simulation.absoluteGameMinute }),
+    rci: createInitialRciSnapshot({
+      absoluteMacroHourIndex: deriveMacroHourIndex(simulation.absoluteGameMinute),
+    }),
     roads: createEmptyRoadSnapshot(WORLD_CONFIG),
     economy: createInitialEconomySnapshot(
       { year: 1, month: 1, latestDailySettlementTick: simulation.absoluteGameMinute },

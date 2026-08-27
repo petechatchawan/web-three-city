@@ -17,7 +17,7 @@ describe('incoming Household materialization', () => {
       buildingsBefore: { revision: 0, instances: [] },
       buildingsAfter: activeCottageBuildings,
       registries: housingRegistries,
-      evaluationTick: 32,
+      evaluationMacroHourIndex: macroHour(32),
     }).proposedSnapshot;
     const queued = {
       ...withUnit,
@@ -27,7 +27,7 @@ describe('incoming Household materialization', () => {
           {
             requestId: 'incoming-household:1',
             archetypeDefinitionId: 'migration.single-adult.v1',
-            requestedAtTick: 32,
+            requestedAtMacroHourIndex: macroHour(32),
             minimumResidentCapacity: 1,
             queuePriority: 0,
             deterministicSequence: 1,
@@ -40,7 +40,7 @@ describe('incoming Household materialization', () => {
       snapshot: queued,
       requestId: 'incoming-household:1',
       dwellingUnitId: 'dwelling:building:growth:1:0',
-      evaluationTick: 32,
+      evaluationMacroHourIndex: macroHour(32),
       registries: housingRegistries,
       qualificationResolver: createFoundationQualificationResolver(housingRegistries),
     });
@@ -57,3 +57,4 @@ describe('incoming Household materialization', () => {
     expect(snapshot.population.citizens).toHaveLength(1);
   });
 });
+import { macroHour } from './temporal-fixtures.js';

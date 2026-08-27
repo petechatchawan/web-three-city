@@ -1,4 +1,9 @@
 import {
+  compareMacroHours,
+  macroHourValue,
+  type MacroHourIndex,
+} from '@web-three-city/simulation-core';
+import {
   invalidRecordMutationPlan,
   validRecordMutationPlan,
   type RciRecordMutationPlan,
@@ -12,7 +17,7 @@ export function planStartHouseholdMembership(
     snapshot: RciSnapshot;
     householdId: HouseholdId;
     citizenId: CitizenId;
-    startedAtTick: number;
+    startedAtMacroHourIndex: MacroHourIndex;
   }>,
 ): RciRecordMutationPlan {
   const { snapshot } = input;
@@ -23,7 +28,8 @@ export function planStartHouseholdMembership(
     (candidate) => candidate.householdId === input.householdId,
   );
   const existing = snapshot.households.memberships.find(
-    (membership) => membership.citizenId === input.citizenId && membership.endedAtTick === null,
+    (membership) =>
+      membership.citizenId === input.citizenId && membership.endedAtMacroHourIndex === null,
   );
   if (existing !== undefined) {
     return invalidRecordMutationPlan(snapshot, 'rci:duplicate-active-membership');
@@ -32,9 +38,9 @@ export function planStartHouseholdMembership(
     citizen === undefined ||
     citizen.presence !== 'resident' ||
     household === undefined ||
-    household.dissolvedAtTick !== null ||
-    !Number.isSafeInteger(input.startedAtTick) ||
-    input.startedAtTick < 0
+    household.dissolvedAtMacroHourIndex !== null ||
+    !Number.isSafeInteger(macroHourValue(input.startedAtMacroHourIndex)) ||
+    macroHourValue(input.startedAtMacroHourIndex) < 0
   ) {
     return invalidRecordMutationPlan(snapshot, 'rci:invalid-state');
   }
@@ -43,8 +49,8 @@ export function planStartHouseholdMembership(
     membershipId: `household-membership:${snapshot.sequences.nextHouseholdMembership}`,
     householdId: input.householdId,
     citizenId: input.citizenId,
-    startedAtTick: input.startedAtTick,
-    endedAtTick: null,
+    startedAtMacroHourIndex: input.startedAtMacroHourIndex,
+    endedAtMacroHourIndex: null,
     endReasonDefinitionId: null,
   });
   const proposed = canonicalizeRciSnapshot({
@@ -67,19 +73,20 @@ export function planEndHouseholdMembership(
   input: Readonly<{
     snapshot: RciSnapshot;
     citizenId: CitizenId;
-    endedAtTick: number;
+    endedAtMacroHourIndex: MacroHourIndex;
     endReasonDefinitionId: string;
   }>,
 ): RciRecordMutationPlan {
   const { snapshot } = input;
   const active = snapshot.households.memberships.find(
-    (membership) => membership.citizenId === input.citizenId && membership.endedAtTick === null,
+    (membership) =>
+      membership.citizenId === input.citizenId && membership.endedAtMacroHourIndex === null,
   );
   if (
     active === undefined ||
     input.endReasonDefinitionId.length === 0 ||
-    !Number.isSafeInteger(input.endedAtTick) ||
-    input.endedAtTick < active.startedAtTick
+    !Number.isSafeInteger(macroHourValue(input.endedAtMacroHourIndex)) ||
+    compareMacroHours(input.endedAtMacroHourIndex, active.startedAtMacroHourIndex) < 0
   ) {
     return invalidRecordMutationPlan(snapshot, 'rci:invalid-state');
   }
@@ -88,18 +95,18 @@ export function planEndHouseholdMembership(
     membership.membershipId === active.membershipId
       ? Object.freeze({
           ...membership,
-          endedAtTick: input.endedAtTick,
+          endedAtMacroHourIndex: input.endedAtMacroHourIndex,
           endReasonDefinitionId: input.endReasonDefinitionId,
         })
       : membership,
   );
   const hasRemainingActiveMember = memberships.some(
     (membership) =>
-      membership.householdId === active.householdId && membership.endedAtTick === null,
+      membership.householdId === active.householdId && membership.endedAtMacroHourIndex === null,
   );
   const households = snapshot.households.households.map((household) =>
     household.householdId === active.householdId && !hasRemainingActiveMember
-      ? Object.freeze({ ...household, dissolvedAtTick: input.endedAtTick })
+      ? Object.freeze({ ...household, dissolvedAtMacroHourIndex: input.endedAtMacroHourIndex })
       : household,
   );
   const proposed = canonicalizeRciSnapshot({

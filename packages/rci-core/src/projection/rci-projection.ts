@@ -1,3 +1,4 @@
+import type { MacroHourIndex } from '@web-three-city/simulation-core';
 import type { RciDefinitionRegistries } from '../definitions/contracts.js';
 import { createEmploymentIndex, positionKey } from '../employment/employment-index.js';
 import { workplaceCapacityProfileForId } from '../employment/workplace-capacity.js';
@@ -22,16 +23,16 @@ export interface RciProjection {
 export function createRciProjection(
   snapshot: RciSnapshot,
   registries: RciDefinitionRegistries,
-  evaluationTick: number,
+  evaluationMacroHourIndex: MacroHourIndex,
 ): RciProjection {
   const housing = createHousingIndex(snapshot, registries).projection;
-  const employmentIndex = createEmploymentIndex(snapshot, registries, evaluationTick);
+  const employmentIndex = createEmploymentIndex(snapshot, registries, evaluationMacroHourIndex);
   let commercialPositionCapacity = 0;
   let industrialPositionCapacity = 0;
   let commercialOccupiedPositionCount = 0;
   let industrialOccupiedPositionCount = 0;
   for (const workplace of snapshot.employment.workplaces) {
-    if (workplace.retiredAtTick !== null) continue;
+    if (workplace.retiredAtMacroHourIndex !== null) continue;
     const profile = workplaceCapacityProfileForId(
       registries.capacityProfiles,
       workplace.capacityProfileDefinitionId,
@@ -54,7 +55,7 @@ export function createRciProjection(
     (citizen) => citizen.presence === 'resident',
   ).length;
   const householdCount = snapshot.households.households.filter(
-    (household) => household.dissolvedAtTick === null,
+    (household) => household.dissolvedAtMacroHourIndex === null,
   ).length;
   const population = Object.freeze({
     residentCount,

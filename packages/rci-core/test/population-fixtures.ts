@@ -9,6 +9,7 @@ import {
   createInitialRciSnapshot,
   type RciSnapshot,
 } from '../src/index.js';
+import { ageOriginMacroHour, macroHour } from './temporal-fixtures.js';
 
 export const testBuildings: BuildingSnapshot = Object.freeze({
   revision: 0,
@@ -31,7 +32,7 @@ export const testRegistries = createFoundationRciRegistries();
 
 export function createPartneredHouseholdSnapshot(): RciSnapshot {
   const initial = createInitialRciSnapshot({
-    absoluteTick: deriveMacroHourIndex(testSimulationBefore.absoluteGameMinute),
+    absoluteMacroHourIndex: deriveMacroHourIndex(testSimulationBefore.absoluteGameMinute),
     deterministicSeed: 7,
   });
   return {
@@ -43,19 +44,19 @@ export function createPartneredHouseholdSnapshot(): RciSnapshot {
           citizenId: 'citizen:1',
           presence: 'resident',
           sexDefinitionId: 'sex.female',
-          bornAtTick: -30 * 8_640,
-          movedIntoCityAtTick: 0,
-          movedOutOfCityAtTick: null,
-          diedAtTick: null,
+          bornAtMacroHourIndex: ageOriginMacroHour(-30 * 288),
+          movedIntoCityAtMacroHourIndex: macroHour(0),
+          movedOutOfCityAtMacroHourIndex: null,
+          diedAtMacroHourIndex: null,
         },
         {
           citizenId: 'citizen:2',
           presence: 'resident',
           sexDefinitionId: 'sex.male',
-          bornAtTick: -32 * 8_640,
-          movedIntoCityAtTick: 0,
-          movedOutOfCityAtTick: null,
-          diedAtTick: null,
+          bornAtMacroHourIndex: ageOriginMacroHour(-32 * 288),
+          movedIntoCityAtMacroHourIndex: macroHour(0),
+          movedOutOfCityAtMacroHourIndex: null,
+          diedAtMacroHourIndex: null,
         },
       ],
       qualifications: [],
@@ -68,8 +69,8 @@ export function createPartneredHouseholdSnapshot(): RciSnapshot {
           orientation: 'undirected',
           typeDefinitionId: 'relationship.partner',
           participantCitizenIds: ['citizen:1', 'citizen:2'],
-          startedAtTick: 0,
-          endedAtTick: null,
+          startedAtMacroHourIndex: macroHour(0),
+          endedAtMacroHourIndex: null,
         },
       ],
     },
@@ -78,8 +79,8 @@ export function createPartneredHouseholdSnapshot(): RciSnapshot {
       households: [
         {
           householdId: 'household:1',
-          foundedAtTick: 0,
-          dissolvedAtTick: null,
+          foundedAtMacroHourIndex: macroHour(0),
+          dissolvedAtMacroHourIndex: null,
         },
       ],
       memberships: [
@@ -87,16 +88,16 @@ export function createPartneredHouseholdSnapshot(): RciSnapshot {
           membershipId: 'household-membership:1',
           householdId: 'household:1',
           citizenId: 'citizen:1',
-          startedAtTick: 0,
-          endedAtTick: null,
+          startedAtMacroHourIndex: macroHour(0),
+          endedAtMacroHourIndex: null,
           endReasonDefinitionId: null,
         },
         {
           membershipId: 'household-membership:2',
           householdId: 'household:1',
           citizenId: 'citizen:2',
-          startedAtTick: 0,
-          endedAtTick: null,
+          startedAtMacroHourIndex: macroHour(0),
+          endedAtMacroHourIndex: null,
           endReasonDefinitionId: null,
         },
       ],

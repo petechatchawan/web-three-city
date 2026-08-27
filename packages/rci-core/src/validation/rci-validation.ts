@@ -1,13 +1,16 @@
 import type { BuildingSnapshot } from '@web-three-city/building-core';
 import {
+  compareMacroHours,
   deriveMacroHourIndex,
   macroHourValue,
+  type MacroHourIndex,
   type SimulationSnapshot,
 } from '@web-three-city/simulation-core';
 import type { RciContractErrorCode } from '../contracts/errors.js';
 import { compareStableId } from '../contracts/ids.js';
 import type { RciDefinitionRegistries } from '../definitions/contracts.js';
 import type { RciSequenceState, RciSnapshot } from '../rci-snapshot.js';
+import { ageOriginMacroHourValue, compareAgeOrigins } from '../population/age.js';
 
 export interface RciValidationIssue {
   readonly code: RciContractErrorCode;
@@ -22,6 +25,16 @@ export interface RciValidationResult {
 
 function nonNegativeSafe(value: number): boolean {
   return Number.isSafeInteger(value) && value >= 0;
+}
+
+function validMacroHourIndex(value: MacroHourIndex): boolean {
+  return nonNegativeSafe(macroHourValue(value));
+}
+
+function validAgeOriginMacroHourIndex(
+  value: Parameters<typeof ageOriginMacroHourValue>[0],
+): boolean {
+  return Number.isSafeInteger(ageOriginMacroHourValue(value));
 }
 
 function addIssue(
@@ -208,23 +221,25 @@ export function validateRciSnapshot(
   );
   const buildingIds = new Set(buildings.instances.map((value) => value.instanceId));
   const activeMembershipCount = new Map<string, number>();
+  const currentMacroHourIndex = deriveMacroHourIndex(simulation.absoluteGameMinute);
 
   for (const citizen of snapshot.population.citizens) {
     if (
-      !Number.isSafeInteger(citizen.bornAtTick) ||
-      citizen.bornAtTick > macroHourValue(deriveMacroHourIndex(simulation.absoluteGameMinute)) ||
-      !nonNegativeSafe(citizen.movedIntoCityAtTick) ||
-      citizen.movedIntoCityAtTick >
-        macroHourValue(deriveMacroHourIndex(simulation.absoluteGameMinute)) ||
-      (citizen.movedOutOfCityAtTick !== null &&
-        (!nonNegativeSafe(citizen.movedOutOfCityAtTick) ||
-          citizen.movedOutOfCityAtTick < citizen.movedIntoCityAtTick ||
-          citizen.movedOutOfCityAtTick >
-            macroHourValue(deriveMacroHourIndex(simulation.absoluteGameMinute)))) ||
-      (citizen.diedAtTick !== null &&
-        (!nonNegativeSafe(citizen.diedAtTick) ||
-          citizen.diedAtTick < citizen.bornAtTick ||
-          citizen.diedAtTick > macroHourValue(deriveMacroHourIndex(simulation.absoluteGameMinute))))
+      !validAgeOriginMacroHourIndex(citizen.bornAtMacroHourIndex) ||
+      compareAgeOrigins(citizen.bornAtMacroHourIndex, currentMacroHourIndex) > 0 ||
+      !validMacroHourIndex(citizen.movedIntoCityAtMacroHourIndex) ||
+      compareMacroHours(citizen.movedIntoCityAtMacroHourIndex, currentMacroHourIndex) > 0 ||
+      (citizen.movedOutOfCityAtMacroHourIndex !== null &&
+        (!validMacroHourIndex(citizen.movedOutOfCityAtMacroHourIndex) ||
+          compareMacroHours(
+            citizen.movedOutOfCityAtMacroHourIndex,
+            citizen.movedIntoCityAtMacroHourIndex,
+          ) < 0 ||
+          compareMacroHours(citizen.movedOutOfCityAtMacroHourIndex, currentMacroHourIndex) > 0)) ||
+      (citizen.diedAtMacroHourIndex !== null &&
+        (!validMacroHourIndex(citizen.diedAtMacroHourIndex) ||
+          compareAgeOrigins(citizen.diedAtMacroHourIndex, citizen.bornAtMacroHourIndex) < 0 ||
+          compareMacroHours(citizen.diedAtMacroHourIndex, currentMacroHourIndex) > 0))
     ) {
       addIssue(issues, 'rci:invalid-state', citizen.citizenId);
     }
@@ -233,10 +248,12 @@ export function validateRciSnapshot(
     }
     if (
       (citizen.presence === 'resident' &&
-        (citizen.movedOutOfCityAtTick !== null || citizen.diedAtTick !== null)) ||
+        (citizen.movedOutOfCityAtMacroHourIndex !== null ||
+          citizen.diedAtMacroHourIndex !== null)) ||
       (citizen.presence === 'emigrated' &&
-        (citizen.movedOutOfCityAtTick === null || citizen.diedAtTick !== null)) ||
-      (citizen.presence === 'deceased' && citizen.diedAtTick === null)
+        (citizen.movedOutOfCityAtMacroHourIndex === null ||
+          citizen.diedAtMacroHourIndex !== null)) ||
+      (citizen.presence === 'deceased' && citizen.diedAtMacroHourIndex === null)
     ) {
       addIssue(issues, 'rci:invalid-state', citizen.citizenId);
     }
@@ -249,7 +266,7 @@ export function validateRciSnapshot(
     if (!households.has(membership.householdId)) {
       addIssue(issues, 'rci:dangling-household', membership.membershipId, membership.householdId);
     }
-    if (membership.endedAtTick === null) {
+    if (membership.endedAtMacroHourIndex === null) {
       activeMembershipCount.set(
         membership.citizenId,
         (activeMembershipCount.get(membership.citizenId) ?? 0) + 1,
@@ -301,7 +318,7 @@ export function validateRciSnapshot(
     if (
       relationship.orientation === 'undirected' &&
       relationship.typeDefinitionId === 'relationship.partner' &&
-      relationship.endedAtTick === null
+      relationship.endedAtMacroHourIndex === null
     ) {
       for (const participant of relationship.participantCitizenIds) {
         if (activePartnerByCitizen.has(participant)) {
@@ -363,7 +380,7 @@ export function validateRciSnapshot(
         assignment.dwellingUnitId,
       );
     }
-    if (assignment.endedAtTick === null) {
+    if (assignment.endedAtMacroHourIndex === null) {
       if (
         activeHousingByHousehold.has(assignment.householdId) ||
         activeHousingByUnit.has(assignment.dwellingUnitId)
@@ -419,7 +436,7 @@ export function validateRciSnapshot(
         assignment.positionGroupDefinitionId,
       );
     }
-    if (assignment.endedAtTick === null) {
+    if (assignment.endedAtMacroHourIndex === null) {
       if (activeEmploymentByCitizen.has(assignment.citizenId)) {
         addIssue(issues, 'rci:duplicate-active-employment', assignment.citizenId);
       }
@@ -447,12 +464,14 @@ export function validateRciSnapshot(
     demandValues.some(
       (value) => !Number.isSafeInteger(value) || value < -100_000 || value > 100_000,
     ) ||
-    !nonNegativeSafe(snapshot.demand.demand.evaluatedAtTick) ||
-    snapshot.demand.demand.evaluatedAtTick >
-      macroHourValue(deriveMacroHourIndex(simulation.absoluteGameMinute)) ||
-    !nonNegativeSafe(snapshot.demand.growthGates.evaluatedAtTick) ||
-    snapshot.demand.growthGates.evaluatedAtTick >
-      macroHourValue(deriveMacroHourIndex(simulation.absoluteGameMinute))
+    !validMacroHourIndex(snapshot.demand.demand.evaluatedAtMacroHourIndex) ||
+    compareMacroHours(snapshot.demand.demand.evaluatedAtMacroHourIndex, currentMacroHourIndex) >
+      0 ||
+    !validMacroHourIndex(snapshot.demand.growthGates.evaluatedAtMacroHourIndex) ||
+    compareMacroHours(
+      snapshot.demand.growthGates.evaluatedAtMacroHourIndex,
+      currentMacroHourIndex,
+    ) > 0
   ) {
     addIssue(issues, 'rci:invalid-demand');
   }

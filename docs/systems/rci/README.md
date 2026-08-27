@@ -11,6 +11,35 @@
 
 Provide deterministic authority for Citizens, Relationships, Households, housing, Workplaces, Employment, migration, R/C/I Demand, and Growth gates while keeping rendering, input tools, and UI outside the domain package.
 
+## Temporal Contract (T2B)
+
+RCI runtime temporal fields use explicit `MacroHourIndex` points and
+`MacroHourDuration` values from `simulation-core`. `AbsoluteGameMinute` remains
+the single mutable simulation authority; RCI consumes its derived macro-hour
+projection and does not maintain a second world clock.
+
+- Citizen age is derived from a signed `AgeOriginMacroHourIndex`, because
+  citizens who immigrated before the simulation epoch may have a negative
+  origin. The origin is not a mutable clock.
+- The compressed calendar year contains `12` simulation cycles and `288`
+  macro-hours. Age advances at `288` macro-hours, with existing age bands and
+  fractional-year position preserved by the legacy age-origin migration.
+- Authored fertility and mortality values remain annual probabilities. RCI
+  compiles them into a per-cycle hazard so twelve lifecycle evaluations
+  compound to the authored annual rate within deterministic integer rounding.
+- Population lifecycle, Demand, housing, employment, and migration evaluation
+  runs once at `08:00` per 24-macro-hour simulation cycle. A `MacroHourDuration`
+  such as the existing `720`-macro-hour displacement expiry is explicit in the
+  runtime contract.
+- `RciSaveV1` and the `WorldSaveV8` writer retain their legacy `*AtTick` wire
+  fields. Those names are confined to the compatibility codec; V1 encoding
+  maps the current typed age origin back to the legacy coordinate and decoding
+  maps it forward using the current simulation macro-hour.
+
+This T2B change does not alter the calendar label/UI projection, playback
+pacing, or Save V9. Those cutovers remain owned by the approved later T4/T5
+work.
+
 ## Delivery Status
 
 RCI Foundation v0.1 was delivered through PR #26–#31 and closed on exact verified source tree `75a04d244a3e27a7f6a89d46f90bd676d60626d4`. Foundation squash-merge commit `9409e301d2710db856b584fc555d5c4f714bba62` has that same tree.
@@ -37,7 +66,7 @@ Final hotfix verification on implementation head `e33ef19c6eef4d593251d133913860
 ### Population and Household lifecycle
 
 - Stable immutable normalized records, bounded revisions, persisted ID sequences, extensible registries, complete-state validation, and canonical Save output.
-- Tick-derived age and age bands; daily lifecycle evaluates only at the canonical `08:00` boundary.
+- Macro-hour-derived age and age bands; the population lifecycle evaluates only at the canonical `08:00` boundary of each simulation cycle.
 - Household membership is independent from family and partner relationships.
 - Deterministic qualifications, fertility, mortality, birth, death, and historical-record retention.
 - Ordered domain events and stale-plan commit fences.
@@ -46,7 +75,7 @@ Final hotfix verification on implementation head `e33ef19c6eef4d593251d133913860
 
 - Versioned Residential capacity profiles resolved from active Building definitions.
 - Deterministic Dwelling inventory and normalized housing-assignment history.
-- Adequate-capacity best-fit relocation, displaced-first processing, and exact `720`-tick displacement expiry.
+- Adequate-capacity best-fit relocation, displaced-first processing, and exact `720`-macro-hour displacement expiry.
 - Fixed-point incoming request accumulation, five versioned migration archetypes, and atomic Household materialization.
 - Historical Household emigration and fixed-point housing pressure factors.
 - Prior World Saves derive inventory from active Buildings without inventing Citizens or occupancy.
@@ -109,7 +138,7 @@ read one committed GameWorldState
 → plan Building Growth with the current RCI policy
 → stage Simulation + Building result
 → synchronize Dwelling and Workplace inventory
-→ evaluate daily Population lifecycle at 08:00
+→ evaluate cycle Population lifecycle at 08:00
 → reconcile Employment
 → derive compatible vacancy supply and accumulate migration requests
 → reconcile Housing, materialization, displacement, and expiry

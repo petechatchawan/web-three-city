@@ -1,7 +1,8 @@
+import type { MacroHourIndex } from '@web-three-city/simulation-core';
 import { compareStableId } from '../contracts/ids.js';
 import type { EmploymentAssignmentRecord } from '../contracts/records.js';
 import type { RciDefinitionRegistries } from '../definitions/contracts.js';
-import { ageBandAtTick } from '../population/age.js';
+import { ageBandAtMacroHour } from '../population/age.js';
 import { canonicalizeRciSnapshot, type RciSnapshot } from '../rci-snapshot.js';
 import {
   createEmploymentIndex,
@@ -36,7 +37,7 @@ function positionCandidates(
   for (const workplace of [...snapshot.employment.workplaces].sort((a, b) =>
     compareStableId(a.workplaceId, b.workplaceId),
   )) {
-    if (workplace.retiredAtTick !== null) continue;
+    if (workplace.retiredAtMacroHourIndex !== null) continue;
     const profile = workplaceCapacityProfileForId(
       registries.capacityProfiles,
       workplace.capacityProfileDefinitionId,
@@ -72,7 +73,7 @@ function activeQualificationRank(
   registries: RciDefinitionRegistries,
 ): number | null {
   const qualification = snapshot.population.qualifications.find(
-    (value) => value.citizenId === citizenId && value.endedAtTick === null,
+    (value) => value.citizenId === citizenId && value.endedAtMacroHourIndex === null,
   );
   return qualification === undefined
     ? null
@@ -82,20 +83,21 @@ function activeQualificationRank(
 function eligibleCitizen(
   snapshot: RciSnapshot,
   citizenId: string,
-  evaluationTick: number,
+  evaluationMacroHourIndex: MacroHourIndex,
 ): boolean {
   const citizen = snapshot.population.citizens.find((value) => value.citizenId === citizenId);
   return (
     citizen !== undefined &&
     citizen.presence === 'resident' &&
-    ageBandAtTick(citizen.bornAtTick, evaluationTick) === 'age-band.working-age'
+    ageBandAtMacroHour(citizen.bornAtMacroHourIndex, evaluationMacroHourIndex) ===
+      'age-band.working-age'
   );
 }
 
 export function planEmploymentReconciliation(
   input: Readonly<{
     snapshot: RciSnapshot;
-    evaluationTick: number;
+    evaluationMacroHourIndex: MacroHourIndex;
     registries: RciDefinitionRegistries;
     allowControlledUpgrade?: boolean;
   }>,
@@ -112,7 +114,7 @@ export function planEmploymentReconciliation(
   const endedAssignmentIds: string[] = [];
 
   assignments = assignments.map((assignment) => {
-    if (assignment.endedAtTick !== null) return assignment;
+    if (assignment.endedAtMacroHourIndex !== null) return assignment;
     const candidate = candidateByKey.get(
       positionKey(assignment.workplaceId, assignment.positionGroupDefinitionId),
     );
@@ -125,7 +127,7 @@ export function planEmploymentReconciliation(
     const used = usedByKey.get(key) ?? 0;
     const valid =
       candidate !== undefined &&
-      eligibleCitizen(input.snapshot, assignment.citizenId, input.evaluationTick) &&
+      eligibleCitizen(input.snapshot, assignment.citizenId, input.evaluationMacroHourIndex) &&
       qualificationRank !== null &&
       qualificationRank >= candidate.requiredRank &&
       used < candidate.capacity;
@@ -136,20 +138,20 @@ export function planEmploymentReconciliation(
     endedAssignmentIds.push(assignment.employmentAssignmentId);
     return Object.freeze({
       ...assignment,
-      endedAtTick: input.evaluationTick,
+      endedAtMacroHourIndex: input.evaluationMacroHourIndex,
       endReasonDefinitionId: 'employment-ended.no-longer-eligible',
     });
   });
 
   const activeCitizenIds = new Set(
     assignments
-      .filter((assignment) => assignment.endedAtTick === null)
+      .filter((assignment) => assignment.endedAtMacroHourIndex === null)
       .map((assignment) => assignment.citizenId),
   );
   const unemployed = input.snapshot.population.citizens
     .filter(
       (citizen) =>
-        eligibleCitizen(input.snapshot, citizen.citizenId, input.evaluationTick) &&
+        eligibleCitizen(input.snapshot, citizen.citizenId, input.evaluationMacroHourIndex) &&
         !activeCitizenIds.has(citizen.citizenId),
     )
     .sort((a, b) => compareStableId(a.citizenId, b.citizenId));
@@ -178,8 +180,8 @@ export function planEmploymentReconciliation(
       citizenId: citizen.citizenId,
       workplaceId: candidate.workplaceId,
       positionGroupDefinitionId: candidate.positionGroupDefinitionId,
-      startedAtTick: input.evaluationTick,
-      endedAtTick: null,
+      startedAtMacroHourIndex: input.evaluationMacroHourIndex,
+      endedAtMacroHourIndex: null,
       endReasonDefinitionId: null,
     });
     assignments.push(assignment);
@@ -192,7 +194,7 @@ export function planEmploymentReconciliation(
 
   if (input.allowControlledUpgrade ?? true) {
     const activeAssignments = assignments
-      .filter((assignment) => assignment.endedAtTick === null)
+      .filter((assignment) => assignment.endedAtMacroHourIndex === null)
       .sort((a, b) => compareStableId(a.citizenId, b.citizenId));
     for (const assignment of activeAssignments) {
       const rank = activeQualificationRank(input.snapshot, assignment.citizenId, input.registries);
@@ -226,7 +228,7 @@ export function planEmploymentReconciliation(
         value.employmentAssignmentId === assignment.employmentAssignmentId
           ? Object.freeze({
               ...value,
-              endedAtTick: input.evaluationTick,
+              endedAtMacroHourIndex: input.evaluationMacroHourIndex,
               endReasonDefinitionId: 'employment-ended.best-fit-upgrade',
             })
           : value,
@@ -237,8 +239,8 @@ export function planEmploymentReconciliation(
         citizenId: assignment.citizenId,
         workplaceId: better.workplaceId,
         positionGroupDefinitionId: better.positionGroupDefinitionId,
-        startedAtTick: input.evaluationTick,
-        endedAtTick: null,
+        startedAtMacroHourIndex: input.evaluationMacroHourIndex,
+        endedAtMacroHourIndex: null,
         endReasonDefinitionId: null,
       });
       assignments.push(replacement);
@@ -270,8 +272,11 @@ export function planEmploymentReconciliation(
   return Object.freeze({
     baseRciRevision: input.snapshot.revision,
     proposedSnapshot,
-    projection: createEmploymentIndex(proposedSnapshot, input.registries, input.evaluationTick)
-      .projection,
+    projection: createEmploymentIndex(
+      proposedSnapshot,
+      input.registries,
+      input.evaluationMacroHourIndex,
+    ).projection,
     startedAssignmentIds: Object.freeze(startedAssignmentIds.sort(compareStableId)),
     endedAssignmentIds: Object.freeze(endedAssignmentIds.sort(compareStableId)),
     upgradedCitizenIds: Object.freeze(upgradedCitizenIds.sort(compareStableId)),

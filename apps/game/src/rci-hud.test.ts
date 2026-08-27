@@ -1,11 +1,16 @@
-import { createFoundationRciRegistries, createInitialRciSnapshot } from '@web-three-city/rci-core';
+import {
+  ageOriginMacroHour,
+  createFoundationRciRegistries,
+  createInitialRciSnapshot,
+} from '@web-three-city/rci-core';
+import { macroHourIndex } from '@web-three-city/simulation-core';
 import { describe, expect, it } from 'vitest';
 import { createRciHudModel } from './rci-hud.js';
 
 describe('RCI HUD model', () => {
   it('projects compact Population, Housing, Employment, and Demand values', () => {
     const registries = createFoundationRciRegistries();
-    const initial = createInitialRciSnapshot({ absoluteTick: 32 });
+    const initial = createInitialRciSnapshot({ absoluteMacroHourIndex: macroHourIndex(32) });
     const snapshot = {
       ...initial,
       population: {
@@ -15,24 +20,30 @@ describe('RCI HUD model', () => {
             citizenId: 'citizen:1',
             presence: 'resident' as const,
             sexDefinitionId: 'sex.female',
-            bornAtTick: 32 - 25 * 8_640,
-            movedIntoCityAtTick: 0,
-            movedOutOfCityAtTick: null,
-            diedAtTick: null,
+            bornAtMacroHourIndex: ageOriginMacroHour(32 - 25 * 288),
+            movedIntoCityAtMacroHourIndex: macroHourIndex(0),
+            movedOutOfCityAtMacroHourIndex: null,
+            diedAtMacroHourIndex: null,
           },
         ],
         qualifications: [],
       },
       households: {
         revision: 1,
-        households: [{ householdId: 'household:1', foundedAtTick: 0, dissolvedAtTick: null }],
+        households: [
+          {
+            householdId: 'household:1',
+            foundedAtMacroHourIndex: macroHourIndex(0),
+            dissolvedAtMacroHourIndex: null,
+          },
+        ],
         memberships: [
           {
             membershipId: 'household-membership:1',
             householdId: 'household:1',
             citizenId: 'citizen:1',
-            startedAtTick: 0,
-            endedAtTick: null,
+            startedAtMacroHourIndex: macroHourIndex(0),
+            endedAtMacroHourIndex: null,
             endReasonDefinitionId: null,
           },
         ],
@@ -43,17 +54,17 @@ describe('RCI HUD model', () => {
           residentialMilli: 20_000,
           commercialMilli: -5_000,
           industrialMilli: 10_000,
-          evaluatedAtTick: 32,
+          evaluatedAtMacroHourIndex: macroHourIndex(32),
         },
         growthGates: {
           residentialOpen: true,
           commercialOpen: false,
           industrialOpen: true,
-          evaluatedAtTick: 32,
+          evaluatedAtMacroHourIndex: macroHourIndex(32),
         },
       },
     };
-    expect(createRciHudModel(snapshot, registries, 32)).toMatchObject({
+    expect(createRciHudModel(snapshot, registries, macroHourIndex(32))).toMatchObject({
       population: 1,
       households: 1,
       residentialDemand: 20,

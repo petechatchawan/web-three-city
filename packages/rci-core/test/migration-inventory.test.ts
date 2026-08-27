@@ -6,7 +6,7 @@ describe('prior-save RCI housing migration', () => {
   it('derives empty occupancy inventory from active Buildings without inventing Citizens', () => {
     const migrated = createRciMigrationInventory({
       buildings: activeCottageBuildings,
-      absoluteTick: 80,
+      absoluteMacroHourIndex: macroHour(80),
       registries: housingRegistries,
       deterministicSeed: 5,
     });
@@ -14,11 +14,12 @@ describe('prior-save RCI housing migration', () => {
     expect(migrated.housing.dwellingUnits).toEqual([
       expect.objectContaining({
         dwellingUnitId: 'dwelling:building:growth:1:0',
-        activatedAtTick: 24,
-        retiredAtTick: null,
+        activatedAtMacroHourIndex: macroHour(24),
+        retiredAtMacroHourIndex: null,
       }),
     ]);
     expect(migrated.housing.assignments).toEqual([]);
     expect(encodeRciSaveV1(migrated).deterministicSeed).toBe(5);
   });
 });
+import { macroHour } from './temporal-fixtures.js';

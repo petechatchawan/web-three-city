@@ -78,24 +78,24 @@ describe('RCI Demand foundation', () => {
       residentialMilli: -32_000,
       commercialMilli: -29_000,
       industrialMilli: -47_000,
-      evaluatedAtTick: 248,
+      evaluatedAtMacroHourIndex: macroHour(248),
     };
     let growthGates = {
       residentialOpen: false,
       commercialOpen: false,
       industrialOpen: false,
-      evaluatedAtTick: 248,
+      evaluatedAtMacroHourIndex: macroHour(248),
     };
-    for (const evaluationTick of [272, 296, 320]) {
-      demand = smoothRciDemand({ previous: demand, evaluation, evaluationTick });
+    for (const evaluationMacroHourIndex of [272, 296, 320].map(macroHour)) {
+      demand = smoothRciDemand({ previous: demand, evaluation, evaluationMacroHourIndex });
       growthGates = updateRciGrowthGates({
         previous: growthGates,
         demand,
-        evaluationTick,
+        evaluationMacroHourIndex,
       });
     }
-    expect(demand.evaluatedAtTick).toBe(320);
-    expect(growthGates.evaluatedAtTick).toBe(320);
+    expect(demand.evaluatedAtMacroHourIndex).toBe(320);
+    expect(growthGates.evaluatedAtMacroHourIndex).toBe(320);
     expect(demand.residentialMilli).toBeGreaterThanOrEqual(15_000);
     expect(demand.commercialMilli).toBeGreaterThanOrEqual(15_000);
     expect(demand.industrialMilli).toBeGreaterThanOrEqual(15_000);
@@ -111,7 +111,7 @@ describe('RCI Demand foundation', () => {
       residentialMilli: 0,
       commercialMilli: 0,
       industrialMilli: 0,
-      evaluatedAtTick: 8,
+      evaluatedAtMacroHourIndex: macroHour(8),
     };
     const demand = smoothRciDemand({
       previous,
@@ -121,24 +121,24 @@ describe('RCI Demand foundation', () => {
         rawIndustrialMilli: -40_000,
         contributions: [],
       },
-      evaluationTick: 32,
+      evaluationMacroHourIndex: macroHour(32),
       smoothingMilli: 250,
     });
     expect(demand).toEqual({
       residentialMilli: 20_000,
       commercialMilli: 10_000,
       industrialMilli: -10_000,
-      evaluatedAtTick: 32,
+      evaluatedAtMacroHourIndex: macroHour(32),
     });
     const opened = updateRciGrowthGates({
       previous: {
         residentialOpen: false,
         commercialOpen: false,
         industrialOpen: true,
-        evaluatedAtTick: 8,
+        evaluatedAtMacroHourIndex: macroHour(8),
       },
       demand,
-      evaluationTick: 32,
+      evaluationMacroHourIndex: macroHour(32),
     });
     expect(opened).toMatchObject({
       residentialOpen: true,
@@ -148,13 +148,15 @@ describe('RCI Demand foundation', () => {
     const neutral = updateRciGrowthGates({
       previous: { ...opened, commercialOpen: true },
       demand: { ...demand, commercialMilli: 10_000 },
-      evaluationTick: 56,
+      evaluationMacroHourIndex: macroHour(56),
     });
     expect(neutral.commercialOpen).toBe(true);
   });
 
   it('keeps all zone channels eligible until the first Demand evaluation', () => {
-    const policy = createBuildingGrowthPolicy(createInitialRciSnapshot({ absoluteTick: 8 }));
+    const policy = createBuildingGrowthPolicy(
+      createInitialRciSnapshot({ absoluteMacroHourIndex: macroHour(8) }),
+    );
     expect(policy.allowsZone('residential')).toBe(true);
     expect(policy.allowsZone('commercial')).toBe(true);
     expect(policy.allowsZone('industrial')).toBe(true);
@@ -164,7 +166,7 @@ describe('RCI Demand foundation', () => {
   });
 
   it('derives a caller policy without mutating Building state', () => {
-    const initial = createInitialRciSnapshot({ absoluteTick: 32 });
+    const initial = createInitialRciSnapshot({ absoluteMacroHourIndex: macroHour(32) });
     const snapshot = {
       ...initial,
       demand: {
@@ -173,13 +175,13 @@ describe('RCI Demand foundation', () => {
           residentialMilli: 25_000,
           commercialMilli: 10_000,
           industrialMilli: -5_000,
-          evaluatedAtTick: 32,
+          evaluatedAtMacroHourIndex: macroHour(32),
         },
         growthGates: {
           residentialOpen: true,
           commercialOpen: true,
           industrialOpen: false,
-          evaluatedAtTick: 32,
+          evaluatedAtMacroHourIndex: macroHour(32),
         },
       },
     };
@@ -192,3 +194,4 @@ describe('RCI Demand foundation', () => {
     expect(policy.zoneWeightMilli('industrial')).toBe(0);
   });
 });
+import { macroHour } from './temporal-fixtures.js';

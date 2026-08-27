@@ -17,16 +17,16 @@ describe('housing reconciliation', () => {
       buildingsBefore: { revision: 0, instances: [] },
       buildingsAfter: activeCottageBuildings,
       registries: housingRegistries,
-      evaluationTick: 32,
+      evaluationMacroHourIndex: macroHour(32),
     }).proposedSnapshot;
     const displaced = planDisplaceHousehold({
       snapshot: withUnit,
       householdId: 'household:1',
-      displacedAtTick: 32,
+      displacedAtMacroHourIndex: macroHour(32),
     });
     const result = planHousingReconciliation({
       snapshot: displaced,
-      evaluationTick: 33,
+      evaluationMacroHourIndex: macroHour(33),
       registries: housingRegistries,
     });
     expect(result.relocatedHouseholdIds).toEqual(['household:1']);
@@ -34,7 +34,8 @@ describe('housing reconciliation', () => {
     expect(result.proposedSnapshot.housing.assignments[0]).toMatchObject({
       householdId: 'household:1',
       dwellingUnitId: 'dwelling:building:growth:1:0',
-      endedAtTick: null,
+      endedAtMacroHourIndex: null,
     });
   });
 });
+import { macroHour } from './temporal-fixtures.js';

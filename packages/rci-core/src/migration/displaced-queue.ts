@@ -1,3 +1,10 @@
+import {
+  addMacroHours,
+  compareMacroHours,
+  macroHourDuration,
+  type MacroHourDuration,
+  type MacroHourIndex,
+} from '@web-three-city/simulation-core';
 import { RciContractError } from '../contracts/errors.js';
 import { compareStableId, type HouseholdId } from '../contracts/ids.js';
 import type { DisplacedHouseholdEntry } from '../contracts/records.js';
@@ -9,8 +16,8 @@ export function orderDisplacedHouseholds(
   return Object.freeze(
     [...entries].sort(
       (a, b) =>
-        a.expiresAtTick - b.expiresAtTick ||
-        a.displacedAtTick - b.displacedAtTick ||
+        compareMacroHours(a.expiresAtMacroHourIndex, b.expiresAtMacroHourIndex) ||
+        compareMacroHours(a.displacedAtMacroHourIndex, b.displacedAtMacroHourIndex) ||
         a.deterministicSequence - b.deterministicSequence ||
         compareStableId(a.householdId, b.householdId),
     ),
@@ -21,8 +28,8 @@ export function planDisplaceHousehold(
   input: Readonly<{
     snapshot: RciSnapshot;
     householdId: HouseholdId;
-    displacedAtTick: number;
-    expiresAfterTicks?: number;
+    displacedAtMacroHourIndex: MacroHourIndex;
+    expiresAfterMacroHours?: MacroHourDuration;
   }>,
 ): RciSnapshot {
   if (
@@ -35,11 +42,12 @@ export function planDisplaceHousehold(
   const household = input.snapshot.households.households.find(
     (value) => value.householdId === input.householdId,
   );
-  if (household === undefined || household.dissolvedAtTick !== null) {
+  if (household === undefined || household.dissolvedAtMacroHourIndex !== null) {
     throw new RciContractError('rci:dangling-household');
   }
   const minimumResidentCapacity = input.snapshot.households.memberships.filter(
-    (membership) => membership.householdId === input.householdId && membership.endedAtTick === null,
+    (membership) =>
+      membership.householdId === input.householdId && membership.endedAtMacroHourIndex === null,
   ).length;
   return canonicalizeRciSnapshot({
     ...input.snapshot,
@@ -51,8 +59,11 @@ export function planDisplaceHousehold(
         ...input.snapshot.migration.displacedHouseholds,
         Object.freeze({
           householdId: input.householdId,
-          displacedAtTick: input.displacedAtTick,
-          expiresAtTick: input.displacedAtTick + (input.expiresAfterTicks ?? 720),
+          displacedAtMacroHourIndex: input.displacedAtMacroHourIndex,
+          expiresAtMacroHourIndex: addMacroHours(
+            input.displacedAtMacroHourIndex,
+            input.expiresAfterMacroHours ?? macroHourDuration(720),
+          ),
           minimumResidentCapacity: Math.max(1, minimumResidentCapacity),
           displacementPressure: 100_000,
           deterministicSequence: input.snapshot.sequences.nextDomainEvent,

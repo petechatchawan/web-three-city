@@ -138,7 +138,11 @@ export function encodeWorldSaveV5(
   rci: RciSnapshot,
 ): WorldSaveV5 {
   const base = legacy.encodeWorldSaveV4(terrain, roads, zones, buildings, simulation);
-  return Object.freeze({ ...base, schemaVersion: 5, rci: encodeRciSaveV1(rci) });
+  return Object.freeze({
+    ...base,
+    schemaVersion: 5,
+    rci: encodeRciSaveV1(rci, deriveMacroHourIndex(simulation.absoluteGameMinute)),
+  });
 }
 
 export function encodeWorldSaveV6(
@@ -442,7 +446,7 @@ export function decodeWorldSave(
   if (!isV6 && !isV5) {
     const rci = createRciMigrationInventory({
       buildings: base.value.buildings,
-      absoluteTick: deriveMacroHourIndex(base.value.simulation.absoluteGameMinute),
+      absoluteMacroHourIndex: deriveMacroHourIndex(base.value.simulation.absoluteGameMinute),
       registries,
     });
     return ok(

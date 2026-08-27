@@ -3,17 +3,17 @@ import { orderDisplacedHouseholds, planDisplaceHousehold } from '../src/index.js
 import { residentHouseholdSnapshot } from './housing-fixtures.js';
 
 describe('displaced Household queue', () => {
-  it('creates one entry with the exact 720-tick expiry', () => {
+  it('creates one entry with the exact 720-macroHourIndex expiry', () => {
     const displaced = planDisplaceHousehold({
       snapshot: residentHouseholdSnapshot(),
       householdId: 'household:1',
-      displacedAtTick: 40,
+      displacedAtMacroHourIndex: macroHour(40),
     });
     expect(displaced.migration.displacedHouseholds).toEqual([
       expect.objectContaining({
         householdId: 'household:1',
-        displacedAtTick: 40,
-        expiresAtTick: 760,
+        displacedAtMacroHourIndex: macroHour(40),
+        expiresAtMacroHourIndex: macroHour(760),
         minimumResidentCapacity: 1,
       }),
     ]);
@@ -21,7 +21,7 @@ describe('displaced Household queue', () => {
       planDisplaceHousehold({
         snapshot: displaced,
         householdId: 'household:1',
-        displacedAtTick: 41,
+        displacedAtMacroHourIndex: macroHour(41),
       }),
     ).toBe(displaced);
   });
@@ -30,16 +30,16 @@ describe('displaced Household queue', () => {
     const entries = [
       {
         householdId: 'household:2',
-        displacedAtTick: 20,
-        expiresAtTick: 50,
+        displacedAtMacroHourIndex: macroHour(20),
+        expiresAtMacroHourIndex: macroHour(50),
         minimumResidentCapacity: 1,
         displacementPressure: 1,
         deterministicSequence: 2,
       },
       {
         householdId: 'household:1',
-        displacedAtTick: 10,
-        expiresAtTick: 40,
+        displacedAtMacroHourIndex: macroHour(10),
+        expiresAtMacroHourIndex: macroHour(40),
         minimumResidentCapacity: 1,
         displacementPressure: 1,
         deterministicSequence: 1,
@@ -51,3 +51,4 @@ describe('displaced Household queue', () => {
     ]);
   });
 });
+import { macroHour } from './temporal-fixtures.js';

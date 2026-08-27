@@ -1,4 +1,5 @@
 import { RciContractError } from '../contracts/errors.js';
+import { macroHourValue, type MacroHourIndex } from '@web-three-city/simulation-core';
 
 export type ProbabilityUnit = number;
 export const PROBABILITY_SCALE = 1_000_000_000;
@@ -41,13 +42,13 @@ export function deterministicSample(
   input: Readonly<{
     seed: number;
     eventType: string;
-    evaluationTick: number;
+    evaluationMacroHourIndex: MacroHourIndex;
     entityStableId: string;
     attemptIndex: number;
   }>,
 ): ProbabilityUnit {
   assertComponent(input.seed);
-  assertComponent(input.evaluationTick);
+  assertComponent(macroHourValue(input.evaluationMacroHourIndex));
   assertComponent(input.attemptIndex);
   if (input.eventType.length === 0 || input.entityStableId.length === 0) {
     throw new RciContractError('rci:invalid-state');
@@ -56,7 +57,7 @@ export function deterministicSample(
   const canonical = [
     input.seed,
     input.eventType,
-    input.evaluationTick,
+    macroHourValue(input.evaluationMacroHourIndex),
     input.entityStableId,
     input.attemptIndex,
   ].join('\0');

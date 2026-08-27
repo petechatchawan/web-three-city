@@ -3,29 +3,56 @@ import {
   PROBABILITY_SCALE,
   RciContractError,
   compileAnnualRateToDailyHazard,
+  compileAnnualRateToCycleHazard,
   sampleSucceeds,
 } from '../src/index.js';
 
 describe('RCI annual-rate hazard compilation', () => {
-  it('locks the 360-day conversion golden values', () => {
-    expect(compileAnnualRateToDailyHazard(0)).toBe(0);
-    expect(compileAnnualRateToDailyHazard(100)).toBe(278);
-    expect(compileAnnualRateToDailyHazard(500)).toBe(1_389);
-    expect(compileAnnualRateToDailyHazard(1_000)).toBe(2_779);
-    expect(compileAnnualRateToDailyHazard(4_000)).toBe(11_133);
-    expect(compileAnnualRateToDailyHazard(25_000)).toBe(70_325);
-    expect(compileAnnualRateToDailyHazard(90_000)).toBe(261_940);
-    expect(compileAnnualRateToDailyHazard(300_000)).toBe(990_273);
-    expect(compileAnnualRateToDailyHazard(1_000_000)).toBe(PROBABILITY_SCALE);
+  it('compounds a compiled cycle hazard to the annual rate across twelve evaluations', () => {
+    for (const annualRateMillionth of [1, 100, 25_000, 300_000, 500_000, 900_000, 999_999]) {
+      const cycleHazard = compileAnnualRateToCycleHazard(annualRateMillionth);
+      const compoundedAnnualRateMillionth = Math.round(
+        (1 - (1 - cycleHazard / PROBABILITY_SCALE) ** 12) * 1_000_000,
+      );
+
+      expect(Math.abs(compoundedAnnualRateMillionth - annualRateMillionth)).toBeLessThanOrEqual(1);
+    }
   });
 
-  it('rejects invalid authored annual rates', () => {
-    expect(() => compileAnnualRateToDailyHazard(-1)).toThrowError(
-      new RciContractError('rci:invalid-state'),
-    );
-    expect(() => compileAnnualRateToDailyHazard(1_000_001)).toThrowError(
-      new RciContractError('rci:invalid-state'),
-    );
+  it('uses twelve-cycle golden values and keeps the old daily export as a compatibility alias', () => {
+    const cases = [
+      [0, 0],
+      [100, 8_334],
+      [500, 41_676],
+      [1_000, 83_372],
+      [4_000, 333_946],
+      [25_000, 2_107_593],
+      [90_000, 7_828_420],
+      [300_000, 29_285_530],
+      [1_000_000, PROBABILITY_SCALE],
+    ] as const;
+
+    for (const [annualRateMillionth, expectedHazard] of cases) {
+      expect(compileAnnualRateToCycleHazard(annualRateMillionth)).toBe(expectedHazard);
+      expect(compileAnnualRateToDailyHazard(annualRateMillionth)).toBe(expectedHazard);
+    }
+  });
+
+  it.each([-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, 1_000_001])(
+    'rejects invalid authored annual rate %s',
+    (annualRateMillionth) => {
+      expect(() => compileAnnualRateToCycleHazard(annualRateMillionth)).toThrowError(
+        new RciContractError('rci:invalid-state'),
+      );
+      expect(() => compileAnnualRateToDailyHazard(annualRateMillionth)).toThrowError(
+        new RciContractError('rci:invalid-state'),
+      );
+    },
+  );
+
+  it('keeps zero and certain annual probabilities exact', () => {
+    expect(compileAnnualRateToCycleHazard(0)).toBe(0);
+    expect(compileAnnualRateToCycleHazard(1_000_000)).toBe(PROBABILITY_SCALE);
   });
 
   it('uses strict integer probability comparisons', () => {

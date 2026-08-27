@@ -6,6 +6,7 @@ import type { EconomyTaxPolicy, EconomyPolicyUiResult } from '../../economy-budg
 import { createEconomyViewProjection } from '../../economy-budget-hud.js';
 import { createGameTimePresentation } from '../../game-time-presentation.js';
 import { createRciHudModel } from '../../rci-hud.js';
+import { deriveMacroHourIndex } from '@web-three-city/simulation-core';
 import { createButton } from '../components/button.js';
 import { createCityIcon, type CityIconName } from '../components/icon.js';
 import type { DialogHost } from '../dialog/dialog-host.js';
@@ -71,7 +72,7 @@ export function createCitySystemDialogs(
     const rci = createRciHudModel(
       world.rci,
       ports.rciRegistries,
-      world.simulation.absoluteGameMinute,
+      deriveMacroHourIndex(world.simulation.absoluteGameMinute),
     );
     const economy = createEconomyViewProjection(world.economy);
     const time = createGameTimePresentation(world.simulation, world.buildings);
@@ -254,7 +255,7 @@ export function createCitySystemDialogs(
     const model = createRciHudModel(
       world.rci,
       ports.rciRegistries,
-      world.simulation.absoluteGameMinute,
+      deriveMacroHourIndex(world.simulation.absoluteGameMinute),
     );
     const card = document.createElement('section');
     card.className = 'city-card city-detail-card';

@@ -1,7 +1,7 @@
 # Temporal Authority & Simulation Clock v1 — Execution Index
 
-**Status:** T1–T4 merged; T4.1 Playback Scheduler vNext is the current implementation slice; T5–T7 not started  
-**Baseline:** `master@d170a473205bc080bdd70c31fd21ac868c8a7118`  
+**Status:** T1–T4 merged; T4.1 Playback Scheduler vNext is the current implementation slice; T5–T7 not started
+**Baseline:** `master@d170a473205bc080bdd70c31fd21ac868c8a7118`
 **Planning PR:** #94
 
 ## Locked owner decisions

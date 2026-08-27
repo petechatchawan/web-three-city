@@ -70,4 +70,3 @@ Finalization requires a clean tracked worktree, preservation of the two
 pre-existing untracked plan files, non-force push only after local GREEN,
 and exact-head CI/Sonar evidence. The PR remains Draft and is not merged by
 this plan.
-

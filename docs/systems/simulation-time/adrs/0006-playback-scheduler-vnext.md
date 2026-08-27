@@ -96,4 +96,3 @@ authority or save data.
 ADR-0005 remains the historical authority for the compressed calendar and
 its other decisions. This ADR supersedes only its old playback-throughput
 table.
-

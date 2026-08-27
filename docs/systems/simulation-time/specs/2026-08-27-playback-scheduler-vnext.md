@@ -17,12 +17,12 @@ clock elapsed time to requests for authoritative GameMinutes.
 
 The existing `SimulationSpeed` values and UI labels remain unchanged:
 
-| Preset | Throughput | Real time per GameMinute |
-| --- | ---: | ---: |
-| `paused` | 0 GameMinutes/s | no automatic requests |
-| `normal` / x1 | 2 GameMinutes/s | 500ms |
-| `fast` / x2 | 4 GameMinutes/s | 250ms |
-| `faster` / x4 | 8 GameMinutes/s | 125ms |
+| Preset        |      Throughput | Real time per GameMinute |
+| ------------- | --------------: | -----------------------: |
+| `paused`      | 0 GameMinutes/s |    no automatic requests |
+| `normal` / x1 | 2 GameMinutes/s |                    500ms |
+| `fast` / x2   | 4 GameMinutes/s |                    250ms |
+| `faster` / x4 | 8 GameMinutes/s |                    125ms |
 
 The labels are relative presets. `fast` is twice `normal`, and `faster` is
 four times `normal`; they are not renamed to x2/x4/x8.
@@ -93,4 +93,3 @@ Game integration tests must prove earlier successful world commits remain
 present when a later minute rejects, with `+5` revision per successful
 minute. Existing calendar rollover, WorldSave V8, domain, and browser
 behavior tests remain green.
-

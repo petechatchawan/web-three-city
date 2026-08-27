@@ -8,6 +8,7 @@ import {
   type TrafficGraph,
   type TrafficSnapshotV2,
 } from '@web-three-city/traffic-core';
+import { absoluteGameMinute } from '@web-three-city/simulation-core';
 import { describe, expect, it } from 'vitest';
 import { createApplicationFixture } from '../test/application-fixtures.js';
 import { CommittedWorldStore } from './application/committed-world.js';
@@ -60,7 +61,7 @@ function mobility(): MobilitySnapshotV1 {
         currentActivity: 'Travel',
         stationaryBuildingId: null,
         activeTripId: 'trip-1',
-        scheduleCursorDay: 0,
+        scheduleCursorCycle: 0,
         nextBoundaryGameMinute: null,
       },
     ],
@@ -72,7 +73,7 @@ function mobility(): MobilitySnapshotV1 {
         originBuildingId: 'home',
         destinationBuildingId: 'work',
         mode: 'Drive',
-        departureGameMinute: 480,
+        departureGameMinute: absoluteGameMinute(480),
         status: 'Active',
         failureReason: null,
       },

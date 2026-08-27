@@ -13,6 +13,7 @@ import {
   planModeCandidates,
   type TrafficGraph,
 } from '@web-three-city/traffic-core';
+import { absoluteGameMinute } from '@web-three-city/simulation-core';
 import { createCommittedWorldFromDomainState } from './application/committed-world.js';
 import {
   createBuildingTrafficAccessProjection,
@@ -83,7 +84,7 @@ export function createTrafficRecoveryReleaseFixture(): TrafficRecoveryReleaseFix
     purpose: 'CommuteToWork',
     originBuildingId,
     destinationBuildingId,
-    departureGameMinute: base.summary.departureGameMinutes[citizenId]!,
+    departureGameMinute: absoluteGameMinute(base.summary.departureGameMinutes[citizenId]!),
   });
   const driveOnly: readonly MobilityModeCandidate[] = Object.freeze([
     Object.freeze({

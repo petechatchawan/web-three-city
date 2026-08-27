@@ -1,7 +1,7 @@
 # Temporal Authority & Simulation Clock v1 — Execution Index
 
-**Status:** ACTIVE — T1/T2 merged; T3A executing; T3B–T7 implementation plans frozen on a docs-only planning branch  
-**Current verified planning baseline:** `master@2e4757da365afa759a11dd6ca0f0c00aaa9c755e`  
+**Status:** ACTIVE — T1/T2/T3A merged; T3B ready to execute; T4–T7 implementation plans frozen  
+**Current verified planning baseline:** `master@4a9ca6c18a4360d9576db8c5ab55c69f64e20cd7`  
 **Planning-freeze branch:** `docs/temporal-t3b-t7-planning-freeze`
 
 ## Locked owner decisions
@@ -25,75 +25,74 @@
 | T2A Buildings | PR #96 merged -> `298c3cbad454f184b35ce913f42977ef205e8aaa` | macro-hour lifecycle parity GREEN |
 | T2B RCI | PR #97 merged -> `b1ead705ae4942a1c1f81bdc62c2d9d3cc123220` | age/hazard/cycle + combined T2A/T2B GREEN |
 | T2C Economy | PR #98 merged -> `2e4757da365afa759a11dd6ca0f0c00aaa9c755e` | Economy + combined T2A/T2B/T2C GREEN |
+| T3A Citizen Mobility | PR #99 merged -> `4a9ca6c18a4360d9576db8c5ab55c69f64e20cd7` | Mobility 35 tests, Game 408, Traffic 68, deployment 106/106, local Full Browser 149/1 skip, exact-head CI #33052375548, Sonar GREEN |
 
-The current planning baseline is therefore the verified combined T2 tree at `2e4757da...`.
+The current execution/planning baseline is therefore the verified master including T3A at `4a9ca6c...`.
 
 ## Remaining delivery order
 
-Execute one GREEN candidate at a time. Every implementation branch starts from the **current master after its predecessor has merged**, not from the planning-freeze baseline below.
+Execute one GREEN candidate at a time. Every implementation branch starts from the **current master after its predecessor has merged**.
 
 | Slice | System scope | Plan | Current status | Release requirement |
 | --- | --- | --- | --- | --- |
-| T3A | Citizen Mobility | `../../citizen-mobility/tdd/2026-08-26-mobility-temporal-contract-migration.md` | **EXECUTING** on `feat/t3a-mobility-temporal-migration` from `2e4757da...` | schedule-cycle parity + exact-head gates GREEN |
-| T3B | Traffic | `../../traffic/tdd/2026-08-26-traffic-temporal-contract-migration.md` | **PLAN FROZEN**; start only after T3A merge | explicit transport authority + combined T3 physical/save parity GREEN |
-| T4 | Simulation calendar/playback | `2026-08-26-t4-compressed-calendar-playback.md` | **PLAN FROZEN**; no implementation started | compressed rollover + unchanged playback + V8 authority continuity GREEN |
+| T3A | Citizen Mobility | `../../citizen-mobility/tdd/2026-08-26-mobility-temporal-contract-migration.md` | **MERGED** via PR #99 | schedule-cycle parity + exact-head gates GREEN |
+| T3B | Traffic | `../../traffic/tdd/2026-08-26-traffic-temporal-contract-migration.md` | **READY TO EXECUTE** from `master@4a9ca6c...` | explicit transport authority + combined T3 physical/save parity GREEN |
+| T4 | Simulation calendar/playback | `2026-08-26-t4-compressed-calendar-playback.md` | **PLAN FROZEN**; implementation blocked on T3B merge + combined T3 proof | compressed rollover + unchanged playback + V8 authority continuity GREEN |
 | T5 | World persistence | `../../world/tdd/2026-08-26-world-save-v9-temporal-calendar-migration.md` | **PLAN FROZEN**; no implementation started | V1–V9 read, V9 writer, golden migration + continuation GREEN |
 | T6 | Game/UI/release cutover | `2026-08-26-t6-game-ui-release-cutover.md` | **PLAN FROZEN**; no implementation started | full product/release gates + human Owner 414×896 PASS |
 | T7 | Cross-system legacy cleanup | `2026-08-27-t7-legacy-temporal-cleanup.md` | **PLAN FROZEN**; no implementation started | zero active legacy temporal seams; old save readers preserved; all gates GREEN |
 
 ## Planning Freeze Rules
 
-The branch `docs/temporal-t3b-t7-planning-freeze` is documentation-only and intentionally does not modify production source while T3A is executing.
+The branch `docs/temporal-t3b-t7-planning-freeze` is documentation-only. It has been synchronized onto the post-T3A master tree and contains the frozen T3B–T7 implementation plans without production changes.
 
-Default integration rule:
+Current transition rule:
 
 ```text
-T3A local RED/GREEN
+T3A merged at master@4a9ca6c...
+  -> planning branch synchronized onto that master
+  -> create T3B from exact current master
+  -> T3B local characterization + RED/GREEN
   -> exact-head gates
-  -> merge T3A
-  -> integrate/rebase planning docs onto new master
-  -> create T3B from that current master
+  -> merge T3B
+  -> combined T3 closure
+  -> only then begin T4
 ```
 
-Do not merge the planning branch into master mid-T3A merely to make plans visible if doing so would force an otherwise unnecessary T3A rebase. The plans can be read directly from the planning branch until T3A closes.
+The planning branch does not need to be merged into master merely to execute T3B; an executor may read the frozen plan from the planning branch while the implementation branch remains based exactly on current `master`.
 
 ## Successor branch topology
 
 ```text
-verified T2 master 2e4757da...
+master + T3A 4a9ca6c...
         |
-        +-- T3A Mobility  [currently executing]
+        +-- T3B Traffic   [next]
                 |
-                v merge
-          master + T3A
+                v merge + combined T3 proof
+          master + T3A + T3B
                 |
-                +-- T3B Traffic
+                +-- T4 Compressed Calendar
                         |
-                        v merge + combined T3 proof
-                  master + T3A + T3B
+                        v merge
+                  master + T4
                         |
-                        +-- T4 Compressed Calendar
+                        +-- T5 WorldSaveV9
                                 |
                                 v merge
-                          master + T4
+                          master + T5
                                 |
-                                +-- T5 WorldSaveV9
+                                +-- T6 Release Cutover
                                         |
-                                        v merge
-                                  master + T5
+                                        v merge + Owner PASS
+                                  master + T6
                                         |
-                                        +-- T6 Release Cutover
+                                        +-- T7 Legacy Cleanup
                                                 |
-                                                v merge + Owner PASS
-                                          master + T6
-                                                |
-                                                +-- T7 Legacy Cleanup
-                                                        |
-                                                        v
-                                            Temporal Authority v1 CLOSED
+                                                v
+                                    Temporal Authority v1 CLOSED
 ```
 
-T3B is intentionally sequential after T3A because Game/Mobility/Traffic orchestration overlaps. T4 must not begin until combined T3 is proven. T5 must not begin before T4 because V9 identifies the final compressed-calendar interpretation. T7 must not begin before T6 release acceptance because it deletes only compatibility surfaces proven unnecessary to the accepted product path.
+T3B is sequential after T3A because Game/Mobility/Traffic orchestration overlaps. T4 must not begin until combined T3 is proven. T5 must not begin before T4 because V9 identifies the final compressed-calendar interpretation. T7 must not begin before T6 release acceptance because it deletes only compatibility surfaces proven unnecessary to the accepted product path.
 
 ## Per-PR execution discipline
 
@@ -118,6 +117,16 @@ current master
 ```
 
 Never intentionally push known-failing RED. CI verifies the local GREEN candidate; it is not the first debugger.
+
+## T3B immediate execution baseline
+
+```text
+T3B_BASE_SHA=4a9ca6c18a4360d9576db8c5ab55c69f64e20cd7
+branch=feat/t3b-traffic-temporal-migration
+plan=docs/systems/traffic/tdd/2026-08-26-traffic-temporal-contract-migration.md
+```
+
+Before first production edit, reconfirm the Traffic source inventory from the T3B plan. If topology materially differs, update only the affected file list and stop for design review if semantics would broaden.
 
 ## Global stop conditions
 

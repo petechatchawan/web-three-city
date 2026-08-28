@@ -4,12 +4,20 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  test:
+  verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22.18.0
       - name: Enable pnpm
@@ -18,11 +26,14 @@ jobs:
           corepack prepare pnpm@10.15.1 --activate
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
-      - name: Typecheck
-        run: pnpm typecheck
-      - name: Run tests
-        run: pnpm test
+      - name: Capture generated lockfile
+        uses: actions/upload-artifact@v4
+        with:
+          name: pnpm-lockfile-${{ github.sha }}
+          path: pnpm-lock.yaml
+          if-no-files-found: error
+          retention-days: 1
       - name: Install Chromium
         run: pnpm exec playwright install --with-deps chromium
-      - name: Browser smoke
-        run: pnpm test:browser
+      - name: Verify repository
+        run: pnpm verify

@@ -27,7 +27,7 @@ describe('architecture checker fixtures', () => {
       const root = await materializeFixture(fixture.scenario);
       const report = await checkArchitecture(root);
       const ids = report.violations.map((violation) => violation.ruleId);
-      expect(ids).toEqual(expect.arrayContaining(fixture.expectedRuleIds ?? []));
+      expect(ids).toEqual(expect.arrayContaining([...(fixture.expectedRuleIds ?? [])]));
     });
   }
 

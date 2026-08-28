@@ -1,6 +1,6 @@
 # Foundation Structure
 
-- **Status:** REVIEW DRAFT — NOT FROZEN
+- **Status:** FROZEN
 - **Date:** 2026-08-28
 - **Scope:** Foundation classification, package-creation gates, dependency direction, and reserved capability homes
 - **Depends on:** Product Architecture, ADR-001, A3 Repository Topology & Ownership Model, A4 Package Boundary Model, A6 Public Export & Dependency Rules

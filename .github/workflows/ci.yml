@@ -5,7 +5,7 @@ on:
   pull_request:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -27,36 +27,33 @@ jobs:
           corepack prepare pnpm@10.15.1 --activate
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
-      - name: Capture generated lockfile
-        uses: actions/upload-artifact@v4
-        with:
-          name: pnpm-lockfile-${{ github.sha }}
-          path: pnpm-lock.yaml
-          if-no-files-found: error
-          retention-days: 1
       - name: Format implementation source
         run: pnpm format
-      - name: Capture formatted source
-        uses: actions/upload-artifact@v4
-        with:
-          name: formatted-source-${{ github.sha }}
-          path: |
-            .github/workflows/ci.yml
-            .husky
-            .prettierignore
-            README.md
-            apps
-            foundation
-            tooling
-            tests
-            architecture.policy.json
-            eslint.config.js
-            package.json
-            playwright.config.ts
-            pnpm-workspace.yaml
-            tsconfig.base.json
-          if-no-files-found: error
-          retention-days: 1
+      - name: Persist canonical bootstrap artifacts
+        if: github.event_name == 'push' && github.ref == 'refs/heads/implementation/foundation-architecture-structure'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            .github/workflows/ci.yml \
+            README.md \
+            apps \
+            foundation \
+            tooling \
+            tests \
+            architecture.policy.json \
+            eslint.config.js \
+            package.json \
+            playwright.config.ts \
+            pnpm-workspace.yaml \
+            tsconfig.base.json \
+            pnpm-lock.yaml
+          if git diff --cached --quiet; then
+            echo "Canonical bootstrap artifacts already persisted."
+          else
+            git commit -m "chore: normalize bootstrap artifacts"
+            git push origin HEAD:implementation/foundation-architecture-structure
+          fi
       - name: Install Chromium
         run: pnpm exec playwright install --with-deps chromium
       - name: Verify repository

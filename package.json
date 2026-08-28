@@ -1,0 +1,31 @@
+{
+  "name": "web-three-city",
+  "private": true,
+  "version": "0.0.0",
+  "packageManager": "pnpm@11.23.0",
+  "engines": {
+    "node": "24.20.0"
+  },
+  "scripts": {
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
+    "lint": "eslint . --max-warnings 0",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "pnpm -r --if-present test",
+    "architecture:check": "pnpm --filter @web-three-city/tooling-architecture architecture:check",
+    "architecture:report": "pnpm --filter @web-three-city/tooling-architecture architecture:report",
+    "build": "pnpm -r --if-present build",
+    "test:browser": "playwright test",
+    "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm architecture:check && pnpm build",
+    "verify:full": "pnpm verify && pnpm test:browser",
+    "repository:state": "pnpm --filter @web-three-city/tooling-architecture repository:state"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.1",
+    "@types/node": "24.13.3",
+    "eslint": "10.8.1",
+    "prettier": "3.9.6",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.68.0"
+  }
+}

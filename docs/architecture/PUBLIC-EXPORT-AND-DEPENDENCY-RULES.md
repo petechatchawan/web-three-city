@@ -91,7 +91,7 @@ caller-managed event publication hooks
 private repositories/stores
 ```
 
-Import permissions:
+Production import permissions:
 
 ```text
 systems/*        NO
@@ -117,7 +117,7 @@ adapter/factory intentionally intended for app composition
 
 It must not expose normal gameplay operations.
 
-Import permissions:
+Production import permissions:
 
 ```text
 systems/*        NO
@@ -128,6 +128,8 @@ apps/*           YES
 `./composition` is not a shortcut for consumers that cannot find a needed symbol on the proper read or command surface.
 
 ## 3. System surface permission matrix
+
+Production/workspace-package permissions:
 
 ```text
 Consumer          system "."    system "./commands"    system "./composition"
@@ -146,6 +148,31 @@ Notes:
 - `YES**` — testkit may consume exported system read APIs needed for reusable testing, but it receives no cross-package mutation or composition authority. If a reusable helper appears to require those surfaces, keep the helper with the owning package or revisit the architecture rather than adding a testing privilege implicitly.
 - `INSPECT***` — repository tooling may parse package/source metadata as data. Importing the system's runtime API as code follows normal dependency permission and is not implied by inspection rights.
 
+### 3.1 Repository-level test code
+
+Top-level repository test code under `tests/*` is not a reusable workspace package and is not production code.
+
+It may consume any **deliberately exported** public system surface required to verify a test scenario:
+
+```text
+"."              YES
+"./commands"     YES when the test directly verifies/integrates owned mutation
+"./composition"  YES when the test must construct an isolated public package graph
+```
+
+This is a test-only execution permission, not friend access.
+
+Repository-level tests still must obey:
+
+```text
+no private/deep import
+no relative reach-through
+no access to non-exported internals
+no hidden mutation outside approved public surfaces
+```
+
+This permission does not propagate into `testkit/*`. Reusable test packages remain constrained by the matrix above so testkit cannot become a privileged shared-internals layer.
+
 ## 4. Foundation exports
 
 Foundation packages use the same A4 boundary mechanism but do not inherit system Command/Query semantics automatically.
@@ -161,7 +188,7 @@ Foundation root exports may expose generic primitives, interfaces, deterministic
 
 Foundation must not expose gameplay-specific vocabulary merely to satisfy consumers.
 
-Foundation `./composition` may be consumed by apps when concrete wiring is required. Other consumers use the stable root capability unless a later architecture decision explicitly permits another subpath.
+Foundation `./composition` may be consumed by apps when concrete wiring is required. Repository-level test code may consume a deliberately exported Foundation composition surface when needed for isolated integration setup. Other production consumers use the stable root capability unless a later architecture decision explicitly permits another subpath.
 
 Foundation must never expose upward dependency hooks that require it to know systems/orchestration/apps.
 
@@ -189,6 +216,8 @@ It must not re-export system internals or become a convenience facade over every
 
 `apps/*` are the primary production consumers of orchestration operations.
 
+Repository-level test code may consume orchestration public/composition surfaces when required to test an isolated concern, without receiving private access.
+
 Orchestration-to-orchestration dependency is forbidden by default. An exception requires explicit architecture review, an acyclic graph, and a demonstrated concern dependency that cannot be represented more cleanly through apps composition or shared lower-level contracts.
 
 ## 6. Application exports
@@ -204,6 +233,8 @@ apps/* do not expose production library APIs for other ownership namespaces.
 App-to-app dependencies are forbidden by default. If multiple applications later need shared behavior, that behavior must be assigned to the correct system/Foundation/orchestration owner rather than extracted into an app library by convenience.
 
 Any future app embedding/composition relationship requires explicit product architecture approval.
+
+Browser/journey tests interact with the app through executable/product behavior rather than treating the app as a shared library unless a specific public test surface is later approved.
 
 ## 7. Testkit exports
 
@@ -292,18 +323,20 @@ Approval is attached to the owning system design/change, not inferred from `pack
 
 ## 12. Direct query graph
 
-Architecture tooling derives the system-to-system root-read graph from actual imports and workspace manifests.
+Architecture tooling derives the system-to-system root-read graph from actual production package imports and workspace manifests.
 
 Binding rules:
 
 ```text
-only root system read surfaces contribute approved direct system Query edges
-system command/composition edges are forbidden
+only root system read surfaces contribute approved direct production system Query edges
+system command/composition edges are forbidden in production system consumers
 system Query graph must remain acyclic
 manual dependency graph is not authority
 ```
 
-If semantic reads are bidirectional, one direction must use dependency inversion as defined by ADR-001/A7 rather than creating a package cycle.
+Test-only repository imports do not become production system dependency edges.
+
+If semantic reads are bidirectional, one production direction must use dependency inversion as defined by ADR-001/A7 rather than creating a package cycle.
 
 ## 13. Same-layer dependencies
 
@@ -359,9 +392,11 @@ Would exposing it couple consumers to internal implementation shape?
 
 Wildcard public barrels that accidentally export implementation details are forbidden.
 
+A symbol must not be promoted solely to simplify a test. Repository tests may use any already-approved public surface, but tests do not justify exposing private implementation by themselves.
+
 ## 16. Contract change propagation
 
-A public contract change must identify its affected direct consumers from the actual dependency graph.
+A public contract change must identify its affected direct production consumers from the actual dependency graph and relevant test consumers from verification ownership.
 
 Current monorepo rule:
 
@@ -376,9 +411,10 @@ A6 does not introduce external semantic-versioning policy before a real independ
 ## 17. Anti-pattern checklist
 
 - [ ] system root export exposes mutation entrypoint;
-- [ ] system command surface is imported by another system;
-- [ ] system composition surface is imported by system/orchestration;
+- [ ] system command surface is imported by another production system;
+- [ ] system composition surface is imported by production system/orchestration;
 - [ ] testkit imports system command/composition surface as a privileged testing shortcut;
+- [ ] repository test deep-imports private implementation instead of using public surface;
 - [ ] orchestration re-exports system internals as convenience facade;
 - [ ] app is treated as reusable production library;
 - [ ] Foundation adopts gameplay vocabulary to simplify exports;
@@ -389,6 +425,7 @@ A6 does not introduce external semantic-versioning policy before a real independ
 - [ ] system Query graph contains a cycle;
 - [ ] app/orchestration same-layer dependency becomes an unreviewed hierarchy;
 - [ ] third-party implementation type leaks into stable gameplay contract by accident;
+- [ ] export is created only to make testing easier;
 - [ ] export is created without a current named consumer/use case;
 - [ ] `./composition` is used as a backdoor gameplay API.
 
@@ -399,10 +436,10 @@ A6 does not introduce external semantic-versioning policy before a real independ
 -> read/observe system surface
 
 @web-three-city/roads/commands
--> Roads owned mutation surface; orchestration/apps only
+-> Roads owned mutation surface; orchestration/apps in production, repository tests when directly verifying mutation
 
 @web-three-city/roads/composition
--> Roads construction surface; apps only
+-> Roads construction surface; apps in production, repository tests for isolated integration setup
 
 Roads root exports getRoadSummary()
 -> valid if observational and semantically immutable
@@ -410,7 +447,7 @@ Roads root exports getRoadSummary()
 Roads root exports removeRoad()
 -> invalid; mutation belongs on ./commands
 
-Zoning imports @web-three-city/roads/commands
+Zoning production imports @web-three-city/roads/commands
 -> invalid
 
 Construction orchestration imports @web-three-city/roads/commands
@@ -419,8 +456,11 @@ Construction orchestration imports @web-three-city/roads/commands
 apps/game imports @web-three-city/roads/composition
 -> valid composition responsibility
 
+tests/integration imports @web-three-city/roads/composition to build isolated public graph
+-> valid test-only use
+
 testkit helper imports @web-three-city/roads/commands
--> invalid privileged testing shortcut under current model
+-> invalid privileged reusable-testing shortcut under current model
 
 orchestration/A imports orchestration/B
 -> forbidden by default; requires explicit architecture exception
@@ -450,14 +490,15 @@ System "./commands" = owned mutation.
 System "./composition" = construction/wiring.
 Surfaces exist only when needed.
 Exported != permitted for every consumer.
-Systems never import another system's command or composition surface.
+Production systems never import another system's command or composition surface.
 Testkit receives no privileged command/composition access.
-Direct system root-read dependencies are reviewed exceptions and remain acyclic.
+Repository-level tests may use deliberately exported public mutation/composition surfaces when required, but never private internals.
+Direct production system root-read dependencies are reviewed exceptions and remain acyclic.
 Orchestration may command systems; apps may compose systems.
 Foundation exposes generic lower-level capabilities only.
 Apps are executable boundaries, not shared libraries.
 Public contracts never leak private implementation or ports.
 Re-export convenience never changes ownership.
 Public surfaces remain minimum sufficient.
-Actual imports/manifests, not manual maps, define dependency evidence.
+Actual production imports/manifests, not manual maps, define dependency evidence.
 ```

@@ -1,8 +1,0 @@
-.city-ui .city-tool-pill {
-  color: #ffffff;
-}
-
-.city-ui .city-tool-pill.is-active,
-.city-ui .city-tool-pill[aria-pressed='true'] {
-  color: #ffffff;
-}

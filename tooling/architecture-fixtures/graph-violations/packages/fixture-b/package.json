@@ -1,1 +1,0 @@
-{"name":"fixture-b","type":"module","dependencies":{"fixture-a":"workspace:*"}}

@@ -232,6 +232,12 @@ export interface PreparedWorldDefinition {
   readonly spatial: WorldSpatialRead;
 }
 
+export interface CreateInitialWorldInput {
+  readonly prepared: PreparedWorldDefinition;
+  readonly selectedStartingRegionId: RegionId;
+  readonly eligibleStartingRegionIds: readonly RegionId[];
+}
+
 export interface MapStateRead {
   readonly mapDefinitionId: MapDefinitionId;
   readonly startingRegionId: RegionId;
@@ -260,6 +266,12 @@ Terrain public/read contracts:
 export type LogicalElevation = number & {
   readonly __logicalElevationBrand: "LogicalElevation";
 };
+export type TerrainElevationResult =
+  | { readonly status: "success"; readonly value: LogicalElevation }
+  | {
+      readonly status: "rejected";
+      readonly code: "TERRAIN_ELEVATION_INVALID" | "TERRAIN_ELEVATION_OUT_OF_RANGE";
+    };
 export type TerrainRevision = number;
 export type TerrainCompleteness = "partial" | "full";
 export type TerrainTriangle = "SW_TRIANGLE" | "NE_TRIANGLE";
@@ -367,7 +379,7 @@ export interface TerrainStateSnapshot {
   readonly chunks: readonly TerrainChunkSnapshot[];
 }
 
-export interface TerrainRead {
+export interface TerrainAuthorityRead {
   revision(): TerrainRevision;
   completeness(): TerrainCompleteness;
   elevationAt(vertex: VertexCoord): TerrainQueryResult<LogicalElevation>;
@@ -377,6 +389,9 @@ export interface TerrainRead {
     uQ16: number,
     vQ16: number,
   ): TerrainQueryResult<SurfaceSampleRead>;
+}
+
+export interface TerrainRead extends TerrainAuthorityRead {
   captureSnapshot(): TerrainStateSnapshot;
 }
 ```
@@ -389,6 +404,17 @@ export interface TerrainFieldSource {
   readonly vertexHeight: number;
   elevationAt(x: number, z: number): number;
 }
+
+export type TerrainConstructionResult<T> =
+  | { readonly status: "success"; readonly value: T }
+  | {
+      readonly status: "rejected";
+      readonly reason:
+        | "invalid-source-dimensions"
+        | "invalid-elevation"
+        | "world-topology-rejected";
+      readonly detail?: Readonly<Record<string, unknown>>;
+    };
 
 export interface PreparedProductionTerrain {
   readonly field: TerrainFieldSource;
@@ -406,7 +432,7 @@ export type TerrainPreparationResult =
     };
 
 export interface TerrainAuthoritySystem {
-  readonly read: TerrainRead;
+  readonly read: TerrainAuthorityRead;
 }
 
 export interface TerrainCommands {
@@ -806,11 +832,9 @@ World composition exposes exactly:
 ```ts
 export function prepareProductionWorldDefinition(): WorldConstructionResult<PreparedWorldDefinition>;
 
-export function createInitialWorldSystem(input: {
-  readonly prepared: PreparedWorldDefinition;
-  readonly selectedStartingRegionId: RegionId;
-  readonly eligibleStartingRegionIds: readonly RegionId[];
-}): WorldConstructionResult<WorldSystem>;
+export function createInitialWorldSystem(
+  input: CreateInitialWorldInput,
+): WorldConstructionResult<WorldSystem>;
 ```
 
 `PreparedWorldDefinition` exposes read-only `mapDefinition` and `spatial` capability required before MapState exists. `WorldSystem` exposes root read capability and `captureSnapshot()`; it does not expose Region mutation.
@@ -1048,7 +1072,7 @@ export function createTerrainAuthoritySystem(input: {
 }): TerrainConstructionResult<TerrainAuthoritySystem>;
 ```
 
-`TerrainConstructionResult<T>` is a typed success/rejection union local to the composition contract; rejection detail is immutable and no partial state escapes.
+`TerrainConstructionResult<T>` uses the exact ledger union above. `invalid-source-dimensions` covers any source shape other than 513×513 for the production path; `invalid-elevation` covers failed logical-elevation parsing; `world-topology-rejected` covers an unexpected World owner-resolution rejection. No partial state escapes.
 
 - [ ] **Step 1: Write RED authority tests**
 
@@ -1159,6 +1183,14 @@ interface CellCorners {
   readonly se: LogicalElevation;
   readonly nw: LogicalElevation;
   readonly ne: LogicalElevation;
+}
+
+interface SurfaceSample {
+  readonly triangle: TerrainTriangle;
+  readonly heightQ16: number;
+  readonly riseX: number;
+  readonly riseZ: number;
+  readonly runUnits: 32;
 }
 
 function evaluateSurface(
@@ -1675,10 +1707,16 @@ interface CanonicalElevationUpdate {
   readonly elevation: LogicalElevation;
 }
 
+interface TerrainStateMutationCore {
+  withAtomicUpdates(
+    updates: readonly CanonicalElevationUpdate[],
+  ): TerrainStateMutationCore;
+}
+
 function commitCanonicalUpdates(
-  state: TerrainState,
+  state: TerrainStateMutationCore,
   updates: readonly CanonicalElevationUpdate[],
-): TerrainState {
+): TerrainStateMutationCore {
   return state.withAtomicUpdates(updates);
 }
 ```

@@ -21,6 +21,7 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 24.20.0
+          package-manager-cache: false
       - run: pnpm install --no-frozen-lockfile
       - run: pnpm format
       - run: pnpm lint

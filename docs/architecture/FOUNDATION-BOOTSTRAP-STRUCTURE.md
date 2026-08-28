@@ -1,6 +1,6 @@
 # Foundation Bootstrap Structure
 
-- **Status:** REVIEW DRAFT — NOT FROZEN
+- **Status:** FROZEN
 - **Date:** 2026-08-28
 - **Scope:** Initial clean-slate workspace scaffold required to make the frozen Architecture & Structure executable without introducing gameplay systems
 - **Depends on:** Product Architecture, ADR-000, ADR-001, A3 Repository Topology & Ownership Model, A4 Package Boundary Model, A5 System Internal Structure, A6 Public Export & Dependency Rules, A7 Composition & Orchestration Structure, A8 Foundation Structure, A9 Testing Structure, A10 Documentation Structure, A11 Architecture Enforcement Design
@@ -525,25 +525,29 @@ Before Bootstrap implementation starts:
 
 ```text
 A3–A12 Architecture & Structure documents are reviewed/frozen
-existing FOUNDATION-BOOTSTRAP.md is reconciled with A12 or superseded cleanly
+FOUNDATION-BOOTSTRAP-STRUCTURE.md is the single active Bootstrap structural authority
+the earlier FOUNDATION-BOOTSTRAP.md baseline has been removed after reconciliation
 implementation/TDD plan references current frozen docs only
 ```
 
 No implementation agent should need chat history to understand the scaffold target.
 
-## 29. Relationship to existing `FOUNDATION-BOOTSTRAP.md`
+## 29. Bootstrap authority reconciliation
 
-The current `docs/architecture/FOUNDATION-BOOTSTRAP.md` predates the completed A3–A12 structural sequence and remains a reviewed design baseline until the batch review is complete.
+The earlier `docs/architecture/FOUNDATION-BOOTSTRAP.md` was a temporary clean-slate reviewed baseline created before the A3–A12 structural sequence was complete.
 
-After A12 approval, reconcile it in one of two ways:
+After batch review, its useful structural intent was reconciled into this A12 document and the old file was removed from the active tree.
+
+Git history is sufficient for that earlier baseline. It is not maintained as a second active or superseded Bootstrap specification.
+
+Therefore:
 
 ```text
-A. update FOUNDATION-BOOTSTRAP.md to become the concise executable bootstrap specification and keep A12 as structural authority
-or
-B. supersede/merge it if maintaining both would duplicate authority
+FOUNDATION-BOOTSTRAP-STRUCTURE.md
+= single active structural authority for Bootstrap
 ```
 
-The batch review should choose one primary authority before implementation planning.
+A future executable/TDD plan derives from A12 and the other current FROZEN architecture documents; it does not restore the removed baseline as authority.
 
 ## 30. Anti-pattern checklist
 
@@ -559,6 +563,7 @@ The batch review should choose one primary authority before implementation plann
 - [ ] pre-commit is the only architecture gate;
 - [ ] Selective Verification is prematurely rebuilt before real topology exists;
 - [ ] legacy tooling or package maps are consulted by default;
+- [ ] competing Bootstrap authority is reintroduced beside A12;
 - [ ] Bootstrap implementation begins before A3–A12 and execution plan approval.
 
 ## 31. Definition of Done examples
@@ -614,5 +619,6 @@ Three.js, if present, stays in app/presentation boundary.
 Local and CI verification use the same underlying checks.
 No Selective Verification redesign before real topology exists.
 No runtime/persistence/spatial Foundation package before its governing design.
+A12 is the single active Bootstrap structural authority.
 A3–A12 must be reviewed/frozen before Bootstrap implementation planning begins.
 ```

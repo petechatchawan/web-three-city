@@ -1,6 +1,6 @@
 # Composition and Orchestration Structure
 
-- **Status:** REVIEW DRAFT — NOT FROZEN
+- **Status:** FROZEN
 - **Date:** 2026-08-28
 - **Scope:** Application composition root, dependency inversion wiring, orchestration package structure, and cross-system policy placement
 - **Depends on:** Product Architecture, ADR-001, A3 Repository Topology & Ownership Model, A4 Package Boundary Model, A5 System Internal Structure, A6 Public Export & Dependency Rules

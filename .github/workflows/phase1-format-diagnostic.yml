@@ -1,0 +1,35 @@
+name: Phase 1 Format Diagnostic
+
+on:
+  push:
+    branches:
+      - design/phase-1-world-map-terrain
+
+permissions:
+  contents: read
+
+jobs:
+  format-diff:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22.18.0
+          package-manager-cache: false
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.15.1 --activate
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Format diagnostic files
+        run: |
+          pnpm exec prettier --write \
+            docs/systems/world/specs/WORLD-SPATIAL-CONTRACT.md \
+            docs/systems/terrain/specs/TERRAIN-GENERATION-CONTRACT.md
+      - name: Print canonical diff
+        run: git diff -- \
+          docs/systems/world/specs/WORLD-SPATIAL-CONTRACT.md \
+          docs/systems/terrain/specs/TERRAIN-GENERATION-CONTRACT.md

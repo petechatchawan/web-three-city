@@ -228,13 +228,17 @@ Architecture tooling itself requires automated tests using valid and invalid fix
 
 Bootstrap architecture tooling must be able to derive direct system Query edges from real workspace/package imports and reject a cycle with topological-sort or equivalent deterministic cycle detection.
 
-It should also prove a cycle-breaking fixture using dependency inversion:
+It must also prove a cycle-breaking fixture using the ADR-001 dependency-inversion pattern:
 
 ```text
-A direct-queries B
-B receives A information through an injected B-owned/A-owned read port as appropriate
-no reverse package import
+System A directly queries System B root surface
+System B needs information owned by System A
+System B depends on a B-owned internal ReadPort instead of importing System A
+apps/game composition wires an adapter that calls System A's root Query surface
+there is no reverse package import from B to A
 ```
+
+The same pattern applies symmetrically when the opposite direction is chosen. The consumer owns the internal read port; composition wires the provider query.
 
 No manually maintained query graph is authority.
 

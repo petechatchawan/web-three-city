@@ -103,7 +103,9 @@ Current canonical reset branch:
 reset/product-architecture-clean-slate
 ```
 
-The earlier branch name containing `v2` is superseded and MUST NOT receive new architecture work.
+This reset branch is a temporary transition/integration branch. After the architecture reset is merged, normal trunk-based short-lived branch policy resumes from `master`.
+
+Any earlier reset branch name is superseded and MUST NOT receive new architecture work.
 
 ## Compatibility policy
 
@@ -155,6 +157,7 @@ Legacy gameplay is reference until explicitly re-adopted.
 Process/tooling conventions are adopted by default unless incompatible.
 Default process adoption is semantic, not byte-for-byte.
 No force-push reset of master.
+The reset branch is temporary; master remains the long-term trunk.
 Git history remains available as evidence and research.
 No legacy artifact silently overrides a current specification or ADR.
 ```

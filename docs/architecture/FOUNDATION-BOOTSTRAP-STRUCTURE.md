@@ -181,6 +181,7 @@ export/deep-import boundary
 cross-package dependency declaration
 namespace dependency matrix
 system read/command/composition permissions via fixtures
+repository-level test public-surface permissions
 system Query graph cycle detection
 Foundation upward dependency rejection
 production -> testkit/tooling rejection
@@ -304,12 +305,24 @@ orchestration -> system composition import
 Foundation -> system dependency
 production -> testkit dependency
 production -> tooling dependency
+testkit -> system command/composition privilege violation
 system Query cycle
 public read/command contract references internal port
 package name/path profile mismatch
 ```
 
-Valid fixtures should prove corresponding allowed cases.
+Initial valid fixtures should cover at least:
+
+```text
+approved system root-read edge
+apps -> system composition
+orchestration -> system command
+repository tests -> exported system command
+repository tests -> exported system composition
+Foundation -> Foundation public dependency
+```
+
+Each fixture proves architecture behavior only; it does not create production topology.
 
 ## 15. Current direct-system-read approval fixture
 
@@ -357,7 +370,7 @@ Synthetic system fixture should prove:
 "./composition" construction
 ```
 
-and the A6 consumer matrix.
+and the A6 production + repository-test consumer rules.
 
 This does not create a real system package in production tree.
 

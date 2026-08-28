@@ -98,9 +98,17 @@ composition adapter joining consumer-owned port to provider Query
 Foundation capability integrated with a system through public contracts
 ```
 
-Cross-package tests are external consumers and must use approved public boundaries.
+Cross-package tests are external consumers and must use deliberately exported public boundaries.
+
+Under A6, repository-level test code may use public read, command, and composition surfaces when those surfaces are needed to construct or exercise the isolated integration scenario.
 
 They receive no friend/deep-import access.
+
+```text
+public test-only surface permission
+!=
+private internal access
+```
 
 ## 6. Browser tests
 
@@ -124,6 +132,8 @@ actual browser permission/capability behavior
 Do not use browser tests merely because a gameplay feature is visible in the browser.
 
 If domain/application correctness can be proven without browser startup, prove it lower in the test pyramid first.
+
+Browser tests normally interact with the executable app/product boundary rather than importing system internals.
 
 ## 7. Critical journey tests
 
@@ -186,7 +196,7 @@ Examples may include:
 
 ```text
 deterministic test harnesses
-shared public-contract builders
+shared public-read-contract builders
 browser driver abstractions
 reusable clock/random test doubles after corresponding Foundation contracts exist
 ```
@@ -195,10 +205,13 @@ Rules:
 
 ```text
 production -> testkit forbidden
-testkit consumes production packages through public APIs only
+testkit consumes only production surfaces permitted to the testkit profile
 no private deep imports
+no privileged command/composition shortcut
 testkit does not contain gameplay implementation
 ```
+
+This is intentionally stricter than one-off repository integration tests. Reusable test infrastructure must not become a privileged shared layer that can mutate or construct arbitrary systems.
 
 Do not create `testkit` package merely because two tests share a helper function.
 
@@ -216,13 +229,15 @@ or another package-local test-support location defined by the package.
 
 Do not promote fixtures to `testkit/*` until semantic test reuse across owners is real and stable.
 
+If a reusable helper needs system mutation/composition access, first prefer keeping it with the owning package or keeping orchestration/setup directly in the repository-level integration test rather than expanding testkit privilege.
+
 ## 12. Test doubles and ports
 
 When an owner depends on an internal port, package-owned tests may provide owner-local fakes/stubs for that port.
 
 A test double should model the contract required by the consumer, not duplicate provider internals.
 
-For cross-package integration, prefer real public provider capability through composition unless the test's purpose specifically requires a controlled fake.
+For cross-package integration, prefer real public provider capability through exported composition where the test needs an isolated package graph, unless the test's purpose specifically requires a controlled fake.
 
 ## 13. Contract verification
 
@@ -284,18 +299,29 @@ A9 does not mandate one exact filename grammar across every test type, but test 
 Tests obey package boundaries.
 
 ```text
-package-owned test -> may access same-package internals
-external/cross-package test -> public APIs only
-browser/journey/visual -> product/application public behavior only
+package-owned test
+-> may access same-package internals
+
+external package-owned test (for another owner)
+-> target public surfaces permitted to that package profile only
+
+repository-level tests/integration
+-> deliberately exported public surfaces, including command/composition when A6 test-only permission applies
+
+browser/journey/visual
+-> executable product/application behavior by default
 ```
 
-Tests must not create architecture relationships that production code itself is forbidden to create merely for setup convenience.
+Tests must not use private/deep imports merely for setup convenience.
 
 Example:
 
 ```text
 systems/zoning/tests deep-imports Roads internals
 -> forbidden
+
+tests/integration imports Roads ./composition for isolated graph setup
+-> allowed because the composition path is deliberately exported and A6 grants repository-test use
 ```
 
 ## 18. Verification ladder
@@ -381,6 +407,9 @@ Roads public Query shape
 Roads reads Terrain through adapter
 -> cross-package integration test
 
+isolated Roads + Terrain composition graph
+-> repository integration test using public composition surfaces
+
 pointer gesture arbitration
 -> browser test
 
@@ -393,7 +422,7 @@ critical new-game-to-first-road flow
 - [ ] every feature requires browser test by default;
 - [ ] package unit tests boot unrelated systems;
 - [ ] external test deep-imports private package code;
-- [ ] testkit becomes shared gameplay code;
+- [ ] testkit gains command/composition privilege and becomes shared mutation harness;
 - [ ] system-specific fixture is promoted globally without real reuse;
 - [ ] screenshot used as sole proof of domain correctness;
 - [ ] journey suite duplicates all lower-level scenarios;
@@ -401,7 +430,8 @@ critical new-game-to-first-road flow
 - [ ] tests depend on run order/global mutable fixture;
 - [ ] architecture checker has no valid/invalid fixture tests;
 - [ ] old pre-reset snapshots/fixtures are treated as current expected behavior;
-- [ ] one full-product mega-test is used where focused owner test is sufficient.
+- [ ] one full-product mega-test is used where focused owner test is sufficient;
+- [ ] private export is added solely to satisfy a test.
 
 ## 25. Definition of Done examples
 
@@ -414,6 +444,9 @@ Roads public Query contract
 
 Roads + Terrain public-contract integration
 -> tests/integration/
+
+isolated integration needs Roads factory
+-> tests/integration may import exported Roads ./composition under A6
 
 browser pointer/touch behavior
 -> tests/browser/
@@ -430,7 +463,7 @@ architecture import-rule fixture
 Road-only fixture builder
 -> systems/roads/tests/support
 
-generic reusable deterministic test harness
+generic reusable deterministic read-test harness
 -> testkit/<approved capability> only when cross-owner reuse is real
 ```
 
@@ -454,11 +487,12 @@ visual baseline storage provider
 Testing follows ownership.
 Use the narrowest authoritative test layer.
 Package-owned tests may access package internals.
-External tests use public boundaries only.
+External package tests obey their package profile.
+Repository-level integration tests may use deliberately exported public composition/mutation surfaces when needed, never private internals.
 Browser is not the default correctness layer.
 Critical journeys remain few and product-risk driven.
 Visual tests prove visual authority, not hidden domain semantics.
-Testkit is reusable test infrastructure, never production gameplay code.
+Testkit is reusable test infrastructure, never a privileged shared mutation/construction layer.
 Architecture tooling tests its own rules with valid/invalid fixtures.
 Current tests are created from current requirements; legacy fixtures are not authority.
 Flakiness and hidden global state are not accepted as normal test design.

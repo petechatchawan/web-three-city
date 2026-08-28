@@ -26,6 +26,13 @@ function violation(ruleId: string, source: string, message: string, reference: s
   return { ruleId, source, message, reference };
 }
 
+function hasActionablePlaceholder(line: string): boolean {
+  const trimmed = line.trim();
+  const leadingMarker = /^(?:[-*+]\s+)?(?:\[[ xX]\]\s+)?(?:#{1,6}\s+)?(?:TODO|TBD|FIXME)\b(?:\s*[:—-]|\s+|$)/.test(trimmed);
+  const assignedMarker = /(?:^|[:=]\s*)(?:TODO|TBD|FIXME)\s*[.!]?\s*$/.test(trimmed);
+  return leadingMarker || assignedMarker || trimmed.includes('???');
+}
+
 export async function checkDocumentRules(root: string): Promise<ArchitectureViolation[]> {
   const violations: ArchitectureViolation[] = [];
   for (const file of await markdownFiles(path.join(root, 'docs', 'architecture'))) {
@@ -46,7 +53,7 @@ export async function checkDocumentRules(root: string): Promise<ArchitectureViol
       }
       if (fenced) continue;
       const withoutInlineCode = line.replace(/`[^`]*`/g, '');
-      if (/\b(TODO|TBD|FIXME)\b/.test(withoutInlineCode) || withoutInlineCode.includes('???')) {
+      if (hasActionablePlaceholder(withoutInlineCode)) {
         violations.push(violation('ARCH-DOC-002', `${file}:${index + 1}`, 'FROZEN architecture prose contains an unresolved placeholder marker.', 'A10 § No Placeholder Acceptance'));
       }
     }

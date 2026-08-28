@@ -1,0 +1,7 @@
+packages:
+  - apps/*
+  - foundation/*
+  - systems/*
+  - orchestration/*
+  - testkit/*
+  - tooling/*

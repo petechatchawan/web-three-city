@@ -1,0 +1,35 @@
+{
+  "name": "web-three-city",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.15.1",
+  "engines": {
+    "node": "22.18.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  },
+  "scripts": {
+    "prepare": "husky",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "pnpm -r --if-present test",
+    "architecture:check": "pnpm --filter @web-three-city/tooling-architecture architecture:check",
+    "build": "pnpm -r --if-present build",
+    "test:browser": "playwright test",
+    "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm architecture:check && pnpm build && pnpm test:browser"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.34.0",
+    "@playwright/test": "1.55.0",
+    "eslint": "9.34.0",
+    "husky": "9.1.7",
+    "prettier": "3.6.2",
+    "typescript": "5.9.2",
+    "typescript-eslint": "8.40.0"
+  }
+}

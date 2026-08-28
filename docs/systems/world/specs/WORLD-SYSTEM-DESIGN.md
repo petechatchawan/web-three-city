@@ -200,18 +200,23 @@ Snapshot capture does not mutate state.
 
 ## 11. Expected failure model
 
-Construction/validation must explicitly distinguish expected invalid inputs such as:
+Construction/validation uses the same stable semantic vocabulary as the binding Map/Region and spatial contracts:
 
 ```text
-WORLD_UNKNOWN_MAP_DEFINITION
-WORLD_INVALID_MAP_DEFINITION
-WORLD_UNKNOWN_REGION
-WORLD_REGION_NOT_STARTING_CANDIDATE
-WORLD_INVALID_STARTING_REGION
+WORLD_MAP_DEFINITION_INVALID
+WORLD_REGION_UNKNOWN
+WORLD_REGION_GEOMETRY_INVALID
+WORLD_REGION_PARTITION_INCOMPLETE
+WORLD_REGION_PARTITION_OVERLAP
+WORLD_STARTING_CANDIDATE_INVALID
+WORLD_STARTING_REGION_NOT_ELIGIBLE
+WORLD_SEED_NOT_ACCEPTED
 WORLD_COORD_OUT_OF_BOUNDS
 ```
 
-Exact API result shapes are specified with the owning contracts during implementation planning; expected invalid input is never represented only by incidental exception strings.
+A more specific binding contract owns the exact conditions and diagnostic detail for each code. The system design does not define competing aliases for the same failure.
+
+Exact API result shapes are finalized during implementation planning under ADR-001 typed-result conventions; expected invalid input is never represented only by incidental exception strings.
 
 ## 12. Testing boundary
 

@@ -1,4 +1,29 @@
-import type { DependencyEdge, QueryEdge, ResolvedImport } from '../model.js';
+import type { ArchitectureViolation, DependencyEdge, DiscoveredPackage, QueryEdge, ResolvedImport } from '../model.js';
+
+export const A4 = 'docs/architecture/PACKAGE-BOUNDARY-MODEL.md';
+
+export function violation(
+  ruleId: string,
+  sourcePath: string,
+  message: string,
+  reference: string,
+  extras: Partial<Pick<ArchitectureViolation, 'consumer' | 'target' | 'targetPath'>> = {},
+): ArchitectureViolation {
+  return { ruleId, sourcePath, message, reference, ...extras };
+}
+
+export function dependencyNames(manifest: DiscoveredPackage['manifest'], includeDev: boolean): Set<string> {
+  return new Set([
+    ...Object.keys(manifest.dependencies ?? {}),
+    ...Object.keys(manifest.peerDependencies ?? {}),
+    ...Object.keys(manifest.optionalDependencies ?? {}),
+    ...(includeDev ? Object.keys(manifest.devDependencies ?? {}) : []),
+  ]);
+}
+
+export function isTestSource(sourcePath: string): boolean {
+  return /(?:^|\/)(?:tests?|__tests__)(?:\/|$)|\.(?:test|spec)\.[cm]?[jt]sx?$/u.test(sourcePath);
+}
 
 export function importSubpath(entry: ResolvedImport): string { return entry.targetSubpath ?? '<private>'; }
 export function isCrossPackage(entry: ResolvedImport): boolean {

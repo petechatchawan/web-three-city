@@ -11,7 +11,6 @@ export function violation(
 ): ArchitectureViolation {
   return { ruleId, sourcePath, message, reference, ...extras };
 }
-
 export function dependencyNames(manifest: DiscoveredPackage['manifest'], includeDev: boolean): Set<string> {
   return new Set([
     ...Object.keys(manifest.dependencies ?? {}),
@@ -20,14 +19,15 @@ export function dependencyNames(manifest: DiscoveredPackage['manifest'], include
     ...(includeDev ? Object.keys(manifest.devDependencies ?? {}) : []),
   ]);
 }
-
 export function isTestSource(sourcePath: string): boolean {
   return /(?:^|\/)(?:tests?|__tests__)(?:\/|$)|\.(?:test|spec)\.[cm]?[jt]sx?$/u.test(sourcePath);
 }
-
 export function importSubpath(entry: ResolvedImport): string { return entry.targetSubpath ?? '<private>'; }
 export function isCrossPackage(entry: ResolvedImport): boolean {
   return entry.targetPackage !== undefined && (entry.sourcePackage === undefined || entry.sourcePackage.name !== entry.targetPackage.name);
+}
+export function hasExport(target: DiscoveredPackage, subpath: string): boolean {
+  return Object.prototype.hasOwnProperty.call(target.exportMap, subpath);
 }
 export function targetSurface(entry: ResolvedImport): 'read' | 'commands' | 'composition' | 'other-private' {
   const subpath = importSubpath(entry);

@@ -1,0 +1,23 @@
+{
+  "name": "@web-three-city/tooling-architecture",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "architecture:check": "tsx src/cli.ts check ../..",
+    "architecture:report": "tsx src/cli.ts report ../.."
+  },
+  "dependencies": {
+    "typescript": "6.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3",
+    "tsx": "4.23.12",
+    "vitest": "4.1.11"
+  }
+}

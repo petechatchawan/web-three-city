@@ -1,0 +1,20 @@
+[
+  { "name": "generic package bucket", "scenario": "generic-package-bucket", "expectedRuleIds": ["ARCH-WORKSPACE-001"] },
+  { "name": "package name mismatch", "scenario": "package-name-mismatch", "expectedRuleIds": ["ARCH-PKG-001"] },
+  { "name": "unexported subpath", "scenario": "unexported-subpath", "expectedRuleIds": ["ARCH-EXPORT-001"] },
+  { "name": "relative cross-package reach-through", "scenario": "relative-deep-import", "expectedRuleIds": ["ARCH-IMPORT-001"] },
+  { "name": "undeclared dependency", "scenario": "undeclared-dependency", "expectedRuleIds": ["ARCH-DEP-001"] },
+  { "name": "production dependency classified dev-only", "scenario": "dev-only-production-dependency", "expectedRuleIds": ["ARCH-DEP-002"] },
+  { "name": "unapproved system read", "scenario": "unapproved-system-read", "expectedRuleIds": ["ARCH-SYS-001"] },
+  { "name": "system imports another system command surface", "scenario": "system-command", "expectedRuleIds": ["ARCH-SYS-002"] },
+  { "name": "system imports another system composition surface", "scenario": "system-composition", "expectedRuleIds": ["ARCH-SYS-003"] },
+  { "name": "system read cycle", "scenario": "system-query-cycle", "expectedRuleIds": ["ARCH-SYS-004"] },
+  { "name": "Foundation depends upward", "scenario": "foundation-upward", "expectedRuleIds": ["ARCH-FOUNDATION-001"] },
+  { "name": "orchestration imports system composition", "scenario": "orchestration-composition", "expectedRuleIds": ["ARCH-ORCH-001"] },
+  { "name": "testkit imports system command", "scenario": "testkit-command", "expectedRuleIds": ["ARCH-TEST-001"] },
+  { "name": "public contract leaks internal port", "scenario": "contract-port-leak", "expectedRuleIds": ["ARCH-CONTRACT-001"] },
+  { "name": "domain imports Three.js", "scenario": "domain-three", "expectedRuleIds": ["ARCH-DOMAIN-002"] },
+  { "name": "domain uses browser global", "scenario": "domain-browser-global", "expectedRuleIds": ["ARCH-DOMAIN-003"] },
+  { "name": "domain imports outer internal layer", "scenario": "domain-outer-layer", "expectedRuleIds": ["ARCH-DOMAIN-001"] },
+  { "name": "frozen doc has unresolved placeholder", "scenario": "frozen-placeholder", "expectedRuleIds": ["ARCH-DOC-002"] }
+]

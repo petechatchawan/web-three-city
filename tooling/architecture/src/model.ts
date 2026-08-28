@@ -1,13 +1,13 @@
 export type PackageProfile =
-  | 'system'
-  | 'foundation'
-  | 'orchestration'
-  | 'app'
-  | 'testkit'
-  | 'tooling'
-  | 'unknown';
+  | "system"
+  | "foundation"
+  | "orchestration"
+  | "app"
+  | "testkit"
+  | "tooling"
+  | "unknown";
 
-export type SourceKind = 'production' | 'package-test' | 'repository-test';
+export type SourceKind = "production" | "package-test" | "repository-test";
 
 export interface WorkspacePackage {
   readonly name: string;

@@ -1,7 +1,10 @@
 [
   { "name": "minimal Foundation package", "scenario": "minimal-foundation" },
   { "name": "approved system read", "scenario": "approved-system-read" },
-  { "name": "repository test public surfaces", "scenario": "repository-test-public-surfaces" },
+  {
+    "name": "repository test public surfaces",
+    "scenario": "repository-test-public-surfaces"
+  },
   { "name": "app composition", "scenario": "app-composition" },
   { "name": "Foundation dependency", "scenario": "foundation-dependency" }
 ]

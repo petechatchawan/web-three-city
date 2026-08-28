@@ -1,6 +1,6 @@
-import path from 'node:path';
-import { checkArchitecture } from './index';
-import { exitCodeForReport, formatReport } from './cli-format';
+import path from "node:path";
+import { checkArchitecture } from "./index";
+import { exitCodeForReport, formatReport } from "./cli-format";
 
 interface CliOptions {
   readonly root: string;
@@ -13,13 +13,13 @@ function parseArgs(args: readonly string[]): CliOptions {
 
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
-    if (argument === '--json') {
+    if (argument === "--json") {
       json = true;
       continue;
     }
-    if (argument === '--root') {
+    if (argument === "--root") {
       const value = args[index + 1];
-      if (!value) throw new Error('--root requires a path argument.');
+      if (!value) throw new Error("--root requires a path argument.");
       root = path.resolve(value);
       index += 1;
       continue;
@@ -33,7 +33,9 @@ function parseArgs(args: readonly string[]): CliOptions {
 async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
   const report = await checkArchitecture(options.root);
-  const output = options.json ? JSON.stringify(report, null, 2) : formatReport(report);
+  const output = options.json
+    ? JSON.stringify(report, null, 2)
+    : formatReport(report);
   process.stdout.write(`${output}\n`);
   process.exitCode = exitCodeForReport(report);
 }

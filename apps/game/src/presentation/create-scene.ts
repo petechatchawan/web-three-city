@@ -1,4 +1,4 @@
-import { Color, PerspectiveCamera, Scene, WebGLRenderer } from 'three';
+import { Color, PerspectiveCamera, Scene, WebGLRenderer } from "three";
 
 export interface ScenePresentation {
   readonly available: boolean;
@@ -15,10 +15,13 @@ export function createScene(host: HTMLElement): ScenePresentation {
 
     const renderer = new WebGLRenderer({ antialias: true, alpha: false });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.domElement.className = 'app-canvas';
-    renderer.domElement.setAttribute('aria-label', 'Three.js presentation surface');
+    renderer.domElement.className = "app-canvas";
+    renderer.domElement.setAttribute(
+      "aria-label",
+      "Three.js presentation surface",
+    );
     host.append(renderer.domElement);
-    host.dataset.webgl = 'available';
+    host.dataset.webgl = "available";
 
     const render = (): void => {
       const width = Math.max(host.clientWidth, 1);
@@ -39,15 +42,15 @@ export function createScene(host: HTMLElement): ScenePresentation {
         resizeObserver.disconnect();
         renderer.dispose();
         renderer.domElement.remove();
-      }
+      },
     };
   } catch {
-    host.dataset.webgl = 'unavailable';
+    host.dataset.webgl = "unavailable";
     return {
       available: false,
       dispose(): void {
         delete host.dataset.webgl;
-      }
+      },
     };
   }
 }

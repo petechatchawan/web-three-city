@@ -5,13 +5,13 @@ export interface CommandRejection {
 
 export type CommandResult<
   TSuccess,
-  TRejection extends CommandRejection = CommandRejection
+  TRejection extends CommandRejection = CommandRejection,
 > =
   | {
-      readonly status: 'success';
+      readonly status: "success";
       readonly value: TSuccess;
     }
   | {
-      readonly status: 'rejected';
+      readonly status: "rejected";
       readonly rejection: TRejection;
     };

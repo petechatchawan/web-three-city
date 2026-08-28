@@ -290,12 +290,14 @@ zoning -> roads
 Instead one direction must be inverted. Typical pattern:
 
 ```text
-Roads application owns an internal read port
+Consumer application owns an internal ReadPort
         ↑
-apps/game composition wires a Zoning root-query adapter
+apps/game composition wires an adapter
+        ↓
+Provider root Query surface
 ```
 
-The Roads package therefore does not import the Zoning package for that direction.
+The consumer package therefore does not import the provider package for the inverted direction.
 
 This is dependency inversion, not automatically cross-system orchestration, because the use case may still mutate only one canonical authority.
 
@@ -363,7 +365,7 @@ Gameplay-specific terms such as Roads, Zoning, Buildings, Households, or Traffic
 
 ## Naming policy
 
-The architecture does not automatically split packages into `*-core` and `*-three`.
+Packages are named by bounded capability rather than by an automatic implementation/presentation split.
 
 Preferred package naming follows bounded capability:
 
@@ -455,7 +457,7 @@ The Blueprint deliberately exposes enough structure for a future affected resolv
 - dependency edges;
 - repository/tooling changes.
 
-The resolver itself is not frozen here. Legacy verification tooling remains reference material under ADR-000.
+Selective Verification will be designed and implemented solely from the current package topology and current requirements. Pre-reset verification code and maps are not inputs.
 
 ## Final invariants
 
@@ -470,6 +472,7 @@ Package exports, not folder names, define public API.
 "./composition" = construct/wire.
 System-to-system direct query graph is acyclic.
 Bidirectional semantic reads use dependency inversion, not cyclic imports.
-No automatic *-core / *-three split.
+Package boundaries are split only when current evidence justifies it.
 Testing and documentation locations are predictable from ownership.
+No pre-reset architecture or tooling is an input to the current Blueprint.
 ```

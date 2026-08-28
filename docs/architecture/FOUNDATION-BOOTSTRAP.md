@@ -46,22 +46,22 @@ visual fidelity work
 
 No gameplay package is created merely to demonstrate the architecture. Test fixtures are sufficient.
 
-## Process/tooling baseline
+## Current process/tooling baseline
 
-Under ADR-000, useful process/tooling conventions from the former repository are adopted by default unless incompatible with the new topology.
+Bootstrap process/tooling is defined from current requirements only.
 
-Bootstrap should therefore re-establish, adapting where necessary:
+The current design requires:
 
-- trunk-based development discipline;
-- exact-head verification evidence;
-- clean-worktree verification evidence;
-- verification ladder principles;
-- PR/Issue workflow conventions;
-- CI quality-gate discipline;
-- pre-commit quality checks;
-- concise handoff-ready architecture/system documentation conventions.
+- trunk-based development with `master` as the long-term trunk;
+- exact-head verification evidence for merge/release gates that require repository-wide confidence;
+- clean-worktree evidence where release integrity depends on it;
+- a layered verification model that prefers focused tests before wider gates;
+- PR-based integration for the reset transition;
+- CI quality gates;
+- pre-commit/local quality checks where they materially shorten feedback;
+- concise architecture and system documentation that can be handed between agents without relying on chat history.
 
-This does not mean copying obsolete verification code unchanged. Tooling that embeds old package names or dependency maps must be redesigned for the new topology.
+These are current Product Architecture decisions. No pre-reset tooling implementation is reused or consulted by default.
 
 ## Toolchain baseline
 
@@ -80,7 +80,7 @@ GitHub Actions
 Three.js for application/presentation boundary
 ```
 
-The Bootstrap design assumes this family because it is proven in the repository, but exact versions and scripts are implementation-plan details and must be pinned before implementation.
+Exact versions and scripts are implementation-plan details and must be pinned before implementation.
 
 ## Workspace topology
 
@@ -197,7 +197,7 @@ orchestration/*    YES         YES               NO
 apps/*             YES         YES               YES
 ```
 
-This proof should not require real gameplay systems.
+This proof must not require real gameplay systems.
 
 ## Architecture enforcement
 
@@ -226,19 +226,16 @@ Architecture tooling itself requires automated tests using valid and invalid fix
 
 ## Query graph proof
 
-Bootstrap architecture tooling must be able to derive direct system Query edges from real workspace/package imports and reject a cycle with topological-sort or equivalent deterministic cycle detection.
+Bootstrap architecture tooling must derive direct system Query edges from the current workspace/package imports and reject a cycle with topological-sort or equivalent deterministic cycle detection.
 
-It must also prove a cycle-breaking fixture using the ADR-001 dependency-inversion pattern:
+It must also prove a cycle-breaking fixture using dependency inversion:
 
 ```text
-System A directly queries System B root surface
-System B needs information owned by System A
-System B depends on a B-owned internal ReadPort instead of importing System A
-apps/game composition wires an adapter that calls System A's root Query surface
-there is no reverse package import from B to A
+Consumer owns an internal ReadPort
+apps/game composition wires an adapter
+adapter calls Provider root Query surface
+no reverse package import
 ```
-
-The same pattern applies symmetrically when the opposite direction is chosen. The consumer owns the internal read port; composition wires the provider query.
 
 No manually maintained query graph is authority.
 
@@ -339,7 +336,7 @@ exact-head CI
 clean-worktree evidence
 ```
 
-After a real package topology exists, Selective Verification can be designed and validated against it.
+After a real current package topology exists, Selective Verification can be designed and validated against that topology from first principles.
 
 ## Acceptance gate
 
@@ -396,7 +393,8 @@ No empty speculative packages.
 Every created foundation package has a governing decision.
 Architecture rules are executable tests, not prose only.
 The browser shell proves composition without becoming gameplay authority.
-Old workflow principles may be restored/adapted; old topology assumptions may not.
-Selective Verification is redesigned only after a real current graph exists.
-Exact-head and clean-worktree evidence remain release discipline.
+All process/tooling decisions are current decisions, not inherited ones.
+Selective Verification is designed only after a real current graph exists.
+Exact-head and clean-worktree evidence remain current release discipline.
+No pre-reset implementation or tooling is consulted by default.
 ```

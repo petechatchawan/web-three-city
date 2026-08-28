@@ -68,8 +68,6 @@ Normative rules:
 
 ## Contract and port terminology
 
-The repository uses these terms deliberately:
-
 ### Contracts
 
 `contracts/*` contains types eligible for externally observable APIs, such as:
@@ -223,13 +221,13 @@ A Query:
 
 A use case may query multiple systems without automatically becoming orchestration. Classification is based on mutation-authority count, not query count.
 
-No arbitrary query fan-out threshold is frozen. If fan-out becomes a maintenance or performance problem, evidence may justify a later policy.
+No arbitrary query fan-out threshold is frozen. If fan-out becomes a maintenance or performance problem, current evidence may justify a later policy.
 
 ## Acyclic direct-query dependency rule
 
 Direct system-to-system package dependencies through root read surfaces MUST form an acyclic graph.
 
-The graph is derived from workspace manifests and actual imports. A separately maintained manual graph is not authority.
+The graph is derived from current workspace manifests and actual imports. A separately maintained manual graph is not authority.
 
 Architecture verification MUST fail a direct dependency cycle.
 
@@ -448,7 +446,7 @@ A composition-only export may expose narrowly scoped construction dependency int
 
 Until a dedicated contract-evolution policy exists, a breaking monorepo contract change updates the owner and all affected consumers atomically and updates contract verification in the same change.
 
-The legacy static verification map is not the current dependency graph.
+The current dependency graph is derived from current package manifests, exports, and imports.
 
 ## Contract testing
 
@@ -534,7 +532,7 @@ Architecture violations include:
 - placing multi-authority gameplay orchestration in `apps/game`;
 - placing gameplay-specific orchestration in `foundation/*`;
 - using event delivery order as simulation scheduling order;
-- using the legacy static verification map as current architecture authority.
+- importing pre-reset package, contract, verification, or architecture assumptions into current design.
 
 ## Consequences
 
@@ -567,7 +565,7 @@ Foundation Bootstrap must eventually:
 5. implement auto-derived direct Query graph cycle detection;
 6. test public-contract-to-port leak prevention;
 7. keep architecture checks in the fast verification path;
-8. avoid importing former package-topology assumptions without explicit current decisions.
+8. derive all architecture/verification relationships from current files and current requirements only.
 
 ## Follow-up decisions
 
@@ -596,4 +594,5 @@ The caller never publishes another system's events.
 The event bus transports facts; it does not run workflows or simulation order.
 apps/game composes; it does not become the hidden cross-system business layer.
 foundation stays below gameplay and never depends upward.
+Current architecture derives only from current requirements and current repository state.
 ```

@@ -1,0 +1,65 @@
+name: Phase 1 Freeze Authority
+
+on:
+  push:
+    branches:
+      - design/phase-1-world-map-terrain
+
+permissions:
+  contents: write
+
+jobs:
+  freeze-authority:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: design/phase-1-world-map-terrain
+          fetch-depth: 0
+      - name: Freeze approved documents
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          files = [
+              Path('docs/architecture/PHASE-1-WORLD-MAP-TERRAIN-DESIGN.md'),
+              Path('docs/systems/world/README.md'),
+              Path('docs/systems/world/specs/WORLD-SYSTEM-DESIGN.md'),
+              Path('docs/systems/world/specs/WORLD-SPATIAL-CONTRACT.md'),
+              Path('docs/systems/world/specs/MAP-AND-REGION-CONTRACT.md'),
+              Path('docs/systems/terrain/README.md'),
+              Path('docs/systems/terrain/specs/TERRAIN-SYSTEM-DESIGN.md'),
+              Path('docs/systems/terrain/specs/TERRAIN-AUTHORITY-CONTRACT.md'),
+              Path('docs/systems/terrain/specs/TERRAIN-SURFACE-CONTRACT.md'),
+              Path('docs/systems/terrain/specs/TERRAIN-GENERATION-CONTRACT.md'),
+              Path('docs/systems/terrain/specs/TERRAIN-MUTATION-CONTRACT.md'),
+              Path('docs/systems/terrain/specs/TERRAIN-PRESENTATION-CONTRACT.md'),
+          ]
+
+          draft = '- **Status:** REVIEW DRAFT — NOT FROZEN'
+          frozen = '- **Status:** FROZEN — OWNER APPROVED 2026-08-29'
+
+          for path in files:
+              text = path.read_text()
+              if draft not in text:
+                  raise SystemExit(f'missing expected draft status: {path}')
+              path.write_text(text.replace(draft, frozen, 1))
+
+          umbrella = files[0]
+          text = umbrella.read_text()
+          old = '- **Implementation status:** Design only. This document does not authorize implementation by itself.'
+          new = '- **Implementation status:** Design/spec authority frozen. Production implementation requires the approved TDD implementation plan and RED/GREEN execution gates.'
+          if old not in text:
+              raise SystemExit('missing expected umbrella implementation-status line')
+          umbrella.write_text(text.replace(old, new, 1))
+          PY
+      - name: Commit frozen authority
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/architecture/PHASE-1-WORLD-MAP-TERRAIN-DESIGN.md docs/systems/world docs/systems/terrain
+          git diff --cached --check
+          git commit -m 'docs(phase1): freeze World and Terrain authority'
+          git push origin HEAD:design/phase-1-world-map-terrain

@@ -225,7 +225,9 @@ function sourceImportFromNode(
     ...(resolution.targetSurface
       ? { targetSurface: resolution.targetSurface }
       : {}),
-    ...(resolution.resolvedPath ? { resolvedPath: resolution.resolvedPath } : {}),
+    ...(resolution.resolvedPath
+      ? { resolvedPath: resolution.resolvedPath }
+      : {}),
   };
 }
 

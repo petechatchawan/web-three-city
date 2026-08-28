@@ -209,7 +209,9 @@ function appPermission(context: PermissionContext): ArchitectureViolation[] {
   ];
 }
 
-function testkitPermission(context: PermissionContext): ArchitectureViolation[] {
+function testkitPermission(
+  context: PermissionContext,
+): ArchitectureViolation[] {
   const { target, surface, sourceFile } = context;
   if (target.profile === "system" && surface !== ".") {
     return [
@@ -235,7 +237,9 @@ function testkitPermission(context: PermissionContext): ArchitectureViolation[] 
   ];
 }
 
-function toolingPermission(context: PermissionContext): ArchitectureViolation[] {
+function toolingPermission(
+  context: PermissionContext,
+): ArchitectureViolation[] {
   if (context.target.profile === "tooling") return [];
   return [
     violation(
@@ -390,7 +394,10 @@ function externalDependencyViolations(
     );
     return problem ? [problem] : [];
   }
-  if (entry.sourceKind !== "package-test" || isDeclared(sourcePackage, external))
+  if (
+    entry.sourceKind !== "package-test" ||
+    isDeclared(sourcePackage, external)
+  )
     return [];
   return [
     violation(

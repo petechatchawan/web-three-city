@@ -105,17 +105,17 @@ async function collectForbiddenImports(
     if (!specifier.startsWith(".")) continue;
     const target = await resolveLocalModule(file, specifier);
     if (!target || !pathHasSegment(target, forbiddenPublicSegments)) continue;
-    for (const name of importedNames(statement)) forbiddenImports.set(name, target);
+    for (const name of importedNames(statement))
+      forbiddenImports.set(name, target);
   }
   return forbiddenImports;
 }
 
-function relativeExportSpecifier(
-  statement: ts.Statement,
-): string | undefined {
+function relativeExportSpecifier(statement: ts.Statement): string | undefined {
   if (!ts.isExportDeclaration(statement)) return undefined;
   const moduleSpecifier = statement.moduleSpecifier;
-  if (!moduleSpecifier || !ts.isStringLiteral(moduleSpecifier)) return undefined;
+  if (!moduleSpecifier || !ts.isStringLiteral(moduleSpecifier))
+    return undefined;
   return moduleSpecifier.text.startsWith(".")
     ? moduleSpecifier.text
     : undefined;

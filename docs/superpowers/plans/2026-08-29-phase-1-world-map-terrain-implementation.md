@@ -2,8 +2,6 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Plan Status:** REVIEW DRAFT — NOT APPROVED FOR EXECUTION
-
 **Goal:** Implement the frozen Phase 1 World/Map/Terrain authority as two new system packages, prove every semantic contract with RED/GREEN tests, project Terrain through Three.js without giving presentation authority, and finish with one production new-city vertical slice.
 
 **Architecture:** `systems/world` owns MapDefinition, MapState, public spatial vocabulary, GridTopology, Regions, and starting-region provenance. `systems/terrain` owns canonical vertex elevation, exact fixed-triangle surface semantics, deterministic generation, atomic mutation, snapshots, and its Three.js projection; Terrain may read only the World root surface through the approved acyclic system edge. `apps/game` performs explicit new-city construction from a caller-selected accepted seed and starting Region; no orchestration package, event bus, persistence adapter, Terraform tool, `systems/map`, or `foundation/spatial` is introduced.
@@ -11,6 +9,8 @@
 **Tech Stack:** Node.js 22.18.0, pnpm 10.15.1, TypeScript 5.9.2, Vitest 3.2.4, Three.js 0.179.1 / `@types/three` 0.179.0, Vite 7.1.3, Playwright 1.55.0, existing repository architecture checker.
 
 **Spec:** `docs/architecture/PHASE-1-WORLD-MAP-TERRAIN-DESIGN.md` plus the frozen World/Terrain binding specifications under `docs/systems/world/specs/` and `docs/systems/terrain/specs/`.
+
+**Plan Status:** REVIEW DRAFT — NOT APPROVED FOR EXECUTION
 
 ## Global Constraints
 
@@ -24,6 +24,7 @@
 - Terrain domain files under `systems/terrain/src/domain/` must not import `@web-three-city/world`, Three.js, browser globals, contracts, application, presentation, or composition layers.
 - World domain files must not import Terrain, Three.js, browser globals, persistence, runtime/scheduler code, or future gameplay systems.
 - `package.json#exports` is authoritative. No deep cross-package imports and no relative filesystem reach-through.
+- Creating a workspace package or changing production/dev dependencies must refresh `pnpm-lock.yaml` before RED/GREEN verification using exactly `pnpm install --ignore-scripts` followed by `pnpm rebuild esbuild`; the lockfile change is committed with the task. Export-only manifest edits do not require lockfile churn.
 - Production Map: 512×512 Cells, 8m per Cell, 32×32 Cells per logical Chunk, 16×16 logical Chunks, 513×513 Terrain Vertices, 20 Regions, four starting candidates.
 - Region X boundaries: `[0, 102, 205, 307, 410, 512]`; Z boundaries: `[0, 128, 256, 384, 512]`; IDs `R00`…`R19` row-major south-to-north, west-to-east.
 - Starting candidates/anchors are exact: `R06 -> (153,191)`, `R08 -> (358,191)`, `R11 -> (153,319)`, `R13 -> (358,319)`.
@@ -144,9 +145,65 @@ The file map is intentionally narrow. Do not create ports/adapters/testkit/orche
 
 ## Canonical Interface Ledger
 
-These shapes are execution authorities for names referenced across tasks. Internal implementations may use private helpers, but task-to-task contracts must keep these names and semantics unless the frozen spec is explicitly reopened.
+These shapes are execution authorities for names referenced across tasks. Internal implementations may use private helpers, but task-to-task contracts keep these names and semantics unless a frozen spec is explicitly reopened.
+
+World public values and results:
 
 ```ts
+export interface CellCoord { readonly x: number; readonly z: number }
+export interface VertexCoord { readonly x: number; readonly z: number }
+export interface ChunkCoord { readonly x: number; readonly z: number }
+export interface WorldXZ { readonly x: number; readonly z: number }
+export interface CellRect {
+  readonly xStartInclusive: number;
+  readonly zStartInclusive: number;
+  readonly xEndExclusive: number;
+  readonly zEndExclusive: number;
+}
+export interface CellWorldBounds {
+  readonly xMinInclusive: number;
+  readonly zMinInclusive: number;
+  readonly xMaxExclusive: number;
+  readonly zMaxExclusive: number;
+}
+export type RegionId = string;
+export type MapDefinitionId = string;
+export interface StartingCandidate {
+  readonly regionId: RegionId;
+  readonly anchor: CellCoord;
+}
+
+export type WorldErrorCode =
+  | "WORLD_MAP_DEFINITION_INVALID"
+  | "WORLD_REGION_UNKNOWN"
+  | "WORLD_REGION_GEOMETRY_INVALID"
+  | "WORLD_REGION_PARTITION_INCOMPLETE"
+  | "WORLD_REGION_PARTITION_OVERLAP"
+  | "WORLD_STARTING_CANDIDATE_INVALID"
+  | "WORLD_STARTING_REGION_NOT_ELIGIBLE"
+  | "WORLD_SEED_NOT_ACCEPTED"
+  | "WORLD_COORD_OUT_OF_BOUNDS";
+
+export type WorldReadResult<T> =
+  | { readonly status: "success"; readonly value: T }
+  | { readonly status: "rejected"; readonly code: WorldErrorCode };
+
+export interface WorldSpatialRead {
+  cellToChunk(cell: CellCoord): WorldReadResult<{
+    readonly chunk: ChunkCoord;
+    readonly local: CellCoord;
+  }>;
+  ownerChunk(vertex: VertexCoord): WorldReadResult<ChunkCoord>;
+  incidentCells(vertex: VertexCoord): WorldReadResult<readonly CellCoord[]>;
+  touchingChunks(vertex: VertexCoord): WorldReadResult<readonly ChunkCoord[]>;
+  cardinalNeighbors(cell: CellCoord): WorldReadResult<readonly CellCoord[]>;
+  intersectingChunks(rect: CellRect): WorldReadResult<readonly ChunkCoord[]>;
+  worldPositionToCell(position: WorldXZ): WorldReadResult<CellCoord>;
+  cellBounds(cell: CellCoord): WorldReadResult<CellWorldBounds>;
+  regionAtCell(cell: CellCoord): WorldReadResult<RegionId>;
+  adjacentRegions(region: RegionId): WorldReadResult<readonly RegionId[]>;
+}
+
 export type WorldConstructionResult<T> =
   | { readonly status: "success"; readonly value: T }
   | {
@@ -197,14 +254,60 @@ export interface WorldSystem {
 }
 ```
 
-Terrain cross-task contracts:
+Terrain public/read contracts:
 
 ```ts
+export type LogicalElevation = number & {
+  readonly __logicalElevationBrand: "LogicalElevation";
+};
+export type TerrainRevision = number;
+export type TerrainCompleteness = "partial" | "full";
+export type TerrainTriangle = "SW_TRIANGLE" | "NE_TRIANGLE";
+
+export type TerrainQueryResult<T> =
+  | { readonly status: "success"; readonly value: T }
+  | {
+      readonly status: "out-of-bounds";
+      readonly code: "TERRAIN_QUERY_OUT_OF_BOUNDS";
+    }
+  | {
+      readonly status: "unavailable";
+      readonly code: "TERRAIN_QUERY_CHUNK_UNAVAILABLE";
+      readonly chunk: ChunkCoord;
+    };
+
+export interface CellSurfaceRead {
+  readonly cell: CellCoord;
+  readonly sw: LogicalElevation;
+  readonly se: LogicalElevation;
+  readonly nw: LogicalElevation;
+  readonly ne: LogicalElevation;
+  readonly revision: TerrainRevision;
+}
+
+export interface SurfaceSampleRead {
+  readonly triangle: TerrainTriangle;
+  readonly heightQ16: number;
+  readonly riseX: number;
+  readonly riseZ: number;
+  readonly runUnits: 32;
+  readonly revision: TerrainRevision;
+}
+
 export type TerrainStartingReason =
   | "TERRAIN_START_UNAVAILABLE"
   | "TERRAIN_START_CELL_RELIEF_EXCEEDED"
   | "TERRAIN_START_PATCH_RELIEF_EXCEEDED"
   | "TERRAIN_START_ANCHOR_RELIEF_EXCEEDED";
+
+export interface StartingCandidateEvaluation {
+  readonly regionId: RegionId;
+  readonly eligible: boolean;
+  readonly patchElevationRange: number;
+  readonly maxCellCornerRange: number;
+  readonly anchorCellCornerRange: number;
+  readonly reasons: readonly TerrainStartingReason[];
+}
 
 export type TerrainGenerationRejectionCode =
   | "TERRAIN_GENERATION_PROFILE_UNSUPPORTED"
@@ -221,11 +324,66 @@ export type TerrainMutationRejectionCode =
   | "TERRAIN_MUTATION_ELEVATION_INVALID"
   | "TERRAIN_MUTATION_ELEVATION_OUT_OF_RANGE";
 
-export interface TerrainMutationRejection extends CommandRejection {
+export interface TerrainVertexEdit {
+  readonly vertex: VertexCoord;
+  readonly elevation: LogicalElevation;
+}
+export interface ApplyTerrainEdits {
+  readonly edits: readonly TerrainVertexEdit[];
+}
+export interface TerrainChangeSet {
+  readonly previousRevision: TerrainRevision;
+  readonly newRevision: TerrainRevision;
+  readonly changedVertices: readonly VertexCoord[];
+  readonly affectedCells: readonly CellCoord[];
+  readonly touchingLogicalChunks: readonly ChunkCoord[];
+}
+export interface TerrainMutationReceipt {
+  readonly changed: boolean;
+  readonly previousRevision: TerrainRevision;
+  readonly newRevision: TerrainRevision;
+  readonly changeSet: TerrainChangeSet;
+}
+export interface TerrainMutationRejection {
   readonly code: TerrainMutationRejectionCode;
+  readonly message: string;
   readonly detail?: Readonly<Record<string, unknown>>;
 }
 
+export interface TerrainChunkSnapshot {
+  readonly chunk: ChunkCoord;
+  readonly ownedElevations: readonly {
+    readonly vertex: VertexCoord;
+    readonly elevation: LogicalElevation;
+  }[];
+}
+export interface TerrainStateSnapshot {
+  readonly mapDefinitionId: string;
+  readonly generationProfileId: "balanced-temperate-generation";
+  readonly generationProfileVersion: 2;
+  readonly selectedSeed64: string;
+  readonly revision: TerrainRevision;
+  readonly completeness: TerrainCompleteness;
+  readonly chunks: readonly TerrainChunkSnapshot[];
+}
+
+export interface TerrainRead {
+  revision(): TerrainRevision;
+  completeness(): TerrainCompleteness;
+  elevationAt(vertex: VertexCoord): TerrainQueryResult<LogicalElevation>;
+  cellSurface(cell: CellCoord): TerrainQueryResult<CellSurfaceRead>;
+  sampleSurface(
+    cell: CellCoord,
+    uQ16: number,
+    vQ16: number,
+  ): TerrainQueryResult<SurfaceSampleRead>;
+  captureSnapshot(): TerrainStateSnapshot;
+}
+```
+
+Terrain construction/mutation contracts used across later deliveries:
+
+```ts
 export interface TerrainFieldSource {
   readonly vertexWidth: number;
   readonly vertexHeight: number;
@@ -247,17 +405,8 @@ export type TerrainPreparationResult =
       readonly detail?: Readonly<Record<string, unknown>>;
     };
 
-export interface TerrainRead {
-  revision(): number;
-  completeness(): "partial" | "full";
-  elevationAt(vertex: VertexCoord): TerrainQueryResult<LogicalElevation>;
-  cellSurface(cell: CellCoord): TerrainQueryResult<CellSurfaceRead>;
-  sampleSurface(
-    cell: CellCoord,
-    uQ16: number,
-    vQ16: number,
-  ): TerrainQueryResult<SurfaceSampleRead>;
-  captureSnapshot(): TerrainStateSnapshot;
+export interface TerrainAuthoritySystem {
+  readonly read: TerrainRead;
 }
 
 export interface TerrainCommands {
@@ -267,13 +416,29 @@ export interface TerrainCommands {
   >;
 }
 
-export interface TerrainSystem {
-  readonly read: TerrainRead;
+export interface TerrainSystem extends TerrainAuthoritySystem {
   readonly commands: TerrainCommands;
 }
 ```
 
-`PreparedProductionTerrain.field` is composition-only opaque construction data in practice: it is not re-exported from Terrain root and no consumer may mutate it. `createTerrainSystem` consumes that exact prepared field once; it never regenerates from seed.
+`CommandResult` is the existing `@web-three-city/foundation-contracts` primitive and is introduced as a Terrain production dependency only in P1-E when the real command consumer exists. `PreparedProductionTerrain.field` is a read-only construction payload exported only through Terrain `./composition`, never Terrain root; app composition passes the same prepared object back to `createTerrainSystem` without regenerating or treating the field as a second authority.
+
+Public surface entry files follow one mechanical rule required by the current architecture checker: an exported declaration must not expose or directly reference an identifier imported from `application/`, `composition/`, `presentation/`, `ports/`, `internal/`, or `adapters/`. When a public `./composition` entry delegates to package internals, use a non-exported local trampoline so the exported signature contains only approved contract/domain values:
+
+```ts
+import { createWorldInternal } from "./composition/create-world";
+import type { WorldConstructionResult, WorldSystem } from "./contracts/world-read";
+
+function constructWorld(/* approved contract args */): WorldConstructionResult<WorldSystem> {
+  return createWorldInternal(/* args */);
+}
+
+export function createInitialWorldSystem(/* approved contract args */): WorldConstructionResult<WorldSystem> {
+  return constructWorld(/* args */);
+}
+```
+
+This is an encapsulation boundary, not a workaround for cross-package visibility: app consumers still import only the deliberate package export, and internal modules remain unexported.
 
 ---
 
@@ -283,6 +448,7 @@ export interface TerrainSystem {
 
 **Files:**
 - Create: `systems/world/package.json`
+- Modify: `pnpm-lock.yaml`
 - Create: `systems/world/tsconfig.json`
 - Create: `systems/world/src/domain/coordinates.ts`
 - Create: `systems/world/src/contracts/world-read.ts`
@@ -315,6 +481,13 @@ Use this package contract:
     "vitest": "3.2.4"
   }
 }
+```
+
+Refresh the workspace importer before running the RED test:
+
+```bash
+pnpm install --ignore-scripts
+pnpm rebuild esbuild
 ```
 
 `tsconfig.json`:
@@ -666,6 +839,22 @@ pnpm --filter @web-three-city/world exec vitest run tests/composition.test.ts
 
 World only verifies that the selected Region exists, is a starting candidate, and appears in the caller-provided eligible set. It does not recalculate Terrain suitability.
 
+Keep internal composition behind a non-exported trampoline in `src/composition.ts`:
+
+```ts
+function constructInitialWorld(input: CreateInitialWorldInput): WorldConstructionResult<WorldSystem> {
+  return createWorldInternal(input);
+}
+
+export function createInitialWorldSystem(
+  input: CreateInitialWorldInput,
+): WorldConstructionResult<WorldSystem> {
+  return constructInitialWorld(input);
+}
+```
+
+The exported signature uses only approved World contract/domain values; the internal composition identifier is not leaked by the exported declaration.
+
 - [ ] **Step 4: Prove package boundaries**
 
 Add test/import assertions that `@web-three-city/world` exposes read types only, `@web-three-city/world/composition` exposes construction, and `package.json` has no `./commands` export.
@@ -700,6 +889,7 @@ P1-A acceptance requires exact Region cell-count coverage, full seam/boundary te
 
 **Files:**
 - Create: `systems/terrain/package.json`
+- Modify: `pnpm-lock.yaml`
 - Create: `systems/terrain/tsconfig.json`
 - Create: `systems/terrain/src/domain/elevation.ts`
 - Create: `systems/terrain/src/contracts/terrain-read.ts`
@@ -740,6 +930,13 @@ Use exports/dependencies:
 
 RED test imports root/read contracts and asserts product elevation parsing rejects fractional/out-of-range values.
 
+Refresh the new workspace importer before RED:
+
+```bash
+pnpm install --ignore-scripts
+pnpm rebuild esbuild
+```
+
 - [ ] **Step 2: Add the architecture-policy approval before production Terrain imports World**
 
 `architecture.policy.json` must contain exactly this approved read edge:
@@ -778,6 +975,20 @@ export type TerrainQueryResult<T> =
 ```
 
 The parser accepts integer values in `[-4096,4096]`; it does not clamp.
+
+Implement the boundary check explicitly:
+
+```ts
+export function parseLogicalElevation(value: number): TerrainElevationResult {
+  if (!Number.isInteger(value)) {
+    return { status: "rejected", code: "TERRAIN_ELEVATION_INVALID" };
+  }
+  if (value < -4096 || value > 4096) {
+    return { status: "rejected", code: "TERRAIN_ELEVATION_OUT_OF_RANGE" };
+  }
+  return { status: "success", value: value as LogicalElevation };
+}
+```
 
 - [ ] **Step 5: Run GREEN plus architecture checks**
 
@@ -824,6 +1035,21 @@ export interface TerrainFieldSource {
 }
 ```
 
+P1-B `./composition` exposes the read-authority factory:
+
+```ts
+export function createTerrainAuthoritySystem(input: {
+  readonly world: WorldSpatialRead;
+  readonly mapDefinitionId: string;
+  readonly generationProfileId: string;
+  readonly generationProfileVersion: number;
+  readonly selectedSeed64: string;
+  readonly source: TerrainFieldSource;
+}): TerrainConstructionResult<TerrainAuthoritySystem>;
+```
+
+`TerrainConstructionResult<T>` is a typed success/rejection union local to the composition contract; rejection detail is immutable and no partial state escapes.
+
 - [ ] **Step 1: Write RED authority tests**
 
 Cover: initial revision `0`, full state has all 256 chunks, every valid Vertex stored exactly once in the World-defined owner Chunk, outer/seam ownership, product elevation bounds, 0.25m conversion, partial-state unavailable result, and out-of-bounds distinct from unavailable.
@@ -838,9 +1064,47 @@ pnpm --filter @web-three-city/terrain exec vitest run tests/authority.test.ts
 
 `world-index.ts` may map already-validated World values to private numeric IDs; it must not reimplement owner/seam/incidence formulas. Owner resolution always comes from `WorldSpatialRead.ownerChunk(vertex)`.
 
+Use primitive private keys below the application boundary so Terrain domain never imports World types:
+
+```ts
+export interface CanonicalVertexRecord {
+  readonly vertexKey: number;
+  readonly elevation: LogicalElevation;
+}
+
+export function toVertexKey(vertex: VertexCoord, vertexWidth: number): number {
+  return vertex.z * vertexWidth + vertex.x;
+}
+
+// domain/terrain-state.ts receives number keys only.
+export type TerrainChunkStore = ReadonlyMap<number, ReadonlyMap<number, LogicalElevation>>;
+```
+
 - [ ] **Step 4: Implement validate-all materialization**
 
 Visit global vertices in canonical order `z=0..512`, then `x=0..512`, validate every elevation first, route each to exactly one World owner Chunk, and expose a full state only after all values validate. A failed production materialization must not expose a half-built state.
+
+The implementation shape is a staged transaction:
+
+```ts
+const staged: CanonicalVertexRecord[] = [];
+for (let z = 0; z < source.vertexHeight; z += 1) {
+  for (let x = 0; x < source.vertexWidth; x += 1) {
+    const elevation = parseLogicalElevation(source.elevationAt(x, z));
+    if (elevation.status === "rejected") return elevation;
+    const vertex = { x, z };
+    const owner = world.ownerChunk(vertex);
+    if (owner.status !== "success") return rejectMaterialization(owner);
+    staged.push({
+      vertexKey: toVertexKey(vertex, source.vertexWidth),
+      elevation: elevation.value,
+    });
+  }
+}
+return commitMaterializedState(staged, /* owner routing metadata */);
+```
+
+No write to the live TerrainState occurs inside the validation loop.
 
 - [ ] **Step 5: Add partial-state query proof below composition**
 
@@ -935,7 +1199,31 @@ pnpm --filter @web-three-city/terrain exec vitest run tests/surface.test.ts
 
 - [ ] **Step 3: Implement exact integer barycentric equations**
 
-Implement the frozen formulas directly. Do not use bilinear interpolation or floating epsilon. Exact slope facts:
+Implement the frozen formulas directly. Do not use bilinear interpolation or floating epsilon:
+
+```ts
+const Q = 65536;
+export function evaluateSurface(c: CellCorners, u: number, v: number): SurfaceSample {
+  if (u + v <= Q) {
+    return {
+      triangle: "SW_TRIANGLE",
+      heightQ16: c.sw * (Q - u - v) + c.se * u + c.nw * v,
+      riseX: c.se - c.sw,
+      riseZ: c.nw - c.sw,
+      runUnits: 32,
+    };
+  }
+  return {
+    triangle: "NE_TRIANGLE",
+    heightQ16: c.nw * (Q - u) + c.se * (Q - v) + c.ne * (u + v - Q),
+    riseX: c.ne - c.nw,
+    riseZ: c.ne - c.se,
+    runUnits: 32,
+  };
+}
+```
+
+Exact slope facts:
 
 ```text
 SW: riseX = SE-SW, riseZ = NW-SW
@@ -1021,6 +1309,24 @@ pnpm --filter @web-three-city/terrain exec vitest run tests/generation-primitive
 
 Use `BigInt.asUintN(64, value)` or an equivalent explicit `2^64-1` mask for SplitMix64. Use `>>> 0` and `Math.imul` for hash32. Implement a named `truncTowardZeroDivision` helper; do not rely on accidental coercion.
 
+Core signed/Q16 helpers are explicit:
+
+```ts
+export function truncTowardZeroDivision(n: number, d: number): number {
+  return Math.trunc(n / d);
+}
+
+export function fadeQ16(t: number): number {
+  const q = 65536;
+  const t2 = Math.floor((t * t) / q);
+  return Math.floor((t2 * (3 * q - 2 * t)) / q);
+}
+
+export function lerpInt(a: number, b: number, t: number): number {
+  return a + truncTowardZeroDivision((b - a) * t, 65536);
+}
+```
+
 - [ ] **Step 4: Run GREEN repeatedly**
 
 ```bash
@@ -1091,6 +1397,22 @@ Expected: FAIL until the full algorithm and byte stream are exact.
 
 Use periods/amplitudes exactly `[(128,64),(64,32),(32,16),(16,8),(8,4)]`, `BASE_ELEVATION=160`, and `truncTowardZero(weighted/32768)`. No smoothing or clamping after generation.
 
+The full-field loop remains canonical even if later optimized:
+
+```ts
+const OCTAVES = [[128, 64], [64, 32], [32, 16], [16, 8], [8, 4]] as const;
+for (let z = 0; z <= 512; z += 1) {
+  for (let x = 0; x <= 512; x += 1) {
+    let weighted = 0;
+    for (let i = 0; i < OCTAVES.length; i += 1) {
+      const [period, amplitude] = OCTAVES[i];
+      weighted += valueNoise(layerSeeds[i], x, z, period) * amplitude;
+    }
+    values[z * 513 + x] = 160 + truncTowardZeroDivision(weighted, 32768);
+  }
+}
+```
+
 - [ ] **Step 4: Implement 64-bit FNV-1a byte serialization exactly**
 
 Hash byte order:
@@ -1103,6 +1425,19 @@ for z 0..512, x 0..512:
 ```
 
 Do not include seed/profile/config bytes.
+
+Encode each signed elevation through a four-byte little-endian buffer/view before feeding FNV-1a; do not hash decimal strings:
+
+```ts
+view.setUint32(0, 513, true);
+view.setUint32(4, 513, true);
+for (let z = 0; z <= 512; z += 1) {
+  for (let x = 0; x <= 512; x += 1) {
+    valueView.setInt32(0, field.elevationAt(x, z), true);
+    hash = fnv1a64Update(hash, valueBytes);
+  }
+}
+```
 
 - [ ] **Step 5: Keep the fingerprint as implementation authority**
 
@@ -1146,7 +1481,7 @@ export interface StartingCandidateEvaluation {
 }
 ```
 
-`prepareProductionTerrain()` accepts prepared World read/config + explicit selected Seed64 and returns one opaque prepared field plus fingerprint/evaluation facts. `createTerrainSystem()` later consumes that exact field; it must not call the generator again.
+`prepareProductionTerrain()` accepts prepared World read/config + explicit selected Seed64 and returns one opaque prepared field plus fingerprint/evaluation facts. `createTerrainAuthoritySystem()` in P1-B consumes an explicit validated field source. P1-E extends construction to the final `TerrainSystem` with commands; P1-D preparation supplies the exact production field and no construction path regenerates it.
 
 - [ ] **Step 1: Write RED exact candidate-vector tests**
 
@@ -1180,6 +1515,24 @@ pnpm --filter @web-three-city/terrain exec vitest run tests/suitability.test.ts
 
 For each anchor, inspect Cells `ax-4..ax+4`, `az-4..az+4`; each Cell corner range must be `<=8`; all 10×10 vertices range `<=24`; anchor Cell corner range `<=4`. Use generated integer elevation facts only.
 
+Accumulate metrics in one deterministic pass and derive reasons in the frozen order:
+
+```ts
+const reasons: TerrainStartingReason[] = [];
+if (unavailable) reasons.push("TERRAIN_START_UNAVAILABLE");
+if (maxCellCornerRange > 8) reasons.push("TERRAIN_START_CELL_RELIEF_EXCEEDED");
+if (patchElevationRange > 24) reasons.push("TERRAIN_START_PATCH_RELIEF_EXCEEDED");
+if (anchorCellCornerRange > 4) reasons.push("TERRAIN_START_ANCHOR_RELIEF_EXCEEDED");
+return {
+  regionId: candidate.regionId,
+  eligible: reasons.length === 0,
+  patchElevationRange,
+  maxCellCornerRange,
+  anchorCellCornerRange,
+  reasons,
+};
+```
+
 - [ ] **Step 4: Implement one-shot production preparation and rejection semantics**
 
 Validate profile, Seed64 syntax, accepted-seed membership, full envelope, fingerprint, and at least one eligible candidate. Use the frozen codes:
@@ -1194,6 +1547,20 @@ TERRAIN_GENERATION_NO_ELIGIBLE_START
 ```
 
 There is no retry loop or seed substitution.
+
+The preparation control flow is linear:
+
+```ts
+validateProfile(input);
+validateSeedSyntax(input.seed64);
+validateAcceptedSeed(input.world.mapDefinition, input.seed64);
+const field = generateProductionField(input.seed64); // exactly once
+validateFullEnvelope(field);
+validateFingerprint(field);
+const candidateEvaluations = evaluateStartingCandidates(input.world, field);
+validateAtLeastOneEligible(candidateEvaluations);
+return success({ field, seed64: input.seed64, fingerprint: EXPECTED_FINGERPRINT, candidateEvaluations });
+```
 
 - [ ] **Step 5: Add a no-seed-mining test**
 
@@ -1226,6 +1593,7 @@ git commit -m "feat(terrain): prepare deterministic new-city terrain"
 - Create: `systems/terrain/src/application/apply-terrain-edits.ts`
 - Create: `systems/terrain/src/commands.ts`
 - Modify: `systems/terrain/package.json`
+- Modify: `pnpm-lock.yaml`
 - Modify: `systems/terrain/src/composition/create-terrain.ts`
 - Test: `systems/terrain/tests/mutation.test.ts`
 
@@ -1259,6 +1627,13 @@ export interface TerrainMutationReceipt {
 
 At this task, add `@web-three-city/foundation-contracts: workspace:*` to Terrain production dependencies and add the `./commands` package export. Use `CommandResult<TerrainMutationReceipt, TerrainMutationRejection>` from that Foundation package.
 
+Refresh dependency links/lockfile before RED:
+
+```bash
+pnpm install --ignore-scripts
+pnpm rebuild esbuild
+```
+
 - [ ] **Step 1: Write RED validation-order and atomicity tests**
 
 Cover every frozen rejection code and prove state equality before/after rejection. Duplicate detection must win even if the duplicated coordinate would fail a later validation class.
@@ -1291,6 +1666,22 @@ pnpm --filter @web-three-city/terrain exec vitest run tests/mutation.test.ts
 ```
 
 - [ ] **Step 4: Implement fixed validation sequence**
+
+The application layer owns World-coordinate validation/normalization and maps valid edits to primitive domain keys before commit; `domain/mutation/commit-edits.ts` never imports World:
+
+```ts
+interface CanonicalElevationUpdate {
+  readonly vertexKey: number;
+  readonly elevation: LogicalElevation;
+}
+
+function commitCanonicalUpdates(
+  state: TerrainState,
+  updates: readonly CanonicalElevationUpdate[],
+): TerrainState {
+  return state.withAtomicUpdates(updates);
+}
+```
 
 Sequence must be:
 
@@ -1340,6 +1731,7 @@ git commit -m "feat(terrain): add atomic mutation transaction"
 - Create: `systems/terrain/src/presentation/three/presentation-normal.ts`
 - Create: `systems/terrain/src/presentation/three/dirty-sectors.ts`
 - Modify: `systems/terrain/package.json`
+- Modify: `pnpm-lock.yaml`
 - Test: `systems/terrain/tests/render-sector.test.ts`
 - Test: `systems/terrain/tests/dirty-sectors.test.ts`
 
@@ -1349,6 +1741,13 @@ git commit -m "feat(terrain): add atomic mutation transaction"
 - Position projection: `x*8`, `elevation*0.25`, `z*8`.
 
 Before RED, add `three: 0.179.1` to Terrain production dependencies and `@types/three: 0.179.0` to Terrain devDependencies; this is the first task with a real Three.js consumer. Add no other dependency.
+
+Refresh dependency links/lockfile:
+
+```bash
+pnpm install --ignore-scripts
+pnpm rebuild esbuild
+```
 
 - [ ] **Step 1: Write RED sector topology tests**
 
@@ -1379,6 +1778,22 @@ pnpm --filter @web-three-city/terrain exec vitest run tests/render-sector.test.t
 - [ ] **Step 5: Implement builders without WebGLRenderer**
 
 Using Three.js `BufferGeometry`/attributes in Node is acceptable; do not create a renderer in these unit tests. Normals are derived floating presentation values; gameplay slope never reads them.
+
+The builder emits the frozen diagonal explicitly:
+
+```ts
+for (let z = 0; z < 64; z += 1) {
+  for (let x = 0; x < 64; x += 1) {
+    const sw = z * 65 + x;
+    const se = sw + 1;
+    const nw = sw + 65;
+    const ne = nw + 1;
+    indices.push(sw, se, nw, nw, se, ne);
+  }
+}
+```
+
+Normal accumulation queries the global semantic incident triangles for each World Vertex before normalization; it never averages only the local sector copy.
 
 - [ ] **Step 6: Run GREEN**
 
@@ -1437,9 +1852,40 @@ v = clamp(round(localZ / 8 * 65536), 0, 65535)
 
 Out-of-bounds candidates remain out-of-bounds; never clamp into the nearest Cell.
 
+The pick helper uses candidate X/Z only:
+
+```ts
+const cellResult = world.worldPositionToCell({ x: hit.point.x, z: hit.point.z });
+if (cellResult.status !== "success") return cellResult;
+const bounds = world.cellBounds(cellResult.value);
+if (bounds.status !== "success") return bounds;
+const uQ16 = Math.max(0, Math.min(65535, Math.round(((hit.point.x - bounds.value.xMinInclusive) / 8) * 65536)));
+const vQ16 = Math.max(0, Math.min(65535, Math.round(((hit.point.z - bounds.value.zMinInclusive) / 8) * 65536)));
+return terrain.sampleSurface(cellResult.value, uQ16, vQ16);
+```
+
+`hit.point.y` is intentionally absent from the semantic return calculation.
+
 - [ ] **Step 4: Implement projection lifecycle**
 
 Initial attach requires full Terrain. Build 64 sectors. `rebuild(changeSet)` replaces only deterministic dirty sectors and disposes replaced geometry/material resources. `dispose()` is idempotent and disposes all owned resources.
+
+Use one owned group and one sector map:
+
+```ts
+const sectors = new Map<string, THREE.Mesh>();
+function rebuild(changeSet: TerrainChangeSet): void {
+  for (const coord of dirtySectors(changeSet)) {
+    disposeSector(sectors.get(keyOf(coord)));
+    sectors.set(keyOf(coord), buildSectorMesh(coord));
+  }
+}
+function dispose(): void {
+  for (const mesh of sectors.values()) disposeSector(mesh);
+  sectors.clear();
+  root.removeFromParent();
+}
+```
 
 - [ ] **Step 5: Modify app scene wrapper only as required for composition**
 
@@ -1506,6 +1952,20 @@ pnpm --filter @web-three-city/terrain exec vitest run tests/snapshot.test.ts
 
 Snapshot capture must not increment revision or rebuild presentation. It serializes semantic data only; no concrete file/IndexedDB encoding is introduced.
 
+Capture from canonical owner storage only:
+
+```ts
+return {
+  mapDefinitionId: state.mapDefinitionId,
+  generationProfileId: "balanced-temperate-generation",
+  generationProfileVersion: 2,
+  selectedSeed64: state.selectedSeed64,
+  revision: state.revision,
+  completeness: state.completeness,
+  chunks: canonicalChunks(state).map(captureChunkSnapshot),
+};
+```
+
 - [ ] **Step 4: Run GREEN and commit**
 
 ```bash
@@ -1519,6 +1979,7 @@ git commit -m "feat(terrain): capture canonical terrain snapshots"
 
 **Files:**
 - Modify: `apps/game/package.json`
+- Modify: `pnpm-lock.yaml`
 - Modify: `apps/game/src/bootstrap/main.ts`
 - Modify: `apps/game/src/composition/create-game.ts`
 - Modify: `apps/game/src/presentation/create-scene.ts`
@@ -1587,6 +2048,35 @@ Expected: FAIL because app composition does not yet construct World/Terrain.
 ```
 
 Do not import system private files. App may use both composition surfaces; systems may not use each other's composition surfaces.
+
+After editing app dependencies, refresh the lockfile before RED/GREEN reruns:
+
+```bash
+pnpm install --ignore-scripts
+pnpm rebuild esbuild
+```
+
+Wire only exported surfaces:
+
+```ts
+const worldPreparation = prepareProductionWorldDefinition();
+const terrainPreparation = prepareProductionTerrain({
+  world: worldPreparation.value,
+  seed64: request.seed64,
+});
+assertEligibleSelection(terrainPreparation.value.candidateEvaluations, request.startingRegionId);
+const world = createInitialWorldSystem({
+  prepared: worldPreparation.value,
+  selectedStartingRegionId: request.startingRegionId,
+  eligibleStartingRegionIds: eligibleIds(terrainPreparation.value.candidateEvaluations),
+});
+const terrain = createTerrainSystem({
+  world: world.value.spatial,
+  prepared: terrainPreparation.value,
+});
+```
+
+Every rejected result is handled before reading `.value`; no fallback seed/Region is substituted.
 
 - [ ] **Step 4: Preserve WebGL-unavailable behavior without fabricating authority**
 

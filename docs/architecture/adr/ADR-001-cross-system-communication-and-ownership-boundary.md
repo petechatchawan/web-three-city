@@ -2,29 +2,40 @@
 
 - **Status:** FROZEN
 - **Date:** 2026-08-28
-- **Scope:** Product Architecture v2
+- **Scope:** Product Architecture
 - **Decision type:** Repository-wide architecture contract
+- **Depends on:** ADR-000, Product Architecture, Product Architecture Blueprint
 
-## 1. Context
+## Context
 
-Product Architecture v2 resets gameplay architecture while retaining the repository, Git history, toolchain, and verification discipline. The reset must prevent direct package coupling, hidden mutation, and implicit cross-system workflows from reappearing under new names.
+The Product Architecture requires gameplay systems to remain independently owned, testable, and resistant to hidden mutation chains.
 
-Every gameplay system therefore needs one explicit ownership boundary and one explicit public surface. Cross-system interaction must communicate intent and facts without exposing another system's domain or application internals.
+Cross-system interaction therefore needs explicit semantics, enforceable package surfaces, and a clear classification rule for single-authority versus multi-authority behavior.
 
-This ADR defines the canonical semantics for queries, commands, integration events, and cross-system orchestration. It also assigns integration-event ownership and standardizes command rejection.
+This ADR defines:
 
-Event durability, save transaction mechanics, outbox/recovery implementation, and replay storage are deferred to ADR-003. ADR-003 must preserve the ownership rules frozen here.
+- Query semantics;
+- Command semantics;
+- Integration Event semantics;
+- Cross-system orchestration;
+- event ownership;
+- package export permissions;
+- bidirectional read/cycle policy;
+- contract and port separation;
+- command rejection conventions.
 
-## 2. Decision
+Persistence durability, concrete transaction mechanics, outbox/recovery behavior, replay metadata, and save/load coordination remain deferred to ADR-003. Runtime scheduling and determinism primitives remain governed by ADR-002.
+
+## Decision
 
 Cross-system communication has exactly four architectural forms:
 
 1. **Query** — synchronous read of another system's public state.
 2. **Command** — synchronous request to one owning system to perform a mutation that it may accept or reject.
 3. **Integration Event** — immutable post-commit fact emitted by the system that owns the committed change and observed by zero or more consumers.
-4. **Cross-system Orchestration** — application policy that coordinates commands across more than one mutation authority.
+4. **Cross-system Orchestration** — application policy that coordinates commands across more than one mutation authority or another genuinely cross-system concern.
 
-These forms are not interchangeable:
+These are not interchangeable:
 
 ```text
 Event != Command
@@ -32,7 +43,7 @@ Command != Event
 Query != hidden Command
 ```
 
-## 3. Repository Ownership Layers
+## Repository ownership layers
 
 Canonical dependency direction:
 
@@ -50,43 +61,114 @@ Normative rules:
 
 - `foundation/*` MUST NOT depend on `systems/*`, `orchestration/*`, or `apps/*`.
 - `systems/*` MUST NOT depend on `orchestration/*` or `apps/*`.
-- `orchestration/*` MAY depend on public system APIs and foundation contracts.
-- `apps/game` MAY depend on orchestration packages and public composition APIs, but MUST NOT own cross-system business use-case logic.
-- A system MUST NOT import another system's internal `domain`, `application`, implementation-only `ports`, tests, or presentation internals.
-- Cross-system imports MUST go through the target package's declared public export surface.
-- A system MAY query another system through its public query contract.
-- A system MUST NOT command another system directly. If a use case needs to command a second mutation authority, the use case MUST move to `orchestration/*`.
+- `orchestration/*` MAY depend on public system read and command surfaces plus foundation contracts.
+- `apps/*` MAY compose approved read, command, and composition surfaces but MUST NOT absorb hidden cross-system business policy.
+- A system MUST NOT deep-import another system's domain, application, ports, presentation, tests, or implementation internals.
+- Cross-package imports MUST resolve through declared package exports.
 
-For PR0, the canonical public surface is the package root `index.ts` plus its matching `package.json` export. Additional public subpath exports require an explicit architecture decision.
+## Contract and port terminology
 
-## 4. System Internal Layers
+The repository uses these terms deliberately:
 
-A gameplay system uses this conceptual structure:
+### Contracts
+
+`contracts/*` contains types eligible for externally observable APIs, such as:
+
+- queries;
+- commands;
+- integration-event types;
+- DTOs;
+- typed rejections.
+
+A type under `contracts/*` is not public merely because it exists there. `package.json` exports define actual public authority.
+
+### Ports
+
+`ports/*` contains dependency-inversion interfaces required by implementation and is **internal by default**.
+
+This repository usage differs from some classical Hexagonal Architecture terminology where “port” may also refer to public inbound interfaces.
+
+Binding rule:
 
 ```text
-systems/<name>/
-  src/
-    domain/
-    application/
-    ports/
-    contracts/
-    presentation/
-    index.ts
+Public read/command contract MUST NOT reference internal ports/* types.
 ```
 
-Responsibilities:
+A selected construction-only dependency interface MAY be exposed through a `./composition` surface when necessary for dependency injection, but MUST NOT leak into the read or command surface.
 
-- `domain/` owns pure gameplay rules and canonical domain behavior.
-- `application/` owns single-system use cases and invokes domain behavior and ports.
-- `ports/` contains explicit interfaces required by the application boundary.
-- `contracts/` contains public DTOs, query/command contracts, integration-event contracts, and rejection types.
-- `presentation/` adapts canonical state to Three.js or another presentation technology and MUST NOT own gameplay authority.
+## System package surfaces
 
-The domain layer MUST NOT publish or subscribe to the repository event bus directly.
+Each system package uses three semantic export surfaces when needed.
 
-## 5. Foundation Contract Primitives
+### Root read surface — `.`
 
-PR0 SHALL provide `foundation/contracts` for repository-wide generic application-contract primitives. It MUST NOT contain gameplay-specific semantics.
+Example:
+
+```text
+@web-three-city/roads
+```
+
+May expose:
+
+- synchronous Query APIs;
+- immutable/read-only DTOs;
+- stable public value types;
+- Integration Event types for subscribers/observers.
+
+It MUST NOT expose mutation entrypoints.
+
+### Mutation surface — `./commands`
+
+Example:
+
+```text
+@web-three-city/roads/commands
+```
+
+May expose:
+
+- Command types;
+- intended mutation entrypoints;
+- typed CommandResult/rejection contracts needed by callers.
+
+Import permissions:
+
+```text
+systems/*       -> NO
+orchestration/* -> YES
+apps/*          -> YES
+```
+
+An app may invoke a single-system command from UI/application wiring. Coordinating more than one mutation authority still belongs in orchestration.
+
+### Construction surface — `./composition`
+
+Example:
+
+```text
+@web-three-city/roads/composition
+```
+
+May expose only construction and wiring capabilities such as:
+
+- system factories;
+- registration functions;
+- construction-only dependency interfaces;
+- adapter factories intended for the composition root.
+
+Import permissions:
+
+```text
+systems/*       -> NO
+orchestration/* -> NO
+apps/*          -> YES
+```
+
+This is not a gameplay API.
+
+## Foundation contract primitives
+
+`foundation/contracts` provides repository-wide generic application-contract primitives and MUST NOT contain gameplay-specific semantics.
 
 Canonical command result:
 
@@ -109,7 +191,7 @@ export type CommandResult<
     };
 ```
 
-Canonical minimum integration-event shape:
+Canonical minimum Integration Event shape:
 
 ```ts
 export interface IntegrationEvent<
@@ -121,65 +203,87 @@ export interface IntegrationEvent<
 }
 ```
 
-Event identity, persistence metadata, sequence metadata, durability, and replay metadata are deliberately not frozen here; ADR-002/003 may extend the envelope without changing the semantic distinction between command and event.
+Event identity, persistence metadata, sequence metadata, durability, replay metadata, and delivery guarantees are intentionally deferred to ADR-003.
 
-Gameplay systems specialize rejection types with discriminated unions. Example:
+Expected business rejection MUST use typed rejection contracts rather than exceptions, `null`, `undefined`, strings, or bare booleans.
 
-```ts
-export type BuildRoadRejection =
-  | {
-      readonly code: "terrain-not-buildable";
-      readonly cell: CellCoord;
-    }
-  | {
-      readonly code: "occupied";
-      readonly cell: CellCoord;
-    }
-  | {
-      readonly code: "insufficient-funds";
-      readonly required: Money;
-      readonly available: Money;
-    };
-```
+User-facing localization text does not belong in domain rejection contracts.
 
-User-facing messages and localization text MUST NOT be embedded in domain rejection contracts. Presentation maps rejection codes to UX behavior.
+## Query semantics
 
-## 6. Query Semantics
+A Query is a synchronous read through another system's root public surface.
 
-A query is a synchronous read through the target system's public API.
-
-A query:
+A Query:
 
 - MUST NOT mutate canonical state;
-- MUST NOT publish integration events;
-- MUST NOT hide deferred gameplay mutation;
-- MAY maintain observationally transparent internal caches;
-- MUST return explicit immutable/read-only DTOs, values, or snapshots rather than expose mutable internal collections.
+- MUST NOT publish Integration Events;
+- MUST NOT hide deferred mutation;
+- MAY use observationally transparent internal caches;
+- MUST return immutable/read-only values, DTOs, or snapshots rather than mutable internal collections.
 
-A use case may query any number of systems without automatically becoming cross-system orchestration. The classification threshold is mutation authority count, not query count.
+A use case may query multiple systems without automatically becoming orchestration. Classification is based on mutation-authority count, not query count.
 
-Cross-system query dependencies MUST remain acyclic.
+No arbitrary query fan-out threshold is frozen. If fan-out becomes a maintenance or performance problem, evidence may justify a later policy.
 
-## 7. Command Semantics
+## Acyclic direct-query dependency rule
 
-A command requests exactly one owning system to perform a mutation.
+Direct system-to-system package dependencies through root read surfaces MUST form an acyclic graph.
 
-A command:
+The graph is derived from workspace manifests and actual imports. A separately maintained manual graph is not authority.
 
-- has exactly one target mutation authority;
-- is handled by the target system's application boundary;
-- validates before canonical mutation;
+Architecture verification MUST fail a direct dependency cycle.
+
+### Bidirectional semantic reads
+
+Two systems may legitimately need information from each other at the semantic level. This does **not** permit a package cycle.
+
+If direct imports would create:
+
+```text
+A -> B
+B -> A
+```
+
+one direction MUST be inverted.
+
+Preferred pattern:
+
+```text
+System A application
+  ↓ depends on
+A-owned internal ReadPort
+  ↑ implemented/wired by
+apps/game composition adapter
+  ↓ calls
+System B root Query surface
+```
+
+System A therefore does not import System B for the inverted direction.
+
+This remains a single-system use case when only System A mutates. It does not become orchestration merely because dependency inversion is used.
+
+If the bridging adapter contains business sequencing/policy rather than trivial translation/wiring, the design must be reconsidered and may belong in an orchestration concern.
+
+## Command semantics
+
+A Command requests exactly one owning system to perform mutation.
+
+A Command:
+
+- has one target mutation authority;
+- is handled at the target system's application boundary;
+- validates expected business rules before canonical mutation;
 - returns `CommandResult<TValue, TRejection>`;
-- MUST NOT communicate expected business rejection through `throw`, `null`, `undefined`, or a bare boolean;
-- MAY throw only for programming defects, violated internal invariants, or infrastructure failures that cannot be represented as expected business rejection.
+- MUST NOT return Integration Events for the caller to publish;
+- MAY throw only for programming defects, violated internal invariants, or infrastructure failures not modeled as expected business rejection.
 
-A successful command result describes the requested operation result. It does **not** carry integration events for the caller to publish.
+A system application layer MUST NOT call another system's command surface.
 
-A system application layer MUST NOT call another system's command API. Requiring a second system command is the hard signal that the use case belongs in orchestration.
+If a use case needs to command a second mutation authority, the use case belongs in `orchestration/*`.
 
-## 8. Integration Event Semantics
+## Integration Event semantics
 
-An integration event is an immutable fact describing a canonical change that has already committed.
+An Integration Event is an immutable fact describing canonical state that has already committed.
 
 Examples:
 
@@ -199,23 +303,25 @@ CalculateEconomyNow
 UpdateEverything
 ```
 
-An integration event:
+An Integration Event:
 
 - MUST use an explicit stable discriminator;
-- MUST use immutable serializable payload data;
+- MUST carry immutable serializable payload data where appropriate;
 - MUST NOT expose mutable domain objects;
 - MUST NOT be used as request/response RPC;
 - MUST NOT require the publisher to know its subscribers;
 - MAY have zero, one, or many subscribers.
 
-## 9. Event Ownership and Post-Commit Rule
+Correlation-id plus response-event RPC is not an acceptable substitute for a Command API.
 
-The system that owns the command and canonical mutation also owns creation, collection, and dispatch initiation for integration events describing that mutation.
+## Event ownership and post-commit rule
 
-Normative lifecycle:
+The system that owns the mutation also owns creation, collection, and dispatch initiation for Integration Events describing that mutation.
+
+Canonical lifecycle:
 
 ```text
-Command
+Command / scheduled owned work
   ↓
 Validate
   ↓
@@ -223,42 +329,47 @@ Canonical mutation
   ↓
 COMMIT
   ↓
-Owning system finalizes committed integration events
+Owning system finalizes committed Integration Events
   ↓
-Owning system hands committed events to dispatcher
+Owning system hands events to dispatcher
   ↓
 0..N subscribers
 ```
 
-The caller, UI, and cross-system orchestrator MUST NOT be responsible for remembering to publish another system's integration events.
+The caller, UI, and orchestrator MUST NOT be responsible for remembering to publish another system's events.
 
-An event MUST NOT become externally observable before its associated canonical state is committed.
+No Integration Event may become externally observable before the canonical change it describes has committed.
 
-The exact collection mechanism — event sink, transaction envelope, unit of work, outbox, or equivalent — is deferred to ADR-003. ADR-003 MUST preserve owning-system responsibility.
+Concrete collection and durability mechanisms — event sink, unit of work, transaction envelope, outbox, retry/recovery, or equivalent — are governed by ADR-003.
 
-Once canonical commit succeeds, post-commit delivery failure MUST NOT make the originating command appear rejected or rolled back. Subscriber exceptions MUST be isolated from business rejection semantics and reported through an explicit delivery/health/recovery path. Durability, retry, recovery, and failure-recording behavior are owned by ADR-003.
+Once canonical commit succeeds, post-commit delivery failure MUST NOT retroactively make the originating command appear rejected or rolled back.
 
-## 10. Event Bus Responsibility
+Subscriber failure is distinct from business rejection.
 
-`foundation/event-bus` is a typed integration-event delivery mechanism.
+## Event bus responsibility
 
-It is explicitly **not**:
+`foundation/event-bus` is a typed Integration Event delivery capability.
+
+It is explicitly not:
 
 - a gameplay workflow engine;
-- a global mutable state container;
+- a global mutable state store;
 - a universal command dispatcher;
 - a transaction coordinator;
-- a service locator or dependency-injection container.
+- a service locator / DI container;
+- canonical simulation scheduling authority.
 
-Domain code MUST NOT depend directly on the event bus. Event dispatch and subscription belong at application/runtime adapter boundaries.
+Domain code MUST NOT publish or subscribe to the concrete event bus directly.
 
-## 11. Single-System vs Cross-System Use Cases
+ADR-002 MUST preserve explicit ordered simulation scheduling rather than use event subscriber order as gameplay execution order.
 
-The classification threshold is the number of canonical mutation authorities commanded by the use case.
+## Single-system versus cross-system use cases
 
-### Single-system use case
+The threshold is the number of canonical mutation authorities commanded by the use case.
 
-If a use case commands **exactly one** system mutation authority, it remains owned by that system's `application/` layer regardless of how many other systems it queries.
+### Exactly one mutation authority
+
+The use case belongs to the owning system's application boundary even if it queries multiple other systems.
 
 Example:
 
@@ -266,261 +377,223 @@ Example:
 BuildRoad
   query Terrain buildability
   query Zoning occupancy
-  command Roads
+  mutate Roads only
 ```
 
-This remains a Roads application use case because only Roads mutates.
+This is a Roads application use case.
 
-Its cross-system dependencies are read-only public query contracts and MUST preserve an acyclic graph.
+If direct read dependencies would create a cycle, dependency inversion is used as described above; the use case does not automatically move to orchestration.
 
-### Cross-system use case
+### More than one mutation authority
 
-If a use case needs commands that mutate **more than one** system authority, it MUST live under the appropriate `orchestration/*` concern package.
+The use case belongs to an orchestration concern.
 
 Example:
 
 ```text
 PurchaseAndBuildRoad
-  command Economy debit funds
-  command Roads build road
+  command Economy
+  command Roads
 ```
 
-This belongs in orchestration because it coordinates two mutation authorities and owns application-level sequencing, compensation/atomicity requirements, and result composition.
+The orchestrator owns application-level sequencing, result composition, and the transaction/compensation policy required by ADR-003.
 
-A use case MUST NOT be moved into orchestration merely because it performs multiple read-only queries.
+## Orchestration namespace
 
-## 12. Orchestration Namespace
+`orchestration/` is a top-level namespace, not one monolithic package.
 
-`orchestration/` is a top-level architectural namespace, not one monolithic package.
-
-Possible concern packages include:
+Possible concerns include:
 
 ```text
-orchestration/
-  gameplay/
-  persistence/
-  import-export/
-  diagnostics/
+orchestration/gameplay/
+orchestration/persistence/
+orchestration/import-export/
+orchestration/diagnostics/
 ```
 
-Only packages justified by an actual cross-system concern should be created. PR0 MUST NOT create empty concern packages for speculative future needs.
+Only concerns justified by actual behavior are created.
 
-`orchestration/gameplay` owns cross-system gameplay application policy. It MUST NOT become a generic dumping ground for all application behavior.
+`orchestration/gameplay` MUST NOT become a generic dumping ground for application code.
 
-Save/load orchestration, if required by ADR-003, belongs to a persistence-specific orchestration concern rather than `orchestration/gameplay`.
+Save/load coordination, if needed, belongs to persistence-specific orchestration rather than gameplay orchestration.
 
-`apps/game` wires dependencies into orchestrators but does not absorb orchestration logic.
+`apps/game` wires orchestrators but does not absorb their business policy.
 
-## 13. Cross-System Transaction Boundary
+## Cross-system transaction boundary
 
 ADR-001 does not prescribe one global transaction mechanism.
 
 It freezes these constraints:
 
-- a single-system command owns its own atomic mutation boundary;
-- a multi-system orchestrator MUST make sequencing and failure behavior explicit;
+- a single-system command owns its single-authority atomic mutation boundary;
+- multi-system orchestration makes sequencing/failure behavior explicit;
 - multi-system atomicity MUST NOT be simulated by abusing the event bus;
-- integration events remain post-commit facts;
-- transaction/persistence mechanisms defined later MUST preserve system ownership and event ownership.
+- Integration Events remain post-commit facts;
+- ADR-003 transaction/persistence mechanisms MUST preserve owning-system authority and event ownership.
 
-ADR-003 owns the concrete transaction and persistence design.
+## Public contract design
 
-## 14. Public Contract Design and Compatibility
+Cross-system contracts SHOULD be small, immutable, intention-revealing, and serializable where persistence/delivery requires it.
 
-Cross-system contracts SHOULD be small, immutable, serializable where appropriate, and intention-revealing.
-
-Public contracts MUST NOT leak:
+Public read/command contracts MUST NOT leak:
 
 - Three.js objects;
 - DOM objects;
 - mutable internal collections;
 - private entity/service implementations;
-- implementation-specific caches.
+- implementation caches;
+- internal `ports/*` types.
 
-A public command/query/event/DTO change is an observable contract change. Such a change MUST:
+A composition-only export may expose narrowly scoped construction dependency interfaces but those MUST remain isolated to `./composition`.
 
-1. identify affected consumers;
-2. update verification-map or affected-graph metadata when dependency relationships change;
-3. update contract tests in the same PR;
-4. update owning system documentation;
-5. explicitly address persistence/replay compatibility when save/replay facing.
+Until a dedicated contract-evolution policy exists, a breaking monorepo contract change updates the owner and all affected consumers atomically and updates contract verification in the same change.
 
-The Product Architecture v2 dependency graph is derived from v2 package manifests and public contracts. The legacy static Level 2 verification chain is not architectural authority for v2.
+The legacy static verification map is not the current dependency graph.
 
-## 15. Contract Testing
+## Contract testing
 
-Every exported cross-system contract requires first-class automated verification.
+Every exported cross-system contract requires first-class automated verification appropriate to the surface.
 
-Required categories:
+Required categories include:
 
-- command-result success/rejection tests;
-- public query DTO shape and semantic tests;
-- integration-event discriminator/payload contract tests;
+- CommandResult success/rejection semantics;
+- Query DTO shape and semantics;
+- Integration Event discriminator/payload contract tests;
 - package export-boundary tests;
-- architecture import-boundary tests.
+- architecture import-boundary tests;
+- cycle detection for direct system Query dependencies.
 
-Snapshot tests MAY be used where useful but MUST NOT be the only semantic assertion when structural or behavioral assertions are clearer.
+Snapshot tests may assist but MUST NOT be the only semantic assertion where explicit assertions are clearer.
 
-Contract tests belong with the owning system and run as part of Level 1 owner verification. Public changes additionally trigger affected-consumer verification.
+## Architecture enforcement
 
-## 16. Architecture Enforcement
-
-PR0 SHALL add automated boundary checks rejecting at least:
+Foundation Bootstrap must implement automated checks rejecting at least:
 
 ```text
-foundation/* → systems/*
-foundation/* → orchestration/*
-foundation/* → apps/*
+foundation/* -> systems/*
+foundation/* -> orchestration/*
+foundation/* -> apps/*
 
-systems/* → orchestration/*
-systems/* → apps/*
+systems/* -> orchestration/*
+systems/* -> apps/*
 
-system A → system B internal paths
-system A → system B command API
-system domain → foundation/event-bus
-system domain → Three.js
-system domain → DOM/browser APIs
+systems/A -> systems/B/commands
+systems/A -> systems/B/composition
+orchestration/* -> systems/*/composition
+
+cross-package deep filesystem import
+public read/command contract -> internal ports/* type
+direct system Query dependency cycle
+system domain -> Three.js
+system domain -> DOM/browser API
+system domain -> concrete event-bus implementation
+undeclared package public import
 ```
 
-Allowed cross-system dependency from one system package to another is read-only public query contract access only.
+Allowed surface matrix:
 
-PR0 SHALL also enforce that cross-system imports resolve through declared package exports rather than filesystem-relative deep imports.
+```text
+Consumer          system "."    system "./commands"    system "./composition"
+-------------------------------------------------------------------------------
+systems/*              YES              NO                      NO
+orchestration/*        YES              YES                     NO
+apps/*                 YES              YES                     YES
+```
 
-Boundary verification MUST participate in the fast owner/development loop, not only the final repository-wide gate.
+Architecture checks must run in the fast development/owner loop, not only a final repository release gate.
 
-## 17. Failure Semantics
+## Failure semantics
 
-Expected business rejection is represented by typed `CommandResult` rejection unions.
+Expected business rejection is typed `CommandResult` rejection.
 
-Infrastructure and programming failures are distinct from business rejection.
+Infrastructure and programming failures are separate failure classes.
 
 Rules:
 
-- UI MUST NOT infer rejection meaning from exception-message strings.
-- An orchestrator MUST handle each commanded system's typed rejection explicitly.
-- Subscriber failure MUST NOT alter the meaning of an originating command after its canonical mutation committed.
-- A dispatcher MUST prevent subscriber failure from making an already committed command appear rolled back or normally rejected.
-- Hidden best-effort cross-system mutation from an event subscriber is forbidden when correctness requires the caller to know whether that mutation succeeded. Such behavior must be explicit orchestration or a separately documented eventually consistent process.
+- UI MUST NOT infer business meaning from exception strings;
+- orchestrators handle each commanded system's typed rejection explicitly;
+- subscriber failure MUST NOT alter a committed command's business meaning;
+- hidden best-effort cross-system mutation from an event subscriber is forbidden where caller correctness depends on success;
+- correctness-sensitive cross-system mutation must be explicit orchestration or a separately approved eventually-consistent process.
 
-## 18. Examples
-
-Single-authority Roads use case:
-
-```text
-UI
- ↓
-Roads public API
- ↓
-Roads application use case
- ├─ Terrain public Query
- ├─ Zoning public Query
- └─ Roads domain mutation
-         ↓
-       COMMIT
-         ↓
-      RoadBuilt
-         ↓
- foundation/event-bus
-    ├─ cache/projection invalidation
-    └─ presentation synchronization
-```
-
-Multi-authority gameplay use case:
-
-```text
-UI
- ↓
-orchestration/gameplay
- ├─ Economy Command
- └─ Roads Command
-       ↓
-explicit sequencing / transaction policy
-       ↓
-each owning system commits its authority
-and owns its post-commit integration events
-```
-
-## 19. Forbidden Patterns
+## Forbidden patterns
 
 Architecture violations include:
 
-- deep-importing another system's domain/application implementation;
-- one system directly commanding another system;
-- using events as commands to obtain request/response behavior;
-- correlation-id plus response-event RPC as a substitute for a command port;
-- returning another system's events in `CommandResult` for the caller to publish;
-- publishing an integration event before canonical commit;
-- letting domain code know about the event bus;
-- hiding gameplay mutation inside a query;
+- deep-importing another system's internals;
+- one system importing another system's `./commands` surface;
+- one system importing another system's `./composition` surface;
+- orchestration importing a system's `./composition` surface;
+- public read/command contracts referencing internal port types;
+- direct cyclic Query package dependencies;
+- using events as commands/RPC;
+- returning Integration Events in CommandResult for caller publication;
+- publishing events before commit;
+- letting domain code know the concrete event bus;
+- hiding mutation inside Query;
 - placing multi-authority gameplay orchestration in `apps/game`;
 - placing gameplay-specific orchestration in `foundation/*`;
-- treating `orchestration/gameplay` as the only orchestration concern;
-- using the event bus as a transaction coordinator;
-- treating the legacy static Level 2 map as the v2 dependency graph.
+- using event delivery order as simulation scheduling order;
+- using the legacy static verification map as current architecture authority.
 
-## 20. Consequences and Trade-offs
+## Consequences
 
 Benefits:
 
-- system ownership remains explicit;
-- command rejection is type-safe and consistent;
-- systems cannot create command chains across authority boundaries;
-- event consumers cannot control command success semantics;
+- ownership and mutation authority remain explicit;
+- Query, Command, Event, and Orchestration are mechanically distinguishable;
+- command prohibition between systems becomes enforceable through package surfaces;
+- cyclic semantic reads can be supported without cyclic package imports;
 - callers cannot omit or duplicate another system's event publication;
-- multi-system mutation policy has one visible home outside `apps/game`;
-- systems remain independently testable without booting the full game;
-- event-driven coupling is constrained to post-commit facts rather than hidden RPC.
+- systems remain independently testable;
+- composition wiring is available without exposing implementation internals as gameplay APIs.
 
 Accepted costs:
 
-- public ports/contracts require deliberate maintenance;
-- read-only query dependencies can still form undesirable cycles unless enforced;
-- multi-authority use cases require an orchestration boundary;
-- post-commit event durability requires ADR-003.
+- system packages maintain multiple deliberate export surfaces;
+- dependency inversion is required when direct read edges would cycle;
+- orchestration is required for multi-authority mutation;
+- event durability still requires ADR-003;
+- public-surface discipline requires architecture tooling/tests.
 
-## 21. PR0 Enforcement Requirements
+## Foundation Bootstrap requirements
 
-PR0 Product Architecture v2 Bootstrap MUST:
+Foundation Bootstrap must eventually:
 
-1. create `foundation/contracts` with canonical command/rejection/event primitives;
-2. create `foundation/event-bus` with typed integration-event transport contracts only;
-3. establish the top-level `orchestration/` namespace and create only concern packages required by real PR0 behavior;
-4. establish the system package public-export convention;
-5. add architecture tests for dependency direction, deep-import prevention, and the system-to-system command prohibition;
-6. add representative contract tests for typed command rejection and integration-event shapes;
-7. run architecture-boundary tests in the fast development/owner verification loop;
-8. document how new systems register affected consumers in the v2 verification topology;
-9. avoid importing legacy package dependency assumptions into the v2 graph without a new explicit decision.
+1. create `foundation/contracts` with canonical generic result/event primitives;
+2. create `foundation/event-bus` only after ADR-003 defines required delivery/durability semantics beyond ADR-001;
+3. establish the system read/command/composition export convention;
+4. implement architecture checks for the permission matrix and deep imports;
+5. implement auto-derived direct Query graph cycle detection;
+6. test public-contract-to-port leak prevention;
+7. keep architecture checks in the fast verification path;
+8. avoid importing former package-topology assumptions without explicit current decisions.
 
-## 22. Follow-up ADRs
+## Follow-up decisions
 
 ```text
-ADR-002  SimClock + Deterministic Simulation Scheduler
-ADR-003  Persistence / Transaction / Save Ownership
-ADR-004  Data-Oriented Domain / ECS Boundary
-PR0      Product Architecture v2 Bootstrap
+ADR-002  Simulation Runtime, Scheduler, and Determinism Primitives
+ADR-003  Persistence, Transaction, Event Delivery, and Save Ownership
+ADR-004  Data-Oriented Domain and ECS Boundary
+ADR-005  Selective Verification (planned after real package topology exists)
 ```
 
-ADR-002 MUST preserve explicit ordered scheduling rather than use pub/sub delivery order as simulation order.
+ADR-004 may change a system's internal organization but MUST preserve the public surface, ownership, and cross-system rules frozen here.
 
-ADR-003 MUST preserve owning-system event collection/dispatch responsibility while defining concrete commit, durability, outbox/recovery, and save transaction mechanisms.
-
-ADR-004 MUST preserve these public communication boundaries regardless of internal OOP, data-oriented, SoA, or ECS implementation choices.
-
-## Final Invariants
+## Final invariants
 
 ```text
-One canonical mutation → one owning system.
-
-Read another system → Query.
-Ask one system to mutate → Command.
-Need to mutate a second system → orchestration/*.
-Announce an already committed fact → Integration Event.
-
-A system may query another system; it may not command it.
-The owning system owns its committed integration events.
+One canonical mutation -> one owning system.
+Read another system -> root Query surface.
+Ask one system to mutate -> Command.
+Need to mutate another authority too -> orchestration/*.
+Announce committed fact -> Integration Event.
+Systems never import another system's command or composition surface.
+Direct Query package graph is acyclic.
+Bidirectional semantic read uses dependency inversion, not cyclic imports.
+The owning system owns its committed Integration Events.
 The caller never publishes another system's events.
-The event bus transports facts; it does not run workflows.
-apps/game composes; it does not become the business-use-case layer.
+The event bus transports facts; it does not run workflows or simulation order.
+apps/game composes; it does not become the hidden cross-system business layer.
 foundation stays below gameplay and never depends upward.
 ```

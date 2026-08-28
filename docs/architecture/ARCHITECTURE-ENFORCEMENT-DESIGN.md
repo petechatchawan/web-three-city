@@ -1,6 +1,6 @@
 # Architecture Enforcement Design
 
-- **Status:** REVIEW DRAFT — NOT FROZEN
+- **Status:** FROZEN
 - **Date:** 2026-08-28
 - **Scope:** Machine-enforceable architecture rules, tooling ownership, source-of-truth derivation, fixtures, reporting, and verification integration
 - **Depends on:** Product Architecture, ADR-001, A3 Repository Topology & Ownership Model, A4 Package Boundary Model, A5 System Internal Structure, A6 Public Export & Dependency Rules, A7 Composition & Orchestration Structure, A8 Foundation Structure, A9 Testing Structure, A10 Documentation Structure
@@ -601,6 +601,7 @@ Manual graph files are never dependency authority.
 All import forms, including type-only and relative reach-through, count.
 Production system Query graph is automatically derived and acyclic.
 Repository-test public-surface edges are test-only and do not become production graph edges.
+Exception policy stores only narrow approved deviations; it never becomes a manually maintained full dependency graph.
 Exceptions are narrow, explicit, documented, and machine-readable.
 No broad ignore mechanism for owned production code.
 Architecture checker has valid/invalid fixtures.

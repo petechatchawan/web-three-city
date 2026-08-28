@@ -30,6 +30,4 @@ jobs:
             docs/systems/world/specs/WORLD-SPATIAL-CONTRACT.md \
             docs/systems/terrain/specs/TERRAIN-GENERATION-CONTRACT.md
       - name: Print canonical diff
-        run: git diff -- \
-          docs/systems/world/specs/WORLD-SPATIAL-CONTRACT.md \
-          docs/systems/terrain/specs/TERRAIN-GENERATION-CONTRACT.md
+        run: git diff -- docs/systems/world/specs/WORLD-SPATIAL-CONTRACT.md docs/systems/terrain/specs/TERRAIN-GENERATION-CONTRACT.md

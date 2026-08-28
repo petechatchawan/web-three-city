@@ -1,0 +1,83 @@
+name: Phase 1 Plan Final Audit
+
+on:
+  push:
+    branches:
+      - design/phase-1-world-map-terrain
+
+permissions:
+  contents: write
+
+jobs:
+  audit-plan:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: design/phase-1-world-map-terrain
+          fetch-depth: 0
+      - name: Resolve final type gaps
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('docs/superpowers/plans/2026-08-29-phase-1-world-map-terrain-implementation.md')
+          text = path.read_text()
+
+          old = 'export interface PreparedWorldDefinition {\n  readonly mapDefinition: MapDefinitionRead;\n  readonly spatial: WorldSpatialRead;\n}\n\nexport interface MapStateRead {'
+          new = 'export interface PreparedWorldDefinition {\n  readonly mapDefinition: MapDefinitionRead;\n  readonly spatial: WorldSpatialRead;\n}\n\nexport interface CreateInitialWorldInput {\n  readonly prepared: PreparedWorldDefinition;\n  readonly selectedStartingRegionId: RegionId;\n  readonly eligibleStartingRegionIds: readonly RegionId[];\n}\n\nexport interface MapStateRead {'
+          if old not in text: raise SystemExit('PreparedWorldDefinition anchor missing')
+          text = text.replace(old, new, 1)
+
+          old = 'export type LogicalElevation = number & {\n  readonly __logicalElevationBrand: "LogicalElevation";\n};\nexport type TerrainRevision = number;'
+          new = 'export type LogicalElevation = number & {\n  readonly __logicalElevationBrand: "LogicalElevation";\n};\nexport type TerrainElevationResult =\n  | { readonly status: "success"; readonly value: LogicalElevation }\n  | {\n      readonly status: "rejected";\n      readonly code: "TERRAIN_ELEVATION_INVALID" | "TERRAIN_ELEVATION_OUT_OF_RANGE";\n    };\nexport type TerrainRevision = number;'
+          if old not in text: raise SystemExit('LogicalElevation anchor missing')
+          text = text.replace(old, new, 1)
+
+          old = '''export interface TerrainRead {\n  revision(): TerrainRevision;\n  completeness(): TerrainCompleteness;\n  elevationAt(vertex: VertexCoord): TerrainQueryResult<LogicalElevation>;\n  cellSurface(cell: CellCoord): TerrainQueryResult<CellSurfaceRead>;\n  sampleSurface(\n    cell: CellCoord,\n    uQ16: number,\n    vQ16: number,\n  ): TerrainQueryResult<SurfaceSampleRead>;\n  captureSnapshot(): TerrainStateSnapshot;\n}\n'''
+          new = '''export interface TerrainAuthorityRead {\n  revision(): TerrainRevision;\n  completeness(): TerrainCompleteness;\n  elevationAt(vertex: VertexCoord): TerrainQueryResult<LogicalElevation>;\n  cellSurface(cell: CellCoord): TerrainQueryResult<CellSurfaceRead>;\n  sampleSurface(\n    cell: CellCoord,\n    uQ16: number,\n    vQ16: number,\n  ): TerrainQueryResult<SurfaceSampleRead>;\n}\n\nexport interface TerrainRead extends TerrainAuthorityRead {\n  captureSnapshot(): TerrainStateSnapshot;\n}\n'''
+          if old not in text: raise SystemExit('TerrainRead anchor missing')
+          text = text.replace(old, new, 1)
+
+          old = 'export interface TerrainAuthoritySystem {\n  readonly read: TerrainRead;\n}'
+          new = 'export interface TerrainAuthoritySystem {\n  readonly read: TerrainAuthorityRead;\n}'
+          if old not in text: raise SystemExit('TerrainAuthoritySystem anchor missing')
+          text = text.replace(old, new, 1)
+
+          old = '''export interface TerrainFieldSource {\n  readonly vertexWidth: number;\n  readonly vertexHeight: number;\n  elevationAt(x: number, z: number): number;\n}\n\nexport interface PreparedProductionTerrain {'''
+          new = '''export interface TerrainFieldSource {\n  readonly vertexWidth: number;\n  readonly vertexHeight: number;\n  elevationAt(x: number, z: number): number;\n}\n\nexport type TerrainConstructionResult<T> =\n  | { readonly status: "success"; readonly value: T }\n  | {\n      readonly status: "rejected";\n      readonly reason:\n        | "invalid-source-dimensions"\n        | "invalid-elevation"\n        | "world-topology-rejected";\n      readonly detail?: Readonly<Record<string, unknown>>;\n    };\n\nexport interface PreparedProductionTerrain {'''
+          if old not in text: raise SystemExit('TerrainFieldSource ledger anchor missing')
+          text = text.replace(old, new, 1)
+
+          old = '''`TerrainConstructionResult<T>` is a typed success/rejection union local to the composition contract; rejection detail is immutable and no partial state escapes.'''
+          new = '''`TerrainConstructionResult<T>` uses the exact ledger union above. `invalid-source-dimensions` covers any source shape other than 513×513 for the production path; `invalid-elevation` covers failed logical-elevation parsing; `world-topology-rejected` covers an unexpected World owner-resolution rejection. No partial state escapes.'''
+          if old not in text: raise SystemExit('TerrainConstructionResult prose anchor missing')
+          text = text.replace(old, new, 1)
+
+          old = '''interface CellCorners {\n  readonly sw: LogicalElevation;\n  readonly se: LogicalElevation;\n  readonly nw: LogicalElevation;\n  readonly ne: LogicalElevation;\n}\n\nfunction evaluateSurface(\n  corners: CellCorners,\n  uQ16: number,\n  vQ16: number,\n): SurfaceSample;'''
+          new = '''interface CellCorners {\n  readonly sw: LogicalElevation;\n  readonly se: LogicalElevation;\n  readonly nw: LogicalElevation;\n  readonly ne: LogicalElevation;\n}\n\ninterface SurfaceSample {\n  readonly triangle: TerrainTriangle;\n  readonly heightQ16: number;\n  readonly riseX: number;\n  readonly riseZ: number;\n  readonly runUnits: 32;\n}\n\nfunction evaluateSurface(\n  corners: CellCorners,\n  uQ16: number,\n  vQ16: number,\n): SurfaceSample;'''
+          if old not in text: raise SystemExit('SurfaceSample declaration anchor missing')
+          text = text.replace(old, new, 1)
+
+          old = '''interface CanonicalElevationUpdate {\n  readonly vertexKey: number;\n  readonly elevation: LogicalElevation;\n}\n\nfunction commitCanonicalUpdates(\n  state: TerrainState,\n  updates: readonly CanonicalElevationUpdate[],\n): TerrainState {\n  return state.withAtomicUpdates(updates);\n}'''
+          new = '''interface CanonicalElevationUpdate {\n  readonly vertexKey: number;\n  readonly elevation: LogicalElevation;\n}\n\ninterface TerrainStateMutationCore {\n  withAtomicUpdates(\n    updates: readonly CanonicalElevationUpdate[],\n  ): TerrainStateMutationCore;\n}\n\nfunction commitCanonicalUpdates(\n  state: TerrainStateMutationCore,\n  updates: readonly CanonicalElevationUpdate[],\n): TerrainStateMutationCore {\n  return state.withAtomicUpdates(updates);\n}'''
+          if old not in text: raise SystemExit('mutation core anchor missing')
+          text = text.replace(old, new, 1)
+
+          old = '''World composition exposes exactly:\n\n```ts\nexport function prepareProductionWorldDefinition(): WorldConstructionResult<PreparedWorldDefinition>;\n\nexport function createInitialWorldSystem(input: {\n  readonly prepared: PreparedWorldDefinition;\n  readonly selectedStartingRegionId: RegionId;\n  readonly eligibleStartingRegionIds: readonly RegionId[];\n}): WorldConstructionResult<WorldSystem>;\n```'''
+          new = '''World composition exposes exactly:\n\n```ts\nexport function prepareProductionWorldDefinition(): WorldConstructionResult<PreparedWorldDefinition>;\n\nexport function createInitialWorldSystem(\n  input: CreateInitialWorldInput,\n): WorldConstructionResult<WorldSystem>;\n```'''
+          if old not in text: raise SystemExit('world composition signature anchor missing')
+          text = text.replace(old, new, 1)
+
+          path.write_text(text)
+          PY
+      - name: Commit final audit fixes
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/superpowers/plans/2026-08-29-phase-1-world-map-terrain-implementation.md
+          git diff --cached --check
+          git commit -m 'docs(plan): resolve final Phase 1 type gaps'
+          git push origin HEAD:design/phase-1-world-map-terrain

@@ -181,8 +181,8 @@ function resolveImport(
   let targetPackage = findTargetPackageBySpecifier(specifier, packages);
   if (!specifier.startsWith(".")) {
     return {
-      targetPackage,
       relativeCrossPackage: false,
+      ...(targetPackage ? { targetPackage } : {}),
       ...(targetPackage
         ? { targetSurface: surfaceForSpecifier(specifier, targetPackage) }
         : {}),
@@ -196,9 +196,9 @@ function resolveImport(
   );
   if (relativeCrossPackage) targetPackage = containing;
   return {
-    targetPackage,
     resolvedPath,
     relativeCrossPackage,
+    ...(targetPackage ? { targetPackage } : {}),
     ...(relativeCrossPackage ? { targetSurface: "private" } : {}),
   };
 }

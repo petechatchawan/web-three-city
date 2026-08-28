@@ -104,9 +104,15 @@ Domain and application logic use fast local tests first. Browser verification is
 
 Data-oriented storage, ECS-like processing, caching, instancing, pooling, and spatial indexing may change implementation strategy but must not silently introduce a second canonical truth.
 
-### P13 — Legacy gameplay has no automatic authority
+### P13 — No legacy inheritance
 
-The clean-slate reset and legacy reference policy is governed by ADR-000. Former gameplay code, frozen system specs, package boundaries, save schemas, and passing tests are reference material until explicitly re-adopted.
+Previous implementation, specifications, tests, package topology, persistence formats, verification tooling, and gameplay decisions are outside the active architecture boundary.
+
+The current product is designed from current requirements and current architecture documents only.
+
+Historical commits may remain in Git for repository continuity, but they are archival only and MUST NOT be inspected, copied, migrated, or used as design input unless the owner explicitly requests a historical investigation.
+
+No current system design requires a legacy audit.
 
 ## Architectural layers
 
@@ -149,7 +155,6 @@ Persistence Ownership
 External Dependencies
 Presentation Projection
 Testing Boundary
-Legacy Reference Audit
 ```
 
 A system that cannot identify its authority boundary clearly is not ready for implementation.
@@ -218,7 +223,7 @@ Targeted browser verification when browser-observable
 Critical journey / visual / full-browser release evidence when required
 ```
 
-Selective Verification implementation is not defined here. The old verification implementation is historical reference; a current resolver will be designed against the new package topology.
+Selective Verification is designed from the current package topology and current requirements only. No pre-reset verification implementation is an input or authority.
 
 ## Documentation authority
 
@@ -250,5 +255,6 @@ Public API is deliberate package export.
 Systems are testable without booting the whole game.
 Persistence stores canonical authority.
 Optimization never creates a second truth.
-Legacy gameplay has no automatic authority.
+No legacy inheritance.
+Historical commits are archival unless the owner explicitly requests investigation.
 ```

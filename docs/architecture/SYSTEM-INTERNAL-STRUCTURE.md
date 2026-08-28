@@ -1,6 +1,6 @@
 # System Internal Structure
 
-- **Status:** REVIEW DRAFT — NOT FROZEN
+- **Status:** FROZEN
 - **Date:** 2026-08-28
 - **Scope:** Internal structure and dependency direction inside `systems/*` packages
 - **Depends on:** Product Architecture, ADR-001, A3 Repository Topology & Ownership Model, A4 Package Boundary Model
@@ -395,7 +395,7 @@ cross-system communication rules
 testability/documentation obligations
 ```
 
-An alternate internal model must document its mapping back to the responsibilities defined here.
+An alternate internal model must document its mapping back to the responsibilities defined here in the owning system's binding design/documentation, and any mechanically different layout must also be represented by the narrow A11-approved layout mapping/profile rather than disabling enforcement.
 
 ## 17. Anti-pattern checklist
 
@@ -475,5 +475,5 @@ Composition constructs; it does not become runtime business policy.
 No empty ceremonial folders.
 No internal shared/common/utils dumping ground.
 Derived implementation state stays internal unless A3 proves independent ownership.
-Alternate ECS/data-oriented internals may vary structure only while preserving external contracts and ownership.
+Alternate ECS/data-oriented internals may vary structure only while preserving external contracts and ownership and must document their mapping in binding system documentation.
 ```

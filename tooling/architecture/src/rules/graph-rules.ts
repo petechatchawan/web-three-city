@@ -14,6 +14,10 @@ function violation(
   return { ruleId, source, message, reference, ...(target ? { target } : {}) };
 }
 
+function compareNames(left: string, right: string): number {
+  return left.localeCompare(right);
+}
+
 function findCycle(
   nodes: readonly string[],
   edges: readonly ArchitectureEdge[],
@@ -25,7 +29,7 @@ function findCycle(
     if (list && adjacency.has(edge.to) && !list.includes(edge.to))
       list.push(edge.to);
   }
-  for (const list of adjacency.values()) list.sort();
+  for (const list of adjacency.values()) list.sort(compareNames);
 
   const state = new Map<string, 0 | 1 | 2>();
   const stack: string[] = [];
@@ -47,7 +51,7 @@ function findCycle(
     return undefined;
   };
 
-  for (const node of [...nodes].sort()) {
+  for (const node of [...nodes].sort(compareNames)) {
     if ((state.get(node) ?? 0) === 0) {
       const cycle = visit(node);
       if (cycle) return cycle;

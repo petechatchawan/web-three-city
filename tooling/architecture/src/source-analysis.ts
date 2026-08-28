@@ -27,6 +27,10 @@ const browserGlobals = new Set([
   "sessionStorage",
 ]);
 
+function compareNames(left: string, right: string): number {
+  return left.localeCompare(right);
+}
+
 async function exists(filePath: string): Promise<boolean> {
   try {
     await access(filePath);
@@ -161,6 +165,87 @@ function packageContainingPath(
     );
 }
 
+interface ImportResolution {
+  readonly targetPackage?: WorkspacePackage;
+  readonly resolvedPath?: string;
+  readonly relativeCrossPackage: boolean;
+  readonly targetSurface?: string;
+}
+
+function resolveImport(
+  file: string,
+  specifier: string,
+  sourcePackage: WorkspacePackage | undefined,
+  packages: readonly WorkspacePackage[],
+): ImportResolution {
+  let targetPackage = findTargetPackageBySpecifier(specifier, packages);
+  if (!specifier.startsWith(".")) {
+    return {
+      targetPackage,
+      relativeCrossPackage: false,
+      ...(targetPackage
+        ? { targetSurface: surfaceForSpecifier(specifier, targetPackage) }
+        : {}),
+    };
+  }
+
+  const resolvedPath = path.resolve(path.dirname(file), specifier);
+  const containing = packageContainingPath(resolvedPath, packages);
+  const relativeCrossPackage = Boolean(
+    containing && containing.name !== sourcePackage?.name,
+  );
+  if (relativeCrossPackage) targetPackage = containing;
+  return {
+    targetPackage,
+    resolvedPath,
+    relativeCrossPackage,
+    ...(relativeCrossPackage ? { targetSurface: "private" } : {}),
+  };
+}
+
+function sourceImportFromNode(
+  node: ts.Node,
+  file: string,
+  sourcePackage: WorkspacePackage | undefined,
+  sourceKind: SourceKind,
+  packages: readonly WorkspacePackage[],
+): SourceImport | undefined {
+  const specifier = moduleSpecifierFromNode(node);
+  if (!specifier) return undefined;
+  const resolution = resolveImport(file, specifier, sourcePackage, packages);
+  return {
+    sourceFile: file,
+    sourceKind,
+    specifier,
+    relativeCrossPackage: resolution.relativeCrossPackage,
+    ...(sourcePackage ? { sourcePackageName: sourcePackage.name } : {}),
+    ...(resolution.targetPackage
+      ? { targetPackageName: resolution.targetPackage.name }
+      : {}),
+    ...(resolution.targetSurface
+      ? { targetSurface: resolution.targetSurface }
+      : {}),
+    ...(resolution.resolvedPath ? { resolvedPath: resolution.resolvedPath } : {}),
+  };
+}
+
+function browserGlobalFromNode(
+  node: ts.Node,
+  file: string,
+  sourcePackage: WorkspacePackage | undefined,
+  sourceKind: SourceKind,
+): BrowserGlobalReference | undefined {
+  if (!sourcePackage || sourceKind !== "production" || !ts.isIdentifier(node))
+    return undefined;
+  if (!browserGlobals.has(node.text) || !isReferenceIdentifier(node))
+    return undefined;
+  return {
+    sourceFile: file,
+    sourcePackageName: sourcePackage.name,
+    name: node.text,
+  };
+}
+
 async function analyzeFile(
   file: string,
   sourcePackage: WorkspacePackage | undefined,
@@ -178,53 +263,42 @@ async function analyzeFile(
   const globals: BrowserGlobalReference[] = [];
 
   const visit = (node: ts.Node): void => {
-    const specifier = moduleSpecifierFromNode(node);
-    if (specifier) {
-      let targetPackage = findTargetPackageBySpecifier(specifier, packages);
-      let resolvedPath: string | undefined;
-      let relativeCrossPackage = false;
-      let targetSurface: string | undefined;
-      if (specifier.startsWith(".")) {
-        resolvedPath = path.resolve(path.dirname(file), specifier);
-        const containing = packageContainingPath(resolvedPath, packages);
-        if (containing && containing.name !== sourcePackage?.name) {
-          targetPackage = containing;
-          relativeCrossPackage = true;
-          targetSurface = "private";
-        }
-      } else if (targetPackage) {
-        targetSurface = surfaceForSpecifier(specifier, targetPackage);
-      }
-      const record: SourceImport = {
-        sourceFile: file,
-        sourceKind,
-        specifier,
-        relativeCrossPackage,
-        ...(sourcePackage ? { sourcePackageName: sourcePackage.name } : {}),
-        ...(targetPackage ? { targetPackageName: targetPackage.name } : {}),
-        ...(targetSurface ? { targetSurface } : {}),
-        ...(resolvedPath ? { resolvedPath } : {}),
-      };
-      imports.push(record);
-    }
+    const sourceImport = sourceImportFromNode(
+      node,
+      file,
+      sourcePackage,
+      sourceKind,
+      packages,
+    );
+    if (sourceImport) imports.push(sourceImport);
 
-    if (
-      sourcePackage &&
-      sourceKind === "production" &&
-      ts.isIdentifier(node) &&
-      browserGlobals.has(node.text) &&
-      isReferenceIdentifier(node)
-    ) {
-      globals.push({
-        sourceFile: file,
-        sourcePackageName: sourcePackage.name,
-        name: node.text,
-      });
-    }
+    const browserGlobal = browserGlobalFromNode(
+      node,
+      file,
+      sourcePackage,
+      sourceKind,
+    );
+    if (browserGlobal) globals.push(browserGlobal);
     ts.forEachChild(node, visit);
   };
+
   visit(sourceFile);
   return { imports, globals };
+}
+
+function compareImports(left: SourceImport, right: SourceImport): number {
+  return `${left.sourceFile}\0${left.specifier}`.localeCompare(
+    `${right.sourceFile}\0${right.specifier}`,
+  );
+}
+
+function compareGlobals(
+  left: BrowserGlobalReference,
+  right: BrowserGlobalReference,
+): number {
+  return `${left.sourceFile}\0${left.name}`.localeCompare(
+    `${right.sourceFile}\0${right.name}`,
+  );
 }
 
 export async function analyzeSources(
@@ -238,7 +312,8 @@ export async function analyzeSources(
       ...(await walkFiles(path.join(pkg.root, "src"))),
       ...(await walkFiles(path.join(pkg.root, "tests"))),
     ];
-    for (const file of [...new Set(files)].sort()) {
+    const uniqueFiles = [...new Set(files)].sort(compareNames);
+    for (const file of uniqueFiles) {
       const result = await analyzeFile(
         file,
         pkg,
@@ -258,14 +333,7 @@ export async function analyzeSources(
     );
     imports.push(...result.imports);
   }
-  return {
-    imports: imports.sort((a, b) =>
-      `${a.sourceFile}\0${a.specifier}`.localeCompare(
-        `${b.sourceFile}\0${b.specifier}`,
-      ),
-    ),
-    browserGlobals: globals.sort((a, b) =>
-      `${a.sourceFile}\0${a.name}`.localeCompare(`${b.sourceFile}\0${b.name}`),
-    ),
-  };
+  imports.sort(compareImports);
+  globals.sort(compareGlobals);
+  return { imports, browserGlobals: globals };
 }

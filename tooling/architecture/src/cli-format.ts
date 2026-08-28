@@ -18,11 +18,13 @@ export function formatReport(report: ArchitectureReport): string {
   }
 
   const lines: string[] = [];
-  for (const violation of report.violations) {
-    const target = violation.target ? ` -> ${violation.target}` : "";
-    lines.push(`[${violation.ruleId}] ${violation.source}${target}`);
-    lines.push(`  ${violation.message}`);
-    lines.push(`  See: ${violation.reference}`);
+  for (const item of report.violations) {
+    const target = item.target ? ` -> ${item.target}` : "";
+    lines.push(
+      `[${item.ruleId}] ${item.source}${target}`,
+      `  ${item.message}`,
+      `  See: ${item.reference}`,
+    );
   }
   lines.push(
     `Architecture check failed: ${report.violations.length} ${plural(report.violations.length, "violation")}.`,

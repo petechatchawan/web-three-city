@@ -10,6 +10,10 @@ interface WorkspaceDiscovery {
 
 type JsonRecord = Record<string, unknown>;
 
+function compareNames(left: string, right: string): number {
+  return left.localeCompare(right);
+}
+
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -162,7 +166,7 @@ async function rootsForPattern(
     if (await exists(path.join(root, relativeRoot, "package.json")))
       roots.push(relativeRoot);
   }
-  return roots.sort();
+  return roots.sort(compareNames);
 }
 
 export async function discoverWorkspace(
@@ -182,10 +186,10 @@ export async function discoverWorkspace(
       relativeRoots.add(relativeRoot);
   }
   const packages: WorkspacePackage[] = [];
-  for (const relativeRoot of [...relativeRoots].sort()) {
+  for (const relativeRoot of [...relativeRoots].sort(compareNames)) {
     packages.push(
       await readManifest(path.join(root, relativeRoot), relativeRoot),
     );
   }
-  return { patterns: [...patterns].sort(), packages };
+  return { patterns: [...patterns].sort(compareNames), packages };
 }

@@ -93,6 +93,118 @@ function importedNames(declaration: ts.ImportDeclaration): string[] {
   return names;
 }
 
+async function collectForbiddenImports(
+  source: ts.SourceFile,
+  file: string,
+): Promise<Map<string, string>> {
+  const forbiddenImports = new Map<string, string>();
+  for (const statement of source.statements) {
+    if (!ts.isImportDeclaration(statement)) continue;
+    if (!ts.isStringLiteral(statement.moduleSpecifier)) continue;
+    const specifier = statement.moduleSpecifier.text;
+    if (!specifier.startsWith(".")) continue;
+    const target = await resolveLocalModule(file, specifier);
+    if (!target || !pathHasSegment(target, forbiddenPublicSegments)) continue;
+    for (const name of importedNames(statement)) forbiddenImports.set(name, target);
+  }
+  return forbiddenImports;
+}
+
+function relativeExportSpecifier(
+  statement: ts.Statement,
+): string | undefined {
+  if (!ts.isExportDeclaration(statement)) return undefined;
+  const moduleSpecifier = statement.moduleSpecifier;
+  if (!moduleSpecifier || !ts.isStringLiteral(moduleSpecifier)) return undefined;
+  return moduleSpecifier.text.startsWith(".")
+    ? moduleSpecifier.text
+    : undefined;
+}
+
+function isSystemRootMutationExport(
+  pkg: WorkspacePackage,
+  surface: string,
+  target: string,
+): boolean {
+  if (surface !== "." || pkg.profile !== "system") return false;
+  return /(^|\/)(commands?|composition)(\/|\.|$)/.test(
+    target.replaceAll("\\", "/"),
+  );
+}
+
+function containsIdentifier(node: ts.Node, name: string): boolean {
+  if (ts.isIdentifier(node) && node.text === name) return true;
+  let found = false;
+  node.forEachChild((child) => {
+    if (!found && containsIdentifier(child, name)) found = true;
+  });
+  return found;
+}
+
+function checkExportedStatementImports(
+  statement: ts.Statement,
+  file: string,
+  pkg: WorkspacePackage,
+  forbiddenImports: ReadonlyMap<string, string>,
+  violations: ArchitectureViolation[],
+): void {
+  if (!hasExportModifier(statement)) return;
+  for (const [name, target] of forbiddenImports) {
+    if (!containsIdentifier(statement, name)) continue;
+    violations.push(
+      violation(
+        "ARCH-CONTRACT-001",
+        file,
+        `Exported contract references ${name} from forbidden internal module ${path.relative(pkg.root, target)}.`,
+        "A6 § Public Contract Dependency Rules",
+        pkg.name,
+      ),
+    );
+  }
+}
+
+async function inspectExportDeclaration(
+  pkg: WorkspacePackage,
+  surface: string,
+  file: string,
+  statement: ts.Statement,
+  visited: Set<string>,
+  violations: ArchitectureViolation[],
+): Promise<boolean> {
+  const specifier = relativeExportSpecifier(statement);
+  if (!specifier) return false;
+  const target = await resolveLocalModule(file, specifier);
+  if (!target) return true;
+
+  if (isSystemRootMutationExport(pkg, surface, target)) {
+    violations.push(
+      violation(
+        "ARCH-EXPORT-002",
+        file,
+        `System root read surface re-exports mutation/construction module ${path.relative(pkg.root, target)}.`,
+        "A6 § Root Read Surface",
+        pkg.name,
+      ),
+    );
+  }
+
+  if (pathHasSegment(target, forbiddenPublicSegments)) {
+    violations.push(
+      violation(
+        "ARCH-CONTRACT-001",
+        file,
+        `Public surface ${surface} directly exports forbidden internal module ${path.relative(pkg.root, target)}.`,
+        "A6 § Public Contract Dependency Rules",
+        pkg.name,
+      ),
+    );
+    return true;
+  }
+
+  await scanPublicModule(pkg, surface, target, visited, violations);
+  return true;
+}
+
 async function scanPublicModule(
   pkg: WorkspacePackage,
   surface: string,
@@ -104,86 +216,25 @@ async function scanPublicModule(
   visited.add(file);
   const text = await readFile(file, "utf8");
   const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true);
-  const forbiddenImports = new Map<string, string>();
+  const forbiddenImports = await collectForbiddenImports(source, file);
 
   for (const statement of source.statements) {
-    if (
-      ts.isImportDeclaration(statement) &&
-      ts.isStringLiteral(statement.moduleSpecifier) &&
-      statement.moduleSpecifier.text.startsWith(".")
-    ) {
-      const target = await resolveLocalModule(
-        file,
-        statement.moduleSpecifier.text,
-      );
-      if (target && pathHasSegment(target, forbiddenPublicSegments)) {
-        for (const name of importedNames(statement))
-          forbiddenImports.set(name, target);
-      }
-    }
-  }
-
-  for (const statement of source.statements) {
-    if (
-      ts.isExportDeclaration(statement) &&
-      statement.moduleSpecifier &&
-      ts.isStringLiteral(statement.moduleSpecifier) &&
-      statement.moduleSpecifier.text.startsWith(".")
-    ) {
-      const target = await resolveLocalModule(
-        file,
-        statement.moduleSpecifier.text,
-      );
-      if (!target) continue;
-      if (
-        surface === "." &&
-        pkg.profile === "system" &&
-        /(^|\/)(commands?|composition)(\/|\.|$)/.test(
-          target.replaceAll("\\", "/"),
-        )
-      ) {
-        violations.push(
-          violation(
-            "ARCH-EXPORT-002",
-            file,
-            `System root read surface re-exports mutation/construction module ${path.relative(pkg.root, target)}.`,
-            "A6 § Root Read Surface",
-            pkg.name,
-          ),
-        );
-      }
-      if (pathHasSegment(target, forbiddenPublicSegments)) {
-        violations.push(
-          violation(
-            "ARCH-CONTRACT-001",
-            file,
-            `Public surface ${surface} directly exports forbidden internal module ${path.relative(pkg.root, target)}.`,
-            "A6 § Public Contract Dependency Rules",
-            pkg.name,
-          ),
-        );
-      } else {
-        await scanPublicModule(pkg, surface, target, visited, violations);
-      }
-      continue;
-    }
-
-    if (!hasExportModifier(statement) || forbiddenImports.size === 0) continue;
-    const statementText = statement.getText(source);
-    for (const [name, target] of forbiddenImports) {
-      const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      if (new RegExp(`\\b${escaped}\\b`).test(statementText)) {
-        violations.push(
-          violation(
-            "ARCH-CONTRACT-001",
-            file,
-            `Exported contract references ${name} from forbidden internal module ${path.relative(pkg.root, target)}.`,
-            "A6 § Public Contract Dependency Rules",
-            pkg.name,
-          ),
-        );
-      }
-    }
+    const handled = await inspectExportDeclaration(
+      pkg,
+      surface,
+      file,
+      statement,
+      visited,
+      violations,
+    );
+    if (handled) continue;
+    checkExportedStatementImports(
+      statement,
+      file,
+      pkg,
+      forbiddenImports,
+      violations,
+    );
   }
 }
 

@@ -25,12 +25,14 @@ jobs:
         run: |
           corepack enable
           corepack prepare pnpm@10.15.1 --activate
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Install dependencies without lifecycle scripts
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Rebuild approved install-script dependency
+        run: pnpm rebuild esbuild
       - name: Verify exact HEAD
         run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
       - name: Install Chromium
-        run: pnpm exec playwright install --with-deps chromium
+        run: ./node_modules/.bin/playwright install --with-deps chromium
       - name: Verify repository
         run: pnpm verify
       - name: Verify clean worktree

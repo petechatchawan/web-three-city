@@ -2,6 +2,9 @@ import { access, readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import type { ArchitectureViolation } from "../model";
 
+const placeholderMarkers = new Set(["TODO", "TBD", "FIXME"]);
+const markerSeparators = new Set(["", " ", "\t", ":", "-", "—"]);
+
 async function exists(filePath: string): Promise<boolean> {
   try {
     await access(filePath);
@@ -33,60 +36,114 @@ function violation(
   return { ruleId, source, message, reference };
 }
 
+function stripListPrefix(value: string): string {
+  for (const prefix of ["- ", "* ", "+ "]) {
+    if (value.startsWith(prefix)) return value.slice(prefix.length).trimStart();
+  }
+  return value;
+}
+
+function stripCheckboxPrefix(value: string): string {
+  for (const prefix of ["[ ] ", "[x] ", "[X] "]) {
+    if (value.startsWith(prefix)) return value.slice(prefix.length).trimStart();
+  }
+  return value;
+}
+
+function stripHeadingPrefix(value: string): string {
+  let count = 0;
+  while (count < 6 && value[count] === "#") count += 1;
+  if (count === 0 || value[count] !== " ") return value;
+  return value.slice(count + 1).trimStart();
+}
+
+function stripLeadingMarkdown(value: string): string {
+  const trimmed = value.trim();
+  return stripHeadingPrefix(stripCheckboxPrefix(stripListPrefix(trimmed)));
+}
+
+function startsWithPlaceholderMarker(value: string): boolean {
+  for (const marker of placeholderMarkers) {
+    if (!value.startsWith(marker)) continue;
+    const separator = value.slice(marker.length, marker.length + 1);
+    if (markerSeparators.has(separator)) return true;
+  }
+  return false;
+}
+
+function stripTerminalPunctuation(value: string): string {
+  if (value.endsWith(".") || value.endsWith("!")) return value.slice(0, -1);
+  return value;
+}
+
+function assignedPlaceholder(value: string): boolean {
+  const colon = value.lastIndexOf(":");
+  const equals = value.lastIndexOf("=");
+  const separator = Math.max(colon, equals);
+  if (separator < 0) return false;
+  const candidate = stripTerminalPunctuation(value.slice(separator + 1).trim());
+  return placeholderMarkers.has(candidate);
+}
+
 function hasActionablePlaceholder(line: string): boolean {
-  const trimmed = line.trim();
-  const leadingMarker =
-    /^(?:[-*+]\s+)?(?:\[[ xX]\]\s+)?(?:#{1,6}\s+)?(?:TODO|TBD|FIXME)\b(?:\s*[:—-]|\s+|$)/.test(
-      trimmed,
-    );
-  const assignedMarker = /(?:^|[:=]\s*)(?:TODO|TBD|FIXME)\s*[.!]?\s*$/.test(
-    trimmed,
+  const normalized = stripLeadingMarkdown(line);
+  return (
+    startsWithPlaceholderMarker(normalized) ||
+    assignedPlaceholder(normalized) ||
+    normalized.includes("???")
   );
-  return leadingMarker || assignedMarker || trimmed.includes("???");
+}
+
+function placeholderViolations(
+  file: string,
+  text: string,
+): ArchitectureViolation[] {
+  const violations: ArchitectureViolation[] = [];
+  let fenced = false;
+  const lines = text.split(/\r?\n/);
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] ?? "";
+    if (line.trimStart().startsWith("```")) {
+      fenced = !fenced;
+      continue;
+    }
+    if (fenced) continue;
+    const withoutInlineCode = line.replace(/`[^`]*`/g, "");
+    if (!hasActionablePlaceholder(withoutInlineCode)) continue;
+    violations.push(
+      violation(
+        "ARCH-DOC-002",
+        `${file}:${index + 1}`,
+        "FROZEN architecture prose contains an unresolved placeholder marker.",
+        "A10 § No Placeholder Acceptance",
+      ),
+    );
+  }
+  return violations;
+}
+
+async function checkDocument(file: string): Promise<ArchitectureViolation[]> {
+  const text = await readFile(file, "utf8");
+  const statusMatch = text.match(/^- \*\*Status:\*\* (.+)$/m);
+  if (!statusMatch) {
+    return [
+      violation(
+        "ARCH-DOC-001",
+        file,
+        "Architecture document is missing the required explicit status header.",
+        "A10 § Document Status Model",
+      ),
+    ];
+  }
+  if (statusMatch[1]?.trim() !== "FROZEN") return [];
+  return placeholderViolations(file, text);
 }
 
 export async function checkDocumentRules(
   root: string,
 ): Promise<ArchitectureViolation[]> {
   const violations: ArchitectureViolation[] = [];
-  for (const file of await markdownFiles(
-    path.join(root, "docs", "architecture"),
-  )) {
-    const text = await readFile(file, "utf8");
-    const statusMatch = text.match(/^- \*\*Status:\*\* (.+)$/m);
-    if (!statusMatch) {
-      violations.push(
-        violation(
-          "ARCH-DOC-001",
-          file,
-          "Architecture document is missing the required explicit status header.",
-          "A10 § Document Status Model",
-        ),
-      );
-      continue;
-    }
-    if (statusMatch[1]?.trim() !== "FROZEN") continue;
-    let fenced = false;
-    const lines = text.split(/\r?\n/);
-    for (let index = 0; index < lines.length; index += 1) {
-      const line = lines[index] ?? "";
-      if (line.trimStart().startsWith("```")) {
-        fenced = !fenced;
-        continue;
-      }
-      if (fenced) continue;
-      const withoutInlineCode = line.replace(/`[^`]*`/g, "");
-      if (hasActionablePlaceholder(withoutInlineCode)) {
-        violations.push(
-          violation(
-            "ARCH-DOC-002",
-            `${file}:${index + 1}`,
-            "FROZEN architecture prose contains an unresolved placeholder marker.",
-            "A10 § No Placeholder Acceptance",
-          ),
-        );
-      }
-    }
-  }
+  const files = await markdownFiles(path.join(root, "docs", "architecture"));
+  for (const file of files) violations.push(...(await checkDocument(file)));
   return violations;
 }

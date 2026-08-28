@@ -62,6 +62,8 @@ owner-local derived state
 
 ```text
 application/
+contracts/ as an outer API layer
+ports/
 presentation/
 composition/
 DOM/browser APIs
@@ -75,6 +77,8 @@ concrete persistence/event-bus/runtime implementations
 `domain/` may depend on stable Foundation primitives when the relevant Foundation capability is approved.
 
 A domain type is not public merely because it is important. Public exposure still requires an explicit contract decision under A4/A6.
+
+Stable owner value types may originate in `domain/` and later be deliberately exposed through a public package surface; that exposure does not invert the domain toward an outer contracts layer.
 
 ## 4. `application/` — owner use cases and mutation boundary
 
@@ -144,6 +148,8 @@ free of internal implementation references
 free of private ports
 free of Three.js/DOM objects unless the contract is explicitly presentation-specific and approved
 ```
+
+A contract may reference an owner-defined stable value type only when that value is itself deliberately part of the approved public contract. It must not expose private domain entities or storage representations.
 
 A system does not create empty Query/Command/Event folders merely to match a template.
 
@@ -236,8 +242,7 @@ Default conventional direction:
 presentation ───────┐
                     ▼
 composition -> application -> domain
-                 │   │
-                 │   └──> contracts (when domain-safe public values are required)
+                 │
                  ├──────> contracts
                  └──────> ports
 ```
@@ -249,7 +254,8 @@ domain
   -> approved Foundation primitives only
 
 contracts
-  -> other public contract/value primitives only when architecture permits
+  -> approved Foundation/public value primitives when needed
+  -> deliberately public owner value types when needed
   -> must not depend on private application/domain implementations
 
 ports
@@ -395,7 +401,7 @@ An alternate internal model must document its mapping back to the responsibiliti
 
 The following indicate an invalid or degrading internal structure:
 
-- [ ] `domain/` imports Three.js, DOM, app, orchestration, or concrete infrastructure;
+- [ ] `domain/` imports contracts/application/presentation/composition, Three.js, DOM, app, orchestration, or concrete infrastructure;
 - [ ] `application/` directly calls another system's command/composition surface;
 - [ ] `contracts/` exposes private domain entities, stores, adapters, or ports;
 - [ ] `ports/` becomes a generic interface-per-class bucket;
@@ -460,6 +466,7 @@ ECS/data-oriented runtime policy
 One system package remains one ownership boundary by default.
 Internal folders separate responsibilities; they do not create package authority.
 Domain owns gameplay rules/state and stays technology-independent.
+Domain does not depend on outer contracts/application/ports/presentation/composition layers.
 Application owns single-authority use cases.
 Contracts are public candidates, not automatic public API.
 Ports are consumer-owned dependency inversion seams and internal by default.

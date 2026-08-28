@@ -10,7 +10,8 @@
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "architecture:check": "tsx src/cli.ts check ../..",
-    "architecture:report": "tsx src/cli.ts report ../.."
+    "architecture:report": "tsx src/cli.ts report ../..",
+    "repository:state": "tsx src/cli.ts state ../.."
   },
   "dependencies": {
     "typescript": "6.0.3"

@@ -358,7 +358,7 @@ IndexedDB adapter primitives
 ```text
 Capability                    Current structural status
 ------------------------------------------------------
-foundation/contracts          RESERVED; candidate after A8 review because ADR-001 governs core primitives
+foundation/contracts          RESERVED; Bootstrap candidate because ADR-001 + A8 govern the core primitives
 foundation/deterministic      RESERVED; BLOCKED by runtime/determinism architecture
 foundation/runtime            RESERVED; BLOCKED by runtime/scheduler architecture
 foundation/event-bus          RESERVED; BLOCKED by event delivery/persistence architecture

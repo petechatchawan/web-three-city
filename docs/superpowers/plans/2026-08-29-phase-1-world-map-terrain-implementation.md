@@ -142,6 +142,141 @@ The file map is intentionally narrow. Do not create ports/adapters/testkit/orche
 
 ---
 
+## Canonical Interface Ledger
+
+These shapes are execution authorities for names referenced across tasks. Internal implementations may use private helpers, but task-to-task contracts must keep these names and semantics unless the frozen spec is explicitly reopened.
+
+```ts
+export type WorldConstructionResult<T> =
+  | { readonly status: "success"; readonly value: T }
+  | {
+      readonly status: "rejected";
+      readonly code: WorldErrorCode;
+      readonly detail?: Readonly<Record<string, unknown>>;
+    };
+
+export interface MapDefinitionRead {
+  readonly mapDefinitionId: "web-three-city-production";
+  readonly profileId: "production-v1";
+  readonly profileVersion: 1;
+  readonly widthCells: 512;
+  readonly heightCells: 512;
+  readonly cellSizeMeters: 8;
+  readonly logicalChunkSizeCells: 32;
+  readonly terrainGenerationProfileId: "balanced-temperate-generation";
+  readonly terrainGenerationProfileVersion: 2;
+  readonly regionIds: readonly RegionId[];
+  readonly startingCandidates: readonly StartingCandidate[];
+  readonly acceptedTerrainSeeds: readonly string[];
+}
+
+export interface PreparedWorldDefinition {
+  readonly mapDefinition: MapDefinitionRead;
+  readonly spatial: WorldSpatialRead;
+}
+
+export interface MapStateRead {
+  readonly mapDefinitionId: MapDefinitionId;
+  readonly startingRegionId: RegionId;
+  readonly unlockedRegionIds: readonly RegionId[];
+}
+
+export interface MapStateSnapshot {
+  readonly mapDefinitionId: MapDefinitionId;
+  readonly mapProfileId: "production-v1";
+  readonly mapProfileVersion: 1;
+  readonly startingRegionId: RegionId;
+  readonly unlockedRegionIds: readonly RegionId[];
+}
+
+export interface WorldSystem {
+  readonly definition: PreparedWorldDefinition;
+  readonly spatial: WorldSpatialRead;
+  readonly mapState: MapStateRead;
+  captureSnapshot(): MapStateSnapshot;
+}
+```
+
+Terrain cross-task contracts:
+
+```ts
+export type TerrainStartingReason =
+  | "TERRAIN_START_UNAVAILABLE"
+  | "TERRAIN_START_CELL_RELIEF_EXCEEDED"
+  | "TERRAIN_START_PATCH_RELIEF_EXCEEDED"
+  | "TERRAIN_START_ANCHOR_RELIEF_EXCEEDED";
+
+export type TerrainGenerationRejectionCode =
+  | "TERRAIN_GENERATION_PROFILE_UNSUPPORTED"
+  | "TERRAIN_GENERATION_SEED_INVALID"
+  | "TERRAIN_GENERATION_SEED_NOT_ACCEPTED"
+  | "TERRAIN_GENERATION_OUTPUT_OUT_OF_RANGE"
+  | "TERRAIN_GENERATION_FINGERPRINT_MISMATCH"
+  | "TERRAIN_GENERATION_NO_ELIGIBLE_START";
+
+export type TerrainMutationRejectionCode =
+  | "TERRAIN_MUTATION_DUPLICATE_VERTEX"
+  | "TERRAIN_MUTATION_VERTEX_OUT_OF_BOUNDS"
+  | "TERRAIN_MUTATION_CHUNK_UNAVAILABLE"
+  | "TERRAIN_MUTATION_ELEVATION_INVALID"
+  | "TERRAIN_MUTATION_ELEVATION_OUT_OF_RANGE";
+
+export interface TerrainMutationRejection extends CommandRejection {
+  readonly code: TerrainMutationRejectionCode;
+  readonly detail?: Readonly<Record<string, unknown>>;
+}
+
+export interface TerrainFieldSource {
+  readonly vertexWidth: number;
+  readonly vertexHeight: number;
+  elevationAt(x: number, z: number): number;
+}
+
+export interface PreparedProductionTerrain {
+  readonly field: TerrainFieldSource;
+  readonly seed64: string;
+  readonly fingerprint: "0xF2FA29BFD2AEB069";
+  readonly candidateEvaluations: readonly StartingCandidateEvaluation[];
+}
+
+export type TerrainPreparationResult =
+  | { readonly status: "success"; readonly value: PreparedProductionTerrain }
+  | {
+      readonly status: "rejected";
+      readonly code: TerrainGenerationRejectionCode;
+      readonly detail?: Readonly<Record<string, unknown>>;
+    };
+
+export interface TerrainRead {
+  revision(): number;
+  completeness(): "partial" | "full";
+  elevationAt(vertex: VertexCoord): TerrainQueryResult<LogicalElevation>;
+  cellSurface(cell: CellCoord): TerrainQueryResult<CellSurfaceRead>;
+  sampleSurface(
+    cell: CellCoord,
+    uQ16: number,
+    vQ16: number,
+  ): TerrainQueryResult<SurfaceSampleRead>;
+  captureSnapshot(): TerrainStateSnapshot;
+}
+
+export interface TerrainCommands {
+  applyEdits(command: ApplyTerrainEdits): CommandResult<
+    TerrainMutationReceipt,
+    TerrainMutationRejection
+  >;
+}
+
+export interface TerrainSystem {
+  readonly read: TerrainRead;
+  readonly commands: TerrainCommands;
+}
+```
+
+`PreparedProductionTerrain.field` is composition-only opaque construction data in practice: it is not re-exported from Terrain root and no consumer may mutate it. `createTerrainSystem` consumes that exact prepared field once; it never regenerates from seed.
+
+---
+
 # P1-A — World / Map / Grid / Region Contracts + System
 
 ## Task 1: Create the World package boundary and public read contracts
@@ -152,7 +287,6 @@ The file map is intentionally narrow. Do not create ports/adapters/testkit/orche
 - Create: `systems/world/src/domain/coordinates.ts`
 - Create: `systems/world/src/contracts/world-read.ts`
 - Create: `systems/world/src/index.ts`
-- Create: `systems/world/src/composition.ts`
 - Create: `systems/world/tests/public-surface.test.ts`
 
 **Interfaces:**
@@ -170,8 +304,7 @@ Use this package contract:
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
-    "./composition": "./src/composition.ts"
+    ".": "./src/index.ts"
   },
   "scripts": {
     "test": "vitest run",
@@ -487,8 +620,9 @@ git commit -m "feat(world): define production map and regions"
 - Create: `systems/world/src/domain/map-state.ts`
 - Create: `systems/world/src/application/create-map-state.ts`
 - Create: `systems/world/src/composition/create-world.ts`
+- Create: `systems/world/src/composition.ts`
+- Modify: `systems/world/package.json`
 - Modify: `systems/world/src/contracts/world-read.ts`
-- Modify: `systems/world/src/composition.ts`
 - Modify: `systems/world/src/index.ts`
 - Test: `systems/world/tests/composition.test.ts`
 
@@ -570,8 +704,6 @@ P1-A acceptance requires exact Region cell-count coverage, full seam/boundary te
 - Create: `systems/terrain/src/domain/elevation.ts`
 - Create: `systems/terrain/src/contracts/terrain-read.ts`
 - Create: `systems/terrain/src/index.ts`
-- Create: `systems/terrain/src/commands.ts`
-- Create: `systems/terrain/src/composition.ts`
 - Modify: `architecture.policy.json`
 - Test: `systems/terrain/tests/public-surface.test.ts`
 
@@ -590,21 +722,16 @@ Use exports/dependencies:
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
-    "./commands": "./src/commands.ts",
-    "./composition": "./src/composition.ts"
+    ".": "./src/index.ts"
   },
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@web-three-city/foundation-contracts": "workspace:*",
-    "@web-three-city/world": "workspace:*",
-    "three": "0.179.1"
+    "@web-three-city/world": "workspace:*"
   },
   "devDependencies": {
-    "@types/three": "0.179.0",
     "typescript": "5.9.2",
     "vitest": "3.2.4"
   }
@@ -677,8 +804,9 @@ git commit -m "feat(terrain): establish authority contracts"
 - Create: `systems/terrain/src/application/terrain-read.ts`
 - Create: `systems/terrain/src/application/materialize-terrain.ts`
 - Create: `systems/terrain/src/composition/create-terrain.ts`
+- Create: `systems/terrain/src/composition.ts`
+- Modify: `systems/terrain/package.json`
 - Modify: `systems/terrain/src/contracts/terrain-read.ts`
-- Modify: `systems/terrain/src/composition.ts`
 - Test: `systems/terrain/tests/authority.test.ts`
 
 **Interfaces:**
@@ -1096,7 +1224,8 @@ git commit -m "feat(terrain): prepare deterministic new-city terrain"
 - Create: `systems/terrain/src/contracts/mutation.ts`
 - Create: `systems/terrain/src/domain/mutation/commit-edits.ts`
 - Create: `systems/terrain/src/application/apply-terrain-edits.ts`
-- Modify: `systems/terrain/src/commands.ts`
+- Create: `systems/terrain/src/commands.ts`
+- Modify: `systems/terrain/package.json`
 - Modify: `systems/terrain/src/composition/create-terrain.ts`
 - Test: `systems/terrain/tests/mutation.test.ts`
 
@@ -1128,7 +1257,7 @@ export interface TerrainMutationReceipt {
 }
 ```
 
-Use `CommandResult<TerrainMutationReceipt, TerrainMutationRejection>` from `@web-three-city/foundation-contracts`.
+At this task, add `@web-three-city/foundation-contracts: workspace:*` to Terrain production dependencies and add the `./commands` package export. Use `CommandResult<TerrainMutationReceipt, TerrainMutationRejection>` from that Foundation package.
 
 - [ ] **Step 1: Write RED validation-order and atomicity tests**
 
@@ -1210,6 +1339,7 @@ git commit -m "feat(terrain): add atomic mutation transaction"
 - Create: `systems/terrain/src/presentation/three/build-sector-geometry.ts`
 - Create: `systems/terrain/src/presentation/three/presentation-normal.ts`
 - Create: `systems/terrain/src/presentation/three/dirty-sectors.ts`
+- Modify: `systems/terrain/package.json`
 - Test: `systems/terrain/tests/render-sector.test.ts`
 - Test: `systems/terrain/tests/dirty-sectors.test.ts`
 
@@ -1217,6 +1347,8 @@ git commit -m "feat(terrain): add atomic mutation transaction"
 - Presentation-owned `RenderSectorCoord` is private to `presentation/three`; never exported from Terrain root.
 - Each sector: 64×64 Cells, 65×65 presentation vertices, 4,225 vertices, 8,192 triangles, 24,576 triangle indices.
 - Position projection: `x*8`, `elevation*0.25`, `z*8`.
+
+Before RED, add `three: 0.179.1` to Terrain production dependencies and `@types/three: 0.179.0` to Terrain devDependencies; this is the first task with a real Three.js consumer. Add no other dependency.
 
 - [ ] **Step 1: Write RED sector topology tests**
 
@@ -1351,7 +1483,7 @@ export interface TerrainStateSnapshot {
   readonly mapDefinitionId: string;
   readonly generationProfileId: "balanced-temperate-generation";
   readonly generationProfileVersion: 2;
-  readonly selectedSeed64: "0x5EED5EED5EED5EED" | string;
+  readonly selectedSeed64: string;
   readonly revision: number;
   readonly completeness: "partial" | "full";
   readonly chunks: readonly TerrainChunkSnapshot[];

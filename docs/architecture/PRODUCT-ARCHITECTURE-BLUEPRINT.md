@@ -11,24 +11,7 @@ This Blueprint translates the Product Architecture into a physical repository st
 
 It defines where code belongs, which package surfaces may be imported by which layer, how system dependencies are represented, and where tests/documentation live.
 
-Detailed structural contracts are now being refined under the Architecture & Structure sequence:
-
-```text
-A3 Repository Topology & Ownership Model                 FROZEN
-A4 Package Boundary Model                                FROZEN
-A5 System Internal Structure                             REVIEW DRAFT
-A6 Public Export & Dependency Rules                      REVIEW DRAFT
-A7 Composition & Orchestration Structure                 REVIEW DRAFT
-A8 Foundation Structure                                  REVIEW DRAFT
-A9 Testing Structure                                     REVIEW DRAFT
-A10 Documentation Structure                              REVIEW DRAFT
-A11 Architecture Enforcement Design                      REVIEW DRAFT
-A12 Foundation Bootstrap Structure                       REVIEW DRAFT
-```
-
-Where a frozen A3/A4 document is more specific than this Blueprint, the more specific frozen contract governs. A5–A12 remain proposals until batch approval.
-
-It does not define runtime scheduler behavior, persistence transaction mechanics, or ECS internals; those remain future behavioral architecture work.
+It does not define runtime scheduler behavior, persistence transaction mechanics, or ECS internals; those remain governed by ADR-002, ADR-003, and ADR-004.
 
 ## Repository topology
 
@@ -67,8 +50,6 @@ Top-level directories have architectural meaning. The project does not use a gen
 
 Empty speculative packages MUST NOT be created merely to make the tree look complete.
 
-A3 is the binding ownership/topology contract.
-
 ## `apps/game`
 
 Owns:
@@ -98,7 +79,7 @@ apps/game/src/
 └─ presentation/
 ```
 
-The exact subfolders may evolve, but the ownership boundary above is binding. A7 provides the current detailed composition proposal.
+The exact subfolders may evolve, but the ownership boundary above is binding.
 
 ## `systems/*`
 
@@ -116,13 +97,21 @@ systems/<system>/
 │  ├─ ports/
 │  ├─ presentation/
 │  │  └─ three/
-│  └─ composition/
+│  └─ index.ts
 └─ tests/
+   └─ integration/
 ```
 
 This layout is a **default convention, not an absolute internal model**.
 
-A5 is the detailed current proposal for system internals. Alternate data-oriented/ECS-heavy internals may vary structure after later approval while preserving package ownership, public exports, dependency direction, canonical authority, cross-system communication, testing, and documentation obligations.
+ADR-004 may authorize different internal organization for data-oriented or ECS-heavy systems. Such a variation may change internals but MUST preserve:
+
+- package ownership;
+- public export rules;
+- dependency direction;
+- canonical authority rules;
+- cross-system communication rules;
+- testing and documentation obligations.
 
 In repository terminology, the top-level bounded capability remains a **system**. ECS runtime logic should prefer the term **processor** where practical to avoid collision with the repository-level meaning of system.
 
@@ -145,12 +134,11 @@ Additionally:
 ```text
 application -> ports
 application -> contracts
-domain      -> approved stable Foundation primitives only
+domain      -> stable foundation primitives only
 ```
 
 Domain code MUST NOT depend on:
 
-- outer contracts/application/ports/presentation/composition layers;
 - Three.js;
 - DOM/browser APIs;
 - `apps/*`;
@@ -159,7 +147,7 @@ Domain code MUST NOT depend on:
 - concrete event-bus implementation;
 - concrete persistence implementation.
 
-A5 refines these defaults while remaining non-frozen until batch approval.
+ADR-004 may vary internal code organization but not these external dependency principles.
 
 ## `contracts/` and `ports/`
 
@@ -217,10 +205,10 @@ Example:
 May expose:
 
 - commands;
-- intended mutation entrypoints;
+- command handlers/application entrypoints intended for orchestration;
 - typed command rejections and results needed by callers.
 
-Production `systems/*` consumers MUST NOT import another system's `./commands` surface.
+`systems/*` consumers MUST NOT import another system's `./commands` surface.
 
 ### Construction surface — `./composition`
 
@@ -234,27 +222,20 @@ May expose only construction/wiring capabilities such as:
 
 - system factories;
 - registration functions;
-- construction-only dependency interfaces;
+- composition-only dependency interfaces;
 - adapter factories intended for the composition root.
 
 This surface is not a gameplay API.
 
-A6 is the current detailed export/dependency proposal and distinguishes production consumers from repository-level test code.
-
-## Production import permission matrix
+## Import permission matrix
 
 ```text
 Consumer          system "."    system "./commands"    system "./composition"
 -------------------------------------------------------------------------------
-systems/*              YES*             NO                      NO
+systems/*              YES              NO                      NO
 orchestration/*        YES              YES                     NO
 apps/*                 YES              YES                     YES
-foundation/*           NO               NO                      NO
 ```
-
-`YES*` is an explicitly reviewed read-only Query exception, not default permission to add arbitrary system edges.
-
-Repository-level test code may use deliberately exported public mutation/composition surfaces for isolated verification under the current A6/A9 review proposal, without receiving private/deep-import access.
 
 Additional rules:
 
@@ -264,27 +245,95 @@ foundation/* -> orchestration/*  NO
 foundation/* -> apps/*           NO
 systems/*    -> orchestration/*  NO
 systems/*    -> apps/*           NO
-production   -> testkit/*        NO
-production   -> tooling/*        NO
 ```
+
+Apps may access command and composition surfaces for UI/application wiring, but cross-system business policy still belongs in orchestration when more than one mutation authority is coordinated.
 
 Deep filesystem imports across package boundaries are forbidden even when TypeScript can resolve them.
 
 ## Cross-system query graph
 
-A system may directly depend on another system's root read surface only as an explicitly reviewed exception.
+A system may directly depend on another system's root read surface.
 
-The direct production system-to-system Query dependency graph MUST remain acyclic.
+The direct system-to-system query dependency graph MUST remain acyclic.
 
-The graph is derived automatically from workspace manifests and actual production imports; a separately maintained manual graph is not authority.
+The graph is **derived automatically** from:
 
-When semantic reads are bidirectional, one direction uses consumer-owned dependency inversion wired by `apps/game` composition rather than cyclic package imports.
+```text
+workspace/package manifests
++
+actual package imports
+```
 
-## Foundation
+A manually maintained graph file is not architectural authority.
 
-Foundation is not a shared-code bucket.
+Architecture tooling MUST generate/check the graph and fail if topological sorting detects a direct package cycle.
 
-Reserved conceptual homes currently include:
+### Bidirectional pure-read policy
+
+Bidirectional semantic reads may be legitimate, but **bidirectional direct package imports are not**.
+
+Example requirement:
+
+```text
+Roads needs Zoning information
+Zoning needs Roads information
+```
+
+The architecture MUST NOT represent this as:
+
+```text
+roads -> zoning
+zoning -> roads
+```
+
+Instead one direction must be inverted. Typical pattern:
+
+```text
+Consumer application owns an internal ReadPort
+        ↑
+apps/game composition wires an adapter
+        ↓
+Provider root Query surface
+```
+
+The consumer package therefore does not import the provider package for the inverted direction.
+
+This is dependency inversion, not automatically cross-system orchestration, because the use case may still mutate only one canonical authority.
+
+If the adapter requires real business sequencing/policy rather than trivial query translation/wiring, the design must be reconsidered and may belong in an orchestration concern.
+
+No arbitrary fan-out threshold is frozen. Fan-out is observed and addressed when evidence justifies a stronger rule.
+
+## `orchestration/*`
+
+`orchestration/` is a top-level namespace of genuine cross-system concerns, not one mandatory package.
+
+Possible examples:
+
+```text
+orchestration/gameplay/
+orchestration/persistence/
+orchestration/import-export/
+```
+
+Packages are created only when real behavior requires them.
+
+A typical orchestration package may use:
+
+```text
+src/application/
+src/contracts/
+src/index.ts
+```
+
+It does not own canonical gameplay domain state by default.
+
+## `foundation/*`
+
+Foundation contains generic reusable primitives and infrastructure contracts. It must remain free of gameplay-specific ownership.
+
+Potential capabilities include:
 
 ```text
 foundation/contracts
@@ -295,38 +344,64 @@ foundation/persistence
 foundation/spatial
 ```
 
-Reservation does not authorize package creation.
+These names reserve conceptual homes; packages are created only when an approved design needs them.
 
-A8 defines the current creation-gate proposal. Only `foundation/contracts` is currently governed enough by ADR-001 to be a candidate for initial Bootstrap creation; the other reserved homes remain blocked by their future governing designs.
+### Governance matrix
+
+```text
+foundation/contracts      Product Architecture + ADR-001
+foundation/event-bus      ADR-001 semantics + ADR-003 delivery/durability
+foundation/runtime        ADR-002
+foundation/deterministic  ADR-002
+foundation/persistence    ADR-003
+foundation/spatial        Product Architecture + World/Spatial design
+```
+
+`foundation/runtime` is not created merely because the Blueprint names it; its minimum behavior must first be frozen by ADR-002.
+
+`foundation/spatial` is expected to arrive with World/Spatial design rather than being created speculatively in Foundation Bootstrap.
+
+Gameplay-specific terms such as Roads, Zoning, Buildings, Households, or Traffic do not belong in foundation semantics.
+
+## Naming policy
+
+Packages are named by bounded capability rather than by an automatic implementation/presentation split.
+
+Preferred package naming follows bounded capability:
+
+```text
+@web-three-city/terrain
+@web-three-city/roads
+@web-three-city/runtime
+```
+
+Three.js presentation begins as an internal adapter under the owning system unless evidence justifies a separate package.
+
+A future package split requires a real reason such as independent lifecycle, build/dependency pressure, ownership, reuse, or deployment/testing isolation.
 
 ## Testing topology
 
-Default ownership structure:
-
 ```text
 src/**/*.test.ts
-        package-focused tests
+  -> unit/domain/application tests
 
-<package>/tests/
-        package contract/integration
+systems/<system>/tests/
+  -> owning-system integration tests
 
 tests/integration/
-        cross-package integration
+  -> cross-package/cross-system integration contracts
 
 tests/browser/
-        browser-dependent behavior
+  -> browser-dependent behavior only
 
 tests/journeys/
-        small critical product journeys
+  -> critical player/product journeys
 
 tests/visual/
-        visual authority/regression
-
-tooling/architecture/tests + fixtures
-        architecture checker verification
+  -> visual/rendering authority and visual regression
 ```
 
-A9 is the current detailed testing proposal. Browser tests remain targeted rather than the default correctness layer.
+A core gameplay rule that requires browser startup to test is an architecture smell unless browser behavior is itself the subject of the test.
 
 ## Documentation topology
 
@@ -335,8 +410,9 @@ docs/
 ├─ architecture/
 │  ├─ PRODUCT-ARCHITECTURE.md
 │  ├─ PRODUCT-ARCHITECTURE-BLUEPRINT.md
-│  ├─ structural contracts
+│  ├─ FOUNDATION-BOOTSTRAP.md
 │  └─ adr/
+│
 └─ systems/
    └─ <system>/
       ├─ README.md
@@ -346,13 +422,13 @@ docs/
       └─ verification/
 ```
 
-A10 is the current detailed documentation proposal. Chat history is not canonical authority.
+Repository-wide ADRs are not mixed with system-local ADRs.
 
-## Architecture enforcement
+## Architecture enforcement requirements
 
-A11 proposes a dedicated `tooling/architecture` package that derives the current graph from workspace configuration, manifests, export maps, and source imports.
+Foundation Bootstrap must eventually make these rules executable.
 
-Mechanical rules include rejecting at least:
+At minimum tooling must reject:
 
 ```text
 foundation -> systems/orchestration/apps
@@ -362,76 +438,41 @@ system -> another system ./commands
 system -> another system ./composition
 orchestration -> system ./composition
 public read/command contract -> internal ports type
-unreviewed direct system root-read dependency
-direct production system Query dependency cycle
-system domain -> Three.js
-system domain -> DOM/browser APIs
-production -> testkit/tooling
+system query dependency cycle
+domain -> Three.js
+domain -> DOM/browser APIs
+domain -> concrete event-bus implementation
 undeclared package public import
 ```
 
-Architecture checks must run in the fast development/owner loop, not only a final repository gate.
+Architecture verification must participate in the fast development loop, not only a final release job.
 
-## Bootstrap structure
+## Selective verification seam
 
-A12 proposes an intentionally minimal executable scaffold:
+The Blueprint deliberately exposes enough structure for a future affected resolver to distinguish:
 
-```text
-apps/game
-foundation/contracts
-tooling/architecture
-repository control-plane files
-minimal tests/CI only when real files exist
-```
+- package ownership;
+- public surface changes;
+- command/composition surface changes;
+- dependency edges;
+- repository/tooling changes.
 
-No gameplay package or blocked Foundation capability is pre-created merely to prove structure.
-
-The existing `FOUNDATION-BOOTSTRAP.md` remains a non-binding reviewed baseline during this batch and must be reconciled/superseded against A12 before implementation planning.
-
-## Package naming policy
-
-Default ownership-revealing identities:
-
-```text
-systems/<name>        -> @web-three-city/<name>
-apps/<name>           -> @web-three-city/app-<name>
-orchestration/<name>  -> @web-three-city/orchestration-<name>
-foundation/<name>     -> @web-three-city/foundation-<name>
-testkit/<name>        -> @web-three-city/testkit-<name>
-tooling/<name>        -> @web-three-city/tooling-<name>
-```
-
-Actual package creation still requires A3 ownership justification.
-
-## Current Architecture & Structure review gate
-
-A5–A12 are intentionally being reviewed as one batch.
-
-Until the batch is approved:
-
-```text
-A3/A4 remain frozen
-A5–A12 remain REVIEW DRAFT — NOT FROZEN
-no Bootstrap implementation begins
-no gameplay package is created
-```
-
-After approval, the batch is revised/frozen together, Bootstrap authority is reconciled, and only then may implementation planning begin.
+Selective Verification will be designed and implemented solely from the current package topology and current requirements. Pre-reset verification code and maps are not inputs.
 
 ## Final invariants
 
 ```text
-Top-level namespaces express ownership.
-Package exports, not folder visibility, define public API.
-Everything is internal by default.
-"." = system read/observe.
-"./commands" = system owned mutation.
+Top-level directories carry architectural meaning.
+No empty speculative packages.
+One bounded gameplay authority per system package.
+Default DDD/hexagonal folders are not an ECS prohibition.
+Package exports, not folder names, define public API.
+"." = read/observe.
+"./commands" = mutate.
 "./composition" = construct/wire.
-Production system-to-system direct Query graph is reviewed and acyclic.
+System-to-system direct query graph is acyclic.
 Bidirectional semantic reads use dependency inversion, not cyclic imports.
-Package boundaries split only when current ownership evidence justifies it.
-Foundation is semantic generic reuse, not shared code by convenience.
+Package boundaries are split only when current evidence justifies it.
 Testing and documentation locations are predictable from ownership.
-Architecture structure is mechanically enforceable where observable.
 No pre-reset architecture or tooling is an input to the current Blueprint.
 ```

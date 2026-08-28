@@ -36,6 +36,7 @@ docs/
 │  ├─ TESTING-STRUCTURE.md
 │  ├─ DOCUMENTATION-STRUCTURE.md
 │  ├─ ARCHITECTURE-ENFORCEMENT-DESIGN.md
+│  ├─ FOUNDATION-BOOTSTRAP-STRUCTURE.md
 │  ├─ FOUNDATION-BOOTSTRAP.md
 │  └─ adr/
 │
@@ -47,6 +48,8 @@ docs/
       ├─ tdd/
       └─ verification/
 ```
+
+`FOUNDATION-BOOTSTRAP-STRUCTURE.md` is the A12 structural design. The older `FOUNDATION-BOOTSTRAP.md` remains a reviewed baseline during this architecture batch and must be reconciled or superseded before implementation planning so the active tree does not retain competing bootstrap authorities.
 
 Directories/files are created only when content exists; empty speculative documentation trees are not required.
 
@@ -443,6 +446,7 @@ Manual graph copies must not become a competing authority to source-derived arch
 - [ ] TDD plan changes architecture without spec review;
 - [ ] verification evidence defines new behavior;
 - [ ] multiple active specs own the same invariant;
+- [ ] bootstrap structure and executable bootstrap baseline remain competing active authorities after batch approval;
 - [ ] filenames use `v2/new/old/final-final` to manage history;
 - [ ] unresolved TODO/TBD remains in document marked FROZEN;
 - [ ] pre-reset docs are restored as active reference by default;
@@ -476,6 +480,9 @@ Road verification evidence
 
 architecture batch under review
 -> all affected docs REVIEW DRAFT until batch approval
+
+A12 approved while older FOUNDATION-BOOTSTRAP.md still exists
+-> reconcile/supersede before implementation planning
 ```
 
 ## 27. Deferred decisions
@@ -506,4 +513,5 @@ FROZEN documents contain no unresolved placeholders.
 Explicit deferral is preferred to vague TBD.
 Git history manages ordinary document history; no v2/old archive naming by default.
 Batch review is allowed only while all batch documents remain non-frozen until approval.
+A12 and the older bootstrap baseline must not remain competing active authorities before implementation planning.
 ```

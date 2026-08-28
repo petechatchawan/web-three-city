@@ -1,6 +1,6 @@
 # Testing Structure
 
-- **Status:** REVIEW DRAFT — NOT FROZEN
+- **Status:** FROZEN
 - **Date:** 2026-08-28
 - **Scope:** Test ownership, placement, layering, reusable test infrastructure, and repository verification structure
 - **Depends on:** Product Architecture, A3 Repository Topology & Ownership Model, A4 Package Boundary Model, A5 System Internal Structure, A6 Public Export & Dependency Rules

@@ -1,6 +1,6 @@
 # World System Design
 
-- **Status:** REVIEW DRAFT — NOT FROZEN
+- **Status:** FROZEN — OWNER APPROVED 2026-08-29
 - **Date:** 2026-08-29
 - **Owner:** `systems/world`
 - **Depends on:** Phase 1 World/Map/Terrain Design, Product Architecture, ADR-001, A3–A10

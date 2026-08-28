@@ -1,6 +1,6 @@
 # Terrain System Design
 
-- **Status:** REVIEW DRAFT — NOT FROZEN
+- **Status:** FROZEN — OWNER APPROVED 2026-08-29
 - **Date:** 2026-08-29
 - **Owner:** `systems/terrain`
 - **Depends on:** Phase 1 World/Map/Terrain Design, World System Design, World Spatial Contract, ADR-001, A3–A10

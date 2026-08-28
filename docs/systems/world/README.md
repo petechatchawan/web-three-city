@@ -1,6 +1,6 @@
 # World System
 
-- **Status:** REVIEW DRAFT — NOT FROZEN
+- **Status:** FROZEN — OWNER APPROVED 2026-08-29
 - **Date:** 2026-08-29
 - **Owner:** `systems/world`
 - **Phase:** Phase 1 — World / Map / Terrain

@@ -1,6 +1,6 @@
 # Map and Region Contract
 
-- **Status:** REVIEW DRAFT — NOT FROZEN
+- **Status:** FROZEN — OWNER APPROVED 2026-08-29
 - **Date:** 2026-08-29
 - **Owner:** `systems/world`
 - **Depends on:** World System Design, World Spatial Contract, Phase 1 World/Map/Terrain Design

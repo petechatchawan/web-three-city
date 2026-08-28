@@ -1,6 +1,6 @@
 # Terrain Generation Contract
 
-- **Status:** REVIEW DRAFT — NOT FROZEN
+- **Status:** FROZEN — OWNER APPROVED 2026-08-29
 - **Date:** 2026-08-29
 - **Owner:** `systems/terrain`
 - **Depends on:** Terrain Authority Contract, Terrain Surface Contract, Map and Region Contract

@@ -1,11 +1,11 @@
 # Phase 1 — World, Map, and Terrain Design
 
-- **Status:** REVIEW DRAFT — NOT FROZEN
+- **Status:** FROZEN — OWNER APPROVED 2026-08-29
 - **Date:** 2026-08-29
 - **Scope:** Phase 1 product foundation for World, Map, Grid topology, Regions, Terrain authority, deterministic terrain generation, terrain mutation, terrain geometric queries, Three.js terrain presentation, and snapshot ownership contracts
 - **Depends on:** Product Architecture, ADR-000, ADR-001, A3 Repository Topology & Ownership Model, A4 Package Boundary Model, A5 System Internal Structure, A6 Public Export & Dependency Rules, A7 Composition & Orchestration Structure, A8 Foundation Structure, A9 Testing Structure
 - **Target product:** `web-three-city`
-- **Implementation status:** Design only. This document does not authorize implementation by itself.
+- **Implementation status:** Design/spec authority frozen. Production implementation requires the approved TDD implementation plan and RED/GREEN execution gates.
 
 ## 1. Purpose
 

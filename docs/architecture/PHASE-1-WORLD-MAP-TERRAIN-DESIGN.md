@@ -1227,17 +1227,21 @@ Before production implementation, it should be refined into binding system speci
 
 ```text
 docs/systems/world/
-├─ WORLD-SYSTEM-DESIGN.md
-├─ WORLD-SPATIAL-CONTRACT.md
-└─ MAP-AND-REGION-CONTRACT.md
+├─ README.md
+└─ specs/
+   ├─ WORLD-SYSTEM-DESIGN.md
+   ├─ WORLD-SPATIAL-CONTRACT.md
+   └─ MAP-AND-REGION-CONTRACT.md
 
 docs/systems/terrain/
-├─ TERRAIN-SYSTEM-DESIGN.md
-├─ TERRAIN-AUTHORITY-CONTRACT.md
-├─ TERRAIN-SURFACE-CONTRACT.md
-├─ TERRAIN-GENERATION-CONTRACT.md
-├─ TERRAIN-MUTATION-CONTRACT.md
-└─ TERRAIN-PRESENTATION-CONTRACT.md
+├─ README.md
+└─ specs/
+   ├─ TERRAIN-SYSTEM-DESIGN.md
+   ├─ TERRAIN-AUTHORITY-CONTRACT.md
+   ├─ TERRAIN-SURFACE-CONTRACT.md
+   ├─ TERRAIN-GENERATION-CONTRACT.md
+   ├─ TERRAIN-MUTATION-CONTRACT.md
+   └─ TERRAIN-PRESENTATION-CONTRACT.md
 ```
 
 Those documents refine algorithms and public contracts without changing the ownership decisions frozen here once this Phase 1 design is approved.
@@ -1282,7 +1286,7 @@ runtime event delivery
 large-world streaming beyond core partial-Terrain representability
 ```
 
-The exact procedural algorithm and exact starting-candidate suitability formula are refined in the binding Terrain generation contract before generator implementation; this umbrella already fixes their authority, inputs, determinism, and failure semantics.
+The exact procedural algorithm and exact starting-candidate suitability formula are specified by the binding Terrain generation contract; this umbrella fixes their authority, inputs, determinism, and failure semantics.
 
 ## 38. Phase 1 final invariants
 

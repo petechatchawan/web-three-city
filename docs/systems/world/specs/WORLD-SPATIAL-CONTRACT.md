@@ -135,22 +135,22 @@ No alternate seam-owner calculation is permitted in Terrain or another system.
 
 At minimum these production vectors are normative tests:
 
-| VertexCoord | Owner Chunk | Reason |
-| --- | --- | --- |
-| `(0,0)` | `(0,0)` | south-west outer corner |
-| `(1,1)` | `(0,0)` | interior |
-| `(31,31)` | `(0,0)` | interior before seam |
-| `(32,1)` | `(0,0)` | X seam, west wins |
-| `(33,1)` | `(1,0)` | first interior vertex east of seam |
-| `(1,32)` | `(0,0)` | Z seam, south wins |
-| `(32,32)` | `(0,0)` | seam intersection, south-west wins |
-| `(64,32)` | `(1,0)` | second X seam + first Z seam |
-| `(32,64)` | `(0,1)` | first X seam + second Z seam |
-| `(512,0)` | `(15,0)` | east outer boundary |
-| `(0,512)` | `(0,15)` | north outer boundary |
-| `(32,512)` | `(0,15)` | north boundary + X seam |
-| `(512,32)` | `(15,0)` | east boundary + Z seam |
-| `(512,512)` | `(15,15)` | north-east outer corner |
+| VertexCoord | Owner Chunk | Reason                             |
+| ----------- | ----------- | ---------------------------------- |
+| `(0,0)`     | `(0,0)`     | south-west outer corner            |
+| `(1,1)`     | `(0,0)`     | interior                           |
+| `(31,31)`   | `(0,0)`     | interior before seam               |
+| `(32,1)`    | `(0,0)`     | X seam, west wins                  |
+| `(33,1)`    | `(1,0)`     | first interior vertex east of seam |
+| `(1,32)`    | `(0,0)`     | Z seam, south wins                 |
+| `(32,32)`   | `(0,0)`     | seam intersection, south-west wins |
+| `(64,32)`   | `(1,0)`     | second X seam + first Z seam       |
+| `(32,64)`   | `(0,1)`     | first X seam + second Z seam       |
+| `(512,0)`   | `(15,0)`    | east outer boundary                |
+| `(0,512)`   | `(0,15)`    | north outer boundary               |
+| `(32,512)`  | `(0,15)`    | north boundary + X seam            |
+| `(512,32)`  | `(15,0)`    | east boundary + Z seam             |
+| `(512,512)` | `(15,15)`   | north-east outer corner            |
 
 Tests must also cover every internal seam index `k*32`, `k = 1..15`, not only the examples above.
 

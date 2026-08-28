@@ -157,12 +157,12 @@ No floating-point interpolation is used for canonical generation.
 ## 8. Production octave table
 
 | Layer | Period | Amplitude (LogicalElevation units) |
-| ---: | ---: | ---: |
-| 0 | 128 | 64 |
-| 1 | 64 | 32 |
-| 2 | 32 | 16 |
-| 3 | 16 | 8 |
-| 4 | 8 | 4 |
+| ----: | -----: | ---------------------------------: |
+|     0 |    128 |                                 64 |
+|     1 |     64 |                                 32 |
+|     2 |     32 |                                 16 |
+|     3 |     16 |                                  8 |
+|     4 |      8 |                                  4 |
 
 Base elevation:
 
@@ -198,14 +198,14 @@ Generation output is immutable. Terrain materialization consumes this exact prep
 For seed `0x5EED5EED5EED5EED`, expected elevations include:
 
 | VertexCoord | LogicalElevation |
-| --- | ---: |
-| `(0,0)` | 91 |
-| `(256,256)` | 213 |
-| `(512,512)` | 222 |
-| `(153,191)` | 164 |
-| `(358,191)` | 177 |
-| `(153,319)` | 154 |
-| `(358,319)` | 134 |
+| ----------- | ---------------: |
+| `(0,0)`     |               91 |
+| `(256,256)` |              213 |
+| `(512,512)` |              222 |
+| `(153,191)` |              164 |
+| `(358,191)` |              177 |
+| `(153,319)` |              154 |
+| `(358,319)` |              134 |
 
 These vectors are supplemental. The full-field fingerprint is the release authority for generator output.
 
@@ -295,11 +295,11 @@ Only failed reasons are included, preserving this order.
 For the accepted production seed, all four production candidates are eligible:
 
 | Region | patch range | max Cell range | anchor range | Eligible |
-| --- | ---: | ---: | ---: | --- |
-| `R06` | 8 | 2 | 1 | yes |
-| `R08` | 11 | 3 | 2 | yes |
-| `R11` | 6 | 2 | 1 | yes |
-| `R13` | 20 | 4 | 2 | yes |
+| ------ | ----------: | -------------: | -----------: | -------- |
+| `R06`  |           8 |              2 |            1 | yes      |
+| `R08`  |          11 |              3 |            2 | yes      |
+| `R11`  |           6 |              2 |            1 | yes      |
+| `R13`  |          20 |              4 |            2 | yes      |
 
 The accepted seed catalog entry is valid only while this eligibility vector and full-field fingerprint match the frozen profile contract.
 

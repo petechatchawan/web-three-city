@@ -26,255 +26,207 @@ jobs:
           path = Path('docs/superpowers/plans/2026-08-29-phase-1-world-map-terrain-implementation.md')
           text = path.read_text()
 
-          text = text.replace(
-          '''- Create: `systems/world/src/index.ts`
-- Create: `systems/world/src/composition.ts`
-- Create: `systems/world/tests/public-surface.test.ts`''',
-          '''- Create: `systems/world/src/index.ts`
-- Create: `systems/world/tests/public-surface.test.ts`''')
+          replacements = [
+              (
+                  '- Create: `systems/world/src/index.ts`\n- Create: `systems/world/src/composition.ts`\n- Create: `systems/world/tests/public-surface.test.ts`',
+                  '- Create: `systems/world/src/index.ts`\n- Create: `systems/world/tests/public-surface.test.ts`',
+              ),
+              (
+                  '  "exports": {\n    ".": "./src/index.ts",\n    "./composition": "./src/composition.ts"\n  },',
+                  '  "exports": {\n    ".": "./src/index.ts"\n  },',
+              ),
+              (
+                  '- Create: `systems/world/src/composition/create-world.ts`\n- Modify: `systems/world/src/contracts/world-read.ts`\n- Modify: `systems/world/src/composition.ts`\n- Modify: `systems/world/src/index.ts`',
+                  '- Create: `systems/world/src/composition/create-world.ts`\n- Create: `systems/world/src/composition.ts`\n- Modify: `systems/world/package.json`\n- Modify: `systems/world/src/contracts/world-read.ts`\n- Modify: `systems/world/src/index.ts`',
+              ),
+              (
+                  '- Create: `systems/terrain/src/index.ts`\n- Create: `systems/terrain/src/commands.ts`\n- Create: `systems/terrain/src/composition.ts`\n- Modify: `architecture.policy.json`',
+                  '- Create: `systems/terrain/src/index.ts`\n- Modify: `architecture.policy.json`',
+              ),
+              (
+                  '  "exports": {\n    ".": "./src/index.ts",\n    "./commands": "./src/commands.ts",\n    "./composition": "./src/composition.ts"\n  },',
+                  '  "exports": {\n    ".": "./src/index.ts"\n  },',
+              ),
+              (
+                  '  "dependencies": {\n    "@web-three-city/foundation-contracts": "workspace:*",\n    "@web-three-city/world": "workspace:*",\n    "three": "0.179.1"\n  },\n  "devDependencies": {\n    "@types/three": "0.179.0",\n    "typescript": "5.9.2",\n    "vitest": "3.2.4"\n  }',
+                  '  "dependencies": {\n    "@web-three-city/world": "workspace:*"\n  },\n  "devDependencies": {\n    "typescript": "5.9.2",\n    "vitest": "3.2.4"\n  }',
+              ),
+              (
+                  '- Create: `systems/terrain/src/composition/create-terrain.ts`\n- Modify: `systems/terrain/src/contracts/terrain-read.ts`\n- Modify: `systems/terrain/src/composition.ts`',
+                  '- Create: `systems/terrain/src/composition/create-terrain.ts`\n- Create: `systems/terrain/src/composition.ts`\n- Modify: `systems/terrain/package.json`\n- Modify: `systems/terrain/src/contracts/terrain-read.ts`',
+              ),
+              (
+                  '- Create: `systems/terrain/src/application/apply-terrain-edits.ts`\n- Modify: `systems/terrain/src/commands.ts`\n- Modify: `systems/terrain/src/composition/create-terrain.ts`',
+                  '- Create: `systems/terrain/src/application/apply-terrain-edits.ts`\n- Create: `systems/terrain/src/commands.ts`\n- Modify: `systems/terrain/package.json`\n- Modify: `systems/terrain/src/composition/create-terrain.ts`',
+              ),
+              (
+                  'Use `CommandResult<TerrainMutationReceipt, TerrainMutationRejection>` from `@web-three-city/foundation-contracts`.',
+                  'At this task, add `@web-three-city/foundation-contracts: workspace:*` to Terrain production dependencies and add the `./commands` package export. Use `CommandResult<TerrainMutationReceipt, TerrainMutationRejection>` from that Foundation package.',
+              ),
+              (
+                  '- Create: `systems/terrain/src/presentation/three/dirty-sectors.ts`\n- Test: `systems/terrain/tests/render-sector.test.ts`',
+                  '- Create: `systems/terrain/src/presentation/three/dirty-sectors.ts`\n- Modify: `systems/terrain/package.json`\n- Test: `systems/terrain/tests/render-sector.test.ts`',
+              ),
+              (
+                  '- [ ] **Step 1: Write RED sector topology tests**',
+                  'Before RED, add `three: 0.179.1` to Terrain production dependencies and `@types/three: 0.179.0` to Terrain devDependencies; this is the first task with a real Three.js consumer. Add no other dependency.\n\n- [ ] **Step 1: Write RED sector topology tests**',
+              ),
+              (
+                  '  readonly selectedSeed64: "0x5EED5EED5EED5EED" | string;',
+                  '  readonly selectedSeed64: string;',
+              ),
+          ]
 
-          text = text.replace(
-          '''  "exports": {
-    ".": "./src/index.ts",
-    "./composition": "./src/composition.ts"
-  },''',
-          '''  "exports": {
-    ".": "./src/index.ts"
-  },''',
-          1)
-
-          text = text.replace(
-          '''- Create: `systems/world/src/composition/create-world.ts`
-- Modify: `systems/world/src/contracts/world-read.ts`
-- Modify: `systems/world/src/composition.ts`
-- Modify: `systems/world/src/index.ts`''',
-          '''- Create: `systems/world/src/composition/create-world.ts`
-- Create: `systems/world/src/composition.ts`
-- Modify: `systems/world/package.json`
-- Modify: `systems/world/src/contracts/world-read.ts`
-- Modify: `systems/world/src/index.ts`''')
-
-          text = text.replace(
-          '''- Create: `systems/terrain/src/index.ts`
-- Create: `systems/terrain/src/commands.ts`
-- Create: `systems/terrain/src/composition.ts`
-- Modify: `architecture.policy.json`''',
-          '''- Create: `systems/terrain/src/index.ts`
-- Modify: `architecture.policy.json`''')
-
-          text = text.replace(
-          '''  "exports": {
-    ".": "./src/index.ts",
-    "./commands": "./src/commands.ts",
-    "./composition": "./src/composition.ts"
-  },''',
-          '''  "exports": {
-    ".": "./src/index.ts"
-  },''',
-          1)
-
-          text = text.replace(
-          '''  "dependencies": {
-    "@web-three-city/foundation-contracts": "workspace:*",
-    "@web-three-city/world": "workspace:*",
-    "three": "0.179.1"
-  },
-  "devDependencies": {
-    "@types/three": "0.179.0",
-    "typescript": "5.9.2",
-    "vitest": "3.2.4"
-  }''',
-          '''  "dependencies": {
-    "@web-three-city/world": "workspace:*"
-  },
-  "devDependencies": {
-    "typescript": "5.9.2",
-    "vitest": "3.2.4"
-  }''',
-          1)
-
-          text = text.replace(
-          '''- Create: `systems/terrain/src/composition/create-terrain.ts`
-- Modify: `systems/terrain/src/contracts/terrain-read.ts`
-- Modify: `systems/terrain/src/composition.ts`''',
-          '''- Create: `systems/terrain/src/composition/create-terrain.ts`
-- Create: `systems/terrain/src/composition.ts`
-- Modify: `systems/terrain/package.json`
-- Modify: `systems/terrain/src/contracts/terrain-read.ts`''')
-
-          text = text.replace(
-          '''- Create: `systems/terrain/src/application/apply-terrain-edits.ts`
-- Modify: `systems/terrain/src/commands.ts`
-- Modify: `systems/terrain/src/composition/create-terrain.ts`''',
-          '''- Create: `systems/terrain/src/application/apply-terrain-edits.ts`
-- Create: `systems/terrain/src/commands.ts`
-- Modify: `systems/terrain/package.json`
-- Modify: `systems/terrain/src/composition/create-terrain.ts`''')
-
-          text = text.replace(
-          '''Use `CommandResult<TerrainMutationReceipt, TerrainMutationRejection>` from `@web-three-city/foundation-contracts`.
-''',
-          '''At this task, add `@web-three-city/foundation-contracts: workspace:*` to Terrain production dependencies and add the `./commands` package export. Use `CommandResult<TerrainMutationReceipt, TerrainMutationRejection>` from that Foundation package.
-''')
-
-          text = text.replace(
-          '''- Create: `systems/terrain/src/presentation/three/dirty-sectors.ts`
-- Test: `systems/terrain/tests/render-sector.test.ts`''',
-          '''- Create: `systems/terrain/src/presentation/three/dirty-sectors.ts`
-- Modify: `systems/terrain/package.json`
-- Test: `systems/terrain/tests/render-sector.test.ts`''')
-
-          text = text.replace(
-          '''- [ ] **Step 1: Write RED sector topology tests**''',
-          '''Before RED, add `three: 0.179.1` to Terrain production dependencies and `@types/three: 0.179.0` to Terrain devDependencies; this is the first task with a real Three.js consumer. Add no other dependency.
-
-- [ ] **Step 1: Write RED sector topology tests**''')
-
-          text = text.replace(
-          '''  readonly selectedSeed64: "0x5EED5EED5EED5EED" | string;''',
-          '''  readonly selectedSeed64: string;''')
+          for old, new in replacements:
+              if old not in text:
+                  raise SystemExit(f'missing planned replacement: {old[:80]!r}')
+              text = text.replace(old, new, 1)
 
           marker = '# P1-A — World / Map / Grid / Region Contracts + System'
-          ledger = r'''## Canonical Interface Ledger
+          ledger = '''## Canonical Interface Ledger
 
-These shapes are execution authorities for names referenced across tasks. Internal implementations may use private helpers, but task-to-task contracts must keep these names and semantics unless the frozen spec is explicitly reopened.
+          These shapes are execution authorities for names referenced across tasks. Internal implementations may use private helpers, but task-to-task contracts must keep these names and semantics unless the frozen spec is explicitly reopened.
 
-```ts
-export type WorldConstructionResult<T> =
-  | { readonly status: "success"; readonly value: T }
-  | {
-      readonly status: "rejected";
-      readonly code: WorldErrorCode;
-      readonly detail?: Readonly<Record<string, unknown>>;
-    };
+          ```ts
+          export type WorldConstructionResult<T> =
+            | { readonly status: "success"; readonly value: T }
+            | {
+                readonly status: "rejected";
+                readonly code: WorldErrorCode;
+                readonly detail?: Readonly<Record<string, unknown>>;
+              };
 
-export interface MapDefinitionRead {
-  readonly mapDefinitionId: "web-three-city-production";
-  readonly profileId: "production-v1";
-  readonly profileVersion: 1;
-  readonly widthCells: 512;
-  readonly heightCells: 512;
-  readonly cellSizeMeters: 8;
-  readonly logicalChunkSizeCells: 32;
-  readonly terrainGenerationProfileId: "balanced-temperate-generation";
-  readonly terrainGenerationProfileVersion: 2;
-  readonly regionIds: readonly RegionId[];
-  readonly startingCandidates: readonly StartingCandidate[];
-  readonly acceptedTerrainSeeds: readonly string[];
-}
+          export interface MapDefinitionRead {
+            readonly mapDefinitionId: "web-three-city-production";
+            readonly profileId: "production-v1";
+            readonly profileVersion: 1;
+            readonly widthCells: 512;
+            readonly heightCells: 512;
+            readonly cellSizeMeters: 8;
+            readonly logicalChunkSizeCells: 32;
+            readonly terrainGenerationProfileId: "balanced-temperate-generation";
+            readonly terrainGenerationProfileVersion: 2;
+            readonly regionIds: readonly RegionId[];
+            readonly startingCandidates: readonly StartingCandidate[];
+            readonly acceptedTerrainSeeds: readonly string[];
+          }
 
-export interface PreparedWorldDefinition {
-  readonly mapDefinition: MapDefinitionRead;
-  readonly spatial: WorldSpatialRead;
-}
+          export interface PreparedWorldDefinition {
+            readonly mapDefinition: MapDefinitionRead;
+            readonly spatial: WorldSpatialRead;
+          }
 
-export interface MapStateRead {
-  readonly mapDefinitionId: MapDefinitionId;
-  readonly startingRegionId: RegionId;
-  readonly unlockedRegionIds: readonly RegionId[];
-}
+          export interface MapStateRead {
+            readonly mapDefinitionId: MapDefinitionId;
+            readonly startingRegionId: RegionId;
+            readonly unlockedRegionIds: readonly RegionId[];
+          }
 
-export interface MapStateSnapshot {
-  readonly mapDefinitionId: MapDefinitionId;
-  readonly mapProfileId: "production-v1";
-  readonly mapProfileVersion: 1;
-  readonly startingRegionId: RegionId;
-  readonly unlockedRegionIds: readonly RegionId[];
-}
+          export interface MapStateSnapshot {
+            readonly mapDefinitionId: MapDefinitionId;
+            readonly mapProfileId: "production-v1";
+            readonly mapProfileVersion: 1;
+            readonly startingRegionId: RegionId;
+            readonly unlockedRegionIds: readonly RegionId[];
+          }
 
-export interface WorldSystem {
-  readonly definition: PreparedWorldDefinition;
-  readonly spatial: WorldSpatialRead;
-  readonly mapState: MapStateRead;
-  captureSnapshot(): MapStateSnapshot;
-}
-```
+          export interface WorldSystem {
+            readonly definition: PreparedWorldDefinition;
+            readonly spatial: WorldSpatialRead;
+            readonly mapState: MapStateRead;
+            captureSnapshot(): MapStateSnapshot;
+          }
+          ```
 
-Terrain cross-task contracts:
+          Terrain cross-task contracts:
 
-```ts
-export type TerrainStartingReason =
-  | "TERRAIN_START_UNAVAILABLE"
-  | "TERRAIN_START_CELL_RELIEF_EXCEEDED"
-  | "TERRAIN_START_PATCH_RELIEF_EXCEEDED"
-  | "TERRAIN_START_ANCHOR_RELIEF_EXCEEDED";
+          ```ts
+          export type TerrainStartingReason =
+            | "TERRAIN_START_UNAVAILABLE"
+            | "TERRAIN_START_CELL_RELIEF_EXCEEDED"
+            | "TERRAIN_START_PATCH_RELIEF_EXCEEDED"
+            | "TERRAIN_START_ANCHOR_RELIEF_EXCEEDED";
 
-export type TerrainGenerationRejectionCode =
-  | "TERRAIN_GENERATION_PROFILE_UNSUPPORTED"
-  | "TERRAIN_GENERATION_SEED_INVALID"
-  | "TERRAIN_GENERATION_SEED_NOT_ACCEPTED"
-  | "TERRAIN_GENERATION_OUTPUT_OUT_OF_RANGE"
-  | "TERRAIN_GENERATION_FINGERPRINT_MISMATCH"
-  | "TERRAIN_GENERATION_NO_ELIGIBLE_START";
+          export type TerrainGenerationRejectionCode =
+            | "TERRAIN_GENERATION_PROFILE_UNSUPPORTED"
+            | "TERRAIN_GENERATION_SEED_INVALID"
+            | "TERRAIN_GENERATION_SEED_NOT_ACCEPTED"
+            | "TERRAIN_GENERATION_OUTPUT_OUT_OF_RANGE"
+            | "TERRAIN_GENERATION_FINGERPRINT_MISMATCH"
+            | "TERRAIN_GENERATION_NO_ELIGIBLE_START";
 
-export type TerrainMutationRejectionCode =
-  | "TERRAIN_MUTATION_DUPLICATE_VERTEX"
-  | "TERRAIN_MUTATION_VERTEX_OUT_OF_BOUNDS"
-  | "TERRAIN_MUTATION_CHUNK_UNAVAILABLE"
-  | "TERRAIN_MUTATION_ELEVATION_INVALID"
-  | "TERRAIN_MUTATION_ELEVATION_OUT_OF_RANGE";
+          export type TerrainMutationRejectionCode =
+            | "TERRAIN_MUTATION_DUPLICATE_VERTEX"
+            | "TERRAIN_MUTATION_VERTEX_OUT_OF_BOUNDS"
+            | "TERRAIN_MUTATION_CHUNK_UNAVAILABLE"
+            | "TERRAIN_MUTATION_ELEVATION_INVALID"
+            | "TERRAIN_MUTATION_ELEVATION_OUT_OF_RANGE";
 
-export interface TerrainMutationRejection extends CommandRejection {
-  readonly code: TerrainMutationRejectionCode;
-  readonly detail?: Readonly<Record<string, unknown>>;
-}
+          export interface TerrainMutationRejection extends CommandRejection {
+            readonly code: TerrainMutationRejectionCode;
+            readonly detail?: Readonly<Record<string, unknown>>;
+          }
 
-export interface TerrainFieldSource {
-  readonly vertexWidth: number;
-  readonly vertexHeight: number;
-  elevationAt(x: number, z: number): number;
-}
+          export interface TerrainFieldSource {
+            readonly vertexWidth: number;
+            readonly vertexHeight: number;
+            elevationAt(x: number, z: number): number;
+          }
 
-export interface PreparedProductionTerrain {
-  readonly field: TerrainFieldSource;
-  readonly seed64: string;
-  readonly fingerprint: "0xF2FA29BFD2AEB069";
-  readonly candidateEvaluations: readonly StartingCandidateEvaluation[];
-}
+          export interface PreparedProductionTerrain {
+            readonly field: TerrainFieldSource;
+            readonly seed64: string;
+            readonly fingerprint: "0xF2FA29BFD2AEB069";
+            readonly candidateEvaluations: readonly StartingCandidateEvaluation[];
+          }
 
-export type TerrainPreparationResult =
-  | { readonly status: "success"; readonly value: PreparedProductionTerrain }
-  | {
-      readonly status: "rejected";
-      readonly code: TerrainGenerationRejectionCode;
-      readonly detail?: Readonly<Record<string, unknown>>;
-    };
+          export type TerrainPreparationResult =
+            | { readonly status: "success"; readonly value: PreparedProductionTerrain }
+            | {
+                readonly status: "rejected";
+                readonly code: TerrainGenerationRejectionCode;
+                readonly detail?: Readonly<Record<string, unknown>>;
+              };
 
-export interface TerrainRead {
-  revision(): number;
-  completeness(): "partial" | "full";
-  elevationAt(vertex: VertexCoord): TerrainQueryResult<LogicalElevation>;
-  cellSurface(cell: CellCoord): TerrainQueryResult<CellSurfaceRead>;
-  sampleSurface(
-    cell: CellCoord,
-    uQ16: number,
-    vQ16: number,
-  ): TerrainQueryResult<SurfaceSampleRead>;
-  captureSnapshot(): TerrainStateSnapshot;
-}
+          export interface TerrainRead {
+            revision(): number;
+            completeness(): "partial" | "full";
+            elevationAt(vertex: VertexCoord): TerrainQueryResult<LogicalElevation>;
+            cellSurface(cell: CellCoord): TerrainQueryResult<CellSurfaceRead>;
+            sampleSurface(
+              cell: CellCoord,
+              uQ16: number,
+              vQ16: number,
+            ): TerrainQueryResult<SurfaceSampleRead>;
+            captureSnapshot(): TerrainStateSnapshot;
+          }
 
-export interface TerrainCommands {
-  applyEdits(command: ApplyTerrainEdits): CommandResult<
-    TerrainMutationReceipt,
-    TerrainMutationRejection
-  >;
-}
+          export interface TerrainCommands {
+            applyEdits(command: ApplyTerrainEdits): CommandResult<
+              TerrainMutationReceipt,
+              TerrainMutationRejection
+            >;
+          }
 
-export interface TerrainSystem {
-  readonly read: TerrainRead;
-  readonly commands: TerrainCommands;
-}
-```
+          export interface TerrainSystem {
+            readonly read: TerrainRead;
+            readonly commands: TerrainCommands;
+          }
+          ```
 
-`PreparedProductionTerrain.field` is composition-only opaque construction data in practice: it is not re-exported from Terrain root and no consumer may mutate it. `createTerrainSystem` consumes that exact prepared field once; it never regenerates from seed.
+          `PreparedProductionTerrain.field` is composition-only opaque construction data in practice: it is not re-exported from Terrain root and no consumer may mutate it. `createTerrainSystem` consumes that exact prepared field once; it never regenerates from seed.
 
----
+          ---
 
-'''
+          '''
+          ledger = '\n'.join(
+              line[10:] if line.startswith('          ') else line
+              for line in ledger.splitlines()
+          ) + '\n'
+
           if marker not in text:
               raise SystemExit('P1-A marker missing')
           text = text.replace(marker, ledger + marker, 1)
-
           path.write_text(text)
           PY
       - name: Commit refined plan

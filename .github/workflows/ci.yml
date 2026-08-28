@@ -34,6 +34,29 @@ jobs:
           path: pnpm-lock.yaml
           if-no-files-found: error
           retention-days: 1
+      - name: Format implementation source
+        run: pnpm format
+      - name: Capture formatted source
+        uses: actions/upload-artifact@v4
+        with:
+          name: formatted-source-${{ github.sha }}
+          path: |
+            .github/workflows/ci.yml
+            .husky
+            .prettierignore
+            README.md
+            apps
+            foundation
+            tooling
+            tests
+            architecture.policy.json
+            eslint.config.js
+            package.json
+            playwright.config.ts
+            pnpm-workspace.yaml
+            tsconfig.base.json
+          if-no-files-found: error
+          retention-days: 1
       - name: Install Chromium
         run: pnpm exec playwright install --with-deps chromium
       - name: Verify repository

@@ -5,7 +5,7 @@ on:
   pull_request:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -26,35 +26,12 @@ jobs:
           corepack enable
           corepack prepare pnpm@10.15.1 --activate
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
-      - name: Format implementation source
-        run: pnpm format
-      - name: Persist canonical bootstrap artifacts
-        if: github.event_name == 'push' && github.ref == 'refs/heads/implementation/foundation-architecture-structure'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
-            .github/workflows/ci.yml \
-            README.md \
-            apps \
-            foundation \
-            tooling \
-            tests \
-            architecture.policy.json \
-            eslint.config.js \
-            package.json \
-            playwright.config.ts \
-            pnpm-workspace.yaml \
-            tsconfig.base.json \
-            pnpm-lock.yaml
-          if git diff --cached --quiet; then
-            echo "Canonical bootstrap artifacts already persisted."
-          else
-            git commit -m "chore: normalize bootstrap artifacts"
-            git push origin HEAD:implementation/foundation-architecture-structure
-          fi
+        run: pnpm install --frozen-lockfile
+      - name: Verify exact HEAD
+        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
       - name: Install Chromium
         run: pnpm exec playwright install --with-deps chromium
       - name: Verify repository
         run: pnpm verify
+      - name: Verify clean worktree
+        run: test -z "$(git status --porcelain)"

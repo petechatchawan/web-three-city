@@ -22,3 +22,7 @@ jobs:
         run: pnpm typecheck
       - name: Run tests
         run: pnpm test
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Browser smoke
+        run: pnpm test:browser

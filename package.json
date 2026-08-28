@@ -6,6 +6,9 @@
   "engines": {
     "node": "22.18.0"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
+  },
   "scripts": {
     "prepare": "husky",
     "format": "prettier --write .",

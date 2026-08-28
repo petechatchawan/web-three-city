@@ -1,0 +1,19 @@
+{
+  "name": "@web-three-city/app-game",
+  "private": true,
+  "type": "module",
+  "exports": {},
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "three": "0.179.1"
+  },
+  "devDependencies": {
+    "@types/three": "0.179.0",
+    "typescript": "5.9.2",
+    "vite": "7.1.3"
+  }
+}

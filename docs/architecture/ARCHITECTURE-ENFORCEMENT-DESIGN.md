@@ -66,7 +66,7 @@ package.json name/dependencies/exports
 physical package path
 source imports (including import type and dynamic import when statically resolvable)
 selected AST/type relationships where needed
-binding architecture configuration generated/maintained for current topology only
+binding architecture configuration maintained for current exceptions only
 ```
 
 Manual architecture diagrams are explanatory, not graph authority.
@@ -80,7 +80,7 @@ It must reject or report:
 ```text
 workspace package outside approved ownership namespaces
 nested workspace package without explicit architecture approval
-package path/name mismatch with A4 naming policy
+package path/name mismatch with A4 naming policy without approved deviation
 unclassifiable package profile
 production source at repository root when mechanically detectable
 ```
@@ -104,6 +104,8 @@ The checker must not let a package self-declare a weaker profile to escape path-
 
 Any future profile requires an architecture change, not a local config toggle.
 
+Top-level `tests/*` is not a production/workspace-package profile; it is classified separately as repository test code under A6/A9.
+
 ## 7. Export boundary checks
 
 The checker validates A4/A6 rules such as:
@@ -113,15 +115,15 @@ cross-package import resolves only to target package export path
 relative filesystem reach-through across package root is forbidden
 tsconfig/bundler alias cannot expose private target path
 system root export does not expose known mutation/composition entrypoints
-system command/composition subpaths are consumed only by permitted profiles
+system command/composition subpaths are consumed only by permitted production/test consumers
 public contract does not reference private internal path where statically detectable
 ```
 
-A symbol being reachable through build tooling is insufficient; the target export map and permission profile must both permit the edge.
+A symbol being reachable through build tooling is insufficient; the target export map and permission model must both permit the edge.
 
 ## 8. Manifest dependency checks
 
-For each cross-package import, the consumer must explicitly declare the target dependency in the appropriate manifest category.
+For each cross-package import originating inside a workspace package, the consumer must explicitly declare the target dependency in the appropriate manifest category.
 
 The checker should detect:
 
@@ -132,11 +134,13 @@ production source importing dependency classified test/tooling-only
 stale declared workspace dependency with no current use (warning initially unless policy later makes it error)
 ```
 
+Repository-level tests are governed by root/test configuration rather than pretending each `tests/*` directory is a workspace package; their imports still must resolve through deliberate target exports.
+
 Exact package-manager category policy may remain configurable only where architecture has not frozen semantics.
 
 ## 9. Namespace dependency matrix checks
 
-At minimum, the checker rejects:
+At minimum, the checker rejects production edges:
 
 ```text
 foundation -> systems/orchestration/apps/testkit/tooling
@@ -150,15 +154,17 @@ apps -> private package path
 
 Foundation-to-Foundation, tooling-to-tooling, testkit-to-testkit, and approved same-layer edges must also satisfy acyclic/review rules where applicable.
 
+Repository-level test code is checked against the separate A6 test-only public-surface rule rather than the production matrix.
+
 ## 10. System Query graph
 
-The checker derives direct system-to-system root-read edges from actual imports.
+The checker derives direct **production** system-to-system root-read edges from actual package imports.
 
 Binding checks:
 
 ```text
-only root read surface may form system -> system edge
-system command/composition edges fail immediately
+only root read surface may form system -> system production edge
+system command/composition production edges fail immediately
 query graph must be acyclic
 ```
 
@@ -170,6 +176,8 @@ The tool must output the cycle path when rejecting, for example:
 roads -> zoning -> terrain -> roads
 ```
 
+Repository test imports do not create production Query graph edges.
+
 A manually edited graph file must not be required to keep detection current.
 
 ## 11. Reviewed system Query exceptions
@@ -179,7 +187,7 @@ Because A3/A6 define direct system reads as forbidden-by-default reviewed except
 Recommended design:
 
 ```text
-machine-readable architecture policy records only exceptional approved edges
+machine-readable architecture policy records only exceptional approved edges/deviations
 ```
 
 Example conceptual record:
@@ -189,19 +197,22 @@ systems/roads -> systems/terrain root-read
 reason/document reference
 ```
 
-This file is not the dependency graph; source imports remain graph authority.
+This policy file is not the dependency graph; source imports remain graph authority.
 
-Its purpose is only to answer:
+Its purpose is only to answer questions such as:
 
 ```text
 Is this otherwise-forbidden direct read edge explicitly approved?
+Is this non-default same-layer edge approved?
+Is this package-name deviation approved?
+Is this alternate internal-layout mapping approved?
 ```
 
 The final config format is implementation detail, but approvals must be reviewable, minimal, and reference a binding system/architecture document.
 
 ## 12. Composition surface checks
 
-The checker enforces:
+The checker enforces production rules:
 
 ```text
 systems/* cannot import any ./composition
@@ -209,9 +220,25 @@ orchestration/* cannot import system ./composition
 apps/* may import approved ./composition surfaces
 ```
 
+Repository-level tests may import deliberately exported `./composition` surfaces when A6/A9 permit isolated test setup.
+
 Where statically possible, import-time self-registration patterns may be linted, but semantic service-locator detection may require review rather than pretending tooling can prove it completely.
 
-## 13. Contract leak checks
+## 13. Command surface checks
+
+The checker enforces production rules:
+
+```text
+systems/* cannot import another system ./commands
+orchestration/* may import system ./commands
+apps/* may import system ./commands
+```
+
+Repository-level tests may import deliberately exported `./commands` for direct mutation-contract/integration verification.
+
+`testkit/*` does not receive this privilege under the current A6 model.
+
+## 14. Contract leak checks
 
 A11 should mechanically catch obvious violations such as public exported types importing/referencing:
 
@@ -227,7 +254,7 @@ The checker should prefer TypeScript AST/type-graph analysis over filename-only 
 
 It should not claim to prove semantic immutability fully; that remains contract design + tests.
 
-## 14. Technology boundary checks
+## 15. Technology boundary checks
 
 At minimum, system `domain/` should reject imports from known presentation/browser technology modules such as:
 
@@ -239,16 +266,26 @@ orchestration/*
 concrete repository tooling/testkit
 ```
 
+It should also reject A5 outer internal layers where mechanically identifiable:
+
+```text
+contracts/
+ports/
+application/
+presentation/
+composition/
+```
+
 Technology package lists should be current and explicit, not legacy-derived.
 
 A11 may combine architecture checker rules with ESLint where ESLint provides fast local feedback, but ESLint is not the sole authority.
 
-## 15. Internal structure checks
+## 16. Internal structure checks
 
 A11 may enforce selected A5 rules mechanically, such as:
 
 ```text
-domain cannot import application/presentation/composition
+domain cannot import contracts/ports/application/presentation/composition
 application cannot import presentation
 system package cannot import apps/orchestration
 ```
@@ -257,7 +294,7 @@ It should not require empty semantic directories or enforce folder ceremony when
 
 Alternate approved ECS/data-oriented system layouts require an explicit mapping/profile recognized by tooling rather than disabling architecture checks wholesale.
 
-## 16. Foundation checks
+## 17. Foundation checks
 
 The checker validates:
 
@@ -272,23 +309,27 @@ Gameplay-vocabulary detection is primarily semantic review; tooling may flag sus
 
 A package still requires documented A8 creation approval.
 
-## 17. Test boundary checks
+## 18. Test boundary checks
 
-The checker should distinguish package-owned tests from external tests.
+The checker distinguishes package-owned tests, external package tests, and repository-level tests.
 
 Mechanically enforceable examples:
 
 ```text
 systems/roads/tests may import systems/roads internal modules
 systems/zoning/tests may not deep-import systems/roads internals
-tests/integration/browser/journeys/visual may use public package exports only
-testkit may not deep-import production internals
+testkit may import only target surfaces permitted to testkit profile
+testkit may not import system ./commands or ./composition
+tests/integration may import exported system ./commands or ./composition when needed
+tests/integration/browser/journeys/visual may never deep-import package internals
 production may not import testkit/test files
 ```
 
+Browser/journey/visual tests should normally use executable product behavior; direct public package imports in those suites require a test-purpose reason and still cannot access internals.
+
 Exact path patterns align with A9.
 
-## 18. Tooling fixtures
+## 19. Tooling fixtures
 
 `tooling/architecture` must include deterministic valid/invalid fixtures proving rule behavior.
 
@@ -319,11 +360,14 @@ production -> testkit/tooling
 public contract -> internal port leak
 apps composition allowed edge
 orchestration composition forbidden edge
+repository-test command/composition allowed edge
+external-package-test deep import violation
+testkit command/composition violation
 ```
 
 Each invalid fixture should fail for one primary intended reason where practical.
 
-## 19. Rule identifiers and diagnostics
+## 20. Rule identifiers and diagnostics
 
 Every failure should include:
 
@@ -347,7 +391,7 @@ See ADR-001 / A6.
 
 Stable rule IDs make CI, documentation, and code review references durable.
 
-## 20. Severity model
+## 21. Severity model
 
 Default architecture violations are errors when the rule is binding and mechanical.
 
@@ -355,7 +399,7 @@ Warnings are reserved for erosion indicators or advisory conditions that archite
 
 Do not downgrade known binding violations to warnings merely to keep CI green.
 
-## 21. Local verification integration
+## 22. Local verification integration
 
 Architecture checks must be runnable in the fast developer/owner loop.
 
@@ -369,7 +413,7 @@ Exact script name is implementation detail, but the capability must be directly 
 
 Focused rule tests for tooling should run faster than browser suites.
 
-## 22. CI integration
+## 23. CI integration
 
 CI invokes the same architecture tooling used locally.
 
@@ -386,15 +430,16 @@ CI
 
 Exact pipeline ordering and selective verification policy are implementation/bootstrap concerns.
 
-## 23. Architecture policy configuration
+## 24. Architecture policy configuration
 
 Configuration should be minimal and declarative.
 
 Good candidates for machine-readable policy:
 
 ```text
-approved direct system read exceptions
+approved direct system read exception
 approved non-default same-layer exception
+approved package naming deviation
 approved alternate internal layout mapping
 ```
 
@@ -404,7 +449,7 @@ If source/manifests can derive a fact, derive it.
 
 Every exception record must include a current architecture/spec reference and should disappear when no longer needed.
 
-## 24. No broad ignore mechanism
+## 25. No broad ignore mechanism
 
 The architecture checker must not provide an easy blanket disable such as:
 
@@ -418,7 +463,7 @@ Exceptions should be narrow, typed to a rule, justified, and reviewable.
 
 Generated/vendor files may require scoped exclusion, but such exclusion is not a way to exempt owned production code.
 
-## 25. Deterministic checker behavior
+## 26. Deterministic checker behavior
 
 Given the same repository tree/configuration, the checker should produce deterministic findings/order.
 
@@ -433,7 +478,7 @@ target path
 
 Architecture verification must not depend on filesystem traversal order.
 
-## 26. Performance goal
+## 27. Performance goal
 
 Architecture checks are intended for frequent local use.
 
@@ -448,7 +493,7 @@ no network access required for structural checks
 
 Selective Verification is a later concern; A11 should expose structured findings/dependency data that a future resolver can consume without pre-designing that resolver now.
 
-## 27. Output as data
+## 28. Output as data
 
 The checker should support both human-readable diagnostics and structured machine output.
 
@@ -464,19 +509,19 @@ violations with rule ids
 
 This supports CI and future selective verification while keeping source-derived facts authoritative.
 
-## 28. Documentation consistency checks
+## 29. Documentation consistency checks
 
 A11 may later lint simple mechanical documentation properties such as:
 
 ```text
-FROZEN doc contains TODO/TBD placeholder
+FROZEN document contains an unresolved placeholder marker outside quoted examples/policy text
 required status header missing
 dead dependency document path/reference
 ```
 
 It should not attempt to algorithmically decide semantic architecture correctness from prose.
 
-## 29. Architecture enforcement does not replace review
+## 30. Architecture enforcement does not replace review
 
 Some rules remain human-semantic by nature:
 
@@ -489,7 +534,7 @@ Does a package split represent real ownership?
 
 Tooling should flag structural symptoms, but architecture review remains authority for semantics.
 
-## 30. Anti-pattern checklist
+## 31. Anti-pattern checklist
 
 - [ ] manual dependency graph is treated as authority;
 - [ ] checker relies only on ESLint and misses package/export graph;
@@ -502,21 +547,26 @@ Tooling should flag structural symptoms, but architecture review remains authori
 - [ ] system Query cycle error does not show cycle path;
 - [ ] exceptions have no binding document reference;
 - [ ] fixtures test only valid cases, not invalid rules;
+- [ ] repository tests are accidentally treated as production system dependency edges;
+- [ ] testkit gains repository-test-only command/composition permission;
 - [ ] tooling claims to prove semantic ownership/immutability it cannot observe;
 - [ ] old static topology map is reused instead of deriving current graph.
 
-## 31. Acceptance scenarios
+## 32. Acceptance scenarios
 
 A11 design is sufficient when the planned checker can distinguish:
 
 ```text
 valid app -> system composition
 invalid system -> system composition
-valid reviewed system root Query
-invalid unreviewed system root Query
-invalid system Query cycle
+valid repository-test -> exported system composition
+valid repository-test -> exported system command
+invalid testkit -> system command/composition
+valid reviewed production system root Query
+invalid unreviewed production system root Query
+invalid production system Query cycle
 valid package-owned internal test
-invalid external-test deep import
+invalid external-package-test deep import
 valid tooling source inspection
 invalid production -> tooling import
 valid Foundation -> Foundation public edge
@@ -525,7 +575,7 @@ valid exported type
 invalid public contract -> internal port leak
 ```
 
-## 32. Deferred decisions
+## 33. Deferred decisions
 
 A11 intentionally does not freeze:
 
@@ -539,7 +589,7 @@ CI matrix/job names
 pre-commit hook implementation
 ```
 
-## 33. Final invariants
+## 34. Final invariants
 
 ```text
 Architecture rules are executable where mechanically observable.
@@ -549,7 +599,8 @@ Production never depends on architecture tooling.
 Workspace/manifests/imports derive the current graph.
 Manual graph files are never dependency authority.
 All import forms, including type-only and relative reach-through, count.
-System Query graph is automatically derived and acyclic.
+Production system Query graph is automatically derived and acyclic.
+Repository-test public-surface edges are test-only and do not become production graph edges.
 Exceptions are narrow, explicit, documented, and machine-readable.
 No broad ignore mechanism for owned production code.
 Architecture checker has valid/invalid fixtures.

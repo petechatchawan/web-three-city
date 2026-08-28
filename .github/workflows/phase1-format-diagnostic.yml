@@ -1,4 +1,4 @@
-name: Phase 1 Format Diagnostic
+name: Phase 1 Docs Finalizer
 
 on:
   push:
@@ -6,14 +6,16 @@ on:
       - design/phase-1-world-map-terrain
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  format-diff:
+  finalize-docs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: design/phase-1-world-map-terrain
       - uses: actions/setup-node@v5
         with:
           node-version: 22.18.0
@@ -24,10 +26,66 @@ jobs:
           corepack prepare pnpm@10.15.1 --activate
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
-      - name: Format diagnostic files
+      - name: Normalize binding specs
+        run: pnpm exec prettier --write docs/systems/world docs/systems/terrain
+      - name: Correct umbrella documentation paths
         run: |
-          pnpm exec prettier --write \
-            docs/systems/world/specs/WORLD-SPATIAL-CONTRACT.md \
-            docs/systems/terrain/specs/TERRAIN-GENERATION-CONTRACT.md
-      - name: Print canonical diff
-        run: git diff -- docs/systems/world/specs/WORLD-SPATIAL-CONTRACT.md docs/systems/terrain/specs/TERRAIN-GENERATION-CONTRACT.md
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("docs/architecture/PHASE-1-WORLD-MAP-TERRAIN-DESIGN.md")
+          text = path.read_text()
+          old = '''```text
+          docs/systems/world/
+          ├─ WORLD-SYSTEM-DESIGN.md
+          ├─ WORLD-SPATIAL-CONTRACT.md
+          └─ MAP-AND-REGION-CONTRACT.md
+
+          docs/systems/terrain/
+          ├─ TERRAIN-SYSTEM-DESIGN.md
+          ├─ TERRAIN-AUTHORITY-CONTRACT.md
+          ├─ TERRAIN-SURFACE-CONTRACT.md
+          ├─ TERRAIN-GENERATION-CONTRACT.md
+          ├─ TERRAIN-MUTATION-CONTRACT.md
+          └─ TERRAIN-PRESENTATION-CONTRACT.md
+          ```'''
+          new = '''```text
+          docs/systems/world/
+          ├─ README.md
+          └─ specs/
+             ├─ WORLD-SYSTEM-DESIGN.md
+             ├─ WORLD-SPATIAL-CONTRACT.md
+             └─ MAP-AND-REGION-CONTRACT.md
+
+          docs/systems/terrain/
+          ├─ README.md
+          └─ specs/
+             ├─ TERRAIN-SYSTEM-DESIGN.md
+             ├─ TERRAIN-AUTHORITY-CONTRACT.md
+             ├─ TERRAIN-SURFACE-CONTRACT.md
+             ├─ TERRAIN-GENERATION-CONTRACT.md
+             ├─ TERRAIN-MUTATION-CONTRACT.md
+             └─ TERRAIN-PRESENTATION-CONTRACT.md
+          ```'''
+          if old not in text:
+              raise SystemExit("expected Section 35 tree not found")
+          text = text.replace(old, new, 1)
+
+          old_sentence = "The exact procedural algorithm and exact starting-candidate suitability formula are refined in the binding Terrain generation contract before generator implementation; this umbrella already fixes their authority, inputs, determinism, and failure semantics."
+          new_sentence = "The exact procedural algorithm and exact starting-candidate suitability formula are specified by the binding Terrain generation contract; this umbrella fixes their authority, inputs, determinism, and failure semantics."
+          if old_sentence not in text:
+              raise SystemExit("expected Section 37 sentence not found")
+          text = text.replace(old_sentence, new_sentence, 1)
+          path.write_text(text)
+          PY
+      - name: Commit canonical docs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/architecture/PHASE-1-WORLD-MAP-TERRAIN-DESIGN.md docs/systems/world docs/systems/terrain
+          if git diff --cached --quiet; then
+            echo "No documentation changes to commit"
+            exit 0
+          fi
+          git commit -m "docs(phase1): normalize binding specification batch"
+          git push origin HEAD:design/phase-1-world-map-terrain

@@ -136,14 +136,14 @@ systems/*              YES*             NO                      NO
 orchestration/*        YES              YES                     NO
 apps/*                 YES              YES                     YES
 foundation/*           NO               NO                      NO
-testkit/*              YES**            NO**                    NO
+testkit/*              YES**            NO                      NO
 tooling/*              INSPECT***       NO                      NO
 ```
 
 Notes:
 
 - `YES*` — system-to-system root reads are forbidden by default at the dependency level and allowed only as an explicitly reviewed read-only Query edge under A3/ADR-001.
-- `YES**` — testkit may consume public system APIs needed for reusable testing, but it does not gain production mutation/composition authority by default. A specific test capability that legitimately needs command invocation must be explicitly justified in A9 and must remain test-only.
+- `YES**` — testkit may consume exported system read APIs needed for reusable testing, but it receives no cross-package mutation or composition authority. If a reusable helper appears to require those surfaces, keep the helper with the owning package or revisit the architecture rather than adding a testing privilege implicitly.
 - `INSPECT***` — repository tooling may parse package/source metadata as data. Importing the system's runtime API as code follows normal dependency permission and is not implied by inspection rights.
 
 ## 4. Foundation exports
@@ -215,7 +215,7 @@ It may expose:
 reusable builders/fixtures
 assertion helpers
 deterministic test harnesses
-public contract test utilities
+public read-contract test utilities
 browser/test drivers that are genuinely reusable
 ```
 
@@ -223,7 +223,7 @@ It must not expose or contain production gameplay implementation.
 
 Production ownership profiles may not depend on testkit.
 
-A testkit export does not grant access to private internals of production packages; it must itself consume their approved public APIs.
+A testkit export does not grant access to private internals or privileged mutation/composition surfaces of production packages; it must consume only production APIs permitted to the testkit profile.
 
 ## 8. Tooling exports
 
@@ -378,6 +378,7 @@ A6 does not introduce external semantic-versioning policy before a real independ
 - [ ] system root export exposes mutation entrypoint;
 - [ ] system command surface is imported by another system;
 - [ ] system composition surface is imported by system/orchestration;
+- [ ] testkit imports system command/composition surface as a privileged testing shortcut;
 - [ ] orchestration re-exports system internals as convenience facade;
 - [ ] app is treated as reusable production library;
 - [ ] Foundation adopts gameplay vocabulary to simplify exports;
@@ -418,6 +419,9 @@ Construction orchestration imports @web-three-city/roads/commands
 apps/game imports @web-three-city/roads/composition
 -> valid composition responsibility
 
+testkit helper imports @web-three-city/roads/commands
+-> invalid privileged testing shortcut under current model
+
 orchestration/A imports orchestration/B
 -> forbidden by default; requires explicit architecture exception
 
@@ -432,7 +436,7 @@ A6 intentionally does not freeze:
 ```text
 A7 exact orchestration/app composition internals
 A8 concrete Foundation package APIs
-A9 testkit command-use exceptions and detailed testing mechanics
+A9 detailed testing mechanics
 A11 enforcement implementation/config format
 external semantic-versioning policy
 network/plugin/mod API versioning
@@ -447,6 +451,7 @@ System "./composition" = construction/wiring.
 Surfaces exist only when needed.
 Exported != permitted for every consumer.
 Systems never import another system's command or composition surface.
+Testkit receives no privileged command/composition access.
 Direct system root-read dependencies are reviewed exceptions and remain acyclic.
 Orchestration may command systems; apps may compose systems.
 Foundation exposes generic lower-level capabilities only.

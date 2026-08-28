@@ -18,7 +18,7 @@ jobs:
         with:
           ref: design/phase-1-world-map-terrain
           fetch-depth: 0
-      - name: Refine plan
+      - name: Complete plan self-review
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -26,68 +26,85 @@ jobs:
           path = Path('docs/superpowers/plans/2026-08-29-phase-1-world-map-terrain-implementation.md')
           text = path.read_text()
 
-          replacements = [
-              (
-                  '- Create: `systems/world/src/index.ts`\n- Create: `systems/world/src/composition.ts`\n- Create: `systems/world/tests/public-surface.test.ts`',
-                  '- Create: `systems/world/src/index.ts`\n- Create: `systems/world/tests/public-surface.test.ts`',
-              ),
-              (
-                  '  "exports": {\n    ".": "./src/index.ts",\n    "./composition": "./src/composition.ts"\n  },',
-                  '  "exports": {\n    ".": "./src/index.ts"\n  },',
-              ),
-              (
-                  '- Create: `systems/world/src/composition/create-world.ts`\n- Modify: `systems/world/src/contracts/world-read.ts`\n- Modify: `systems/world/src/composition.ts`\n- Modify: `systems/world/src/index.ts`',
-                  '- Create: `systems/world/src/composition/create-world.ts`\n- Create: `systems/world/src/composition.ts`\n- Modify: `systems/world/package.json`\n- Modify: `systems/world/src/contracts/world-read.ts`\n- Modify: `systems/world/src/index.ts`',
-              ),
-              (
-                  '- Create: `systems/terrain/src/index.ts`\n- Create: `systems/terrain/src/commands.ts`\n- Create: `systems/terrain/src/composition.ts`\n- Modify: `architecture.policy.json`',
-                  '- Create: `systems/terrain/src/index.ts`\n- Modify: `architecture.policy.json`',
-              ),
-              (
-                  '  "exports": {\n    ".": "./src/index.ts",\n    "./commands": "./src/commands.ts",\n    "./composition": "./src/composition.ts"\n  },',
-                  '  "exports": {\n    ".": "./src/index.ts"\n  },',
-              ),
-              (
-                  '  "dependencies": {\n    "@web-three-city/foundation-contracts": "workspace:*",\n    "@web-three-city/world": "workspace:*",\n    "three": "0.179.1"\n  },\n  "devDependencies": {\n    "@types/three": "0.179.0",\n    "typescript": "5.9.2",\n    "vitest": "3.2.4"\n  }',
-                  '  "dependencies": {\n    "@web-three-city/world": "workspace:*"\n  },\n  "devDependencies": {\n    "typescript": "5.9.2",\n    "vitest": "3.2.4"\n  }',
-              ),
-              (
-                  '- Create: `systems/terrain/src/composition/create-terrain.ts`\n- Modify: `systems/terrain/src/contracts/terrain-read.ts`\n- Modify: `systems/terrain/src/composition.ts`',
-                  '- Create: `systems/terrain/src/composition/create-terrain.ts`\n- Create: `systems/terrain/src/composition.ts`\n- Modify: `systems/terrain/package.json`\n- Modify: `systems/terrain/src/contracts/terrain-read.ts`',
-              ),
-              (
-                  '- Create: `systems/terrain/src/application/apply-terrain-edits.ts`\n- Modify: `systems/terrain/src/commands.ts`\n- Modify: `systems/terrain/src/composition/create-terrain.ts`',
-                  '- Create: `systems/terrain/src/application/apply-terrain-edits.ts`\n- Create: `systems/terrain/src/commands.ts`\n- Modify: `systems/terrain/package.json`\n- Modify: `systems/terrain/src/composition/create-terrain.ts`',
-              ),
-              (
-                  'Use `CommandResult<TerrainMutationReceipt, TerrainMutationRejection>` from `@web-three-city/foundation-contracts`.',
-                  'At this task, add `@web-three-city/foundation-contracts: workspace:*` to Terrain production dependencies and add the `./commands` package export. Use `CommandResult<TerrainMutationReceipt, TerrainMutationRejection>` from that Foundation package.',
-              ),
-              (
-                  '- Create: `systems/terrain/src/presentation/three/dirty-sectors.ts`\n- Test: `systems/terrain/tests/render-sector.test.ts`',
-                  '- Create: `systems/terrain/src/presentation/three/dirty-sectors.ts`\n- Modify: `systems/terrain/package.json`\n- Test: `systems/terrain/tests/render-sector.test.ts`',
-              ),
-              (
-                  '- [ ] **Step 1: Write RED sector topology tests**',
-                  'Before RED, add `three: 0.179.1` to Terrain production dependencies and `@types/three: 0.179.0` to Terrain devDependencies; this is the first task with a real Three.js consumer. Add no other dependency.\n\n- [ ] **Step 1: Write RED sector topology tests**',
-              ),
-              (
-                  '  readonly selectedSeed64: "0x5EED5EED5EED5EED" | string;',
-                  '  readonly selectedSeed64: string;',
-              ),
-          ]
+          status = '**Plan Status:** REVIEW DRAFT — NOT APPROVED FOR EXECUTION\n\n'
+          if status not in text:
+              raise SystemExit('plan status missing')
+          text = text.replace(status, '', 1)
+          spec_line = '**Spec:** `docs/architecture/PHASE-1-WORLD-MAP-TERRAIN-DESIGN.md` plus the frozen World/Terrain binding specifications under `docs/systems/world/specs/` and `docs/systems/terrain/specs/`.\n'
+          if spec_line not in text:
+              raise SystemExit('spec header missing')
+          text = text.replace(spec_line, spec_line + '\n' + status.rstrip() + '\n', 1)
 
-          for old, new in replacements:
-              if old not in text:
-                  raise SystemExit(f'missing planned replacement: {old[:80]!r}')
-              text = text.replace(old, new, 1)
+          constraint = '- `package.json#exports` is authoritative. No deep cross-package imports and no relative filesystem reach-through.\n'
+          dependency_rule = '''- Creating a workspace package or changing production/dev dependencies must refresh `pnpm-lock.yaml` before RED/GREEN verification using exactly `pnpm install --ignore-scripts` followed by `pnpm rebuild esbuild`; the lockfile change is committed with the task. Export-only manifest edits do not require lockfile churn.\n'''
+          if dependency_rule not in text:
+              if constraint not in text:
+                  raise SystemExit('constraint insertion point missing')
+              text = text.replace(constraint, constraint + dependency_rule, 1)
 
-          marker = '# P1-A — World / Map / Grid / Region Contracts + System'
+          start = text.index('## Canonical Interface Ledger')
+          end = text.index('# P1-A — World / Map / Grid / Region Contracts + System')
           ledger = '''## Canonical Interface Ledger
 
-          These shapes are execution authorities for names referenced across tasks. Internal implementations may use private helpers, but task-to-task contracts must keep these names and semantics unless the frozen spec is explicitly reopened.
+          These shapes are execution authorities for names referenced across tasks. Internal implementations may use private helpers, but task-to-task contracts keep these names and semantics unless a frozen spec is explicitly reopened.
+
+          World public values and results:
 
           ```ts
+          export interface CellCoord { readonly x: number; readonly z: number }
+          export interface VertexCoord { readonly x: number; readonly z: number }
+          export interface ChunkCoord { readonly x: number; readonly z: number }
+          export interface WorldXZ { readonly x: number; readonly z: number }
+          export interface CellRect {
+            readonly xStartInclusive: number;
+            readonly zStartInclusive: number;
+            readonly xEndExclusive: number;
+            readonly zEndExclusive: number;
+          }
+          export interface CellWorldBounds {
+            readonly xMinInclusive: number;
+            readonly zMinInclusive: number;
+            readonly xMaxExclusive: number;
+            readonly zMaxExclusive: number;
+          }
+          export type RegionId = string;
+          export type MapDefinitionId = string;
+          export interface StartingCandidate {
+            readonly regionId: RegionId;
+            readonly anchor: CellCoord;
+          }
+
+          export type WorldErrorCode =
+            | "WORLD_MAP_DEFINITION_INVALID"
+            | "WORLD_REGION_UNKNOWN"
+            | "WORLD_REGION_GEOMETRY_INVALID"
+            | "WORLD_REGION_PARTITION_INCOMPLETE"
+            | "WORLD_REGION_PARTITION_OVERLAP"
+            | "WORLD_STARTING_CANDIDATE_INVALID"
+            | "WORLD_STARTING_REGION_NOT_ELIGIBLE"
+            | "WORLD_SEED_NOT_ACCEPTED"
+            | "WORLD_COORD_OUT_OF_BOUNDS";
+
+          export type WorldReadResult<T> =
+            | { readonly status: "success"; readonly value: T }
+            | { readonly status: "rejected"; readonly code: WorldErrorCode };
+
+          export interface WorldSpatialRead {
+            cellToChunk(cell: CellCoord): WorldReadResult<{
+              readonly chunk: ChunkCoord;
+              readonly local: CellCoord;
+            }>;
+            ownerChunk(vertex: VertexCoord): WorldReadResult<ChunkCoord>;
+            incidentCells(vertex: VertexCoord): WorldReadResult<readonly CellCoord[]>;
+            touchingChunks(vertex: VertexCoord): WorldReadResult<readonly ChunkCoord[]>;
+            cardinalNeighbors(cell: CellCoord): WorldReadResult<readonly CellCoord[]>;
+            intersectingChunks(rect: CellRect): WorldReadResult<readonly ChunkCoord[]>;
+            worldPositionToCell(position: WorldXZ): WorldReadResult<CellCoord>;
+            cellBounds(cell: CellCoord): WorldReadResult<CellWorldBounds>;
+            regionAtCell(cell: CellCoord): WorldReadResult<RegionId>;
+            adjacentRegions(region: RegionId): WorldReadResult<readonly RegionId[]>;
+          }
+
           export type WorldConstructionResult<T> =
             | { readonly status: "success"; readonly value: T }
             | {
@@ -138,14 +155,60 @@ jobs:
           }
           ```
 
-          Terrain cross-task contracts:
+          Terrain public/read contracts:
 
           ```ts
+          export type LogicalElevation = number & {
+            readonly __logicalElevationBrand: "LogicalElevation";
+          };
+          export type TerrainRevision = number;
+          export type TerrainCompleteness = "partial" | "full";
+          export type TerrainTriangle = "SW_TRIANGLE" | "NE_TRIANGLE";
+
+          export type TerrainQueryResult<T> =
+            | { readonly status: "success"; readonly value: T }
+            | {
+                readonly status: "out-of-bounds";
+                readonly code: "TERRAIN_QUERY_OUT_OF_BOUNDS";
+              }
+            | {
+                readonly status: "unavailable";
+                readonly code: "TERRAIN_QUERY_CHUNK_UNAVAILABLE";
+                readonly chunk: ChunkCoord;
+              };
+
+          export interface CellSurfaceRead {
+            readonly cell: CellCoord;
+            readonly sw: LogicalElevation;
+            readonly se: LogicalElevation;
+            readonly nw: LogicalElevation;
+            readonly ne: LogicalElevation;
+            readonly revision: TerrainRevision;
+          }
+
+          export interface SurfaceSampleRead {
+            readonly triangle: TerrainTriangle;
+            readonly heightQ16: number;
+            readonly riseX: number;
+            readonly riseZ: number;
+            readonly runUnits: 32;
+            readonly revision: TerrainRevision;
+          }
+
           export type TerrainStartingReason =
             | "TERRAIN_START_UNAVAILABLE"
             | "TERRAIN_START_CELL_RELIEF_EXCEEDED"
             | "TERRAIN_START_PATCH_RELIEF_EXCEEDED"
             | "TERRAIN_START_ANCHOR_RELIEF_EXCEEDED";
+
+          export interface StartingCandidateEvaluation {
+            readonly regionId: RegionId;
+            readonly eligible: boolean;
+            readonly patchElevationRange: number;
+            readonly maxCellCornerRange: number;
+            readonly anchorCellCornerRange: number;
+            readonly reasons: readonly TerrainStartingReason[];
+          }
 
           export type TerrainGenerationRejectionCode =
             | "TERRAIN_GENERATION_PROFILE_UNSUPPORTED"
@@ -162,11 +225,66 @@ jobs:
             | "TERRAIN_MUTATION_ELEVATION_INVALID"
             | "TERRAIN_MUTATION_ELEVATION_OUT_OF_RANGE";
 
-          export interface TerrainMutationRejection extends CommandRejection {
+          export interface TerrainVertexEdit {
+            readonly vertex: VertexCoord;
+            readonly elevation: LogicalElevation;
+          }
+          export interface ApplyTerrainEdits {
+            readonly edits: readonly TerrainVertexEdit[];
+          }
+          export interface TerrainChangeSet {
+            readonly previousRevision: TerrainRevision;
+            readonly newRevision: TerrainRevision;
+            readonly changedVertices: readonly VertexCoord[];
+            readonly affectedCells: readonly CellCoord[];
+            readonly touchingLogicalChunks: readonly ChunkCoord[];
+          }
+          export interface TerrainMutationReceipt {
+            readonly changed: boolean;
+            readonly previousRevision: TerrainRevision;
+            readonly newRevision: TerrainRevision;
+            readonly changeSet: TerrainChangeSet;
+          }
+          export interface TerrainMutationRejection {
             readonly code: TerrainMutationRejectionCode;
+            readonly message: string;
             readonly detail?: Readonly<Record<string, unknown>>;
           }
 
+          export interface TerrainChunkSnapshot {
+            readonly chunk: ChunkCoord;
+            readonly ownedElevations: readonly {
+              readonly vertex: VertexCoord;
+              readonly elevation: LogicalElevation;
+            }[];
+          }
+          export interface TerrainStateSnapshot {
+            readonly mapDefinitionId: string;
+            readonly generationProfileId: "balanced-temperate-generation";
+            readonly generationProfileVersion: 2;
+            readonly selectedSeed64: string;
+            readonly revision: TerrainRevision;
+            readonly completeness: TerrainCompleteness;
+            readonly chunks: readonly TerrainChunkSnapshot[];
+          }
+
+          export interface TerrainRead {
+            revision(): TerrainRevision;
+            completeness(): TerrainCompleteness;
+            elevationAt(vertex: VertexCoord): TerrainQueryResult<LogicalElevation>;
+            cellSurface(cell: CellCoord): TerrainQueryResult<CellSurfaceRead>;
+            sampleSurface(
+              cell: CellCoord,
+              uQ16: number,
+              vQ16: number,
+            ): TerrainQueryResult<SurfaceSampleRead>;
+            captureSnapshot(): TerrainStateSnapshot;
+          }
+          ```
+
+          Terrain construction/mutation contracts used across later deliveries:
+
+          ```ts
           export interface TerrainFieldSource {
             readonly vertexWidth: number;
             readonly vertexHeight: number;
@@ -188,17 +306,8 @@ jobs:
                 readonly detail?: Readonly<Record<string, unknown>>;
               };
 
-          export interface TerrainRead {
-            revision(): number;
-            completeness(): "partial" | "full";
-            elevationAt(vertex: VertexCoord): TerrainQueryResult<LogicalElevation>;
-            cellSurface(cell: CellCoord): TerrainQueryResult<CellSurfaceRead>;
-            sampleSurface(
-              cell: CellCoord,
-              uQ16: number,
-              vQ16: number,
-            ): TerrainQueryResult<SurfaceSampleRead>;
-            captureSnapshot(): TerrainStateSnapshot;
+          export interface TerrainAuthoritySystem {
+            readonly read: TerrainRead;
           }
 
           export interface TerrainCommands {
@@ -208,13 +317,29 @@ jobs:
             >;
           }
 
-          export interface TerrainSystem {
-            readonly read: TerrainRead;
+          export interface TerrainSystem extends TerrainAuthoritySystem {
             readonly commands: TerrainCommands;
           }
           ```
 
-          `PreparedProductionTerrain.field` is composition-only opaque construction data in practice: it is not re-exported from Terrain root and no consumer may mutate it. `createTerrainSystem` consumes that exact prepared field once; it never regenerates from seed.
+          `CommandResult` is the existing `@web-three-city/foundation-contracts` primitive and is introduced as a Terrain production dependency only in P1-E when the real command consumer exists. `PreparedProductionTerrain.field` is a read-only construction payload exported only through Terrain `./composition`, never Terrain root; app composition passes the same prepared object back to `createTerrainSystem` without regenerating or treating the field as a second authority.
+
+          Public surface entry files follow one mechanical rule required by the current architecture checker: an exported declaration must not expose or directly reference an identifier imported from `application/`, `composition/`, `presentation/`, `ports/`, `internal/`, or `adapters/`. When a public `./composition` entry delegates to package internals, use a non-exported local trampoline so the exported signature contains only approved contract/domain values:
+
+          ```ts
+          import { createWorldInternal } from "./composition/create-world";
+          import type { WorldConstructionResult, WorldSystem } from "./contracts/world-read";
+
+          function constructWorld(/* approved contract args */): WorldConstructionResult<WorldSystem> {
+            return createWorldInternal(/* args */);
+          }
+
+          export function createInitialWorldSystem(/* approved contract args */): WorldConstructionResult<WorldSystem> {
+            return constructWorld(/* args */);
+          }
+          ```
+
+          This is an encapsulation boundary, not a workaround for cross-package visibility: app consumers still import only the deliberate package export, and internal modules remain unexported.
 
           ---
 
@@ -223,10 +348,157 @@ jobs:
               line[10:] if line.startswith('          ') else line
               for line in ledger.splitlines()
           ) + '\n'
+          text = text[:start] + ledger + text[end:]
 
-          if marker not in text:
-              raise SystemExit('P1-A marker missing')
-          text = text.replace(marker, ledger + marker, 1)
+          lockfile_targets = [
+              '- Create: `systems/world/package.json`\n',
+              '- Create: `systems/terrain/package.json`\n',
+              '- Modify: `systems/terrain/package.json`\n- Modify: `systems/terrain/src/composition/create-terrain.ts`\n- Test: `systems/terrain/tests/mutation.test.ts`\n',
+              '- Modify: `systems/terrain/package.json`\n- Test: `systems/terrain/tests/render-sector.test.ts`\n',
+              '- Modify: `apps/game/package.json`\n',
+          ]
+          replacements = [
+              '- Create: `systems/world/package.json`\n- Modify: `pnpm-lock.yaml`\n',
+              '- Create: `systems/terrain/package.json`\n- Modify: `pnpm-lock.yaml`\n',
+              '- Modify: `systems/terrain/package.json`\n- Modify: `pnpm-lock.yaml`\n- Modify: `systems/terrain/src/composition/create-terrain.ts`\n- Test: `systems/terrain/tests/mutation.test.ts`\n',
+              '- Modify: `systems/terrain/package.json`\n- Modify: `pnpm-lock.yaml`\n- Test: `systems/terrain/tests/render-sector.test.ts`\n',
+              '- Modify: `apps/game/package.json`\n- Modify: `pnpm-lock.yaml`\n',
+          ]
+          for old, new in zip(lockfile_targets, replacements):
+              if old not in text:
+                  raise SystemExit(f'lockfile insertion point missing: {old!r}')
+              text = text.replace(old, new, 1)
+
+          world_pkg_end = '''```\n\n`tsconfig.json`:\n'''
+          world_lock = '''```\n\nRefresh the workspace importer before running the RED test:\n\n```bash\npnpm install --ignore-scripts\npnpm rebuild esbuild\n```\n\n`tsconfig.json`:\n'''
+          if world_pkg_end not in text:
+              raise SystemExit('world lockfile insertion point missing')
+          text = text.replace(world_pkg_end, world_lock, 1)
+
+          terrain_pkg_anchor = '''RED test imports root/read contracts and asserts product elevation parsing rejects fractional/out-of-range values.\n'''
+          terrain_lock = terrain_pkg_anchor + '''\nRefresh the new workspace importer before RED:\n\n```bash\npnpm install --ignore-scripts\npnpm rebuild esbuild\n```\n'''
+          if terrain_pkg_anchor not in text:
+              raise SystemExit('terrain lockfile insertion point missing')
+          text = text.replace(terrain_pkg_anchor, terrain_lock, 1)
+
+          task6_source = '''`createTerrainSystem()` later consumes that exact field; it must not call the generator again.'''
+          if task6_source in text:
+              text = text.replace(task6_source, '`createTerrainAuthoritySystem()` in P1-B consumes an explicit validated field source. P1-E extends construction to the final `TerrainSystem` with commands; P1-D preparation supplies the exact production field and no construction path regenerates it.', 1)
+
+          task6_interface = '''Composition materialization input:\n\n```ts\nexport interface TerrainFieldSource {\n  readonly vertexWidth: number;\n  readonly vertexHeight: number;\n  elevationAt(x: number, z: number): number;\n}\n```\n'''
+          task6_interface_new = task6_interface + '''\nP1-B `./composition` exposes the read-authority factory:\n\n```ts\nexport function createTerrainAuthoritySystem(input: {\n  readonly world: WorldSpatialRead;\n  readonly mapDefinitionId: string;\n  readonly generationProfileId: string;\n  readonly generationProfileVersion: number;\n  readonly selectedSeed64: string;\n  readonly source: TerrainFieldSource;\n}): TerrainConstructionResult<TerrainAuthoritySystem>;\n```\n\n`TerrainConstructionResult<T>` is a typed success/rejection union local to the composition contract; rejection detail is immutable and no partial state escapes.\n'''
+          if task6_interface not in text:
+              raise SystemExit('task6 interface anchor missing')
+          text = text.replace(task6_interface, task6_interface_new, 1)
+
+          step3 = '''- [ ] **Step 3: Implement private storage indexing and TerrainState**\n\n`world-index.ts` may map already-validated World values to private numeric IDs; it must not reimplement owner/seam/incidence formulas. Owner resolution always comes from `WorldSpatialRead.ownerChunk(vertex)`.\n'''
+          step3_new = step3 + '''\nUse primitive private keys below the application boundary so Terrain domain never imports World types:\n\n```ts\nexport interface CanonicalVertexRecord {\n  readonly vertexKey: number;\n  readonly elevation: LogicalElevation;\n}\n\nexport function toVertexKey(vertex: VertexCoord, vertexWidth: number): number {\n  return vertex.z * vertexWidth + vertex.x;\n}\n\n// domain/terrain-state.ts receives number keys only.\nexport type TerrainChunkStore = ReadonlyMap<number, ReadonlyMap<number, LogicalElevation>>;\n```\n'''
+          if step3 not in text:
+              raise SystemExit('task6 step3 anchor missing')
+          text = text.replace(step3, step3_new, 1)
+
+          mat = '''- [ ] **Step 4: Implement validate-all materialization**\n\nVisit global vertices in canonical order `z=0..512`, then `x=0..512`, validate every elevation first, route each to exactly one World owner Chunk, and expose a full state only after all values validate. A failed production materialization must not expose a half-built state.\n'''
+          mat_new = mat + '''\nThe implementation shape is a staged transaction:\n\n```ts\nconst staged: CanonicalVertexRecord[] = [];\nfor (let z = 0; z < source.vertexHeight; z += 1) {\n  for (let x = 0; x < source.vertexWidth; x += 1) {\n    const elevation = parseLogicalElevation(source.elevationAt(x, z));\n    if (elevation.status === "rejected") return elevation;\n    const vertex = { x, z };\n    const owner = world.ownerChunk(vertex);\n    if (owner.status !== "success") return rejectMaterialization(owner);\n    staged.push({\n      vertexKey: toVertexKey(vertex, source.vertexWidth),\n      elevation: elevation.value,\n    });\n  }\n}\nreturn commitMaterializedState(staged, /* owner routing metadata */);\n```\n\nNo write to the live TerrainState occurs inside the validation loop.\n'''
+          if mat not in text:
+              raise SystemExit('materialization anchor missing')
+          text = text.replace(mat, mat_new, 1)
+
+          mutation_step = '''- [ ] **Step 4: Implement fixed validation sequence**\n\nSequence must be:\n'''
+          mutation_code = '''- [ ] **Step 4: Implement fixed validation sequence**\n\nThe application layer owns World-coordinate validation/normalization and maps valid edits to primitive domain keys before commit; `domain/mutation/commit-edits.ts` never imports World:\n\n```ts\ninterface CanonicalElevationUpdate {\n  readonly vertexKey: number;\n  readonly elevation: LogicalElevation;\n}\n\nfunction commitCanonicalUpdates(\n  state: TerrainState,\n  updates: readonly CanonicalElevationUpdate[],\n): TerrainState {\n  return state.withAtomicUpdates(updates);\n}\n```\n\nSequence must be:\n'''
+          if mutation_step not in text:
+              raise SystemExit('mutation step anchor missing')
+          text = text.replace(mutation_step, mutation_code, 1)
+
+          task4_step = '''- [ ] **Step 3: Implement MapState construction without Terrain logic**\n\nWorld only verifies that the selected Region exists, is a starting candidate, and appears in the caller-provided eligible set. It does not recalculate Terrain suitability.\n'''
+          task4_new = task4_step + '''\nKeep internal composition behind a non-exported trampoline in `src/composition.ts`:\n\n```ts\nfunction constructInitialWorld(input: CreateInitialWorldInput): WorldConstructionResult<WorldSystem> {\n  return createWorldInternal(input);\n}\n\nexport function createInitialWorldSystem(\n  input: CreateInitialWorldInput,\n): WorldConstructionResult<WorldSystem> {\n  return constructInitialWorld(input);\n}\n```\n\nThe exported signature uses only approved World contract/domain values; the internal composition identifier is not leaked by the exported declaration.\n'''
+          if task4_step not in text:
+              raise SystemExit('world composition anchor missing')
+          text = text.replace(task4_step, task4_new, 1)
+
+          parser_anchor = '''The parser accepts integer values in `[-4096,4096]`; it does not clamp.\n'''
+          parser_code = parser_anchor + '''\nImplement the boundary check explicitly:\n\n```ts\nexport function parseLogicalElevation(value: number): TerrainElevationResult {\n  if (!Number.isInteger(value)) {\n    return { status: "rejected", code: "TERRAIN_ELEVATION_INVALID" };\n  }\n  if (value < -4096 || value > 4096) {\n    return { status: "rejected", code: "TERRAIN_ELEVATION_OUT_OF_RANGE" };\n  }\n  return { status: "success", value: value as LogicalElevation };\n}\n```\n'''
+          if parser_anchor not in text:
+              raise SystemExit('elevation parser anchor missing')
+          text = text.replace(parser_anchor, parser_code, 1)
+
+          surface_anchor = '''Implement the frozen formulas directly. Do not use bilinear interpolation or floating epsilon. Exact slope facts:\n'''
+          surface_code = '''Implement the frozen formulas directly. Do not use bilinear interpolation or floating epsilon:\n\n```ts\nconst Q = 65536;\nexport function evaluateSurface(c: CellCorners, u: number, v: number): SurfaceSample {\n  if (u + v <= Q) {\n    return {\n      triangle: "SW_TRIANGLE",\n      heightQ16: c.sw * (Q - u - v) + c.se * u + c.nw * v,\n      riseX: c.se - c.sw,\n      riseZ: c.nw - c.sw,\n      runUnits: 32,\n    };\n  }\n  return {\n    triangle: "NE_TRIANGLE",\n    heightQ16: c.nw * (Q - u) + c.se * (Q - v) + c.ne * (u + v - Q),\n    riseX: c.ne - c.nw,\n    riseZ: c.ne - c.se,\n    runUnits: 32,\n  };\n}\n```\n\nExact slope facts:\n'''
+          if surface_anchor not in text:
+              raise SystemExit('surface implementation anchor missing')
+          text = text.replace(surface_anchor, surface_code, 1)
+
+          primitive_anchor = '''Use `BigInt.asUintN(64, value)` or an equivalent explicit `2^64-1` mask for SplitMix64. Use `>>> 0` and `Math.imul` for hash32. Implement a named `truncTowardZeroDivision` helper; do not rely on accidental coercion.\n'''
+          primitive_code = primitive_anchor + '''\nCore signed/Q16 helpers are explicit:\n\n```ts\nexport function truncTowardZeroDivision(n: number, d: number): number {\n  return Math.trunc(n / d);\n}\n\nexport function fadeQ16(t: number): number {\n  const q = 65536;\n  const t2 = Math.floor((t * t) / q);\n  return Math.floor((t2 * (3 * q - 2 * t)) / q);\n}\n\nexport function lerpInt(a: number, b: number, t: number): number {\n  return a + truncTowardZeroDivision((b - a) * t, 65536);\n}\n```\n'''
+          if primitive_anchor not in text:
+              raise SystemExit('generator primitive anchor missing')
+          text = text.replace(primitive_anchor, primitive_code, 1)
+
+          generator_anchor = '''Use periods/amplitudes exactly `[(128,64),(64,32),(32,16),(16,8),(8,4)]`, `BASE_ELEVATION=160`, and `truncTowardZero(weighted/32768)`. No smoothing or clamping after generation.\n'''
+          generator_code = generator_anchor + '''\nThe full-field loop remains canonical even if later optimized:\n\n```ts\nconst OCTAVES = [[128, 64], [64, 32], [32, 16], [16, 8], [8, 4]] as const;\nfor (let z = 0; z <= 512; z += 1) {\n  for (let x = 0; x <= 512; x += 1) {\n    let weighted = 0;\n    for (let i = 0; i < OCTAVES.length; i += 1) {\n      const [period, amplitude] = OCTAVES[i];\n      weighted += valueNoise(layerSeeds[i], x, z, period) * amplitude;\n    }\n    values[z * 513 + x] = 160 + truncTowardZeroDivision(weighted, 32768);\n  }\n}\n```\n'''
+          if generator_anchor not in text:
+              raise SystemExit('production generator anchor missing')
+          text = text.replace(generator_anchor, generator_code, 1)
+
+          fingerprint_anchor = '''Do not include seed/profile/config bytes.\n'''
+          fingerprint_code = fingerprint_anchor + '''\nEncode each signed elevation through a four-byte little-endian buffer/view before feeding FNV-1a; do not hash decimal strings:\n\n```ts\nview.setUint32(0, 513, true);\nview.setUint32(4, 513, true);\nfor (let z = 0; z <= 512; z += 1) {\n  for (let x = 0; x <= 512; x += 1) {\n    valueView.setInt32(0, field.elevationAt(x, z), true);\n    hash = fnv1a64Update(hash, valueBytes);\n  }\n}\n```\n'''
+          if fingerprint_anchor not in text:
+              raise SystemExit('fingerprint anchor missing')
+          text = text.replace(fingerprint_anchor, fingerprint_code, 1)
+
+          suitability_anchor = '''For each anchor, inspect Cells `ax-4..ax+4`, `az-4..az+4`; each Cell corner range must be `<=8`; all 10×10 vertices range `<=24`; anchor Cell corner range `<=4`. Use generated integer elevation facts only.\n'''
+          suitability_code = suitability_anchor + '''\nAccumulate metrics in one deterministic pass and derive reasons in the frozen order:\n\n```ts\nconst reasons: TerrainStartingReason[] = [];\nif (unavailable) reasons.push("TERRAIN_START_UNAVAILABLE");\nif (maxCellCornerRange > 8) reasons.push("TERRAIN_START_CELL_RELIEF_EXCEEDED");\nif (patchElevationRange > 24) reasons.push("TERRAIN_START_PATCH_RELIEF_EXCEEDED");\nif (anchorCellCornerRange > 4) reasons.push("TERRAIN_START_ANCHOR_RELIEF_EXCEEDED");\nreturn {\n  regionId: candidate.regionId,\n  eligible: reasons.length === 0,\n  patchElevationRange,\n  maxCellCornerRange,\n  anchorCellCornerRange,\n  reasons,\n};\n```\n'''
+          if suitability_anchor not in text:
+              raise SystemExit('suitability anchor missing')
+          text = text.replace(suitability_anchor, suitability_code, 1)
+
+          prep_anchor = '''There is no retry loop or seed substitution.\n'''
+          prep_code = prep_anchor + '''\nThe preparation control flow is linear:\n\n```ts\nvalidateProfile(input);\nvalidateSeedSyntax(input.seed64);\nvalidateAcceptedSeed(input.world.mapDefinition, input.seed64);\nconst field = generateProductionField(input.seed64); // exactly once\nvalidateFullEnvelope(field);\nvalidateFingerprint(field);\nconst candidateEvaluations = evaluateStartingCandidates(input.world, field);\nvalidateAtLeastOneEligible(candidateEvaluations);\nreturn success({ field, seed64: input.seed64, fingerprint: EXPECTED_FINGERPRINT, candidateEvaluations });\n```\n'''
+          if prep_anchor not in text:
+              raise SystemExit('preparation anchor missing')
+          text = text.replace(prep_anchor, prep_code, 1)
+
+          render_anchor = '''Using Three.js `BufferGeometry`/attributes in Node is acceptable; do not create a renderer in these unit tests. Normals are derived floating presentation values; gameplay slope never reads them.\n'''
+          render_code = render_anchor + '''\nThe builder emits the frozen diagonal explicitly:\n\n```ts\nfor (let z = 0; z < 64; z += 1) {\n  for (let x = 0; x < 64; x += 1) {\n    const sw = z * 65 + x;\n    const se = sw + 1;\n    const nw = sw + 65;\n    const ne = nw + 1;\n    indices.push(sw, se, nw, nw, se, ne);\n  }\n}\n```\n\nNormal accumulation queries the global semantic incident triangles for each World Vertex before normalization; it never averages only the local sector copy.\n'''
+          if render_anchor not in text:
+              raise SystemExit('render builder anchor missing')
+          text = text.replace(render_anchor, render_code, 1)
+
+          pick_anchor = '''Out-of-bounds candidates remain out-of-bounds; never clamp into the nearest Cell.\n'''
+          pick_code = pick_anchor + '''\nThe pick helper uses candidate X/Z only:\n\n```ts\nconst cellResult = world.worldPositionToCell({ x: hit.point.x, z: hit.point.z });\nif (cellResult.status !== "success") return cellResult;\nconst bounds = world.cellBounds(cellResult.value);\nif (bounds.status !== "success") return bounds;\nconst uQ16 = Math.max(0, Math.min(65535, Math.round(((hit.point.x - bounds.value.xMinInclusive) / 8) * 65536)));\nconst vQ16 = Math.max(0, Math.min(65535, Math.round(((hit.point.z - bounds.value.zMinInclusive) / 8) * 65536)));\nreturn terrain.sampleSurface(cellResult.value, uQ16, vQ16);\n```\n\n`hit.point.y` is intentionally absent from the semantic return calculation.\n'''
+          if pick_anchor not in text:
+              raise SystemExit('pick anchor missing')
+          text = text.replace(pick_anchor, pick_code, 1)
+
+          lifecycle_anchor = '''Initial attach requires full Terrain. Build 64 sectors. `rebuild(changeSet)` replaces only deterministic dirty sectors and disposes replaced geometry/material resources. `dispose()` is idempotent and disposes all owned resources.\n'''
+          lifecycle_code = lifecycle_anchor + '''\nUse one owned group and one sector map:\n\n```ts\nconst sectors = new Map<string, THREE.Mesh>();\nfunction rebuild(changeSet: TerrainChangeSet): void {\n  for (const coord of dirtySectors(changeSet)) {\n    disposeSector(sectors.get(keyOf(coord)));\n    sectors.set(keyOf(coord), buildSectorMesh(coord));\n  }\n}\nfunction dispose(): void {\n  for (const mesh of sectors.values()) disposeSector(mesh);\n  sectors.clear();\n  root.removeFromParent();\n}\n```\n'''
+          if lifecycle_anchor not in text:
+              raise SystemExit('lifecycle anchor missing')
+          text = text.replace(lifecycle_anchor, lifecycle_code, 1)
+
+          snapshot_anchor = '''Snapshot capture must not increment revision or rebuild presentation. It serializes semantic data only; no concrete file/IndexedDB encoding is introduced.\n'''
+          snapshot_code = snapshot_anchor + '''\nCapture from canonical owner storage only:\n\n```ts\nreturn {\n  mapDefinitionId: state.mapDefinitionId,\n  generationProfileId: "balanced-temperate-generation",\n  generationProfileVersion: 2,\n  selectedSeed64: state.selectedSeed64,\n  revision: state.revision,\n  completeness: state.completeness,\n  chunks: canonicalChunks(state).map(captureChunkSnapshot),\n};\n```\n'''
+          if snapshot_anchor not in text:
+              raise SystemExit('snapshot anchor missing')
+          text = text.replace(snapshot_anchor, snapshot_code, 1)
+
+          app_dep_anchor = '''Do not import system private files. App may use both composition surfaces; systems may not use each other's composition surfaces.\n'''
+          app_code = app_dep_anchor + '''\nAfter editing app dependencies, refresh the lockfile before RED/GREEN reruns:\n\n```bash\npnpm install --ignore-scripts\npnpm rebuild esbuild\n```\n\nWire only exported surfaces:\n\n```ts\nconst worldPreparation = prepareProductionWorldDefinition();\nconst terrainPreparation = prepareProductionTerrain({\n  world: worldPreparation.value,\n  seed64: request.seed64,\n});\nassertEligibleSelection(terrainPreparation.value.candidateEvaluations, request.startingRegionId);\nconst world = createInitialWorldSystem({\n  prepared: worldPreparation.value,\n  selectedStartingRegionId: request.startingRegionId,\n  eligibleStartingRegionIds: eligibleIds(terrainPreparation.value.candidateEvaluations),\n});\nconst terrain = createTerrainSystem({\n  world: world.value.spatial,\n  prepared: terrainPreparation.value,\n});\n```\n\nEvery rejected result is handled before reading `.value`; no fallback seed/Region is substituted.\n'''
+          if app_dep_anchor not in text:
+              raise SystemExit('app wiring anchor missing')
+          text = text.replace(app_dep_anchor, app_code, 1)
+
+          mutation_dep_anchor = '''At this task, add `@web-three-city/foundation-contracts: workspace:*` to Terrain production dependencies and add the `./commands` package export. Use `CommandResult<TerrainMutationReceipt, TerrainMutationRejection>` from that Foundation package.\n'''
+          mutation_dep_new = mutation_dep_anchor + '''\nRefresh dependency links/lockfile before RED:\n\n```bash\npnpm install --ignore-scripts\npnpm rebuild esbuild\n```\n'''
+          if mutation_dep_anchor not in text:
+              raise SystemExit('mutation dependency anchor missing')
+          text = text.replace(mutation_dep_anchor, mutation_dep_new, 1)
+
+          three_dep_anchor = '''Before RED, add `three: 0.179.1` to Terrain production dependencies and `@types/three: 0.179.0` to Terrain devDependencies; this is the first task with a real Three.js consumer. Add no other dependency.\n'''
+          three_dep_new = three_dep_anchor + '''\nRefresh dependency links/lockfile:\n\n```bash\npnpm install --ignore-scripts\npnpm rebuild esbuild\n```\n'''
+          if three_dep_anchor not in text:
+              raise SystemExit('three dependency anchor missing')
+          text = text.replace(three_dep_anchor, three_dep_new, 1)
+
           path.write_text(text)
           PY
       - name: Commit refined plan
@@ -235,5 +507,5 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add docs/superpowers/plans/2026-08-29-phase-1-world-map-terrain-implementation.md
           git diff --cached --check
-          git commit -m 'docs(plan): tighten Phase 1 execution contracts'
+          git commit -m 'docs(plan): complete Phase 1 self-review'
           git push origin HEAD:design/phase-1-world-map-terrain

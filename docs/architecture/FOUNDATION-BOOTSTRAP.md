@@ -7,17 +7,17 @@
 
 ## Current authority note
 
-This document predates the completed A3–A12 Architecture & Structure sequence.
+This document predates the A3–A12 Architecture & Structure sequence.
 
-The current structural design for Bootstrap is being reviewed in:
+The current structural proposal for Bootstrap is:
 
 ```text
 docs/architecture/FOUNDATION-BOOTSTRAP-STRUCTURE.md
 ```
 
-This file remains a non-binding reviewed baseline during the batch review only.
+This file remains a **non-binding reviewed baseline** during the A5–A12 batch review only.
 
-Before any Bootstrap implementation planning begins, this document MUST be reconciled with A12 or superseded/merged so that the repository has one primary Bootstrap authority.
+Before any Bootstrap implementation planning begins, this document MUST be reconciled with A12 or superseded/merged so the repository has one primary Bootstrap authority.
 
 It is not implementation authorization.
 
@@ -29,7 +29,7 @@ The intended scaffold exists to prove repository structure, package boundaries, 
 
 ## Binding deferral
 
-All detailed structure in this baseline is subordinate to the A3–A12 batch currently under review.
+All detailed structure in this baseline is subordinate to the A3–A12 architecture contracts once approved.
 
 Do not implement from this file alone.
 
@@ -99,8 +99,8 @@ Exact versions, scripts, and implementation sequence remain implementation-plan 
 Implementation is blocked until:
 
 ```text
-A3–A12 Architecture & Structure review is complete
-A5–A12 documents are frozen or revised as approved
+A5–A12 batch review is complete
+A5–A12 documents are revised/frozen as approved
 this baseline is reconciled/superseded against A12
 an implementation/TDD plan is reviewed
 ```

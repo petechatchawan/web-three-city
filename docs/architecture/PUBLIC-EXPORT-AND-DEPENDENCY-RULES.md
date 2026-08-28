@@ -1,6 +1,6 @@
 # Public Export and Dependency Rules
 
-- **Status:** REVIEW DRAFT — NOT FROZEN
+- **Status:** FROZEN
 - **Date:** 2026-08-28
 - **Scope:** Package export surfaces, consumer permissions, dependency graph rules, and public contract exposure
 - **Depends on:** Product Architecture, ADR-001, A3 Repository Topology & Ownership Model, A4 Package Boundary Model, A5 System Internal Structure
@@ -99,7 +99,7 @@ orchestration/*  YES
 apps/*           YES
 ```
 
-An app may invoke a single-system command from product/UI application wiring. If a use case coordinates mutation of more than one authority, it must use an orchestration concern instead of manually sequencing system commands in arbitrary UI code.
+An app may invoke a single-system command from product/UI application wiring. If a use case coordinates mutation of more than one authority, it must use an orchestration concern instead of manually sequencing system commands in arbitrary UI code. A7 owns the corresponding composition/UI placement rule.
 
 ### 2.3 Construction surface — `./composition`
 
@@ -413,6 +413,7 @@ A6 does not introduce external semantic-versioning policy before a real independ
 - [ ] system root export exposes mutation entrypoint;
 - [ ] system command surface is imported by another production system;
 - [ ] system composition surface is imported by production system/orchestration;
+- [ ] app/UI manually sequences multiple system Commands as hidden business policy instead of invoking an A7 orchestration concern;
 - [ ] testkit imports system command/composition surface as a privileged testing shortcut;
 - [ ] repository test deep-imports private implementation instead of using public surface;
 - [ ] orchestration re-exports system internals as convenience facade;

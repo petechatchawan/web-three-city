@@ -245,20 +245,11 @@ The snapshot does not duplicate Region geometry because geometry is immutable Ma
 
 If future persistence requires self-contained map-definition data, that is a separate persistence/portability decision; it does not change current World authority.
 
-## 14. Accepted seed catalog semantics
+## 14. Terrain generation linkage
 
-The catalog is immutable versioned MapDefinition content.
+MapDefinition owns only the Terrain generation profile identity/version required by this map. Seed64 validity, canonicalization, generation, fingerprinting, and starting-candidate Terrain suitability are Terrain-owned concerns.
 
-Phase 1 rules:
-
-```text
-caller must select a listed seed
-no random default selection inside Terrain
-no fallback scanning/mining
-no silent substitution
-```
-
-Catalog membership is not proof of current Terrain bytes by itself; Terrain generation verification also checks the profile-specific output fingerprint and candidate eligibility vector.
+World does not maintain a seed whitelist. The caller supplies an explicit seed to Terrain; Terrain may reject the selected seed's generated result if no starting candidate is eligible, but it never substitutes another seed.
 
 ## 15. Error semantics
 
@@ -272,7 +263,6 @@ WORLD_REGION_PARTITION_INCOMPLETE
 WORLD_REGION_PARTITION_OVERLAP
 WORLD_STARTING_CANDIDATE_INVALID
 WORLD_STARTING_REGION_NOT_ELIGIBLE
-WORLD_SEED_NOT_ACCEPTED
 ```
 
 Exact TypeScript contract shape follows ADR-001 typed-result conventions where mutation/construction exposes expected rejection.
@@ -292,7 +282,7 @@ anchor coordinates exact and inside candidate Regions
 9×9 anchor patch remains inside Region
 initial MapState invariants
 snapshot canonical Region ordering
-accepted seed catalog exact
+Terrain generation profile identity/version exact
 ```
 
 ## 17. Explicit deferrals

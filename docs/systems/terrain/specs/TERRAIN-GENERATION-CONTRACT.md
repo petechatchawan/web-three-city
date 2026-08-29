@@ -21,7 +21,7 @@ Generation consumes exactly:
 ```text
 validated MapDefinition
 balanced-temperate-generation / 2
-explicit caller-selected accepted Seed64
+explicit caller-selected valid Seed64
 ```
 
 No other ambient state is input.
@@ -48,6 +48,8 @@ External/config Seed64 is a fixed-width unsigned hexadecimal string:
 
 Internal seed arithmetic uses unsigned 64-bit modulo `2^64` semantics. JavaScript implementation uses `bigint` for this contract, never lossy Number conversion of the full Seed64.
 
+Any canonical value in the unsigned 64-bit range is valid generation input. There is no World-owned or Terrain-owned whitelist. Terrain canonicalizes hexadecimal case, generates the selected seed exactly once, and may reject the generated result only for profile/output/suitability reasons defined below.
+
 ## 4. Layer seed derivation — SplitMix64
 
 Starting state is the selected Seed64.
@@ -63,7 +65,7 @@ z = z xor (z >> 31)
 layerSeed32 = low 32 bits of z
 ```
 
-For accepted seed `0x5EED5EED5EED5EED`, normative layer seeds are:
+For golden regression seed `0x5EED5EED5EED5EED`, normative layer seeds are:
 
 ```text
 L0 0xB6E4D3F7
@@ -207,7 +209,7 @@ For seed `0x5EED5EED5EED5EED`, expected elevations include:
 | `(153,319)` |              154 |
 | `(358,319)` |              134 |
 
-These vectors are supplemental. The full-field fingerprint is the release authority for generator output.
+These vectors are supplemental golden regression evidence. The full-field fingerprint for a selected seed identifies that generated canonical output; the frozen golden seed/fingerprint pair is the release regression authority for profile version 2.
 
 ## 11. Terrain output fingerprint
 
@@ -229,7 +231,7 @@ then for z=0..512, x=0..512:
 
 The fingerprint intentionally excludes seed/profile/config bytes; it fingerprints canonical Terrain output, not configuration identity.
 
-For the production acceptance vector:
+For the golden production regression vector:
 
 ```text
 MapDefinition: production-v1 / 1
@@ -301,14 +303,15 @@ For the accepted production seed, all four production candidates are eligible:
 | `R11`  |           6 |              2 |            1 | yes      |
 | `R13`  |          20 |              4 |            2 | yes      |
 
-The accepted seed catalog entry is valid only while this eligibility vector and full-field fingerprint match the frozen profile contract.
+This candidate vector is a golden regression vector for `0x5EED5EED5EED5EED`; arbitrary valid Seed64 values may produce a different eligibility set and fingerprint.
 
 ## 15. No seed mining
 
 Required production behavior:
 
 ```text
-caller selects accepted seed
+caller selects valid Seed64
+-> canonicalize once
 -> generate once
 -> fingerprint once
 -> evaluate candidates once
@@ -331,13 +334,11 @@ Expected generation/preparation failures include:
 ```text
 TERRAIN_GENERATION_PROFILE_UNSUPPORTED
 TERRAIN_GENERATION_SEED_INVALID
-TERRAIN_GENERATION_SEED_NOT_ACCEPTED
 TERRAIN_GENERATION_OUTPUT_OUT_OF_RANGE
-TERRAIN_GENERATION_FINGERPRINT_MISMATCH
 TERRAIN_GENERATION_NO_ELIGIBLE_START
 ```
 
-Production preparation rejects on fingerprint mismatch; it never accepts a silently changed algorithm under the same profile version.
+Production preparation computes and returns the selected seed's fingerprint. Profile-version regression tests, including the golden seed/fingerprint vector, reject accidental algorithm changes under the same profile version.
 
 ## 17. Tests
 
@@ -354,7 +355,8 @@ full 513×513 fingerprint
 repeat generation equality
 independence from Math.random/browser/render order
 all four candidate metrics/eligibility
-explicit seed rejection
+invalid Seed64 rejection
+arbitrary valid Seed64 deterministic repeatability
 no fallback seed behavior
 ```
 
@@ -365,8 +367,9 @@ Profile version 2 is an exact integer algorithm.
 Seed64 stays exact 64-bit.
 Canonical generation uses no floating-point decisions.
 One selected seed generates exactly once.
-Output fingerprint is 0xF2FA29BFD2AEB069 for the production vector.
-All four current starting candidates are eligible for the accepted seed.
+Every valid Seed64 is eligible for deterministic generation input; Terrain never substitutes another seed.
+Output fingerprint is 0xF2FA29BFD2AEB069 for golden seed 0x5EED5EED5EED5EED.
+All four current starting candidates are eligible for that golden seed.
 Suitability is pure Terrain/World data logic with no presentation dependency.
 Changing algorithm/output under the same profile version is forbidden.
 ```

@@ -83,6 +83,7 @@ A future persistence adapter serializes this snapshot; persistence never becomes
 - `specs/WORLD-SYSTEM-DESIGN.md`
 - `specs/WORLD-SPATIAL-CONTRACT.md`
 - `specs/MAP-AND-REGION-CONTRACT.md`
+- `specs/WORLD-SNAPSHOT-RESTORE-CONTRACT.md`
 
 ## Verification boundary
 

@@ -3,6 +3,7 @@ import type {
   CellRect,
   CellWorldBounds,
   ChunkCoord,
+  MapDefinitionId,
   RegionId,
   StartingCandidate,
   VertexCoord,
@@ -66,4 +67,31 @@ export interface MapDefinitionRead {
 export interface PreparedWorldDefinition {
   readonly mapDefinition: MapDefinitionRead;
   readonly spatial: WorldSpatialRead;
+}
+
+export interface CreateInitialWorldInput {
+  readonly prepared: PreparedWorldDefinition;
+  readonly selectedStartingRegionId: RegionId;
+  readonly eligibleStartingRegionIds: readonly RegionId[];
+}
+
+export interface MapStateRead {
+  readonly mapDefinitionId: MapDefinitionId;
+  readonly startingRegionId: RegionId;
+  readonly unlockedRegionIds: readonly RegionId[];
+}
+
+export interface MapStateSnapshot {
+  readonly mapDefinitionId: MapDefinitionId;
+  readonly mapProfileId: "production-v1";
+  readonly mapProfileVersion: 1;
+  readonly startingRegionId: RegionId;
+  readonly unlockedRegionIds: readonly RegionId[];
+}
+
+export interface WorldSystem {
+  readonly definition: PreparedWorldDefinition;
+  readonly spatial: WorldSpatialRead;
+  readonly mapState: MapStateRead;
+  captureSnapshot(): MapStateSnapshot;
 }

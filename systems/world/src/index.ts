@@ -11,10 +11,14 @@ export type {
 } from "./domain/coordinates";
 
 export type {
+  CreateInitialWorldInput,
   MapDefinitionRead,
+  MapStateRead,
+  MapStateSnapshot,
   PreparedWorldDefinition,
   WorldConstructionResult,
   WorldErrorCode,
   WorldReadResult,
   WorldSpatialRead,
+  WorldSystem,
 } from "./contracts/world-read";

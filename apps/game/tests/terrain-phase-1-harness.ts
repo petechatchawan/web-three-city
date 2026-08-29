@@ -7,7 +7,8 @@ import {
   type TerrainThreeProjection,
 } from "@web-three-city/terrain/composition";
 import { prepareProductionWorldDefinition } from "@web-three-city/world/composition";
-import { Raycaster, Vector2 } from "three";
+import { DirectionalLight, HemisphereLight, Raycaster, Vector2 } from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import {
   createScene,
   type SceneCameraConfig,
@@ -21,6 +22,15 @@ const OVERVIEW_HEIGHT_SPAN_FACTOR = 0.9;
 const OVERVIEW_DEPTH_SPAN_FACTOR = 0.9;
 const OVERVIEW_TARGET_Y_METERS = 0;
 const SEMANTIC_EDIT_DELTA = 1;
+const DIAGNOSTIC_SKY_COLOR = 0xdce7f2;
+const DIAGNOSTIC_GROUND_COLOR = 0x4a4338;
+const DIAGNOSTIC_HEMISPHERE_INTENSITY = 1.35;
+const DIAGNOSTIC_SUN_COLOR = 0xffffff;
+const DIAGNOSTIC_SUN_INTENSITY = 2.4;
+const DIAGNOSTIC_SUN_HORIZONTAL_FACTOR = 0.45;
+const DIAGNOSTIC_SUN_HEIGHT_FACTOR = 0.8;
+const INSPECTION_MIN_DISTANCE_FACTOR = 0.08;
+const INSPECTION_MAX_DISTANCE_FACTOR = 3;
 
 function requiredElement<T extends HTMLElement>(selector: string): T {
   const element = document.querySelector<T>(selector);
@@ -53,6 +63,72 @@ function createOverviewCameraConfig(input: {
       centerZ + maxSpanMeters * OVERVIEW_DEPTH_SPAN_FACTOR,
     ] as const,
     target: [centerX, OVERVIEW_TARGET_Y_METERS, centerZ] as const,
+  });
+}
+
+function installDiagnosticLighting(input: {
+  readonly scene: Extract<ScenePresentation, { readonly available: true }>;
+  readonly widthCells: number;
+  readonly heightCells: number;
+  readonly cellSizeMeters: number;
+}): () => void {
+  const widthMeters = input.widthCells * input.cellSizeMeters;
+  const depthMeters = input.heightCells * input.cellSizeMeters;
+  const maxSpanMeters = Math.max(widthMeters, depthMeters);
+  const centerX = widthMeters / 2;
+  const centerZ = depthMeters / 2;
+  const hemisphere = new HemisphereLight(
+    DIAGNOSTIC_SKY_COLOR,
+    DIAGNOSTIC_GROUND_COLOR,
+    DIAGNOSTIC_HEMISPHERE_INTENSITY,
+  );
+  const sun = new DirectionalLight(
+    DIAGNOSTIC_SUN_COLOR,
+    DIAGNOSTIC_SUN_INTENSITY,
+  );
+  sun.position.set(
+    centerX - maxSpanMeters * DIAGNOSTIC_SUN_HORIZONTAL_FACTOR,
+    maxSpanMeters * DIAGNOSTIC_SUN_HEIGHT_FACTOR,
+    centerZ - maxSpanMeters * DIAGNOSTIC_SUN_HORIZONTAL_FACTOR,
+  );
+  sun.target.position.set(centerX, OVERVIEW_TARGET_Y_METERS, centerZ);
+  input.scene.scene.add(hemisphere, sun, sun.target);
+
+  return () => {
+    input.scene.scene.remove(hemisphere, sun, sun.target);
+  };
+}
+
+function createInspectionControls(input: {
+  readonly scene: Extract<ScenePresentation, { readonly available: true }>;
+  readonly viewport: HTMLElement;
+  readonly widthCells: number;
+  readonly heightCells: number;
+  readonly cellSizeMeters: number;
+}): { readonly dispose: () => void } {
+  const widthMeters = input.widthCells * input.cellSizeMeters;
+  const depthMeters = input.heightCells * input.cellSizeMeters;
+  const maxSpanMeters = Math.max(widthMeters, depthMeters);
+  const centerX = widthMeters / 2;
+  const centerZ = depthMeters / 2;
+  const controls = new OrbitControls(input.scene.camera, input.viewport);
+  controls.target.set(centerX, OVERVIEW_TARGET_Y_METERS, centerZ);
+  controls.enableDamping = false;
+  controls.enablePan = true;
+  controls.enableRotate = true;
+  controls.enableZoom = true;
+  controls.screenSpacePanning = true;
+  controls.minDistance = maxSpanMeters * INSPECTION_MIN_DISTANCE_FACTOR;
+  controls.maxDistance = maxSpanMeters * INSPECTION_MAX_DISTANCE_FACTOR;
+  const render = (): void => input.scene.render();
+  controls.addEventListener("change", render);
+  controls.update();
+
+  return Object.freeze({
+    dispose(): void {
+      controls.removeEventListener("change", render);
+      controls.dispose();
+    },
   });
 }
 
@@ -136,12 +212,28 @@ function bootstrap(): void {
     return;
   }
 
+  const disposeDiagnosticLighting = installDiagnosticLighting({
+    scene,
+    widthCells: mapDefinition.widthCells,
+    heightCells: mapDefinition.heightCells,
+    cellSizeMeters: mapDefinition.cellSizeMeters,
+  });
+  const inspectionControls = createInspectionControls({
+    scene,
+    viewport,
+    widthCells: mapDefinition.widthCells,
+    heightCells: mapDefinition.heightCells,
+    cellSizeMeters: mapDefinition.cellSizeMeters,
+  });
+
   const projectionConstruction = createTerrainThreeProjection({
     mapDefinition,
     world: preparedWorld.spatial,
     terrain: terrain.read,
   });
   if (projectionConstruction.status !== "success") {
+    inspectionControls.dispose();
+    disposeDiagnosticLighting();
     scene.dispose();
     throw new Error(
       `Terrain projection failed: ${projectionConstruction.code}.`,
@@ -152,6 +244,8 @@ function bootstrap(): void {
   scene.scene.add(projection.root);
   scene.render();
 
+  root.dataset.diagnosticLighting = "ready";
+  root.dataset.inspectionControls = "ready";
   root.dataset.terrainSectors = String(projection.root.children.length);
   root.dataset.terrainRevision = String(terrain.read.revision());
   root.dataset.presentationRevision = String(terrain.read.revision());
@@ -197,7 +291,9 @@ function bootstrap(): void {
   window.addEventListener(
     "pagehide",
     () => {
+      inspectionControls.dispose();
       projection.dispose();
+      disposeDiagnosticLighting();
       scene.dispose();
     },
     { once: true },

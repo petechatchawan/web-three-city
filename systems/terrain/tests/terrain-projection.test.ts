@@ -5,6 +5,7 @@ import {
   Group,
   type Mesh,
   MeshBasicMaterial,
+  MeshStandardMaterial,
   Raycaster,
 } from "three";
 import { describe, expect, it, vi } from "vitest";
@@ -113,6 +114,8 @@ describe("Terrain Three.js resource ownership", () => {
       material,
     });
 
+    expect(material).toBeInstanceOf(MeshStandardMaterial);
+    expect(material).not.toBeInstanceOf(MeshBasicMaterial);
     expect(material.side).toBe(DoubleSide);
     expect(resource00.mesh.material).toBe(material);
     expect(resource10.mesh.material).toBe(material);
@@ -240,7 +243,7 @@ describe("TerrainThreeProjection lifecycle", () => {
     const terrain = createControlledTerrain();
     terrain.scriptRevisions([0, 0, 0, 1, 1]);
     const geometryDispose = vi.spyOn(BufferGeometry.prototype, "dispose");
-    const materialDispose = vi.spyOn(MeshBasicMaterial.prototype, "dispose");
+    const materialDispose = vi.spyOn(MeshStandardMaterial.prototype, "dispose");
 
     expect(() =>
       createTerrainThreeProjectionInternal(projectionInput(terrain.read)),

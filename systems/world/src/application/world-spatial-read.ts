@@ -1,4 +1,7 @@
-import type { WorldReadResult, WorldSpatialRead } from "../contracts/world-read";
+import type {
+  WorldReadResult,
+  WorldSpatialRead,
+} from "../contracts/world-read";
 import type {
   CellCoord,
   CellRect,
@@ -43,7 +46,10 @@ function success<T>(value: T): WorldReadResult<T> {
   return { status: "success", value };
 }
 
-function readCell<T>(cell: CellCoord, project: (validCell: CellCoord) => T): WorldReadResult<T> {
+function readCell<T>(
+  cell: CellCoord,
+  project: (validCell: CellCoord) => T,
+): WorldReadResult<T> {
   return isValidCell(cell) ? success(project(cell)) : OUT_OF_BOUNDS;
 }
 
@@ -72,10 +78,14 @@ export function createGridSpatialRead(): GridSpatialRead {
       return readCell(cell, cardinalNeighbors);
     },
     intersectingChunks(rect: CellRect): WorldReadResult<readonly ChunkCoord[]> {
-      return isValidCellRect(rect) ? success(intersectingChunks(rect)) : OUT_OF_BOUNDS;
+      return isValidCellRect(rect)
+        ? success(intersectingChunks(rect))
+        : OUT_OF_BOUNDS;
     },
     worldPositionToCell(position: WorldXZ): WorldReadResult<CellCoord> {
-      return isValidWorldPosition(position) ? success(worldPositionToCell(position)) : OUT_OF_BOUNDS;
+      return isValidWorldPosition(position)
+        ? success(worldPositionToCell(position))
+        : OUT_OF_BOUNDS;
     },
     cellBounds(cell: CellCoord): WorldReadResult<CellWorldBounds> {
       return readCell(cell, cellBounds);

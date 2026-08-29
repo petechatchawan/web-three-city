@@ -23,8 +23,14 @@ export interface CellChunkLocation {
   readonly local: CellCoord;
 }
 
-function isIntegerInRange(value: number, minInclusive: number, maxInclusive: number): boolean {
-  return Number.isInteger(value) && value >= minInclusive && value <= maxInclusive;
+function isIntegerInRange(
+  value: number,
+  minInclusive: number,
+  maxInclusive: number,
+): boolean {
+  return (
+    Number.isInteger(value) && value >= minInclusive && value <= maxInclusive
+  );
 }
 
 function compareChunk(left: ChunkCoord, right: ChunkCoord): number {
@@ -87,7 +93,10 @@ export function cellToChunk(cell: CellCoord): CellChunkLocation {
 function ownerAxis(vertexAxis: number): number {
   return vertexAxis === 0
     ? 0
-    : Math.min(Math.floor((vertexAxis - 1) / CHUNK_SIZE_CELLS), CHUNK_WIDTH - 1);
+    : Math.min(
+        Math.floor((vertexAxis - 1) / CHUNK_SIZE_CELLS),
+        CHUNK_WIDTH - 1,
+      );
 }
 
 export function ownerChunk(vertex: VertexCoord): ChunkCoord {

@@ -4,7 +4,10 @@ import type { ChunkCoord, VertexCoord } from "../src/index";
 
 const spatial = createGridSpatialRead();
 
-function expectSuccess<T>(result: { readonly status: string; readonly value?: T }): T {
+function expectSuccess<T>(result: {
+  readonly status: string;
+  readonly value?: T;
+}): T {
   expect(result.status).toBe("success");
   if (result.status !== "success" || result.value === undefined) {
     throw new Error("expected successful World spatial result");
@@ -50,18 +53,45 @@ describe("World GridTopology", () => {
 
   it("applies the normative south-west owner rule at seams and outer boundaries", () => {
     const seamCases: readonly [VertexCoord, ChunkCoord][] = [
-      [{ x: 0, z: 0 }, { x: 0, z: 0 }],
-      [{ x: 32, z: 1 }, { x: 0, z: 0 }],
-      [{ x: 33, z: 1 }, { x: 1, z: 0 }],
-      [{ x: 32, z: 32 }, { x: 0, z: 0 }],
-      [{ x: 64, z: 32 }, { x: 1, z: 0 }],
-      [{ x: 512, z: 0 }, { x: 15, z: 0 }],
-      [{ x: 0, z: 512 }, { x: 0, z: 15 }],
-      [{ x: 512, z: 512 }, { x: 15, z: 15 }],
+      [
+        { x: 0, z: 0 },
+        { x: 0, z: 0 },
+      ],
+      [
+        { x: 32, z: 1 },
+        { x: 0, z: 0 },
+      ],
+      [
+        { x: 33, z: 1 },
+        { x: 1, z: 0 },
+      ],
+      [
+        { x: 32, z: 32 },
+        { x: 0, z: 0 },
+      ],
+      [
+        { x: 64, z: 32 },
+        { x: 1, z: 0 },
+      ],
+      [
+        { x: 512, z: 0 },
+        { x: 15, z: 0 },
+      ],
+      [
+        { x: 0, z: 512 },
+        { x: 0, z: 15 },
+      ],
+      [
+        { x: 512, z: 512 },
+        { x: 15, z: 15 },
+      ],
     ];
 
     for (const [vertex, owner] of seamCases) {
-      expect(spatial.ownerChunk(vertex)).toEqual({ status: "success", value: owner });
+      expect(spatial.ownerChunk(vertex)).toEqual({
+        status: "success",
+        value: owner,
+      });
     }
 
     for (let k = 1; k <= 15; k += 1) {

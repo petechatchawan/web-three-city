@@ -7,6 +7,7 @@ import type {
   CellRect,
   CellWorldBounds,
   ChunkCoord,
+  RegionId,
   VertexCoord,
   WorldXZ,
 } from "../domain/coordinates";
@@ -24,6 +25,7 @@ import {
   touchingChunks,
   worldPositionToCell,
 } from "../domain/grid-topology";
+import type { PreparedRegionIndex } from "../domain/region-geometry";
 
 type GridSpatialRead = Pick<
   WorldSpatialRead,
@@ -91,4 +93,29 @@ export function createGridSpatialRead(): GridSpatialRead {
       return readCell(cell, cellBounds);
     },
   };
+}
+
+export function createWorldSpatialRead(
+  regions: PreparedRegionIndex,
+): WorldSpatialRead {
+  const grid = createGridSpatialRead();
+
+  return Object.freeze({
+    ...grid,
+    regionAtCell(cell: CellCoord): WorldReadResult<RegionId> {
+      if (!isValidCell(cell)) {
+        return OUT_OF_BOUNDS;
+      }
+      const regionId = regions.regionAt(cell);
+      return regionId === undefined
+        ? { status: "rejected", code: "WORLD_MAP_DEFINITION_INVALID" }
+        : success(regionId);
+    },
+    adjacentRegions(regionId: RegionId): WorldReadResult<readonly RegionId[]> {
+      const adjacent = regions.adjacentRegions(regionId);
+      return adjacent === undefined
+        ? { status: "rejected", code: "WORLD_REGION_UNKNOWN" }
+        : success(adjacent);
+    },
+  });
 }

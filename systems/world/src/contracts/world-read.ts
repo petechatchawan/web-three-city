@@ -4,6 +4,7 @@ import type {
   CellWorldBounds,
   ChunkCoord,
   RegionId,
+  StartingCandidate,
   VertexCoord,
   WorldXZ,
 } from "../domain/coordinates";
@@ -23,6 +24,14 @@ export type WorldReadResult<T> =
   | { readonly status: "success"; readonly value: T }
   | { readonly status: "rejected"; readonly code: WorldErrorCode };
 
+export type WorldConstructionResult<T> =
+  | { readonly status: "success"; readonly value: T }
+  | {
+      readonly status: "rejected";
+      readonly code: WorldErrorCode;
+      readonly detail?: Readonly<Record<string, unknown>>;
+    };
+
 export interface WorldSpatialRead {
   cellToChunk(cell: CellCoord): WorldReadResult<{
     readonly chunk: ChunkCoord;
@@ -37,4 +46,24 @@ export interface WorldSpatialRead {
   cellBounds(cell: CellCoord): WorldReadResult<CellWorldBounds>;
   regionAtCell(cell: CellCoord): WorldReadResult<RegionId>;
   adjacentRegions(region: RegionId): WorldReadResult<readonly RegionId[]>;
+}
+
+export interface MapDefinitionRead {
+  readonly mapDefinitionId: "web-three-city-production";
+  readonly profileId: "production-v1";
+  readonly profileVersion: 1;
+  readonly widthCells: 512;
+  readonly heightCells: 512;
+  readonly cellSizeMeters: 8;
+  readonly logicalChunkSizeCells: 32;
+  readonly terrainGenerationProfileId: "balanced-temperate-generation";
+  readonly terrainGenerationProfileVersion: 2;
+  readonly regionIds: readonly RegionId[];
+  readonly startingCandidates: readonly StartingCandidate[];
+  readonly acceptedTerrainSeeds: readonly string[];
+}
+
+export interface PreparedWorldDefinition {
+  readonly mapDefinition: MapDefinitionRead;
+  readonly spatial: WorldSpatialRead;
 }

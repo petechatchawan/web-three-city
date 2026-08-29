@@ -11,6 +11,9 @@ export type {
 } from "./domain/coordinates";
 
 export type {
+  MapDefinitionRead,
+  PreparedWorldDefinition,
+  WorldConstructionResult,
   WorldErrorCode,
   WorldReadResult,
   WorldSpatialRead,

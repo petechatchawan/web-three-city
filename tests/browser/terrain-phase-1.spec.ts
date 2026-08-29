@@ -19,6 +19,20 @@ test("projects production Terrain through real WebGL and semantic picking", asyn
   await expect(root).toHaveAttribute("data-pick-revision", "0");
   await expect(root).toHaveAttribute("data-diagnostic-lighting", "ready");
   await expect(root).toHaveAttribute("data-inspection-controls", "ready");
+  await expect(root).toHaveAttribute("data-debug-overlay", "ready");
+  await page.getByTestId("debug-cellGrid").check();
+  await expect(root).toHaveAttribute("data-debug-layers", "cellGrid");
+  await page.getByTestId("debug-renderSectors").check();
+  await expect(root).toHaveAttribute(
+    "data-debug-layers",
+    "cellGrid,renderSectors",
+  );
+  await page.getByTestId("debug-elevation").check();
+  await expect(root).toHaveAttribute(
+    "data-debug-layers",
+    "cellGrid,renderSectors,elevation",
+  );
+  await page.getByTestId("debug-elevation").uncheck();
 
   const viewport = page.locator("#terrain-viewport");
   const canvas = viewport.locator("canvas.app-canvas");

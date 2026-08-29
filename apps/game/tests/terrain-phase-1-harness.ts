@@ -1,9 +1,13 @@
 import { parseLogicalElevation } from "@web-three-city/terrain";
 import {
   createTerrainSystem,
+  createTerrainThreeDebugOverlay,
   createTerrainThreeProjection,
   prepareProductionTerrain,
+  type TerrainDebugLayer,
+  type TerrainDebugVisibility,
   type TerrainSemanticPickResult,
+  type TerrainThreeDebugOverlay,
   type TerrainThreeProjection,
 } from "@web-three-city/terrain/composition";
 import { prepareProductionWorldDefinition } from "@web-three-city/world/composition";
@@ -32,6 +36,14 @@ const DIAGNOSTIC_SUN_HORIZONTAL_FACTOR = 0.45;
 const DIAGNOSTIC_SUN_HEIGHT_FACTOR = 0.8;
 const INSPECTION_MIN_DISTANCE_FACTOR = 0.08;
 const INSPECTION_MAX_DISTANCE_FACTOR = 3;
+const DEBUG_LAYERS: readonly TerrainDebugLayer[] = Object.freeze([
+  "cellGrid",
+  "renderSectors",
+  "vertices",
+  "triangles",
+  "normals",
+  "elevation",
+]);
 
 function requiredElement<T extends HTMLElement>(selector: string): T {
   const element = document.querySelector<T>(selector);
@@ -129,6 +141,49 @@ function createInspectionControls(input: {
     dispose(): void {
       controls.removeEventListener("change", render);
       controls.dispose();
+    },
+  });
+}
+
+function installDebugControls(input: {
+  readonly root: HTMLElement;
+  readonly scene: Extract<ScenePresentation, { readonly available: true }>;
+  readonly overlay: TerrainThreeDebugOverlay;
+}): { readonly dispose: () => void } {
+  const listeners: Array<{
+    readonly element: HTMLInputElement;
+    readonly listener: () => void;
+  }> = [];
+
+  const updateDiagnostics = (): void => {
+    const visibility = input.overlay.visibility();
+    input.root.dataset.debugLayers = DEBUG_LAYERS.filter(
+      (layer) => visibility[layer],
+    ).join(",");
+  };
+
+  for (const layer of DEBUG_LAYERS) {
+    const element = requiredElement<HTMLInputElement>(
+      `[data-testid="debug-${layer}"]`,
+    );
+    const listener = (): void => {
+      const next: Partial<TerrainDebugVisibility> = {
+        [layer]: element.checked,
+      };
+      input.overlay.setVisibility(next);
+      updateDiagnostics();
+      input.scene.render();
+    };
+    element.addEventListener("change", listener);
+    listeners.push({ element, listener });
+  }
+  updateDiagnostics();
+
+  return Object.freeze({
+    dispose(): void {
+      for (const { element, listener } of listeners) {
+        element.removeEventListener("change", listener);
+      }
     },
   });
 }
@@ -238,12 +293,31 @@ function bootstrap(): void {
     );
   }
   const projection = projectionConstruction.value;
+  const debugConstruction = createTerrainThreeDebugOverlay({
+    mapDefinition,
+    world: preparedWorld.spatial,
+    terrain: terrain.read,
+  });
+  if (debugConstruction.status !== "success") {
+    projection.dispose();
+    inspectionControls.dispose();
+    disposeDiagnosticLighting();
+    scene.dispose();
+    throw new Error(`Terrain debug overlay failed: ${debugConstruction.code}.`);
+  }
+  const debugOverlay = debugConstruction.value;
+  const debugControls = installDebugControls({
+    root,
+    scene,
+    overlay: debugOverlay,
+  });
 
-  scene.scene.add(projection.root);
+  scene.scene.add(projection.root, debugOverlay.root);
   scene.render();
 
   root.dataset.diagnosticLighting = "ready";
   root.dataset.inspectionControls = "ready";
+  root.dataset.debugOverlay = "ready";
   root.dataset.terrainSectors = String(projection.root.children.length);
   root.dataset.terrainRevision = String(terrain.read.revision());
   root.dataset.presentationRevision = String(terrain.read.revision());
@@ -280,6 +354,7 @@ function bootstrap(): void {
     }
 
     projection.rebuild(mutation.value.changeSet);
+    debugOverlay.rebuild(mutation.value.changeSet);
     scene.render();
     root.dataset.terrainRevision = String(terrain.read.revision());
     root.dataset.presentationRevision = String(mutation.value.newRevision);
@@ -289,6 +364,8 @@ function bootstrap(): void {
   window.addEventListener(
     "pagehide",
     () => {
+      debugControls.dispose();
+      debugOverlay.dispose();
       inspectionControls.dispose();
       projection.dispose();
       disposeDiagnosticLighting();

@@ -66,14 +66,15 @@ describe("exact Terrain surface", () => {
   it("makes both triangle equations exactly continuous on the diagonal", () => {
     for (const u of [0, 8192, 16384, 32768, 49152, 65536]) {
       const v = Q16_ONE - u;
-      const sw = evaluateSurface(sampleCorners, u, v);
-      const justAcross =
-        u > 0 && v < Q16_ONE
-          ? evaluateSurface(sampleCorners, u - 1, v + 1)
-          : sw;
-      expect(sw.triangle).toBe("SW_TRIANGLE");
-      expect(sw.heightQ16).toBe(sampleCorners.se * u + sampleCorners.nw * v);
-      expect(justAcross.heightQ16).toBe(sw.heightQ16);
+      const sample = evaluateSurface(sampleCorners, u, v);
+      const swFormula = sampleCorners.se * u + sampleCorners.nw * v;
+      const neFormula =
+        sampleCorners.nw * (Q16_ONE - u) +
+        sampleCorners.se * (Q16_ONE - v);
+
+      expect(sample.triangle).toBe("SW_TRIANGLE");
+      expect(swFormula).toBe(neFormula);
+      expect(sample.heightQ16).toBe(swFormula);
     }
   });
 

@@ -67,6 +67,12 @@ export function materializeTerrain(
   return {
     status: "success",
     value: createTerrainState({
+      provenance: {
+        mapDefinitionId: input.mapDefinitionId,
+        generationProfileId: input.generationProfileId,
+        generationProfileVersion: input.generationProfileVersion,
+        selectedSeed64: input.selectedSeed64,
+      },
       records: staged,
       loadedChunkKeys: Array.from(
         { length: TERRAIN_LOGICAL_CHUNK_COUNT },

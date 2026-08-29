@@ -5,8 +5,9 @@ import type { CellCoord, RegionId, WorldSpatialRead } from "../src/index";
 function expectPrepared() {
   const result = prepareProductionWorldDefinition();
   if (result.status !== "success") {
+    const detail = JSON.stringify(result.detail ?? {});
     throw new Error(
-      `expected production World definition: ${result.code} ${JSON.stringify(result.detail ?? {})}`,
+      `expected production World definition: ${result.code} ${detail}`,
     );
   }
   return result.value;

@@ -14,11 +14,7 @@ const PRODUCTION_SEED = 0x5eed5eed5eed5eedn;
 describe("deterministic Terrain generation primitives", () => {
   it("derives the frozen five SplitMix64 layer seeds", () => {
     expect(deriveLayerSeeds(PRODUCTION_SEED, 5)).toEqual([
-      0xb6e4d3f7,
-      0x598b0c68,
-      0x2b21bfcf,
-      0x8eacdfe9,
-      0x9ef86ee7,
+      0xb6e4d3f7, 0x598b0c68, 0x2b21bfcf, 0x8eacdfe9, 0x9ef86ee7,
     ]);
   });
 

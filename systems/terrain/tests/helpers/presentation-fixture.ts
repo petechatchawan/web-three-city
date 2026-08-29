@@ -220,9 +220,11 @@ function parseTestElevation(value: number): LogicalElevation {
 
 export function createFunctionalTerrainRead(
   elevation: (x: number, z: number) => number,
-  revision: TerrainRevision = 0,
+  revision: TerrainRevision | (() => TerrainRevision) = 0,
   onElevationRead?: (vertex: VertexCoord) => void,
 ): TerrainAuthorityRead {
+  const currentRevision = (): TerrainRevision =>
+    typeof revision === "function" ? revision() : revision;
   const elevationAt = (
     vertex: VertexCoord,
   ): TerrainQueryResult<LogicalElevation> => {
@@ -264,13 +266,13 @@ export function createFunctionalTerrainRead(
         se: se.value,
         nw: nw.value,
         ne: ne.value,
-        revision,
+        revision: currentRevision(),
       },
     };
   };
 
   return {
-    revision: () => revision,
+    revision: currentRevision,
     completeness: () => "full",
     elevationAt,
     cellSurface,
@@ -294,7 +296,7 @@ export function createFunctionalTerrainRead(
         status: "success",
         value: {
           ...evaluateSurface(surface.value, uQ16, vQ16),
-          revision,
+          revision: currentRevision(),
         },
       };
     },

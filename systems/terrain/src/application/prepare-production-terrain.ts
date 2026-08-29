@@ -10,6 +10,8 @@ import type { TerrainFieldSource } from "../contracts/terrain-composition";
 import { fingerprintProductionTerrainField } from "../domain/generation/fingerprint";
 import {
   canonicalTerrainSeed64,
+  TERRAIN_GENERATION_MAX_ELEVATION,
+  TERRAIN_GENERATION_MIN_ELEVATION,
   TERRAIN_GENERATION_PROFILE_ID,
   TERRAIN_GENERATION_PROFILE_VERSION,
 } from "../domain/generation/profile";
@@ -20,8 +22,6 @@ import {
 import { evaluateStartingCandidates } from "./evaluate-starting-candidates";
 
 const PRODUCTION_VERTEX_AXIS_COUNT = 513;
-const MIN_PRODUCTION_ELEVATION = 32;
-const MAX_PRODUCTION_ELEVATION = 288;
 
 export interface PrepareProductionTerrainDependencies {
   generateField(seed64: bigint): ProductionTerrainField;
@@ -60,8 +60,8 @@ function validateProductionEnvelope(field: TerrainFieldSource): boolean {
       const elevation = field.elevationAt(x, z);
       if (
         !Number.isInteger(elevation) ||
-        elevation < MIN_PRODUCTION_ELEVATION ||
-        elevation > MAX_PRODUCTION_ELEVATION
+        elevation < TERRAIN_GENERATION_MIN_ELEVATION ||
+        elevation > TERRAIN_GENERATION_MAX_ELEVATION
       ) {
         return false;
       }

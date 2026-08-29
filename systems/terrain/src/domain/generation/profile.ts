@@ -1,5 +1,7 @@
 export const TERRAIN_GENERATION_PROFILE_ID = "balanced-temperate-generation";
 export const TERRAIN_GENERATION_PROFILE_VERSION = 2;
+export const TERRAIN_GENERATION_MIN_ELEVATION = 32;
+export const TERRAIN_GENERATION_MAX_ELEVATION = 288;
 export const TERRAIN_SEED64_PATTERN = /^0x[0-9A-F]{16}$/;
 export const TERRAIN_FINGERPRINT_PATTERN = /^0x[0-9A-F]{16}$/;
 

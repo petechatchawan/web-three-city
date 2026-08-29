@@ -18,6 +18,11 @@ import { restoreTerrain } from "../application/restore-terrain";
 import { TERRAIN_VERTEX_AXIS_COUNT } from "../application/world-index";
 import type { TerrainState } from "../domain/terrain-state";
 import { createTerrainThreeProjectionInternal } from "../presentation/three/projection/terrain-projection";
+import { createTerrainThreeDebugOverlayInternal } from "../presentation/three/debug/terrain-debug-overlay";
+import type {
+  CreateTerrainThreeDebugOverlayInput,
+  TerrainThreeDebugOverlayConstructionResult,
+} from "../contracts/terrain-debug";
 
 function createLiveTerrainRead(
   state: () => TerrainState,
@@ -106,4 +111,10 @@ export function createTerrainThreeProjectionCompositionInternal(
   input: CreateTerrainThreeProjectionInput,
 ): TerrainThreeProjectionConstructionResult {
   return createTerrainThreeProjectionInternal(input);
+}
+
+export function createTerrainThreeDebugOverlayCompositionInternal(
+  input: CreateTerrainThreeDebugOverlayInput,
+): TerrainThreeDebugOverlayConstructionResult {
+  return createTerrainThreeDebugOverlayInternal(input);
 }

@@ -1,0 +1,21 @@
+name: Phase 1 Plan Context
+
+on:
+  push:
+    branches:
+      - design/phase-1-world-map-terrain
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: design/phase-1-world-map-terrain
+      - name: Print remaining helper context
+        run: |
+          grep -n -C 4 'toVertexKey(' docs/superpowers/plans/2026-08-29-phase-1-world-map-terrain-implementation.md || true

@@ -32,8 +32,6 @@ jobs:
               raise SystemExit('plan status anchor missing')
           text = text.replace(draft, approved, 1)
 
-          # Task 6: keep the already-defined toVertexKey helper; make owner routing explicit
-          # without introducing a second World coordinate concept in Terrain domain.
           record_anchor = 'export interface CanonicalVertexRecord {\n  readonly vertexKey: number;'
           if record_anchor not in text:
               raise SystemExit('CanonicalVertexRecord anchor missing')
@@ -43,22 +41,15 @@ jobs:
               1,
           )
 
-          vertex_helper = '''export function toVertexKey(vertex: VertexCoord, vertexWidth: number): number {
-            return vertex.z * vertexWidth + vertex.x;
-          }
-          '''
+          vertex_helper = 'export function toVertexKey(vertex: VertexCoord, vertexWidth: number): number {\n  return vertex.z * vertexWidth + vertex.x;\n}\n'
           if vertex_helper not in text:
-              # normalize only for matching; preserve source content otherwise
-              simple = 'export function toVertexKey(vertex: VertexCoord, vertexWidth: number): number {\n  return vertex.z * vertexWidth + vertex.x;\n}\n'
-              if simple not in text:
-                  raise SystemExit('toVertexKey declaration missing')
+              raise SystemExit('toVertexKey declaration missing')
+          if 'export function toChunkKey(' not in text:
               text = text.replace(
-                  simple,
-                  simple + '\nexport function toChunkKey(chunk: ChunkCoord): number {\n  return chunk.z * 16 + chunk.x;\n}\n',
+                  vertex_helper,
+                  vertex_helper + '\nexport function toChunkKey(chunk: ChunkCoord): number {\n  return chunk.z * 16 + chunk.x;\n}\n',
                   1,
               )
-          else:
-              raise SystemExit('unexpected indented toVertexKey form')
 
           unresolved_reject = 'return rejectMaterialization(owner);'
           if unresolved_reject not in text:
@@ -86,7 +77,6 @@ jobs:
               1,
           )
 
-          # Task 9: inline the exact FNV-1a update instead of referring to an undefined helper.
           fnv = 'hash = fnv1a64Update(hash, valueBytes);'
           if fnv not in text:
               raise SystemExit('FNV helper call missing')
@@ -124,7 +114,6 @@ jobs:
               '''Use one owned `THREE.Group` plus one `Map<string, THREE.Mesh>`. Task 12 defines the package-private projection helpers consumed here:\n\n```ts\nfunction renderSectorKey(coord: RenderSectorCoord): string;\nfunction buildRenderSectorGeometry(coord: RenderSectorCoord): THREE.BufferGeometry;\nfunction computeDirtyRenderSectors(\n  changeSet: TerrainChangeSet,\n): readonly RenderSectorCoord[];\n```\n\n`rebuild(changeSet)` visits `computeDirtyRenderSectors(changeSet)` in canonical `(z,x)` order, disposes and replaces only those meshes, and preserves every unaffected sector. `dispose()` detaches/disposes every owned mesh exactly once, clears the map, and is idempotent.''',
           )
 
-          # Task 14: replace the illustrative undefined snapshot helpers with normative ordering.
           snapshot_token = 'chunks: canonicalChunks(state).map(captureChunkSnapshot),'
           snapshot_at = text.find(snapshot_token)
           if snapshot_at < 0:
@@ -136,7 +125,6 @@ jobs:
           snapshot_replacement = '''```text\nTerrainStateSnapshot field order:\nmapDefinitionId\ngenerationProfileId = balanced-temperate-generation\ngenerationProfileVersion = 2\nselectedSeed64\nrevision\ncompleteness\nchunks ordered by ChunkCoord (z,x)\n  -> chunkCoord\n  -> owned elevations ordered by owner-window VertexCoord (z,x)\n```\n\nImplement `captureTerrainSnapshot(state)` directly from private Terrain authority and explicit sorted copies; never depend on Map insertion order.'''
           text = text[:fence_start] + snapshot_replacement + text[fence_end + len('\n```'):]
 
-          # Task 15: remove two undefined convenience helpers by spelling the selection out.
           app_token = 'assertEligibleSelection('
           app_at = text.find(app_token)
           if app_at < 0:

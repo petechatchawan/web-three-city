@@ -1,15 +1,5 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import type {
-  CellCoord,
-  CellRect,
-  CellWorldBounds,
-  ChunkCoord,
-  RegionId,
-  VertexCoord,
-  WorldReadResult,
-  WorldSpatialRead,
-  WorldXZ,
-} from "@web-three-city/world";
+import type { VertexCoord, WorldSpatialRead } from "@web-three-city/world";
 import {
   createTerrainAuthoritySystem,
   type TerrainFieldSource,
@@ -32,13 +22,13 @@ function ownerAxis(axis: number): number {
     : Math.min(Math.floor((axis - 1) / CHUNK_SIZE), CHUNK_AXIS_COUNT - 1);
 }
 
-function worldRejection<T>(): WorldReadResult<T> {
-  return { status: "rejected", code: "WORLD_COORD_OUT_OF_BOUNDS" };
+function worldRejection() {
+  return { status: "rejected", code: "WORLD_COORD_OUT_OF_BOUNDS" } as const;
 }
 
 function createWorldSpatialRead(onOwnerLookup?: () => void): WorldSpatialRead {
   return {
-    cellToChunk(_cell: CellCoord) {
+    cellToChunk() {
       return worldRejection();
     },
     ownerChunk(vertex: VertexCoord) {
@@ -58,29 +48,29 @@ function createWorldSpatialRead(onOwnerLookup?: () => void): WorldSpatialRead {
         value: { x: ownerAxis(vertex.x), z: ownerAxis(vertex.z) },
       };
     },
-    incidentCells(_vertex: VertexCoord) {
+    incidentCells() {
       return worldRejection();
     },
-    touchingChunks(_vertex: VertexCoord) {
+    touchingChunks() {
       return worldRejection();
     },
-    cardinalNeighbors(_cell: CellCoord) {
+    cardinalNeighbors() {
       return worldRejection();
     },
-    intersectingChunks(_rect: CellRect) {
+    intersectingChunks() {
       return worldRejection();
     },
-    worldPositionToCell(_position: WorldXZ) {
+    worldPositionToCell() {
       return worldRejection();
     },
-    cellBounds(_cell: CellCoord) {
-      return worldRejection<CellWorldBounds>();
+    cellBounds() {
+      return worldRejection();
     },
-    regionAtCell(_cell: CellCoord) {
-      return worldRejection<RegionId>();
+    regionAtCell() {
+      return worldRejection();
     },
-    adjacentRegions(_region: RegionId) {
-      return worldRejection<readonly RegionId[]>();
+    adjacentRegions() {
+      return worldRejection();
     },
   };
 }

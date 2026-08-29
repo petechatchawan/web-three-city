@@ -11,10 +11,18 @@ import type { TerrainTriangle } from "../domain/surface";
 
 export interface TerrainSemanticPick {
   readonly cell: CellCoord;
+  readonly uQ16: number;
+  readonly vQ16: number;
+  readonly worldPosition: {
+    readonly x: number;
+    readonly y: number;
+    readonly z: number;
+  };
   readonly triangle: TerrainTriangle;
   readonly heightQ16: number;
   readonly riseX: number;
   readonly riseZ: number;
+  readonly runUnits: number;
   readonly revision: TerrainRevision;
 }
 

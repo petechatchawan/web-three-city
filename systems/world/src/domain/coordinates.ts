@@ -32,8 +32,13 @@ export interface CellWorldBounds {
   readonly zMaxExclusive: number;
 }
 
-export type RegionId = string;
-export type MapDefinitionId = string;
+export type RegionId = string & {
+  readonly __regionIdFlavor?: "RegionId";
+};
+
+export type MapDefinitionId = string & {
+  readonly __mapDefinitionIdFlavor?: "MapDefinitionId";
+};
 
 export interface StartingCandidate {
   readonly regionId: RegionId;

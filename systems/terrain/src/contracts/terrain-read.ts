@@ -1,4 +1,4 @@
-import type { ChunkCoord } from "@web-three-city/world";
+import type { ChunkCoord, VertexCoord } from "@web-three-city/world";
 import type { LogicalElevation } from "../domain/elevation";
 
 export type TerrainRevision = number & {
@@ -22,7 +22,5 @@ export type TerrainQueryResult<T> =
 export interface TerrainAuthorityRead {
   readonly revision: TerrainRevision;
   readonly completeness: TerrainCompleteness;
-  elevationAtVertex(
-    vertex: import("@web-three-city/world").VertexCoord,
-  ): TerrainQueryResult<LogicalElevation>;
+  elevationAtVertex(vertex: VertexCoord): TerrainQueryResult<LogicalElevation>;
 }

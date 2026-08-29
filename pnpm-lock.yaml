@@ -63,7 +63,13 @@ importers:
       '@web-three-city/world':
         specifier: workspace:*
         version: link:../world
+      three:
+        specifier: 0.179.1
+        version: 0.179.1
     devDependencies:
+      '@types/three':
+        specifier: 0.179.0
+        version: 0.179.0
       typescript:
         specifier: 5.9.2
         version: 5.9.2

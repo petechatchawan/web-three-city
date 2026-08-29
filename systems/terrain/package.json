@@ -13,10 +13,12 @@
   },
   "dependencies": {
     "@web-three-city/world": "workspace:*",
-    "@web-three-city/foundation-contracts": "workspace:*"
+    "@web-three-city/foundation-contracts": "workspace:*",
+    "three": "0.179.1"
   },
   "devDependencies": {
     "typescript": "5.9.2",
-    "vitest": "3.2.4"
+    "vitest": "3.2.4",
+    "@types/three": "0.179.0"
   }
 }

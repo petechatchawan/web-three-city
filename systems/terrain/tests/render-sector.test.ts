@@ -1,5 +1,13 @@
-import type { MapDefinitionRead } from "@web-three-city/world";
 import { describe, expect, it } from "vitest";
+import {
+  logicalElevationToMeters,
+  parseLogicalElevation,
+} from "../src/domain/elevation";
+import {
+  buildSectorGeometryData,
+  createSectorBufferGeometry,
+} from "../src/presentation/three/geometry/build-sector-geometry";
+import { readSectorSurface } from "../src/presentation/three/geometry/read-sector-surface";
 import {
   RENDER_SECTOR_CELLS,
   allRenderSectorCoords,
@@ -7,15 +15,11 @@ import {
   renderSectorCellBounds,
   renderSectorForCell,
 } from "../src/presentation/three/topology/render-sector";
-
-const TEST_MAP_DEFINITION: Pick<
-  MapDefinitionRead,
-  "widthCells" | "heightCells" | "cellSizeMeters"
-> = {
-  widthCells: 512,
-  heightCells: 512,
-  cellSizeMeters: 8,
-};
+import {
+  TEST_MAP_DEFINITION,
+  createFunctionalTerrainRead,
+  createPresentationWorldSpatialRead,
+} from "./helpers/presentation-fixture";
 
 describe("render-sector topology", () => {
   it("derives the frozen production layout from the map definition", () => {
@@ -102,5 +106,76 @@ describe("render-sector topology", () => {
     for (const count of counts.values()) {
       expect(count).toBe(RENDER_SECTOR_CELLS * RENDER_SECTOR_CELLS);
     }
+  });
+});
+
+describe("render-sector geometry", () => {
+  const layout = createRenderSectorLayout(TEST_MAP_DEFINITION);
+  const world = createPresentationWorldSpatialRead();
+
+  function geometryFor(
+    sector: { readonly x: number; readonly z: number },
+    elevation: (x: number, z: number) => number,
+  ) {
+    const terrain = createFunctionalTerrainRead(elevation);
+    const snapshot = readSectorSurface({ layout, sector, terrain });
+    return buildSectorGeometryData({ layout, sector, snapshot, world });
+  }
+
+  it("builds the exact derived vertex/index counts and fixed diagonal", () => {
+    const data = geometryFor({ x: 0, z: 0 }, () => 0);
+
+    expect(data.positions.length).toBe(65 * 65 * 3);
+    expect(data.normals.length).toBe(65 * 65 * 3);
+    expect(data.indices.length).toBe(8192 * 3);
+    expect([...data.indices.slice(0, 6)]).toEqual([0, 1, 65, 65, 1, 66]);
+  });
+
+  it("projects X/Z from MapDefinition and Y through Terrain elevation scale", () => {
+    const elevation = 40;
+    const parsedElevation = parseLogicalElevation(elevation);
+    if (parsedElevation.status !== "success") {
+      throw new Error("Expected valid test elevation.");
+    }
+    const data = geometryFor({ x: 0, z: 0 }, () => elevation);
+    const localX = 10;
+    const localZ = 20;
+    const offset = (localZ * layout.vertexAxisCount + localX) * 3;
+
+    expect([...data.positions.slice(offset, offset + 3)]).toEqual([
+      localX * TEST_MAP_DEFINITION.cellSizeMeters,
+      logicalElevationToMeters(parsedElevation.value),
+      localZ * TEST_MAP_DEFINITION.cellSizeMeters,
+    ]);
+  });
+
+  it("duplicates sector seam positions with numerically equal world coordinates", () => {
+    const elevation = (x: number, z: number) => (x + z) % 100;
+    const west = geometryFor({ x: 0, z: 0 }, elevation);
+    const east = geometryFor({ x: 1, z: 0 }, elevation);
+    const localZ = 32;
+    const westOffset =
+      (localZ * layout.vertexAxisCount + layout.cellsPerSector) * 3;
+    const eastOffset = localZ * layout.vertexAxisCount * 3;
+
+    expect([...west.positions.slice(westOffset, westOffset + 3)]).toEqual([
+      ...east.positions.slice(eastOffset, eastOffset + 3),
+    ]);
+    expect([...west.normals.slice(westOffset, westOffset + 3)]).toEqual([
+      ...east.normals.slice(eastOffset, eastOffset + 3),
+    ]);
+  });
+
+  it("creates BufferGeometry with deterministic bounds", () => {
+    const data = geometryFor({ x: 0, z: 0 }, () => 0);
+    const geometry = createSectorBufferGeometry(data);
+
+    expect(geometry.getAttribute("position").count).toBe(65 * 65);
+    expect(geometry.getAttribute("normal").count).toBe(65 * 65);
+    expect(geometry.index?.count).toBe(8192 * 3);
+    expect(geometry.boundingBox).not.toBeNull();
+    expect(geometry.boundingSphere).not.toBeNull();
+
+    geometry.dispose();
   });
 });

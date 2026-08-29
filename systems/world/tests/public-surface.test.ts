@@ -7,6 +7,12 @@ import type {
 } from "../src/index";
 
 describe("World public read surface", () => {
+  it("loads the deliberate World root module", async () => {
+    const root = await import("../src/index");
+
+    expect(root).toBeDefined();
+  });
+
   it("defines World-owned coordinates without a command surface", () => {
     const cell: CellCoord = { x: 0, z: 0 };
     const vertex: VertexCoord = { x: 512, z: 512 };

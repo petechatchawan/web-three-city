@@ -24,6 +24,7 @@ export type {
 
 export type {
   CityRepositoryFailureCode,
+  CitySessionDependencies,
   CityRepositoryResult,
   CitySaveRepository,
   Clock,
@@ -32,3 +33,13 @@ export type {
   TerrainLifecyclePort,
   WorldLifecyclePort,
 } from "./contracts/ports";
+
+export { decodeCitySaveV1, summarizeCitySave } from "./contracts/save-codec";
+
+export type {
+  CitySaveDecodeResult,
+  CitySessionFailureCode,
+  CitySessionResult,
+  CitySessionService,
+  ResumeCityResult,
+} from "./contracts/city-session";

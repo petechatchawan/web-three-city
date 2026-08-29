@@ -76,3 +76,11 @@ export interface Clock {
 export interface IdSource {
   nextCityId(): CityId;
 }
+
+export interface CitySessionDependencies {
+  readonly world: WorldLifecyclePort;
+  readonly terrain: TerrainLifecyclePort;
+  readonly repository: CitySaveRepository;
+  readonly clock: Clock;
+  readonly ids: IdSource;
+}

@@ -15,10 +15,12 @@ describe("city-session package boundary", () => {
     expect(Object.keys(root).sort()).toEqual([
       "CITY_NAME_MAX_LENGTH",
       "CITY_SAVE_SCHEMA_VERSION",
+      "decodeCitySaveV1",
       "parseCityId",
       "parseCityName",
+      "summarizeCitySave",
     ]);
-    expect(Object.keys(composition)).toEqual([]);
+    expect(Object.keys(composition)).toEqual(["createCitySessionService"]);
   });
 
   it("depends on system root contracts without acquiring app or system composition packages", () => {

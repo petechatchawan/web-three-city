@@ -5,9 +5,7 @@ function u32(value: number): number {
 }
 
 export function hash32(seed: number, gx: number, gz: number): number {
-  let hash = u32(
-    seed ^ Math.imul(gx, 0x9e3779b1) ^ Math.imul(gz, 0x85ebca77),
-  );
+  let hash = u32(seed ^ Math.imul(gx, 0x9e3779b1) ^ Math.imul(gz, 0x85ebca77));
   hash = u32(hash ^ (hash >>> 16));
   hash = u32(Math.imul(hash, 0x7feb352d));
   hash = u32(hash ^ (hash >>> 15));

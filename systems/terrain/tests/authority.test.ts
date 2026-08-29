@@ -9,12 +9,19 @@ import {
   type CanonicalVertexRecord,
 } from "../src/domain/terrain-state";
 import { createTerrainAuthorityRead } from "../src/application/terrain-read";
-import { parseLogicalElevation } from "../src/index";
+import { logicalElevationToMeters, parseLogicalElevation } from "../src/index";
 
 const VERTEX_SIZE = 513;
 const CHUNK_SIZE = 32;
 const CHUNK_AXIS_COUNT = 16;
 const TOTAL_VERTICES = VERTEX_SIZE * VERTEX_SIZE;
+
+const PROVENANCE = {
+  mapDefinitionId: "web-three-city-production",
+  generationProfileId: "balanced-temperate-generation",
+  generationProfileVersion: 2,
+  selectedSeed64: "0x5EED5EED5EED5EED",
+} as const;
 
 function ownerAxis(axis: number): number {
   return axis === 0
@@ -90,10 +97,7 @@ function fullField(): TerrainFieldSource {
 function constructionInput(world: WorldSpatialRead, source = fullField()) {
   return {
     world,
-    mapDefinitionId: "web-three-city-production",
-    generationProfileId: "balanced-temperate-generation",
-    generationProfileVersion: 2,
-    selectedSeed64: "0x5EED5EED5EED5EED",
+    ...PROVENANCE,
     source,
   } as const;
 }
@@ -135,7 +139,7 @@ describe("Terrain canonical authority", () => {
     const parsed = parseLogicalElevation(8);
     expect(parsed).toEqual({ status: "success", value: 8 });
     if (parsed.status !== "success") return;
-    expect(parsed.value * 0.25).toBe(2);
+    expect(logicalElevationToMeters(parsed.value)).toBe(2);
   });
 
   it("distinguishes out-of-bounds from unavailable authority", () => {
@@ -156,10 +160,13 @@ describe("Terrain canonical authority", () => {
       elevation: elevation.value,
     };
     const partial = createTerrainState({
+      provenance: PROVENANCE,
       records: [record],
       loadedChunkKeys: [0],
       expectedChunkCount: CHUNK_AXIS_COUNT * CHUNK_AXIS_COUNT,
     });
+    expect(partial.provenance).toEqual(PROVENANCE);
+
     const partialRead = createTerrainAuthorityRead({
       state: partial,
       world: createWorldSpatialRead(),

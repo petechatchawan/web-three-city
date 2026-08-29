@@ -24,6 +24,21 @@ export type RegionPreparationResult =
       readonly detail: Readonly<Record<string, unknown>>;
     };
 
+interface NormalizeRunsResultSuccess {
+  readonly status: "success";
+  readonly value: readonly RegionCellRun[];
+}
+
+interface NormalizeRunsResultRejected {
+  readonly status: "rejected";
+  readonly reason: "geometry";
+  readonly detail: Readonly<Record<string, unknown>>;
+}
+
+type NormalizeRunsResult =
+  | NormalizeRunsResultSuccess
+  | NormalizeRunsResultRejected;
+
 export interface PreparedRegionIndex {
   readonly regionIds: readonly RegionId[];
   regionAt(cell: CellCoord): RegionId | undefined;
@@ -45,7 +60,7 @@ function normalizeRuns(
   region: RegionDefinition,
   widthCells: number,
   heightCells: number,
-): RegionPreparationResult | readonly RegionCellRun[] {
+): NormalizeRunsResult {
   for (const run of region.runs) {
     if (
       !Number.isInteger(run.z) ||
@@ -57,7 +72,11 @@ function normalizeRuns(
       run.xEndExclusive > widthCells ||
       run.xStartInclusive >= run.xEndExclusive
     ) {
-      return reject("geometry", { regionId: region.id, run });
+      return {
+        status: "rejected",
+        reason: "geometry",
+        detail: Object.freeze({ regionId: region.id, run }),
+      };
     }
   }
 
@@ -81,7 +100,7 @@ function normalizeRuns(
     normalized.push(Object.freeze({ ...run }));
   }
 
-  return Object.freeze(normalized);
+  return { status: "success", value: Object.freeze(normalized) };
 }
 
 function cellIndex(cell: CellCoord, widthCells: number): number {
@@ -172,11 +191,11 @@ export function prepareRegionIndex(
       return reject("geometry", { regionIndex });
     }
     const normalized = normalizeRuns(region, widthCells, heightCells);
-    if (!Array.isArray(normalized)) {
+    if (normalized.status === "rejected") {
       return normalized;
     }
 
-    for (const run of normalized) {
+    for (const run of normalized.value) {
       for (let x = run.xStartInclusive; x < run.xEndExclusive; x += 1) {
         const index = run.z * widthCells + x;
         const existingOwner = ownerByCell[index] ?? -1;

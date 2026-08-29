@@ -7,7 +7,6 @@ import {
   type TerrainDebugLayer,
   type TerrainDebugVisibility,
   type TerrainThreeDebugOverlay,
-  type TerrainThreeProjection,
 } from "@web-three-city/terrain/composition";
 import { prepareProductionWorldDefinition } from "@web-three-city/world/composition";
 import { DirectionalLight, HemisphereLight } from "three";

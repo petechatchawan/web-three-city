@@ -3,7 +3,6 @@ import {
   parseCityId,
   parseCityName,
   type CitySaveSummary,
-  type NewCityPreview,
 } from "@web-three-city/orchestration-city-session";
 import { createHomeScreen } from "../src/ui/screens/create-home-screen";
 import { createLoadCityScreen } from "../src/ui/screens/create-load-city-screen";
@@ -35,19 +34,6 @@ function summary(
     fingerprint: "0x1111222233334444",
     terrainRevision: 3,
     startingRegionId: "R06",
-  };
-}
-
-function preview(): NewCityPreview {
-  const name = parseCityName("Harbor City");
-  if (name.status !== "success") throw new Error("Invalid preview name.");
-  return {
-    name: name.value,
-    seed64: "0x0123456789ABCDEF",
-    fingerprint: "0xF2FA29BFD2AEB069",
-    eligibleStartingRegionIds: ["R06", "R08", "R11"],
-    preparedWorld: {} as NewCityPreview["preparedWorld"],
-    preparedTerrain: {} as NewCityPreview["preparedTerrain"],
   };
 }
 

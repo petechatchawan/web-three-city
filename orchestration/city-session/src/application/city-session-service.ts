@@ -1,4 +1,3 @@
-import type { RegionId } from "@web-three-city/world";
 import { parseCityName } from "../contracts/identity";
 import { decodeCitySaveV1 } from "../contracts/save-codec";
 import type {

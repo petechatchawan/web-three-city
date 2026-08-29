@@ -93,16 +93,16 @@ describe("city camera functional core", () => {
 });
 
 class FakeInputSurface {
-  readonly listeners = new Map<string, Set<(event: any) => void>>();
+  readonly listeners = new Map<string, Set<(event: unknown) => void>>();
   readonly captured = new Set<number>();
   readonly style = { touchAction: "" };
   clientHeight = 500;
-  addEventListener(type: string, listener: (event: any) => void): void {
+  addEventListener(type: string, listener: (event: unknown) => void): void {
     const listeners = this.listeners.get(type) ?? new Set();
     listeners.add(listener);
     this.listeners.set(type, listeners);
   }
-  removeEventListener(type: string, listener: (event: any) => void): void {
+  removeEventListener(type: string, listener: (event: unknown) => void): void {
     this.listeners.get(type)?.delete(listener);
   }
   setPointerCapture(id: number): void {

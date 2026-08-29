@@ -10,10 +10,7 @@ import {
 import { createCityCamera } from "../presentation/camera/create-city-camera";
 import { createCitySceneCameraConfig } from "../presentation/camera/create-city-scene-camera-config";
 import { createCityLighting } from "../presentation/create-city-lighting";
-import {
-  createScene,
-  type ScenePresentation,
-} from "../presentation/create-scene";
+import { createScene } from "../presentation/create-scene";
 import {
   createCityInputController,
   type CityInputController,
@@ -75,25 +72,23 @@ export function createLiveCityExperience(input: {
 }): LiveCityExperience {
   const map = input.session.world.definition.mapDefinition;
   let disposed = false;
-  let scene: ScenePresentation | undefined;
   let lighting: ReturnType<typeof createCityLighting> | undefined;
   let overlay: TerrainThreeDebugOverlay | undefined;
   let liveProjection: TerrainThreeProjection | undefined;
   let inputController: CityInputController | undefined;
-  let screen: GameScreenHandle | undefined;
   let saving = false;
 
   const updateDebugDiagnostics = (): void => {
-    if (screen === undefined || overlay === undefined) return;
+    if (overlay === undefined) return;
     screen.element.dataset.debugLayers = debugLayers(overlay);
   };
 
   const requestRender = (): void => {
-    if (scene?.available === true) scene.render();
+    if (scene.available) scene.render();
   };
 
   const save = async (): Promise<void> => {
-    if (saving || disposed || screen === undefined) return;
+    if (saving || disposed) return;
     saving = true;
     screen.setSaving(true);
     screen.setSaveStatus("Saving…");
@@ -116,7 +111,7 @@ export function createLiveCityExperience(input: {
     requestRender();
   };
 
-  screen = createGameScreen({
+  const screen = createGameScreen({
     cityName: input.session.metadata.name,
     seed64: input.session.terrain.captureSnapshot().selectedSeed64,
     revision: input.session.terrain.read.revision(),
@@ -127,7 +122,7 @@ export function createLiveCityExperience(input: {
   input.mount.replaceChildren(screen.element);
   input.mount.dataset.liveRuntime = "booting";
 
-  scene = createScene(screen.viewport, createCitySceneCameraConfig(map));
+  const scene = createScene(screen.viewport, createCitySceneCameraConfig(map));
   if (!scene.available) {
     screen.setPickStatus("WebGL unavailable");
     input.mount.dataset.liveRuntime = "unavailable";
@@ -166,7 +161,7 @@ export function createLiveCityExperience(input: {
       camera,
       requestRender,
       onTap(clientX, clientY): void {
-        writePick(screen!, picker.pickClientPoint(clientX, clientY));
+        writePick(screen, picker.pickClientPoint(clientX, clientY));
       },
     });
     screen.element.dataset.inputController = "ready";
@@ -194,9 +189,9 @@ export function createLiveCityExperience(input: {
       overlay?.dispose();
       liveProjection?.dispose();
       lighting?.dispose();
-      scene?.dispose();
-      screen?.dispose();
-      screen?.element.remove();
+      scene.dispose();
+      screen.dispose();
+      screen.element.remove();
       input.mount.dataset.liveRuntime = "disposed";
     },
   };

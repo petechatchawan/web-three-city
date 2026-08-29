@@ -5,7 +5,7 @@ import {
   Group,
   LineBasicMaterial,
   LineSegments,
-  Material,
+  type Material,
   Mesh,
   MeshBasicMaterial,
   Points,

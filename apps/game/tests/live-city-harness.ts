@@ -66,8 +66,7 @@ const session: LiveCitySession = {
 
 let saveCount = 0;
 let exitCount = 0;
-let experience: ReturnType<typeof createLiveCityExperience> | undefined;
-experience = createLiveCityExperience({
+const experience = createLiveCityExperience({
   mount,
   session,
   onSave: async () => {

@@ -6,13 +6,17 @@ import {
   prepareProductionTerrain,
   type TerrainDebugLayer,
   type TerrainDebugVisibility,
-  type TerrainSemanticPickResult,
   type TerrainThreeDebugOverlay,
   type TerrainThreeProjection,
 } from "@web-three-city/terrain/composition";
 import { prepareProductionWorldDefinition } from "@web-three-city/world/composition";
-import { DirectionalLight, HemisphereLight, Raycaster, Vector2 } from "three";
-import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { DirectionalLight, HemisphereLight } from "three";
+import { createCityCamera } from "../src/presentation/camera/create-city-camera";
+import { createCityInputController } from "../src/presentation/input/create-city-input-controller";
+import {
+  createTerrainPointerPicker,
+  type TerrainPointerPickResult,
+} from "../src/presentation/interaction/create-terrain-pointer-picker";
 import {
   createScene,
   type SceneCameraConfig,
@@ -34,8 +38,6 @@ const DIAGNOSTIC_SUN_COLOR = 0xffffff;
 const DIAGNOSTIC_SUN_INTENSITY = 2.4;
 const DIAGNOSTIC_SUN_HORIZONTAL_FACTOR = 0.45;
 const DIAGNOSTIC_SUN_HEIGHT_FACTOR = 0.8;
-const INSPECTION_MIN_DISTANCE_FACTOR = 0.08;
-const INSPECTION_MAX_DISTANCE_FACTOR = 3;
 const DEBUG_LAYERS: readonly TerrainDebugLayer[] = Object.freeze([
   "cellGrid",
   "renderSectors",
@@ -112,39 +114,6 @@ function installDiagnosticLighting(input: {
   };
 }
 
-function createInspectionControls(input: {
-  readonly scene: Extract<ScenePresentation, { readonly available: true }>;
-  readonly viewport: HTMLElement;
-  readonly widthCells: number;
-  readonly heightCells: number;
-  readonly cellSizeMeters: number;
-}): { readonly dispose: () => void } {
-  const widthMeters = input.widthCells * input.cellSizeMeters;
-  const depthMeters = input.heightCells * input.cellSizeMeters;
-  const maxSpanMeters = Math.max(widthMeters, depthMeters);
-  const centerX = widthMeters / 2;
-  const centerZ = depthMeters / 2;
-  const controls = new OrbitControls(input.scene.camera, input.viewport);
-  controls.target.set(centerX, OVERVIEW_TARGET_Y_METERS, centerZ);
-  controls.enableDamping = false;
-  controls.enablePan = true;
-  controls.enableRotate = true;
-  controls.enableZoom = true;
-  controls.screenSpacePanning = true;
-  controls.minDistance = maxSpanMeters * INSPECTION_MIN_DISTANCE_FACTOR;
-  controls.maxDistance = maxSpanMeters * INSPECTION_MAX_DISTANCE_FACTOR;
-  const render = (): void => input.scene.render();
-  controls.addEventListener("change", render);
-  controls.update();
-
-  return Object.freeze({
-    dispose(): void {
-      controls.removeEventListener("change", render);
-      controls.dispose();
-    },
-  });
-}
-
 function installDebugControls(input: {
   readonly root: HTMLElement;
   readonly scene: Extract<ScenePresentation, { readonly available: true }>;
@@ -190,7 +159,7 @@ function installDebugControls(input: {
 
 function writePickDiagnostics(
   root: HTMLElement,
-  pick: TerrainSemanticPickResult,
+  pick: TerrainPointerPickResult,
 ): void {
   root.dataset.pickStatus = pick.status;
   delete root.dataset.pickCell;
@@ -203,16 +172,32 @@ function writePickDiagnostics(
   root.dataset.pickRevision = String(pick.value.revision);
 }
 
-function refreshSemanticPick(input: {
+function writeCameraDiagnostics(
+  root: HTMLElement,
+  camera: ReturnType<typeof createCityCamera>,
+): void {
+  const state = camera.state();
+  root.dataset.cameraTarget = [state.targetX, state.targetY, state.targetZ]
+    .map((value) => value.toFixed(3))
+    .join(",");
+  root.dataset.cameraDistance = state.distance.toFixed(3);
+  root.dataset.cameraAzimuth = state.azimuthRadians.toFixed(6);
+  root.dataset.cameraElevation = state.elevationRadians.toFixed(6);
+}
+
+function pickViewportCenter(input: {
   readonly root: HTMLElement;
-  readonly scene: Extract<ScenePresentation, { readonly available: true }>;
-  readonly projection: TerrainThreeProjection;
+  readonly viewport: HTMLElement;
+  readonly picker: ReturnType<typeof createTerrainPointerPicker>;
 }): void {
-  input.scene.scene.updateMatrixWorld(true);
-  input.scene.camera.updateMatrixWorld(true);
-  const raycaster = new Raycaster();
-  raycaster.setFromCamera(new Vector2(0, 0), input.scene.camera);
-  writePickDiagnostics(input.root, input.projection.pick(raycaster));
+  const rect = input.viewport.getBoundingClientRect();
+  writePickDiagnostics(
+    input.root,
+    input.picker.pickClientPoint(
+      rect.left + rect.width / 2,
+      rect.top + rect.height / 2,
+    ),
+  );
 }
 
 function bootstrap(): void {
@@ -271,12 +256,9 @@ function bootstrap(): void {
     heightCells: mapDefinition.heightCells,
     cellSizeMeters: mapDefinition.cellSizeMeters,
   });
-  const inspectionControls = createInspectionControls({
-    scene,
-    viewport,
-    widthCells: mapDefinition.widthCells,
-    heightCells: mapDefinition.heightCells,
-    cellSizeMeters: mapDefinition.cellSizeMeters,
+  const productionCamera = createCityCamera({
+    camera: scene.camera,
+    map: mapDefinition,
   });
 
   const projectionConstruction = createTerrainThreeProjection({
@@ -285,7 +267,6 @@ function bootstrap(): void {
     terrain: terrain.read,
   });
   if (projectionConstruction.status !== "success") {
-    inspectionControls.dispose();
     disposeDiagnosticLighting();
     scene.dispose();
     throw new Error(
@@ -300,7 +281,6 @@ function bootstrap(): void {
   });
   if (debugConstruction.status !== "success") {
     projection.dispose();
-    inspectionControls.dispose();
     disposeDiagnosticLighting();
     scene.dispose();
     throw new Error(`Terrain debug overlay failed: ${debugConstruction.code}.`);
@@ -311,17 +291,42 @@ function bootstrap(): void {
     scene,
     overlay: debugOverlay,
   });
+  const pointerPicker = createTerrainPointerPicker({
+    viewport,
+    camera: scene.camera,
+    projection,
+  });
+  let tapCount = 0;
+  const requestRender = (): void => {
+    writeCameraDiagnostics(root, productionCamera);
+    scene.render();
+  };
+  const inputController = createCityInputController({
+    viewport,
+    camera: productionCamera,
+    requestRender,
+    onTap(clientX, clientY): void {
+      tapCount += 1;
+      root.dataset.tapCount = String(tapCount);
+      writePickDiagnostics(
+        root,
+        pointerPicker.pickClientPoint(clientX, clientY),
+      );
+    },
+  });
 
   scene.scene.add(projection.root, debugOverlay.root);
-  scene.render();
+  requestRender();
 
   root.dataset.diagnosticLighting = "ready";
-  root.dataset.inspectionControls = "ready";
+  root.dataset.productionCamera = "ready";
+  root.dataset.inputController = "ready";
+  root.dataset.tapCount = "0";
   root.dataset.debugOverlay = "ready";
   root.dataset.terrainSectors = String(projection.root.children.length);
   root.dataset.terrainRevision = String(terrain.read.revision());
   root.dataset.presentationRevision = String(terrain.read.revision());
-  refreshSemanticPick({ root, scene, projection });
+  pickViewportCenter({ root, viewport, picker: pointerPicker });
   root.dataset.presentation = "ready";
 
   rebuildButton.addEventListener("click", () => {
@@ -355,18 +360,18 @@ function bootstrap(): void {
 
     projection.rebuild(mutation.value.changeSet);
     debugOverlay.rebuild(mutation.value.changeSet);
-    scene.render();
+    requestRender();
     root.dataset.terrainRevision = String(terrain.read.revision());
     root.dataset.presentationRevision = String(mutation.value.newRevision);
-    refreshSemanticPick({ root, scene, projection });
+    pickViewportCenter({ root, viewport, picker: pointerPicker });
   });
 
   window.addEventListener(
     "pagehide",
     () => {
+      inputController.dispose();
       debugControls.dispose();
       debugOverlay.dispose();
-      inspectionControls.dispose();
       projection.dispose();
       disposeDiagnosticLighting();
       scene.dispose();

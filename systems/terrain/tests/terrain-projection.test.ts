@@ -3,7 +3,7 @@ import {
   BufferGeometry,
   DoubleSide,
   Group,
-  Mesh,
+  type Mesh,
   MeshBasicMaterial,
   Raycaster,
 } from "three";

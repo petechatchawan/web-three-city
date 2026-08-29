@@ -1,6 +1,6 @@
 # P1-F Three.js Presentation Architecture Design
 
-- **Status:** PROPOSED — OWNER REVIEW REQUIRED
+- **Status:** APPROVED — OWNER APPROVED 2026-08-30
 - **Date:** 2026-08-30
 - **Scope:** P1-F Three.js Render Sectors + Semantic Picking
 - **Owner:** `systems/terrain`
@@ -61,6 +61,29 @@ runtime event bus
 ```
 
 These are deferred optimization/product concerns. P1-F is a deterministic synchronous derived projection.
+
+### 3.1 Owner execution constraints
+
+The owner additionally requires the implementation to optimize for maintainability, developer experience, and functional-programming style:
+
+```text
+functional core / imperative shell
+no scattered magic numbers
+no class hierarchy for application-owned presentation code
+immutable inputs/results where practical
+side effects isolated to Three.js resource and projection lifecycle boundaries
+small explicit functions over generic framework abstractions
+fail-fast invariants instead of silent fallback
+```
+
+Frozen numeric values are not forbidden, but each value has exactly one named owner. Presentation code must derive secondary values rather than repeating literals. In particular:
+
+- `RENDER_SECTOR_CELLS = 64` is owned by render-sector topology; vertex counts, sector counts, and index counts are derived from it.
+- World dimensions and `cellSizeMeters` come from `MapDefinitionRead`; geometry/picking do not repeat `512` or `8` as local magic numbers.
+- vertical conversion uses Terrain-owned `logicalElevationToMeters()` rather than repeating `0.25`.
+- Q16 conversion uses Terrain-owned `Q16_ONE`; the browser pick upper bound is derived as `Q16_ONE - 1`.
+
+Three.js itself is class-based, but P1-F-owned code uses factory functions, pure transforms, immutable records, and closure-owned lifecycle state rather than introducing additional application classes.
 
 ## 4. External best-practice constraints
 
@@ -248,15 +271,35 @@ A normal local mutation must not default to rebuilding all 64 sectors. A mutatio
 
 ## 9. Geometry subsystem
 
-### 9.1 Responsibility
+### 9.0 Functional read boundary
 
-`geometry/build-sector-geometry.ts` is a pure projection builder in the architectural sense:
+`geometry/read-sector-surface.ts` performs the only Terrain elevation read pass required to build one render sector. It captures the sector's 65×65 visible vertices plus the clipped one-vertex halo needed by global normal computation. The resulting snapshot hides its internal typed storage behind immutable read functions and records one Terrain revision.
 
 ```text
-RenderSectorCoord + TerrainAuthorityRead
+TerrainAuthorityRead
+        ↓ one bounded read pass
+SectorSurfaceSnapshot
+        ↓
+  pure geometry + normal transforms
+```
+
+This prevents geometry and normal code from independently re-querying the same canonical vertices thousands of times and gives both calculations one coherent read snapshot. For a full interior sector, the maximum elevation-read footprint is 67×67 vertices rather than repeated per-face/per-vertex Terrain queries.
+
+If the Terrain revision changes during snapshot capture, construction fails loudly as an invariant violation; a mixed-revision presentation snapshot is never published.
+
+### 9.1 Responsibility
+
+`geometry/build-sector-geometry.ts` separates deterministic data generation from Three.js object creation:
+
+```text
+RenderSectorCoord + SectorSurfaceSnapshot + RenderSectorLayout
                     ↓
+          SectorGeometryData
+                    ↓ thin Three.js adapter
              THREE.BufferGeometry
 ```
+
+`SectorGeometryData` contains typed position/normal/index arrays and is generated without a Scene, Mesh, Material, Renderer, DOM access, or mutable registry. The final `BufferGeometry` allocation is a narrow library boundary.
 
 It owns no scene nodes, registry, renderer, material lifecycle, camera, DOM, or mutation orchestration.
 
@@ -467,16 +510,22 @@ The projection does not call Terrain generation or mutate Terrain.
 
 ### 13.3 Rebuild lifecycle
 
-`rebuild(changeSet)` is synchronous in P1-F:
+`rebuild(changeSet)` is synchronous in P1-F and uses a staged functional-core/imperative-shell transaction:
 
 ```text
 TerrainChangeSet
+→ validate revision continuity
 → computeDirtyRenderSectors
-→ for each sector in canonical order
-   build replacement geometry/resource
-   replace registry entry
-   dispose superseded geometry
+→ build all replacement sector resources into a temporary staged array
+→ if any build fails: dispose staged replacements; keep all currently attached resources unchanged
+→ if all builds succeed: replace requested registry entries in canonical order
+→ detach/dispose superseded geometries
+→ advance projectedRevision to changeSet.newRevision
 ```
+
+The projection records `projectedRevision` at initial attach, and every initial sector snapshot must match that same revision before the projection is published. After all 64 resources are built, `terrain.revision()` must still equal `projectedRevision`.
+
+The same rule applies during rebuild staging: every staged sector snapshot must equal `changeSet.newRevision`, and Terrain revision is rechecked once more before live swap. A rebuild is accepted only when `changeSet.previousRevision === projectedRevision` and `changeSet.newRevision === terrain.revision()`. Skipped, stale, or out-of-order change sets fail loudly instead of silently leaving an under-invalidated visual projection.
 
 No async queue, debounce policy, worker, retry loop, or whole-map fallback is introduced.
 
@@ -591,6 +640,19 @@ Terrain projection does not receive `WebGLRenderer`, DOM elements, `ResizeObserv
 Camera far plane/position may be adjusted to show the 4096m map, but camera policy remains app presentation responsibility.
 
 If WebGLRenderer creation fails, semantic World/Terrain construction remains valid. Presentation unavailability does not replace or mutate authority.
+
+### 16.1 P1-F browser harness boundary
+
+P1-F needs real WebGL/Raycaster evidence before P1-G wires World/Terrain into the production `createGame()` path. To avoid moving P1-G production composition earlier, P1-F uses a dedicated Vite test page:
+
+```text
+apps/game/terrain-phase-1.html
+  → apps/game/tests/terrain-phase-1-harness.ts
+```
+
+The harness may depend on World/Terrain composition surfaces as test/dev dependencies, construct real prepared World/Terrain authority, attach the real Terrain projection to the real app ScenePresentation, and expose only deterministic DOM diagnostics/test controls. `apps/game/src/bootstrap/main.ts` and production `createGame()` remain free of World/Terrain composition until P1-G.
+
+P1-G later promotes World/Terrain from app test/dev dependencies to production dependencies when the actual new-city vertical slice is wired.
 
 ## 17. Mutation-to-render synchronization
 
@@ -722,17 +784,23 @@ No additional optimization mechanism is approved without profiling evidence.
 10. Presentation errors never mutate/rollback Terrain authority.
 11. No speculative abstraction for LOD/workers/streaming enters P1-F.
 12. New Three.js dependencies remain confined to Terrain presentation/composition and app presentation.
+13. P1-F-owned modules prefer pure functions/factories over classes; mutation is restricted to registry/resource/projection closure state.
+14. Map width/height/cell size, elevation scale, Q16 scale, sector counts, vertex counts, and index counts are consumed from canonical owners or derived from named constants; literals are not repeated through implementation files.
+15. Geometry and normal math consume a coherent `SectorSurfaceSnapshot`; they do not independently query canonical Terrain for every face.
+16. Projection rebuild validates revision continuity and stages all replacements before mutating the live scene/registry.
 
 ## 21. Proposed file map for P1-F
 
 ```text
 systems/terrain/
 ├─ src/
+│  ├─ contracts/terrain-three.ts
 │  ├─ presentation/three/
 │  │  ├─ topology/
 │  │  │  ├─ render-sector.ts
 │  │  │  └─ dirty-sectors.ts
 │  │  ├─ geometry/
+│  │  │  ├─ read-sector-surface.ts
 │  │  │  ├─ build-sector-geometry.ts
 │  │  │  └─ presentation-normal.ts
 │  │  ├─ resources/
@@ -748,12 +816,18 @@ systems/terrain/
 │  └─ composition.ts
 ├─ tests/
 │  ├─ render-sector.test.ts
-│  ├─ presentation-normal.test.ts
 │  ├─ dirty-sectors.test.ts
+│  ├─ sector-surface.test.ts
+│  ├─ presentation-normal.test.ts
+│  ├─ semantic-pick.test.ts
 │  └─ terrain-projection.test.ts
 
-apps/game/src/presentation/
-└─ create-scene.ts
+apps/game/
+├─ terrain-phase-1.html                 # test-only Vite entry; not production bootstrap
+├─ src/
+│  └─ presentation/create-scene.ts
+└─ tests/
+   └─ terrain-phase-1-harness.ts
 
 tests/browser/
 └─ terrain-phase-1.spec.ts

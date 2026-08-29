@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
+import type { MapStateSnapshot } from "../src/index";
 import packageJson from "../package.json";
 import {
   createInitialWorldSystem,
   prepareProductionWorldDefinition,
+  restoreWorldSystem,
 } from "../src/composition";
 
 function expectPrepared() {
@@ -84,6 +86,74 @@ describe("World initial composition", () => {
     });
   });
 
+  it("restores a canonical World snapshot without changing semantic state", () => {
+    const prepared = expectPrepared();
+    const created = createInitialWorldSystem({
+      prepared,
+      selectedStartingRegionId: "R06",
+      eligibleStartingRegionIds: ["R06"],
+    });
+    expect(created.status).toBe("success");
+    if (created.status !== "success") return;
+
+    const snapshot = created.value.captureSnapshot();
+    const restored = restoreWorldSystem({ prepared, snapshot });
+
+    expect(restored.status).toBe("success");
+    if (restored.status !== "success") return;
+    expect(restored.value.captureSnapshot()).toEqual(snapshot);
+    expect(restored.value.spatial).toBe(prepared.spatial);
+  });
+
+  it.each([
+    [
+      "wrong map identity",
+      { mapDefinitionId: "other-map" },
+      "WORLD_SNAPSHOT_INCOMPATIBLE",
+    ],
+    [
+      "wrong profile version",
+      { mapProfileVersion: 2 },
+      "WORLD_SNAPSHOT_INCOMPATIBLE",
+    ],
+    [
+      "unknown unlocked Region",
+      { unlockedRegionIds: ["R99"] },
+      "WORLD_SNAPSHOT_INVALID",
+    ],
+    [
+      "duplicate unlocked Region",
+      { unlockedRegionIds: ["R06", "R06"] },
+      "WORLD_SNAPSHOT_INVALID",
+    ],
+    [
+      "starting Region missing from unlocked Regions",
+      { unlockedRegionIds: ["R08"] },
+      "WORLD_SNAPSHOT_INVALID",
+    ],
+    [
+      "non-canonical unlocked Region order",
+      { unlockedRegionIds: ["R08", "R06"] },
+      "WORLD_SNAPSHOT_INVALID",
+    ],
+  ])("rejects %s during World restore", (_label, patch, expectedCode) => {
+    const prepared = expectPrepared();
+    const base = {
+      mapDefinitionId: prepared.mapDefinition.mapDefinitionId,
+      mapProfileId: prepared.mapDefinition.profileId,
+      mapProfileVersion: prepared.mapDefinition.profileVersion,
+      startingRegionId: "R06",
+      unlockedRegionIds: ["R06"],
+    } as const;
+
+    const result = restoreWorldSystem({
+      prepared,
+      snapshot: { ...base, ...patch } as unknown as MapStateSnapshot,
+    });
+
+    expect(result).toMatchObject({ status: "rejected", code: expectedCode });
+  });
+
   it("keeps construction off the root surface and exposes no command subpath", async () => {
     const root = await import("../src/index");
     const composition = await import("../src/composition");
@@ -92,6 +162,7 @@ describe("World initial composition", () => {
     expect(Object.keys(composition).sort()).toEqual([
       "createInitialWorldSystem",
       "prepareProductionWorldDefinition",
+      "restoreWorldSystem",
     ]);
     expect(packageJson.exports).toEqual({
       ".": "./src/index.ts",

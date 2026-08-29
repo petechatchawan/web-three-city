@@ -18,7 +18,9 @@ export type WorldErrorCode =
   | "WORLD_REGION_PARTITION_OVERLAP"
   | "WORLD_STARTING_CANDIDATE_INVALID"
   | "WORLD_STARTING_REGION_NOT_ELIGIBLE"
-  | "WORLD_COORD_OUT_OF_BOUNDS";
+  | "WORLD_COORD_OUT_OF_BOUNDS"
+  | "WORLD_SNAPSHOT_INCOMPATIBLE"
+  | "WORLD_SNAPSHOT_INVALID";
 
 export type WorldReadResult<T> =
   | { readonly status: "success"; readonly value: T }
@@ -71,6 +73,11 @@ export interface CreateInitialWorldInput {
   readonly prepared: PreparedWorldDefinition;
   readonly selectedStartingRegionId: RegionId;
   readonly eligibleStartingRegionIds: readonly RegionId[];
+}
+
+export interface RestoreWorldInput {
+  readonly prepared: PreparedWorldDefinition;
+  readonly snapshot: MapStateSnapshot;
 }
 
 export interface MapStateRead {

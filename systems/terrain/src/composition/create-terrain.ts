@@ -10,6 +10,7 @@ import type {
 } from "../contracts/terrain-composition";
 import type { TerrainAuthorityRead } from "../contracts/terrain-read";
 import { applyTerrainEdits } from "../application/apply-terrain-edits";
+import { captureTerrainSnapshot } from "../application/capture-terrain-snapshot";
 import { createTerrainAuthorityRead } from "../application/terrain-read";
 import { materializeTerrain } from "../application/materialize-terrain";
 import { TERRAIN_VERTEX_AXIS_COUNT } from "../application/world-index";
@@ -78,6 +79,9 @@ export function createTerrainSystemInternal(
           state = outcome.state;
           return outcome.result;
         },
+      },
+      captureSnapshot() {
+        return captureTerrainSnapshot(state);
       },
     },
   };

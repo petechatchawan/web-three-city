@@ -11,6 +11,7 @@ export interface TerrainProvenance {
   readonly generationProfileId: string;
   readonly generationProfileVersion: number;
   readonly selectedSeed64: string;
+  readonly fingerprint: string;
 }
 
 export type TerrainChunkStore = ReadonlyMap<

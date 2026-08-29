@@ -21,3 +21,8 @@ export type {
   TerrainQueryResult,
   TerrainRevision,
 } from "./contracts/terrain-read";
+
+export type {
+  TerrainChunkSnapshot,
+  TerrainStateSnapshotV1,
+} from "./contracts/snapshot";

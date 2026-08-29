@@ -1,6 +1,7 @@
 import type { WorldSpatialRead } from "@web-three-city/world";
 import type { TerrainCommands } from "./mutation";
 import type { TerrainAuthorityRead } from "./terrain-read";
+import type { TerrainStateSnapshotV1 } from "./snapshot";
 
 export interface TerrainFieldSource {
   readonly vertexWidth: number;
@@ -14,6 +15,7 @@ export interface CreateTerrainAuthorityInput {
   readonly generationProfileId: string;
   readonly generationProfileVersion: number;
   readonly selectedSeed64: string;
+  readonly fingerprint: string;
   readonly source: TerrainFieldSource;
 }
 
@@ -34,4 +36,5 @@ export interface TerrainAuthoritySystem {
 
 export interface TerrainSystem extends TerrainAuthoritySystem {
   readonly commands: TerrainCommands;
+  captureSnapshot(): TerrainStateSnapshotV1;
 }

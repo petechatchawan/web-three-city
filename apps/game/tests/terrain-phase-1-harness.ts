@@ -15,6 +15,7 @@ import {
   type ScenePresentation,
 } from "../src/presentation/create-scene";
 
+const GOLDEN_TERRAIN_SEED = "0x5EED5EED5EED5EED";
 const OVERVIEW_FOV_DEGREES = 50;
 const OVERVIEW_NEAR_METERS = 1;
 const OVERVIEW_FAR_SPAN_FACTOR = 4;
@@ -173,14 +174,10 @@ function bootstrap(): void {
 
   const preparedWorld = worldPreparation.value;
   const mapDefinition = preparedWorld.mapDefinition;
-  const acceptedSeed = mapDefinition.acceptedTerrainSeeds[0];
-  if (acceptedSeed === undefined) {
-    throw new Error("Production MapDefinition has no accepted Terrain seed.");
-  }
 
   const terrainPreparation = prepareProductionTerrain({
     world: preparedWorld,
-    seed64: acceptedSeed,
+    seed64: GOLDEN_TERRAIN_SEED,
   });
   if (terrainPreparation.status !== "success") {
     throw new Error(`Terrain preparation failed: ${terrainPreparation.code}.`);
@@ -193,6 +190,7 @@ function bootstrap(): void {
     generationProfileId: mapDefinition.terrainGenerationProfileId,
     generationProfileVersion: mapDefinition.terrainGenerationProfileVersion,
     selectedSeed64: preparedTerrain.selectedSeed64,
+    fingerprint: preparedTerrain.fingerprint,
     source: preparedTerrain.field,
   });
   if (terrainConstruction.status !== "success") {

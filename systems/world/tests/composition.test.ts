@@ -43,6 +43,8 @@ describe("World initial composition", () => {
       startingRegionId: "R06",
       unlockedRegionIds: ["R06"],
     });
+    expect(world.captureSnapshot()).toEqual(world.captureSnapshot());
+    expect(world.mapState.unlockedRegionIds).toEqual(["R06"]);
   });
 
   it("rejects an unknown selected Region before candidate eligibility", () => {

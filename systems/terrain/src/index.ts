@@ -11,7 +11,11 @@ export type {
   TerrainElevationResult,
 } from "./domain/elevation";
 
+export type { TerrainTriangle } from "./domain/surface";
+
 export type {
+  CellSurfaceRead,
+  SurfaceSampleRead,
   TerrainAuthorityRead,
   TerrainCompleteness,
   TerrainQueryResult,

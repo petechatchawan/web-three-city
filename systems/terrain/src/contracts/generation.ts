@@ -19,9 +19,7 @@ export interface StartingCandidateEvaluation {
 export type TerrainGenerationRejectionCode =
   | "TERRAIN_GENERATION_PROFILE_UNSUPPORTED"
   | "TERRAIN_GENERATION_SEED_INVALID"
-  | "TERRAIN_GENERATION_SEED_NOT_ACCEPTED"
   | "TERRAIN_GENERATION_OUTPUT_OUT_OF_RANGE"
-  | "TERRAIN_GENERATION_FINGERPRINT_MISMATCH"
   | "TERRAIN_GENERATION_NO_ELIGIBLE_START";
 
 export interface PrepareProductionTerrainInput {

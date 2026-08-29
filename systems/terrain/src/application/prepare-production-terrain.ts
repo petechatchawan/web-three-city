@@ -19,7 +19,6 @@ const PRODUCTION_PROFILE_VERSION = 2;
 const PRODUCTION_VERTEX_AXIS_COUNT = 513;
 const MIN_PRODUCTION_ELEVATION = 32;
 const MAX_PRODUCTION_ELEVATION = 288;
-const EXPECTED_FINGERPRINT = "0xF2FA29BFD2AEB069";
 const SEED64_PATTERN = /^0x[0-9a-fA-F]{16}$/;
 
 export interface PrepareProductionTerrainDependencies {
@@ -91,22 +90,12 @@ export function prepareProductionTerrainInternal(
   if (selectedSeed64 === undefined) {
     return reject("TERRAIN_GENERATION_SEED_INVALID");
   }
-  if (!definition.acceptedTerrainSeeds.includes(selectedSeed64)) {
-    return reject("TERRAIN_GENERATION_SEED_NOT_ACCEPTED");
-  }
-
   const field = dependencies.generateField(BigInt(selectedSeed64));
   if (!validateProductionEnvelope(field)) {
     return reject("TERRAIN_GENERATION_OUTPUT_OUT_OF_RANGE");
   }
 
   const fingerprint = dependencies.fingerprintField(field);
-  if (fingerprint !== EXPECTED_FINGERPRINT) {
-    return reject("TERRAIN_GENERATION_FINGERPRINT_MISMATCH", {
-      expected: EXPECTED_FINGERPRINT,
-      actual: fingerprint,
-    });
-  }
 
   const candidateEvaluations = dependencies.evaluateCandidates(
     definition.startingCandidates,

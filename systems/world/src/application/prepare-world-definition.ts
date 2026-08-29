@@ -80,23 +80,6 @@ function validateRegionIdentity(
   return { status: "success", value: true };
 }
 
-function validateSeedCatalog(
-  source: MapDefinitionSource,
-): WorldConstructionResult<true> {
-  const seeds = source.acceptedTerrainSeeds;
-  if (
-    seeds.length !== 1 ||
-    seeds[0] !== "0x5EED5EED5EED5EED" ||
-    !/^0x[0-9A-F]{16}$/.test(seeds[0] ?? "")
-  ) {
-    return rejection("WORLD_MAP_DEFINITION_INVALID", {
-      issue: "accepted-terrain-seeds",
-      seeds: Object.freeze([...seeds]),
-    });
-  }
-  return { status: "success", value: true };
-}
-
 function validateCandidates(
   source: MapDefinitionSource,
   regions: PreparedRegionIndex,
@@ -170,11 +153,6 @@ function prepareDefinition(
   if (regionIdentity.status === "rejected") {
     return regionIdentity;
   }
-  const seedCatalog = validateSeedCatalog(source);
-  if (seedCatalog.status === "rejected") {
-    return seedCatalog;
-  }
-
   const preparedRegions = prepareRegionIndex(
     source.regions,
     source.widthCells,
@@ -203,7 +181,6 @@ function prepareDefinition(
     terrainGenerationProfileVersion: 2,
     regionIds: preparedRegions.value.regionIds,
     startingCandidates: freezeCandidates(source.startingCandidates),
-    acceptedTerrainSeeds: Object.freeze([...source.acceptedTerrainSeeds]),
   });
   const spatial = createWorldSpatialRead(preparedRegions.value);
 

@@ -42,7 +42,7 @@ describe("production MapDefinition and Region partition", () => {
         (_, index) => `R${index.toString().padStart(2, "0")}`,
       ),
     );
-    expect(mapDefinition.acceptedTerrainSeeds).toEqual(["0x5EED5EED5EED5EED"]);
+    expect("acceptedTerrainSeeds" in mapDefinition).toBe(false);
     expect(mapDefinition.startingCandidates).toEqual([
       { regionId: "R06", anchor: { x: 153, z: 191 } },
       { regionId: "R08", anchor: { x: 358, z: 191 } },

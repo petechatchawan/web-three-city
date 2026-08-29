@@ -65,4 +65,16 @@ describe("production Terrain generation", () => {
 
     expect(fingerprintProductionTerrainField(field)).toBe(EXPECTED_FINGERPRINT);
   });
+  it("is deterministic for an arbitrary valid Seed64 distinct from the golden vector", () => {
+    const arbitrarySeed = 0x00000000000000abn;
+    const first = generateProductionTerrainField(arbitrarySeed);
+    const second = generateProductionTerrainField(arbitrarySeed);
+
+    expect(fingerprintProductionTerrainField(second)).toBe(
+      fingerprintProductionTerrainField(first),
+    );
+    expect(fingerprintProductionTerrainField(first)).not.toBe(
+      EXPECTED_FINGERPRINT,
+    );
+  });
 });

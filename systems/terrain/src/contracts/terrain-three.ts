@@ -1,5 +1,12 @@
-import type { CellCoord, ChunkCoord } from "@web-three-city/world";
-import type { TerrainRevision } from "./terrain-read";
+import type {
+  CellCoord,
+  ChunkCoord,
+  MapDefinitionRead,
+  WorldSpatialRead,
+} from "@web-three-city/world";
+import type { Group, Raycaster } from "three";
+import type { TerrainChangeSet } from "./mutation";
+import type { TerrainAuthorityRead, TerrainRevision } from "./terrain-read";
 import type { TerrainTriangle } from "../domain/surface";
 
 export interface TerrainSemanticPick {
@@ -23,4 +30,27 @@ export type TerrainSemanticPickResult =
       readonly status: "unavailable";
       readonly code: "TERRAIN_QUERY_CHUNK_UNAVAILABLE";
       readonly chunk: ChunkCoord;
+    };
+
+export interface TerrainThreeProjection {
+  readonly root: Group;
+  rebuild(changeSet: TerrainChangeSet): void;
+  pick(raycaster: Raycaster): TerrainSemanticPickResult;
+  dispose(): void;
+}
+
+export interface CreateTerrainThreeProjectionInput {
+  readonly mapDefinition: Pick<
+    MapDefinitionRead,
+    "widthCells" | "heightCells" | "cellSizeMeters"
+  >;
+  readonly world: WorldSpatialRead;
+  readonly terrain: TerrainAuthorityRead;
+}
+
+export type TerrainThreeProjectionConstructionResult =
+  | { readonly status: "success"; readonly value: TerrainThreeProjection }
+  | {
+      readonly status: "rejected";
+      readonly code: "TERRAIN_PRESENTATION_TERRAIN_INCOMPLETE";
     };

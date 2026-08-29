@@ -1,3 +1,5 @@
+import * as terrainComposition from "../src/composition";
+import * as terrainRoot from "../src/index";
 import { describe, expect, it } from "vitest";
 import type { ChunkCoord } from "@web-three-city/world";
 import {
@@ -9,6 +11,21 @@ import {
 } from "../src/index";
 
 describe("Terrain public authority values", () => {
+  it("keeps Three.js projection construction on the composition surface only", () => {
+    expect(
+      Object.prototype.hasOwnProperty.call(
+        terrainComposition,
+        "createTerrainThreeProjection",
+      ),
+    ).toBe(true);
+    expect(
+      Object.prototype.hasOwnProperty.call(
+        terrainRoot,
+        "createTerrainThreeProjection",
+      ),
+    ).toBe(false);
+  });
+
   it("accepts the exact inclusive LogicalElevation product bounds", () => {
     expect(parseLogicalElevation(-4096)).toEqual({
       status: "success",

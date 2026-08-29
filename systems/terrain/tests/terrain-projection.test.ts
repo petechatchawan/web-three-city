@@ -1,8 +1,101 @@
-import { BufferGeometry, DoubleSide } from "three";
-import { describe, expect, it } from "vitest";
+import type { CellCoord } from "@web-three-city/world";
+import {
+  BufferGeometry,
+  DoubleSide,
+  Group,
+  Mesh,
+  MeshBasicMaterial,
+  Raycaster,
+} from "three";
+import { describe, expect, it, vi } from "vitest";
+import type { TerrainChangeSet } from "../src/contracts/mutation";
+import type {
+  TerrainAuthorityRead,
+  TerrainCompleteness,
+  TerrainRevision,
+} from "../src/contracts/terrain-read";
 import { createSectorRegistry } from "../src/presentation/three/projection/sector-registry";
+import { createTerrainThreeProjectionInternal } from "../src/presentation/three/projection/terrain-projection";
 import { createSectorResource } from "../src/presentation/three/resources/sector-resource";
 import { createTerrainMaterial } from "../src/presentation/three/resources/terrain-material";
+import {
+  TEST_MAP_DEFINITION,
+  createFunctionalTerrainRead,
+  createPresentationWorldSpatialRead,
+} from "./helpers/presentation-fixture";
+
+const world = createPresentationWorldSpatialRead();
+
+function changeSet(
+  previousRevision: number,
+  newRevision: number,
+  affectedCells: readonly CellCoord[],
+): TerrainChangeSet {
+  return {
+    previousRevision,
+    newRevision,
+    changedVertices: [],
+    affectedCells,
+    touchingLogicalChunks: [],
+  };
+}
+
+function createControlledTerrain() {
+  const base = createFunctionalTerrainRead(() => 0, 0);
+  let revision: TerrainRevision = 0;
+  let completeness: TerrainCompleteness = "full";
+  let failedVertex: string | undefined;
+  let revisionScript: TerrainRevision[] = [];
+
+  const read: TerrainAuthorityRead = {
+    ...base,
+    revision() {
+      const scripted = revisionScript.shift();
+      return scripted ?? revision;
+    },
+    completeness() {
+      return completeness;
+    },
+    elevationAt(vertex) {
+      if (`${vertex.x}:${vertex.z}` === failedVertex) {
+        return {
+          status: "unavailable",
+          code: "TERRAIN_QUERY_CHUNK_UNAVAILABLE",
+          chunk: { x: 0, z: 0 },
+        };
+      }
+      return base.elevationAt(vertex);
+    },
+  };
+
+  return {
+    read,
+    setRevision(value: number) {
+      revision = value;
+    },
+    setCompleteness(value: TerrainCompleteness) {
+      completeness = value;
+    },
+    failAt(vertex?: { readonly x: number; readonly z: number }) {
+      failedVertex = vertex ? `${vertex.x}:${vertex.z}` : undefined;
+    },
+    scriptRevisions(values: readonly number[]) {
+      revisionScript = [...values];
+    },
+  };
+}
+
+function projectionInput(terrain: TerrainAuthorityRead) {
+  return {
+    mapDefinition: TEST_MAP_DEFINITION,
+    world,
+    terrain,
+  } as const;
+}
+
+function meshMap(root: Group): Map<string, Mesh> {
+  return new Map(root.children.map((child) => [child.name, child as Mesh]));
+}
 
 describe("Terrain Three.js resource ownership", () => {
   it("shares one Terrain material while each sector owns its geometry", () => {
@@ -109,5 +202,201 @@ describe("sector registry", () => {
       const material = item.mesh.material;
       if (!Array.isArray(material)) material.dispose();
     }
+  });
+});
+
+describe("TerrainThreeProjection lifecycle", () => {
+  it("rejects incomplete Terrain authority before publishing presentation", () => {
+    const terrain = createControlledTerrain();
+    terrain.setCompleteness("partial");
+
+    expect(
+      createTerrainThreeProjectionInternal(projectionInput(terrain.read)),
+    ).toEqual({
+      status: "rejected",
+      code: "TERRAIN_PRESENTATION_TERRAIN_INCOMPLETE",
+    });
+  });
+
+  it("builds 64 sectors at one revision with one shared material", () => {
+    const terrain = createControlledTerrain();
+    const result = createTerrainThreeProjectionInternal(
+      projectionInput(terrain.read),
+    );
+
+    expect(result.status).toBe("success");
+    if (result.status !== "success") return;
+    expect(result.value.root.children).toHaveLength(64);
+    expect(
+      new Set(
+        result.value.root.children.map((child) => (child as Mesh).material),
+      ).size,
+    ).toBe(1);
+
+    result.value.dispose();
+  });
+
+  it("cleans up and rejects a mixed-revision initial projection", () => {
+    const terrain = createControlledTerrain();
+    terrain.scriptRevisions([0, 0, 0, 1, 1]);
+    const geometryDispose = vi.spyOn(BufferGeometry.prototype, "dispose");
+    const materialDispose = vi.spyOn(MeshBasicMaterial.prototype, "dispose");
+
+    expect(() =>
+      createTerrainThreeProjectionInternal(projectionInput(terrain.read)),
+    ).toThrow(/snapshot revision mismatch/i);
+    expect(geometryDispose).toHaveBeenCalledTimes(1);
+    expect(materialDispose).toHaveBeenCalledTimes(1);
+
+    geometryDispose.mockRestore();
+    materialDispose.mockRestore();
+  });
+
+  it("replaces only localized dirty sectors and preserves the shared material", () => {
+    const terrain = createControlledTerrain();
+    const result = createTerrainThreeProjectionInternal(
+      projectionInput(terrain.read),
+    );
+    expect(result.status).toBe("success");
+    if (result.status !== "success") return;
+
+    const before = meshMap(result.value.root);
+    const target = before.get("terrain-sector:2:2");
+    expect(target).toBeDefined();
+    if (target === undefined) return;
+    let oldGeometryDisposeCount = 0;
+    let materialDisposeCount = 0;
+    target.geometry.addEventListener("dispose", () => {
+      oldGeometryDisposeCount += 1;
+    });
+    const material = target.material;
+    if (Array.isArray(material))
+      throw new Error("Expected one shared Terrain material.");
+    material.addEventListener("dispose", () => {
+      materialDisposeCount += 1;
+    });
+
+    terrain.setRevision(1);
+    result.value.rebuild(changeSet(0, 1, [{ x: 130, z: 130 }]));
+
+    const after = meshMap(result.value.root);
+    const changed = [...before.entries()]
+      .filter(([key, mesh]) => after.get(key) !== mesh)
+      .map(([key]) => key);
+    expect(changed).toEqual(["terrain-sector:2:2"]);
+    expect(oldGeometryDisposeCount).toBe(1);
+    expect(materialDisposeCount).toBe(0);
+    expect((after.get("terrain-sector:2:2") as Mesh).material).toBe(material);
+
+    result.value.dispose();
+  });
+
+  it("stages all replacements before swap and can retry after presentation failure", () => {
+    const terrain = createControlledTerrain();
+    const result = createTerrainThreeProjectionInternal(
+      projectionInput(terrain.read),
+    );
+    expect(result.status).toBe("success");
+    if (result.status !== "success") return;
+
+    const before = meshMap(result.value.root);
+    terrain.setRevision(1);
+    terrain.failAt({ x: 100, z: 10 });
+    const geometryDispose = vi.spyOn(BufferGeometry.prototype, "dispose");
+    const mutation = changeSet(0, 1, [{ x: 63, z: 63 }]);
+
+    expect(() => result.value.rebuild(mutation)).toThrow(
+      /authority unavailable/i,
+    );
+    expect(meshMap(result.value.root)).toEqual(before);
+    expect(geometryDispose).toHaveBeenCalledTimes(1);
+    geometryDispose.mockRestore();
+
+    terrain.failAt();
+    expect(() => result.value.rebuild(mutation)).not.toThrow();
+    const after = meshMap(result.value.root);
+    const changed = [...before.entries()].filter(
+      ([key, mesh]) => after.get(key) !== mesh,
+    );
+    expect(changed).toHaveLength(4);
+
+    result.value.dispose();
+  });
+
+  it("rejects stale, skipped, mixed, drifting, and malformed revision transitions", () => {
+    const terrain = createControlledTerrain();
+    const result = createTerrainThreeProjectionInternal(
+      projectionInput(terrain.read),
+    );
+    expect(result.status).toBe("success");
+    if (result.status !== "success") return;
+
+    expect(() =>
+      result.value.rebuild(changeSet(99, 0, [{ x: 130, z: 130 }])),
+    ).toThrow(/previous revision/i);
+    expect(() =>
+      result.value.rebuild(changeSet(0, 1, [{ x: 130, z: 130 }])),
+    ).toThrow(/terrain revision/i);
+
+    expect(() => result.value.rebuild(changeSet(0, 0, []))).not.toThrow();
+
+    terrain.setRevision(1);
+    expect(() => result.value.rebuild(changeSet(0, 1, []))).toThrow(
+      /advanced without dirty sectors/i,
+    );
+
+    terrain.scriptRevisions([1, 2, 2]);
+    expect(() =>
+      result.value.rebuild(changeSet(0, 1, [{ x: 130, z: 130 }])),
+    ).toThrow(/snapshot revision mismatch/i);
+
+    terrain.scriptRevisions([1, 1, 1, 2]);
+    const disposeSpy = vi.spyOn(BufferGeometry.prototype, "dispose");
+    expect(() =>
+      result.value.rebuild(changeSet(0, 1, [{ x: 130, z: 130 }])),
+    ).toThrow(/changed during staged rebuild/i);
+    expect(disposeSpy).toHaveBeenCalledTimes(1);
+    disposeSpy.mockRestore();
+
+    terrain.setRevision(0);
+    result.value.dispose();
+  });
+
+  it("disposes all owned resources exactly once and rejects use after dispose", () => {
+    const terrain = createControlledTerrain();
+    const result = createTerrainThreeProjectionInternal(
+      projectionInput(terrain.read),
+    );
+    expect(result.status).toBe("success");
+    if (result.status !== "success") return;
+
+    const parent = new Group();
+    parent.add(result.value.root);
+    let geometryDisposeCount = 0;
+    for (const child of result.value.root.children) {
+      (child as Mesh).geometry.addEventListener("dispose", () => {
+        geometryDisposeCount += 1;
+      });
+    }
+    const first = result.value.root.children[0] as Mesh;
+    const material = first.material;
+    if (Array.isArray(material))
+      throw new Error("Expected one shared Terrain material.");
+    let materialDisposeCount = 0;
+    material.addEventListener("dispose", () => {
+      materialDisposeCount += 1;
+    });
+
+    result.value.dispose();
+    result.value.dispose();
+
+    expect(geometryDisposeCount).toBe(64);
+    expect(materialDisposeCount).toBe(1);
+    expect(result.value.root.children).toHaveLength(0);
+    expect(parent.children).not.toContain(result.value.root);
+    expect(() => result.value.rebuild(changeSet(0, 0, []))).toThrow(
+      /disposed/i,
+    );
+    expect(() => result.value.pick(new Raycaster())).toThrow(/disposed/i);
   });
 });

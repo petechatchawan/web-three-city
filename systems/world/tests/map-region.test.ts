@@ -4,9 +4,10 @@ import type { CellCoord, RegionId, WorldSpatialRead } from "../src/index";
 
 function expectPrepared() {
   const result = prepareProductionWorldDefinition();
-  expect(result.status).toBe("success");
   if (result.status !== "success") {
-    throw new Error(`expected production World definition: ${result.code}`);
+    throw new Error(
+      `expected production World definition: ${result.code} ${JSON.stringify(result.detail ?? {})}`,
+    );
   }
   return result.value;
 }

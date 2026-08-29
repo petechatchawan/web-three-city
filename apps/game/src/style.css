@@ -206,6 +206,7 @@ button {
 }
 
 .ui-switch {
+  position: relative;
   min-height: var(--control-height);
   display: inline-flex;
   align-items: center;
@@ -214,13 +215,17 @@ button {
 }
 .ui-switch__input {
   position: absolute;
-  width: 1px;
-  height: 1px;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
   opacity: 0;
-  pointer-events: none;
+  cursor: pointer;
 }
 .ui-switch__visual {
   position: relative;
+  pointer-events: none;
   width: 36px;
   height: 20px;
   flex: 0 0 auto;
@@ -249,6 +254,7 @@ button {
   background: var(--primary-foreground);
 }
 .ui-switch__label {
+  pointer-events: none;
   font-size: 13px;
 }
 
@@ -492,5 +498,132 @@ button {
   .city-form__actions > .ui-button {
     width: 100%;
     flex-basis: auto;
+  }
+}
+
+/* Live city runtime */
+.game-screen {
+  position: relative;
+  width: 100%;
+  height: 100dvh;
+  min-height: 320px;
+  overflow: hidden;
+  background: var(--background);
+}
+.game-screen__viewport {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.game-hud {
+  position: absolute;
+  z-index: 4;
+  top: var(--space-4);
+  left: var(--space-4);
+  right: var(--space-4);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  pointer-events: none;
+}
+.game-hud__identity,
+.game-hud__actions,
+.game-debug,
+.game-pick-status {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--background) 82%, transparent);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(12px);
+  pointer-events: auto;
+}
+.game-hud__identity {
+  min-width: 0;
+  padding: var(--space-3) var(--space-4);
+}
+.game-hud__title,
+.game-hud__meta {
+  margin: 0;
+}
+.game-hud__title {
+  font-size: 14px;
+  font-weight: 650;
+}
+.game-hud__meta {
+  margin-top: var(--space-1);
+  color: var(--muted-foreground);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.game-hud__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+}
+.game-hud__status {
+  min-width: 48px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  text-align: right;
+}
+.game-debug {
+  position: absolute;
+  z-index: 4;
+  left: var(--space-4);
+  bottom: var(--space-4);
+  width: min(300px, calc(100% - var(--space-8)));
+}
+.game-debug > summary {
+  min-height: var(--control-height);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-4);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+.game-debug__body {
+  display: grid;
+  gap: var(--space-1);
+  padding: 0 var(--space-4) var(--space-3);
+}
+.game-pick-status {
+  position: absolute;
+  z-index: 4;
+  right: var(--space-4);
+  bottom: var(--space-4);
+  max-width: min(260px, calc(100% - var(--space-8)));
+  padding: var(--space-2) var(--space-3);
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+@media (max-width: 620px) {
+  .game-hud {
+    top: var(--space-3);
+    left: var(--space-3);
+    right: var(--space-3);
+    flex-direction: column;
+  }
+  .game-hud__identity,
+  .game-hud__actions {
+    max-width: 100%;
+  }
+  .game-hud__actions {
+    align-self: flex-end;
+  }
+  .game-hud__status {
+    display: none;
+  }
+  .game-debug {
+    left: var(--space-3);
+    bottom: var(--space-3);
+    width: min(260px, calc(100% - var(--space-6)));
+  }
+  .game-pick-status {
+    right: var(--space-3);
+    bottom: var(--space-3);
   }
 }

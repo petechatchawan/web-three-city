@@ -1,6 +1,7 @@
 import { PerspectiveCamera } from "three";
 import { describe, expect, it, vi } from "vitest";
 import { createCityCamera } from "../src/presentation/camera/create-city-camera";
+import { createCitySceneCameraConfig } from "../src/presentation/camera/create-city-scene-camera-config";
 import { createCityInputController } from "../src/presentation/input/create-city-input-controller";
 import {
   CITY_CAMERA_DEFAULT_CONFIG,
@@ -10,6 +11,17 @@ import {
 import { reduceCityCamera } from "../src/presentation/camera/camera-reducer";
 
 const map = { widthCells: 512, heightCells: 512, cellSizeMeters: 8 } as const;
+
+describe("city scene camera projection", () => {
+  it("derives clipping range and overview position from map metrics", () => {
+    const config = createCitySceneCameraConfig(map);
+    const span = map.widthCells * map.cellSizeMeters;
+    expect(config.farMeters).toBeGreaterThan(span * 2.8);
+    expect(config.nearMeters).toBeGreaterThan(0);
+    expect(config.target).toEqual([span / 2, 0, span / 2]);
+    expect(config.position[1]).toBeGreaterThan(0);
+  });
+});
 
 describe("city camera functional core", () => {
   it("derives initial framing and constraints from the active map", () => {

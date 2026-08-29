@@ -1,4 +1,5 @@
 import { Vector3, type PerspectiveCamera } from "three";
+import { resolveCityCameraPose } from "./camera-pose";
 import {
   CITY_CAMERA_DEFAULT_CONFIG,
   createCityCameraConstraints,
@@ -32,18 +33,12 @@ export function createCityCamera(input: {
   let state = initial;
 
   const apply = (): void => {
-    const horizontalDistance =
-      state.distance * Math.cos(state.elevationRadians);
-    input.camera.position.set(
-      state.targetX + horizontalDistance * Math.sin(state.azimuthRadians),
-      state.targetY + state.distance * Math.sin(state.elevationRadians),
-      state.targetZ + horizontalDistance * Math.cos(state.azimuthRadians),
-    );
-    input.camera.lookAt(
-      new Vector3(state.targetX, state.targetY, state.targetZ),
-    );
+    const pose = resolveCityCameraPose(state);
+    input.camera.position.set(...pose.position);
+    input.camera.lookAt(new Vector3(...pose.target));
     input.camera.updateMatrixWorld(true);
   };
+
   apply();
 
   const controller: CityCameraController = {

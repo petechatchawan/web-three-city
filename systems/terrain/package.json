@@ -1,0 +1,19 @@
+{
+  "name": "@web-three-city/terrain",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@web-three-city/world": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "5.9.2",
+    "vitest": "3.2.4"
+  }
+}

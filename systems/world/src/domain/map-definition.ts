@@ -16,7 +16,9 @@ export interface MapDefinitionSource {
   readonly acceptedTerrainSeeds: readonly string[];
 }
 
-export const PRODUCTION_X_BOUNDARIES = Object.freeze([0, 102, 205, 307, 410, 512]);
+export const PRODUCTION_X_BOUNDARIES = Object.freeze([
+  0, 102, 205, 307, 410, 512,
+]);
 export const PRODUCTION_Z_BOUNDARIES = Object.freeze([0, 128, 256, 384, 512]);
 
 function productionRegionId(index: number): RegionId {
@@ -42,7 +44,9 @@ function createProductionRegions(): readonly RegionDefinition[] {
 
       const runs = [];
       for (let z = zStart; z < zEnd; z += 1) {
-        runs.push(Object.freeze({ z, xStartInclusive: xStart, xEndExclusive: xEnd }));
+        runs.push(
+          Object.freeze({ z, xStartInclusive: xStart, xEndExclusive: xEnd }),
+        );
       }
       regions.push(
         Object.freeze({
@@ -56,12 +60,25 @@ function createProductionRegions(): readonly RegionDefinition[] {
   return Object.freeze(regions);
 }
 
-const PRODUCTION_STARTING_CANDIDATES: readonly StartingCandidate[] = Object.freeze([
-  Object.freeze({ regionId: "R06", anchor: Object.freeze({ x: 153, z: 191 }) }),
-  Object.freeze({ regionId: "R08", anchor: Object.freeze({ x: 358, z: 191 }) }),
-  Object.freeze({ regionId: "R11", anchor: Object.freeze({ x: 153, z: 319 }) }),
-  Object.freeze({ regionId: "R13", anchor: Object.freeze({ x: 358, z: 319 }) }),
-]);
+const PRODUCTION_STARTING_CANDIDATES: readonly StartingCandidate[] =
+  Object.freeze([
+    Object.freeze({
+      regionId: "R06",
+      anchor: Object.freeze({ x: 153, z: 191 }),
+    }),
+    Object.freeze({
+      regionId: "R08",
+      anchor: Object.freeze({ x: 358, z: 191 }),
+    }),
+    Object.freeze({
+      regionId: "R11",
+      anchor: Object.freeze({ x: 153, z: 319 }),
+    }),
+    Object.freeze({
+      regionId: "R13",
+      anchor: Object.freeze({ x: 358, z: 319 }),
+    }),
+  ]);
 
 export function createProductionMapDefinitionSource(): MapDefinitionSource {
   return Object.freeze({

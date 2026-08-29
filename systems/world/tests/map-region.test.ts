@@ -36,7 +36,10 @@ describe("production MapDefinition and Region partition", () => {
       terrainGenerationProfileVersion: 2,
     });
     expect(mapDefinition.regionIds).toEqual(
-      Array.from({ length: 20 }, (_, index) => `R${index.toString().padStart(2, "0")}`),
+      Array.from(
+        { length: 20 },
+        (_, index) => `R${index.toString().padStart(2, "0")}`,
+      ),
     );
     expect(mapDefinition.acceptedTerrainSeeds).toEqual(["0x5EED5EED5EED5EED"]);
     expect(mapDefinition.startingCandidates).toEqual([
@@ -49,7 +52,9 @@ describe("production MapDefinition and Region partition", () => {
 
   it("assigns every one of the 512x512 Cells to exactly one Region with exact non-uniform counts", () => {
     const { mapDefinition, spatial } = expectPrepared();
-    const counts = new Map<RegionId, number>(mapDefinition.regionIds.map((id) => [id, 0]));
+    const counts = new Map<RegionId, number>(
+      mapDefinition.regionIds.map((id) => [id, 0]),
+    );
 
     for (let z = 0; z < 512; z += 1) {
       for (let x = 0; x < 512; x += 1) {
@@ -59,7 +64,9 @@ describe("production MapDefinition and Region partition", () => {
       }
     }
 
-    const regionCellCounts = mapDefinition.regionIds.map((id) => counts.get(id) ?? 0);
+    const regionCellCounts = mapDefinition.regionIds.map(
+      (id) => counts.get(id) ?? 0,
+    );
     const expectedRowCounts = [13056, 13184, 13056, 13184, 13056];
     expect(regionCellCounts).toEqual([
       ...expectedRowCounts,
@@ -67,7 +74,9 @@ describe("production MapDefinition and Region partition", () => {
       ...expectedRowCounts,
       ...expectedRowCounts,
     ]);
-    expect(regionCellCounts.reduce((sum, count) => sum + count, 0)).toBe(512 * 512);
+    expect(regionCellCounts.reduce((sum, count) => sum + count, 0)).toBe(
+      512 * 512,
+    );
     expect(spatial.regionAtCell({ x: 512, z: 0 })).toEqual({
       status: "rejected",
       code: "WORLD_COORD_OUT_OF_BOUNDS",
@@ -166,7 +175,9 @@ describe("production MapDefinition and Region partition", () => {
       }
       expect(adjacency.value).not.toContain(regionId);
       const canonicalOrder = [...adjacency.value].sort(
-        (left, right) => mapDefinition.regionIds.indexOf(left) - mapDefinition.regionIds.indexOf(right),
+        (left, right) =>
+          mapDefinition.regionIds.indexOf(left) -
+          mapDefinition.regionIds.indexOf(right),
       );
       expect(adjacency.value).toEqual(canonicalOrder);
 

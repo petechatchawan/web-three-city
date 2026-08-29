@@ -24,7 +24,9 @@ function rejection<T>(
   return { status: "rejected", code, detail: Object.freeze(detail) };
 }
 
-function regionFailureCode(reason: RegionPreparationFailureReason): WorldErrorCode {
+function regionFailureCode(
+  reason: RegionPreparationFailureReason,
+): WorldErrorCode {
   switch (reason) {
     case "geometry":
       return "WORLD_REGION_GEOMETRY_INVALID";
@@ -51,13 +53,16 @@ function hasExactProductionIdentity(source: MapDefinitionSource): boolean {
 
 function expectedRegionIds(): readonly string[] {
   return Object.freeze(
-    Array.from({ length: 20 }, (_, index) =>
-      `R${index.toString().padStart(2, "0")}`,
+    Array.from(
+      { length: 20 },
+      (_, index) => `R${index.toString().padStart(2, "0")}`,
     ),
   );
 }
 
-function validateRegionIdentity(source: MapDefinitionSource): WorldConstructionResult<true> {
+function validateRegionIdentity(
+  source: MapDefinitionSource,
+): WorldConstructionResult<true> {
   const actual = source.regions.map((region) => region.id);
   const expected = expectedRegionIds();
   const unique = new Set(actual);
@@ -75,7 +80,9 @@ function validateRegionIdentity(source: MapDefinitionSource): WorldConstructionR
   return { status: "success", value: true };
 }
 
-function validateSeedCatalog(source: MapDefinitionSource): WorldConstructionResult<true> {
+function validateSeedCatalog(
+  source: MapDefinitionSource,
+): WorldConstructionResult<true> {
   const seeds = source.acceptedTerrainSeeds;
   if (
     seeds.length !== 1 ||
@@ -120,7 +127,10 @@ function validateCandidates(
           x: candidate.anchor.x + dx,
           z: candidate.anchor.z + dz,
         };
-        if (!isValidCell(cell) || regions.regionAt(cell) !== candidate.regionId) {
+        if (
+          !isValidCell(cell) ||
+          regions.regionAt(cell) !== candidate.regionId
+        ) {
           return rejection("WORLD_STARTING_CANDIDATE_INVALID", {
             issue: "candidate-patch-crosses-region",
             regionId: candidate.regionId,

@@ -222,13 +222,20 @@ export function prepareRegionIndex(
     }
   }
 
-  const adjacencySets = Array.from({ length: regions.length }, () => new Set<number>());
+  const adjacencySets = Array.from(
+    { length: regions.length },
+    () => new Set<number>(),
+  );
   for (let z = 0; z < heightCells; z += 1) {
     for (let x = 0; x < widthCells; x += 1) {
       const currentIndex = z * widthCells + x;
       const currentRegion = ownerByCell[currentIndex] ?? -1;
       if (x + 1 < widthCells) {
-        addAdjacency(adjacencySets, currentRegion, ownerByCell[currentIndex + 1] ?? -1);
+        addAdjacency(
+          adjacencySets,
+          currentRegion,
+          ownerByCell[currentIndex + 1] ?? -1,
+        );
       }
       if (z + 1 < heightCells) {
         addAdjacency(

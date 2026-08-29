@@ -14,7 +14,12 @@ function elevation(value: number) {
   return parsed.value;
 }
 
-function corners(sw: number, se: number, nw: number, ne: number): CellCorners {
+function corners(
+  sw: number,
+  se: number,
+  nw: number,
+  ne: number,
+): CellCorners {
   return {
     sw: elevation(sw),
     se: elevation(se),

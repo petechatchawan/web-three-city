@@ -69,8 +69,7 @@ describe("exact Terrain surface", () => {
       const sample = evaluateSurface(sampleCorners, u, v);
       const swFormula = sampleCorners.se * u + sampleCorners.nw * v;
       const neFormula =
-        sampleCorners.nw * (Q16_ONE - u) +
-        sampleCorners.se * (Q16_ONE - v);
+        sampleCorners.nw * (Q16_ONE - u) + sampleCorners.se * (Q16_ONE - v);
 
       expect(sample.triangle).toBe("SW_TRIANGLE");
       expect(swFormula).toBe(neFormula);

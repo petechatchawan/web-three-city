@@ -48,10 +48,7 @@ function corners(sw: number, se: number, nw: number, ne: number): CellCorners {
 function ownerAxis(axis: number): number {
   return axis === 0
     ? 0
-    : Math.min(
-        Math.floor((axis - 1) / CHUNK_SIZE),
-        CHUNK_AXIS_COUNT - 1,
-      );
+    : Math.min(Math.floor((axis - 1) / CHUNK_SIZE), CHUNK_AXIS_COUNT - 1);
 }
 
 function worldRejection() {
@@ -148,8 +145,7 @@ function createWorldSpatialRead(): WorldSpatialRead {
 
 function record(vertex: VertexCoord, value: number): CanonicalVertexRecord {
   return {
-    chunkKey:
-      ownerAxis(vertex.z) * CHUNK_AXIS_COUNT + ownerAxis(vertex.x),
+    chunkKey: ownerAxis(vertex.z) * CHUNK_AXIS_COUNT + ownerAxis(vertex.x),
     vertexKey: vertex.z * VERTEX_SIZE + vertex.x,
     elevation: elevation(value),
   };
@@ -286,10 +282,7 @@ describe("exact Terrain surface", () => {
 
   it("returns unavailable when any required Cell corner authority is absent", () => {
     const read = createSurfaceRead(
-      [
-        record({ x: 32, z: 0 }, 3),
-        record({ x: 32, z: 1 }, 5),
-      ],
+      [record({ x: 32, z: 0 }, 3), record({ x: 32, z: 1 }, 5)],
       [0],
     );
 

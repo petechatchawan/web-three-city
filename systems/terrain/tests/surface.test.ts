@@ -14,12 +14,7 @@ function elevation(value: number) {
   return parsed.value;
 }
 
-function corners(
-  sw: number,
-  se: number,
-  nw: number,
-  ne: number,
-): CellCorners {
+function corners(sw: number, se: number, nw: number, ne: number): CellCorners {
   return {
     sw: elevation(sw),
     se: elevation(se),
@@ -77,9 +72,7 @@ describe("exact Terrain surface", () => {
           ? evaluateSurface(sampleCorners, u - 1, v + 1)
           : sw;
       expect(sw.triangle).toBe("SW_TRIANGLE");
-      expect(sw.heightQ16).toBe(
-        sampleCorners.se * u + sampleCorners.nw * v,
-      );
+      expect(sw.heightQ16).toBe(sampleCorners.se * u + sampleCorners.nw * v);
       expect(justAcross.heightQ16).toBe(sw.heightQ16);
     }
   });

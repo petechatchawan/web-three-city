@@ -32,9 +32,15 @@ importers:
 
   apps/game:
     dependencies:
+      '@web-three-city/orchestration-city-session':
+        specifier: workspace:*
+        version: link:../../orchestration/city-session
       '@web-three-city/terrain':
         specifier: workspace:*
         version: link:../../systems/terrain
+      '@web-three-city/world':
+        specifier: workspace:*
+        version: link:../../systems/world
       three:
         specifier: 0.179.1
         version: 0.179.1
@@ -42,9 +48,6 @@ importers:
       '@types/three':
         specifier: 0.179.0
         version: 0.179.0
-      '@web-three-city/world':
-        specifier: workspace:*
-        version: link:../../systems/world
       typescript:
         specifier: 5.9.2
         version: 5.9.2

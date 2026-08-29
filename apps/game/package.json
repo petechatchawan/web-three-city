@@ -10,14 +10,15 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@web-three-city/orchestration-city-session": "workspace:*",
     "@web-three-city/terrain": "workspace:*",
+    "@web-three-city/world": "workspace:*",
     "three": "0.179.1"
   },
   "devDependencies": {
     "@types/three": "0.179.0",
     "typescript": "5.9.2",
     "vite": "7.1.3",
-    "@web-three-city/world": "workspace:*",
     "vitest": "3.2.4"
   }
 }

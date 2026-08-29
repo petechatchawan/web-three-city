@@ -189,10 +189,7 @@ function isRegionConnected(
       widthCells,
       heightCells,
     )) {
-      if (
-        discovered[neighbor] !== 1 &&
-        ownerByCell[neighbor] === regionIndex
-      ) {
+      if (discovered[neighbor] !== 1 && ownerByCell[neighbor] === regionIndex) {
         discovered[neighbor] = 1;
         queue[tail] = neighbor;
         tail += 1;

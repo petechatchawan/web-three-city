@@ -54,6 +54,7 @@ jobs:
                   elevation: elevation.value,
                 });''',
           )
+          text = text.replace('toVertexKey(vertex, source.vertexWidth)', 'z * source.vertexWidth + x')
           text = text.replace(
               'return commitMaterializedState(staged, /* owner routing metadata */);',
               'return TerrainState.fromValidatedOwnedVertices(staged);',

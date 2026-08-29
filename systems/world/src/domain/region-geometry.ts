@@ -124,16 +124,16 @@ function isRegionConnected(
   let head = 0;
   let tail = 0;
   let visitedCount = 0;
+  visited[startIndex] = 1;
   queue[tail] = startIndex;
   tail += 1;
 
   while (head < tail) {
     const current = queue[head];
     head += 1;
-    if (current === undefined || visited[current] === 1) {
+    if (current === undefined) {
       continue;
     }
-    visited[current] = 1;
     visitedCount += 1;
 
     const x = current % widthCells;
@@ -151,6 +151,7 @@ function isRegionConnected(
         visited[neighbor] !== 1 &&
         ownerByCell[neighbor] === regionIndex
       ) {
+        visited[neighbor] = 1;
         queue[tail] = neighbor;
         tail += 1;
       }

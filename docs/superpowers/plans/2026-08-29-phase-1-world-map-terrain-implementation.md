@@ -10,7 +10,7 @@
 
 **Spec:** `docs/architecture/PHASE-1-WORLD-MAP-TERRAIN-DESIGN.md` plus the frozen World/Terrain binding specifications under `docs/systems/world/specs/` and `docs/systems/terrain/specs/`.
 
-**Plan Status:** REVIEW DRAFT — NOT APPROVED FOR EXECUTION
+**Plan Status:** APPROVED FOR EXECUTION — OWNER AUTHORIZED 2026-08-29
 
 ## Global Constraints
 
@@ -1092,12 +1092,17 @@ Use primitive private keys below the application boundary so Terrain domain neve
 
 ```ts
 export interface CanonicalVertexRecord {
+  readonly chunkKey: number;
   readonly vertexKey: number;
   readonly elevation: LogicalElevation;
 }
 
 export function toVertexKey(vertex: VertexCoord, vertexWidth: number): number {
   return vertex.z * vertexWidth + vertex.x;
+}
+
+export function toChunkKey(chunk: ChunkCoord): number {
+  return chunk.z * 16 + chunk.x;
 }
 
 // domain/terrain-state.ts receives number keys only.
@@ -1118,14 +1123,15 @@ for (let z = 0; z < source.vertexHeight; z += 1) {
     if (elevation.status === "rejected") return elevation;
     const vertex = { x, z };
     const owner = world.ownerChunk(vertex);
-    if (owner.status !== "success") return rejectMaterialization(owner);
+    if (owner.status !== "success") return { status: "rejected", reason: "world-topology-rejected", detail: { code: owner.code } };
     staged.push({
+      chunkKey: toChunkKey(owner.value),
       vertexKey: toVertexKey(vertex, source.vertexWidth),
       elevation: elevation.value,
     });
   }
 }
-return commitMaterializedState(staged, /* owner routing metadata */);
+// Construct and publish TerrainState exactly once from the complete staged array here.
 ```
 
 No write to the live TerrainState occurs inside the validation loop.
@@ -1466,7 +1472,10 @@ view.setUint32(4, 513, true);
 for (let z = 0; z <= 512; z += 1) {
   for (let x = 0; x <= 512; x += 1) {
     valueView.setInt32(0, field.elevationAt(x, z), true);
-    hash = fnv1a64Update(hash, valueBytes);
+    for (const byte of valueBytes) {
+    hash ^= BigInt(byte);
+    hash = BigInt.asUintN(64, hash * 0x100000001b3n);
+  }
   }
 }
 ```
@@ -1580,18 +1589,18 @@ TERRAIN_GENERATION_NO_ELIGIBLE_START
 
 There is no retry loop or seed substitution.
 
-The preparation control flow is linear:
+The preparation control flow is linear and contains no retry edge:
 
-```ts
-validateProfile(input);
-validateSeedSyntax(input.seed64);
-validateAcceptedSeed(input.world.mapDefinition, input.seed64);
-const field = generateProductionField(input.seed64); // exactly once
-validateFullEnvelope(field);
-validateFingerprint(field);
-const candidateEvaluations = evaluateStartingCandidates(input.world, field);
-validateAtLeastOneEligible(candidateEvaluations);
-return success({ field, seed64: input.seed64, fingerprint: EXPECTED_FINGERPRINT, candidateEvaluations });
+```text
+validate profile id/version
+-> validate Seed64 syntax
+-> validate accepted-seed catalog membership
+-> generate exactly one ProductionTerrainField
+-> validate every one of the 263,169 elevations against [32,288]
+-> validate fingerprint 0xF2FA29BFD2AEB069
+-> evaluate R06, R08, R11, R13 in canonical order
+-> reject when no candidate is eligible
+-> return that exact field + fingerprint + evaluations
 ```
 
 - [ ] **Step 5: Add a no-seed-mining test**
@@ -1908,22 +1917,17 @@ return terrain.sampleSurface(cellResult.value, uQ16, vQ16);
 
 Initial attach requires full Terrain. Build 64 sectors. `rebuild(changeSet)` replaces only deterministic dirty sectors and disposes replaced geometry/material resources. `dispose()` is idempotent and disposes all owned resources.
 
-Use one owned group and one sector map:
+Use one owned `THREE.Group` plus one `Map<string, THREE.Mesh>`. Task 12 defines the package-private projection helpers consumed here:
 
 ```ts
-const sectors = new Map<string, THREE.Mesh>();
-function rebuild(changeSet: TerrainChangeSet): void {
-  for (const coord of dirtySectors(changeSet)) {
-    disposeSector(sectors.get(keyOf(coord)));
-    sectors.set(keyOf(coord), buildSectorMesh(coord));
-  }
-}
-function dispose(): void {
-  for (const mesh of sectors.values()) disposeSector(mesh);
-  sectors.clear();
-  root.removeFromParent();
-}
+function renderSectorKey(coord: RenderSectorCoord): string;
+function buildRenderSectorGeometry(coord: RenderSectorCoord): THREE.BufferGeometry;
+function computeDirtyRenderSectors(
+  changeSet: TerrainChangeSet,
+): readonly RenderSectorCoord[];
 ```
+
+`rebuild(changeSet)` visits `computeDirtyRenderSectors(changeSet)` in canonical `(z,x)` order, disposes and replaces only those meshes, and preserves every unaffected sector. `dispose()` detaches/disposes every owned mesh exactly once, clears the map, and is idempotent.
 
 - [ ] **Step 5: Modify app scene wrapper only as required for composition**
 
@@ -1992,17 +1996,20 @@ Snapshot capture must not increment revision or rebuild presentation. It seriali
 
 Capture from canonical owner storage only:
 
-```ts
-return {
-  mapDefinitionId: state.mapDefinitionId,
-  generationProfileId: "balanced-temperate-generation",
-  generationProfileVersion: 2,
-  selectedSeed64: state.selectedSeed64,
-  revision: state.revision,
-  completeness: state.completeness,
-  chunks: canonicalChunks(state).map(captureChunkSnapshot),
-};
+```text
+TerrainStateSnapshot field order:
+mapDefinitionId
+generationProfileId = balanced-temperate-generation
+generationProfileVersion = 2
+selectedSeed64
+revision
+completeness
+chunks ordered by ChunkCoord (z,x)
+  -> chunkCoord
+  -> owned elevations ordered by owner-window VertexCoord (z,x)
 ```
+
+Implement `captureTerrainSnapshot(state)` directly from private Terrain authority and explicit sorted copies; never depend on Map insertion order.
 
 - [ ] **Step 4: Run GREEN and commit**
 
@@ -2098,19 +2105,29 @@ Wire only exported surfaces:
 
 ```ts
 const worldPreparation = prepareProductionWorldDefinition();
+if (worldPreparation.status === "rejected") return worldPreparation;
+
 const terrainPreparation = prepareProductionTerrain({
   world: worldPreparation.value,
   seed64: request.seed64,
 });
-assertEligibleSelection(terrainPreparation.value.candidateEvaluations, request.startingRegionId);
+if (terrainPreparation.status === "rejected") return terrainPreparation;
+
+const evaluations = terrainPreparation.value.candidateEvaluations;
+const selected = evaluations.find(
+  (evaluation) => evaluation.regionId === request.startingRegionId,
+);
+if (selected === undefined || !selected.eligible) {
+  return { status: "rejected", code: "WORLD_STARTING_REGION_NOT_ELIGIBLE" };
+}
+const eligibleStartingRegionIds = evaluations
+  .filter((evaluation) => evaluation.eligible)
+  .map((evaluation) => evaluation.regionId);
+
 const world = createInitialWorldSystem({
   prepared: worldPreparation.value,
   selectedStartingRegionId: request.startingRegionId,
-  eligibleStartingRegionIds: eligibleIds(terrainPreparation.value.candidateEvaluations),
-});
-const terrain = createTerrainSystem({
-  world: world.value.spatial,
-  prepared: terrainPreparation.value,
+  eligibleStartingRegionIds,
 });
 ```
 

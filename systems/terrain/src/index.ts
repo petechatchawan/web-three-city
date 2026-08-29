@@ -1,0 +1,19 @@
+export {
+  LOGICAL_ELEVATION_METERS,
+  MAX_LOGICAL_ELEVATION,
+  MIN_LOGICAL_ELEVATION,
+  logicalElevationToMeters,
+  parseLogicalElevation,
+} from "./domain/elevation";
+
+export type {
+  LogicalElevation,
+  TerrainElevationResult,
+} from "./domain/elevation";
+
+export type {
+  TerrainAuthorityRead,
+  TerrainCompleteness,
+  TerrainQueryResult,
+  TerrainRevision,
+} from "./contracts/terrain-read";

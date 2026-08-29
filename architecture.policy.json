@@ -1,6 +1,12 @@
 {
   "version": 1,
-  "approvedSystemReadEdges": [],
+  "approvedSystemReadEdges": [
+    {
+      "from": "@web-three-city/terrain",
+      "to": "@web-three-city/world",
+      "reference": "docs/systems/terrain/specs/TERRAIN-SYSTEM-DESIGN.md § 4"
+    }
+  ],
   "approvedSameLayerEdges": [],
   "packageNameDeviations": [],
   "alternateInternalLayouts": []

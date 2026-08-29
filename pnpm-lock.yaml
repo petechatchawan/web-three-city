@@ -57,6 +57,9 @@ importers:
 
   systems/terrain:
     dependencies:
+      '@web-three-city/foundation-contracts':
+        specifier: workspace:*
+        version: link:../../foundation/contracts
       '@web-three-city/world':
         specifier: workspace:*
         version: link:../world

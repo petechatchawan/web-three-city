@@ -1,4 +1,5 @@
 import type { WorldSpatialRead } from "@web-three-city/world";
+import type { TerrainCommands } from "./mutation";
 import type { TerrainAuthorityRead } from "./terrain-read";
 
 export interface TerrainFieldSource {
@@ -29,4 +30,8 @@ export type TerrainConstructionResult<T> =
 
 export interface TerrainAuthoritySystem {
   readonly read: TerrainAuthorityRead;
+}
+
+export interface TerrainSystem extends TerrainAuthoritySystem {
+  readonly commands: TerrainCommands;
 }

@@ -6,12 +6,20 @@ export interface CanonicalVertexRecord {
   readonly elevation: LogicalElevation;
 }
 
+export interface TerrainProvenance {
+  readonly mapDefinitionId: string;
+  readonly generationProfileId: string;
+  readonly generationProfileVersion: number;
+  readonly selectedSeed64: string;
+}
+
 export type TerrainChunkStore = ReadonlyMap<
   number,
   ReadonlyMap<number, LogicalElevation>
 >;
 
 export interface TerrainState {
+  readonly provenance: TerrainProvenance;
   readonly revision: number;
   readonly expectedChunkCount: number;
   readonly loadedChunkKeys: ReadonlySet<number>;
@@ -19,6 +27,7 @@ export interface TerrainState {
 }
 
 export interface CreateTerrainStateInput {
+  readonly provenance: TerrainProvenance;
   readonly records: readonly CanonicalVertexRecord[];
   readonly loadedChunkKeys: readonly number[];
   readonly expectedChunkCount: number;
@@ -52,6 +61,7 @@ export function createTerrainState(
   }
 
   return {
+    provenance: input.provenance,
     revision: 0,
     expectedChunkCount: input.expectedChunkCount,
     loadedChunkKeys,

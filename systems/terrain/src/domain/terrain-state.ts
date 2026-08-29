@@ -28,7 +28,9 @@ export type TerrainStateElevationResult =
   | { readonly status: "success"; readonly value: LogicalElevation }
   | { readonly status: "unavailable" };
 
-export function createTerrainState(input: CreateTerrainStateInput): TerrainState {
+export function createTerrainState(
+  input: CreateTerrainStateInput,
+): TerrainState {
   const loadedChunkKeys = new Set(input.loadedChunkKeys);
   const chunks = new Map<number, Map<number, LogicalElevation>>();
 
@@ -39,7 +41,9 @@ export function createTerrainState(input: CreateTerrainStateInput): TerrainState
   for (const record of input.records) {
     const chunk = chunks.get(record.chunkKey);
     if (chunk === undefined) {
-      throw new Error(`Terrain record targets unloaded chunk ${record.chunkKey}`);
+      throw new Error(
+        `Terrain record targets unloaded chunk ${record.chunkKey}`,
+      );
     }
     if (chunk.has(record.vertexKey)) {
       throw new Error(`Duplicate Terrain vertex key ${record.vertexKey}`);

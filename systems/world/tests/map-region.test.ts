@@ -15,7 +15,6 @@ function expectPrepared() {
 
 function expectRegion(spatial: WorldSpatialRead, cell: CellCoord): RegionId {
   const result = spatial.regionAtCell(cell);
-  expect(result.status).toBe("success");
   if (result.status !== "success") {
     throw new Error(`expected Region at ${cell.x},${cell.z}: ${result.code}`);
   }
@@ -61,7 +60,9 @@ describe("production MapDefinition and Region partition", () => {
     for (let z = 0; z < 512; z += 1) {
       for (let x = 0; x < 512; x += 1) {
         const regionId = expectRegion(spatial, { x, z });
-        expect(counts.has(regionId)).toBe(true);
+        if (!counts.has(regionId)) {
+          throw new Error(`unexpected Region ${regionId} at ${x},${z}`);
+        }
         counts.set(regionId, (counts.get(regionId) ?? 0) + 1);
       }
     }

@@ -20,7 +20,7 @@ export type TerrainQueryResult<T> =
     };
 
 export interface TerrainAuthorityRead {
-  readonly revision: TerrainRevision;
-  readonly completeness: TerrainCompleteness;
-  elevationAtVertex(vertex: VertexCoord): TerrainQueryResult<LogicalElevation>;
+  revision(): TerrainRevision;
+  completeness(): TerrainCompleteness;
+  elevationAt(vertex: VertexCoord): TerrainQueryResult<LogicalElevation>;
 }

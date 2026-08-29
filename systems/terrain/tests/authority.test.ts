@@ -10,77 +10,15 @@ import {
 } from "../src/domain/terrain-state";
 import { createTerrainAuthorityRead } from "../src/application/terrain-read";
 import { logicalElevationToMeters, parseLogicalElevation } from "../src/index";
+import {
+  TEST_CHUNK_AXIS_COUNT,
+  TEST_TERRAIN_PROVENANCE,
+  TEST_VERTEX_SIZE,
+  createTestWorldSpatialRead,
+  testWorldRejection,
+} from "./helpers/world-spatial-fixture";
 
-const VERTEX_SIZE = 513;
-const CHUNK_SIZE = 32;
-const CHUNK_AXIS_COUNT = 16;
-const TOTAL_VERTICES = VERTEX_SIZE * VERTEX_SIZE;
-
-const PROVENANCE = {
-  mapDefinitionId: "web-three-city-production",
-  generationProfileId: "balanced-temperate-generation",
-  generationProfileVersion: 2,
-  selectedSeed64: "0x5EED5EED5EED5EED",
-} as const;
-
-function ownerAxis(axis: number): number {
-  return axis === 0
-    ? 0
-    : Math.min(Math.floor((axis - 1) / CHUNK_SIZE), CHUNK_AXIS_COUNT - 1);
-}
-
-function worldRejection() {
-  return { status: "rejected", code: "WORLD_COORD_OUT_OF_BOUNDS" } as const;
-}
-
-function createWorldSpatialRead(onOwnerLookup?: () => void): WorldSpatialRead {
-  return {
-    cellToChunk() {
-      return worldRejection();
-    },
-    ownerChunk(vertex: VertexCoord) {
-      onOwnerLookup?.();
-      if (
-        !Number.isInteger(vertex.x) ||
-        !Number.isInteger(vertex.z) ||
-        vertex.x < 0 ||
-        vertex.z < 0 ||
-        vertex.x >= VERTEX_SIZE ||
-        vertex.z >= VERTEX_SIZE
-      ) {
-        return worldRejection();
-      }
-      return {
-        status: "success",
-        value: { x: ownerAxis(vertex.x), z: ownerAxis(vertex.z) },
-      };
-    },
-    incidentCells() {
-      return worldRejection();
-    },
-    touchingChunks() {
-      return worldRejection();
-    },
-    cardinalNeighbors() {
-      return worldRejection();
-    },
-    intersectingChunks() {
-      return worldRejection();
-    },
-    worldPositionToCell() {
-      return worldRejection();
-    },
-    cellBounds() {
-      return worldRejection();
-    },
-    regionAtCell() {
-      return worldRejection();
-    },
-    adjacentRegions() {
-      return worldRejection();
-    },
-  };
-}
+const TOTAL_VERTICES = TEST_VERTEX_SIZE * TEST_VERTEX_SIZE;
 
 function expectedElevation(x: number, z: number): number {
   return ((x * 3 + z * 5) % 33) - 16;
@@ -88,8 +26,8 @@ function expectedElevation(x: number, z: number): number {
 
 function fullField(): TerrainFieldSource {
   return {
-    vertexWidth: VERTEX_SIZE,
-    vertexHeight: VERTEX_SIZE,
+    vertexWidth: TEST_VERTEX_SIZE,
+    vertexHeight: TEST_VERTEX_SIZE,
     elevationAt: expectedElevation,
   };
 }
@@ -97,7 +35,7 @@ function fullField(): TerrainFieldSource {
 function constructionInput(world: WorldSpatialRead, source = fullField()) {
   return {
     world,
-    ...PROVENANCE,
+    ...TEST_TERRAIN_PROVENANCE,
     source,
   } as const;
 }
@@ -107,7 +45,7 @@ describe("Terrain canonical authority", () => {
   let authority: ReturnType<typeof createTerrainAuthoritySystem>;
 
   beforeAll(() => {
-    const world = createWorldSpatialRead(() => {
+    const world = createTestWorldSpatialRead(() => {
       ownerLookups += 1;
     });
     authority = createTerrainAuthoritySystem(constructionInput(world));
@@ -160,17 +98,17 @@ describe("Terrain canonical authority", () => {
       elevation: elevation.value,
     };
     const partial = createTerrainState({
-      provenance: PROVENANCE,
+      provenance: TEST_TERRAIN_PROVENANCE,
       records: [record],
       loadedChunkKeys: [0],
-      expectedChunkCount: CHUNK_AXIS_COUNT * CHUNK_AXIS_COUNT,
+      expectedChunkCount: TEST_CHUNK_AXIS_COUNT * TEST_CHUNK_AXIS_COUNT,
     });
-    expect(partial.provenance).toEqual(PROVENANCE);
+    expect(partial.provenance).toEqual(TEST_TERRAIN_PROVENANCE);
 
     const partialRead = createTerrainAuthorityRead({
       state: partial,
-      world: createWorldSpatialRead(),
-      vertexWidth: VERTEX_SIZE,
+      world: createTestWorldSpatialRead(),
+      vertexWidth: TEST_VERTEX_SIZE,
     });
 
     expect(partialRead.completeness()).toBe("partial");
@@ -183,7 +121,7 @@ describe("Terrain canonical authority", () => {
 
   it("rejects invalid source dimensions before publishing TerrainState", () => {
     const result = createTerrainAuthoritySystem(
-      constructionInput(createWorldSpatialRead(), {
+      constructionInput(createTestWorldSpatialRead(), {
         vertexWidth: 512,
         vertexHeight: 513,
         elevationAt: () => 0,
@@ -197,9 +135,9 @@ describe("Terrain canonical authority", () => {
 
   it("rejects an invalid elevation atomically without exposing a partial authority", () => {
     const result = createTerrainAuthoritySystem(
-      constructionInput(createWorldSpatialRead(), {
-        vertexWidth: VERTEX_SIZE,
-        vertexHeight: VERTEX_SIZE,
+      constructionInput(createTestWorldSpatialRead(), {
+        vertexWidth: TEST_VERTEX_SIZE,
+        vertexHeight: TEST_VERTEX_SIZE,
         elevationAt(x, z) {
           return x === 512 && z === 512 ? 4097 : 0;
         },
@@ -213,11 +151,11 @@ describe("Terrain canonical authority", () => {
   });
 
   it("rejects unexpected World topology failures instead of inventing ownership", () => {
-    const world = createWorldSpatialRead();
+    const world = createTestWorldSpatialRead();
     const brokenWorld: WorldSpatialRead = {
       ...world,
       ownerChunk(vertex) {
-        if (vertex.x === 64 && vertex.z === 64) return worldRejection();
+        if (vertex.x === 64 && vertex.z === 64) return testWorldRejection();
         return world.ownerChunk(vertex);
       },
     };

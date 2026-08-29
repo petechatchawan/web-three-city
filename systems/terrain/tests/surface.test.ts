@@ -1,8 +1,4 @@
-import type {
-  CellCoord,
-  VertexCoord,
-  WorldSpatialRead,
-} from "@web-three-city/world";
+import type { VertexCoord } from "@web-three-city/world";
 import { describe, expect, it } from "vitest";
 import { createTerrainAuthorityRead } from "../src/application/terrain-read";
 import {
@@ -15,18 +11,13 @@ import {
   type CellCorners,
 } from "../src/domain/surface";
 import { parseLogicalElevation } from "../src/index";
-
-const VERTEX_SIZE = 513;
-const CELL_SIZE = 512;
-const CHUNK_SIZE = 32;
-const CHUNK_AXIS_COUNT = 16;
-
-const PROVENANCE = {
-  mapDefinitionId: "web-three-city-production",
-  generationProfileId: "balanced-temperate-generation",
-  generationProfileVersion: 2,
-  selectedSeed64: "0x5EED5EED5EED5EED",
-} as const;
+import {
+  TEST_CHUNK_AXIS_COUNT,
+  TEST_TERRAIN_PROVENANCE,
+  TEST_VERTEX_SIZE,
+  createTestWorldSpatialRead,
+  testOwnerAxis,
+} from "./helpers/world-spatial-fixture";
 
 function elevation(value: number) {
   const parsed = parseLogicalElevation(value);
@@ -45,108 +36,11 @@ function corners(sw: number, se: number, nw: number, ne: number): CellCorners {
   };
 }
 
-function ownerAxis(axis: number): number {
-  return axis === 0
-    ? 0
-    : Math.min(Math.floor((axis - 1) / CHUNK_SIZE), CHUNK_AXIS_COUNT - 1);
-}
-
-function worldRejection() {
-  return { status: "rejected", code: "WORLD_COORD_OUT_OF_BOUNDS" } as const;
-}
-
-function createWorldSpatialRead(): WorldSpatialRead {
-  return {
-    cellToChunk(cell: CellCoord) {
-      if (
-        !Number.isInteger(cell.x) ||
-        !Number.isInteger(cell.z) ||
-        cell.x < 0 ||
-        cell.z < 0 ||
-        cell.x >= CELL_SIZE ||
-        cell.z >= CELL_SIZE
-      ) {
-        return worldRejection();
-      }
-      return {
-        status: "success",
-        value: {
-          chunk: {
-            x: Math.floor(cell.x / CHUNK_SIZE),
-            z: Math.floor(cell.z / CHUNK_SIZE),
-          },
-          local: {
-            x: cell.x % CHUNK_SIZE,
-            z: cell.z % CHUNK_SIZE,
-          },
-        },
-      };
-    },
-    ownerChunk(vertex: VertexCoord) {
-      if (
-        !Number.isInteger(vertex.x) ||
-        !Number.isInteger(vertex.z) ||
-        vertex.x < 0 ||
-        vertex.z < 0 ||
-        vertex.x >= VERTEX_SIZE ||
-        vertex.z >= VERTEX_SIZE
-      ) {
-        return worldRejection();
-      }
-      return {
-        status: "success",
-        value: { x: ownerAxis(vertex.x), z: ownerAxis(vertex.z) },
-      };
-    },
-    incidentCells() {
-      return worldRejection();
-    },
-    touchingChunks() {
-      return worldRejection();
-    },
-    cardinalNeighbors() {
-      return worldRejection();
-    },
-    intersectingChunks() {
-      return worldRejection();
-    },
-    worldPositionToCell() {
-      return worldRejection();
-    },
-    cellBounds(cell: CellCoord) {
-      if (
-        !Number.isInteger(cell.x) ||
-        !Number.isInteger(cell.z) ||
-        cell.x < 0 ||
-        cell.z < 0 ||
-        cell.x >= CELL_SIZE ||
-        cell.z >= CELL_SIZE
-      ) {
-        return worldRejection();
-      }
-      return {
-        status: "success",
-        value: {
-          xMinInclusive: cell.x * 8,
-          zMinInclusive: cell.z * 8,
-          xMaxExclusive: (cell.x + 1) * 8,
-          zMaxExclusive: (cell.z + 1) * 8,
-        },
-      };
-    },
-    regionAtCell() {
-      return worldRejection();
-    },
-    adjacentRegions() {
-      return worldRejection();
-    },
-  };
-}
-
 function record(vertex: VertexCoord, value: number): CanonicalVertexRecord {
   return {
-    chunkKey: ownerAxis(vertex.z) * CHUNK_AXIS_COUNT + ownerAxis(vertex.x),
-    vertexKey: vertex.z * VERTEX_SIZE + vertex.x,
+    chunkKey:
+      testOwnerAxis(vertex.z) * TEST_CHUNK_AXIS_COUNT + testOwnerAxis(vertex.x),
+    vertexKey: vertex.z * TEST_VERTEX_SIZE + vertex.x,
     elevation: elevation(value),
   };
 }
@@ -157,16 +51,16 @@ function createSurfaceRead(
   revision = 0,
 ) {
   const state = createTerrainState({
-    provenance: PROVENANCE,
+    provenance: TEST_TERRAIN_PROVENANCE,
     records,
     loadedChunkKeys,
-    expectedChunkCount: CHUNK_AXIS_COUNT * CHUNK_AXIS_COUNT,
+    expectedChunkCount: TEST_CHUNK_AXIS_COUNT * TEST_CHUNK_AXIS_COUNT,
   });
 
   return createTerrainAuthorityRead({
     state: revision === 0 ? state : { ...state, revision },
-    world: createWorldSpatialRead(),
-    vertexWidth: VERTEX_SIZE,
+    world: createTestWorldSpatialRead(),
+    vertexWidth: TEST_VERTEX_SIZE,
   });
 }
 

@@ -7,8 +7,12 @@ import type {
 import { prepareProductionWorldDefinition as prepareProductionWorldDefinitionInternal } from "./application/prepare-world-definition";
 import { createWorldInternal } from "./composition/create-world";
 
-export function prepareProductionWorldDefinition(): WorldConstructionResult<PreparedWorldDefinition> {
+function prepareDefinition(): WorldConstructionResult<PreparedWorldDefinition> {
   return prepareProductionWorldDefinitionInternal();
+}
+
+export function prepareProductionWorldDefinition(): WorldConstructionResult<PreparedWorldDefinition> {
+  return prepareDefinition();
 }
 
 function constructInitialWorld(

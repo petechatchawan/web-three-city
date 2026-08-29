@@ -4,6 +4,7 @@ import type {
 } from "../contracts/terrain-three";
 import type {
   CreateTerrainAuthorityInput,
+  RestoreTerrainInput,
   TerrainAuthoritySystem,
   TerrainConstructionResult,
   TerrainSystem,
@@ -13,18 +14,19 @@ import { applyTerrainEdits } from "../application/apply-terrain-edits";
 import { captureTerrainSnapshot } from "../application/capture-terrain-snapshot";
 import { createTerrainAuthorityRead } from "../application/terrain-read";
 import { materializeTerrain } from "../application/materialize-terrain";
+import { restoreTerrain } from "../application/restore-terrain";
 import { TERRAIN_VERTEX_AXIS_COUNT } from "../application/world-index";
 import type { TerrainState } from "../domain/terrain-state";
 import { createTerrainThreeProjectionInternal } from "../presentation/three/projection/terrain-projection";
 
 function createLiveTerrainRead(
   state: () => TerrainState,
-  input: CreateTerrainAuthorityInput,
+  world: CreateTerrainAuthorityInput["world"],
 ): TerrainAuthorityRead {
   const current = () =>
     createTerrainAuthorityRead({
       state: state(),
-      world: input.world,
+      world,
       vertexWidth: TERRAIN_VERTEX_AXIS_COUNT,
     });
 
@@ -56,34 +58,47 @@ export function createTerrainAuthorityInternal(
   };
 }
 
+function createTerrainSystemFromState(
+  initialState: TerrainState,
+  world: CreateTerrainAuthorityInput["world"],
+): TerrainSystem {
+  let state = initialState;
+  const read = createLiveTerrainRead(() => state, world);
+  return {
+    read,
+    commands: {
+      applyEdits(command) {
+        const outcome = applyTerrainEdits({ state, world, command });
+        state = outcome.state;
+        return outcome.result;
+      },
+    },
+    captureSnapshot() {
+      return captureTerrainSnapshot(state);
+    },
+  };
+}
+
 export function createTerrainSystemInternal(
   input: CreateTerrainAuthorityInput,
 ): TerrainConstructionResult<TerrainSystem> {
   const materialized = materializeTerrain(input);
   if (materialized.status === "rejected") return materialized;
 
-  let state = materialized.value;
-  const read = createLiveTerrainRead(() => state, input);
-
   return {
     status: "success",
-    value: {
-      read,
-      commands: {
-        applyEdits(command) {
-          const outcome = applyTerrainEdits({
-            state,
-            world: input.world,
-            command,
-          });
-          state = outcome.state;
-          return outcome.result;
-        },
-      },
-      captureSnapshot() {
-        return captureTerrainSnapshot(state);
-      },
-    },
+    value: createTerrainSystemFromState(materialized.value, input.world),
+  };
+}
+
+export function restoreTerrainSystemInternal(
+  input: RestoreTerrainInput,
+): TerrainConstructionResult<TerrainSystem> {
+  const restored = restoreTerrain(input);
+  if (restored.status === "rejected") return restored;
+  return {
+    status: "success",
+    value: createTerrainSystemFromState(restored.value, input.world),
   };
 }
 

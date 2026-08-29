@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
+import type { TerrainStateSnapshotV1 } from "../src/index";
 import { parseLogicalElevation } from "../src/index";
-import { createTerrainSystem } from "../src/composition";
+import { createTerrainSystem, restoreTerrainSystem } from "../src/composition";
 import {
   TEST_TERRAIN_PROVENANCE,
   TEST_VERTEX_SIZE,
@@ -84,4 +85,115 @@ describe("Terrain canonical snapshot", () => {
       expect(json.toLowerCase()).not.toContain(forbidden.toLowerCase());
     }
   });
+
+  it("restores a mutated Terrain snapshot exactly and continues revision history", () => {
+    const terrain = createSystem();
+    const nextElevation = parseLogicalElevation(23);
+    expect(nextElevation.status).toBe("success");
+    if (nextElevation.status !== "success") return;
+    const mutation = terrain.commands.applyEdits({
+      edits: [{ vertex: { x: 64, z: 64 }, elevation: nextElevation.value }],
+    });
+    expect(mutation.status).toBe("success");
+
+    const beforeSample = terrain.read.sampleSurface(
+      { x: 63, z: 63 },
+      32768,
+      32768,
+    );
+    const snapshot = terrain.captureSnapshot();
+    const restored = restoreTerrainSystem({
+      world: createPresentationWorldSpatialRead(),
+      mapDefinitionId: TEST_TERRAIN_PROVENANCE.mapDefinitionId,
+      snapshot,
+    });
+
+    expect(restored.status).toBe("success");
+    if (restored.status !== "success") return;
+    expect(restored.value.captureSnapshot()).toEqual(snapshot);
+    expect(
+      restored.value.read.sampleSurface({ x: 63, z: 63 }, 32768, 32768),
+    ).toEqual(beforeSample);
+
+    const restoredCurrent = restored.value.read.elevationAt({ x: 64, z: 64 });
+    expect(restoredCurrent).toEqual({ status: "success", value: 23 });
+    const after = parseLogicalElevation(24);
+    expect(after.status).toBe("success");
+    if (after.status !== "success") return;
+    const nextMutation = restored.value.commands.applyEdits({
+      edits: [{ vertex: { x: 64, z: 64 }, elevation: after.value }],
+    });
+    expect(nextMutation).toMatchObject({
+      status: "success",
+      value: {
+        previousRevision: snapshot.revision,
+        newRevision: snapshot.revision + 1,
+      },
+    });
+  });
+
+  it.each([
+    [
+      "unsupported snapshot version",
+      { snapshotVersion: 2 },
+      "snapshot-incompatible",
+    ],
+    [
+      "wrong map definition",
+      { mapDefinitionId: "other-map" },
+      "snapshot-incompatible",
+    ],
+    [
+      "unsupported generator profile",
+      { generationProfileVersion: 999 },
+      "snapshot-incompatible",
+    ],
+    ["malformed seed", { selectedSeed64: "seed" }, "snapshot-invalid"],
+    [
+      "malformed fingerprint",
+      { fingerprint: "fingerprint" },
+      "snapshot-invalid",
+    ],
+    ["negative revision", { revision: -1 }, "snapshot-invalid"],
+    ["duplicate chunk", null, "snapshot-invalid"],
+    ["missing full chunk", null, "snapshot-invalid"],
+    ["invalid elevation", null, "snapshot-invalid"],
+  ])(
+    "rejects %s without publishing Terrain",
+    (_label, patch, expectedReason) => {
+      const base = createSystem().captureSnapshot();
+      let malformed: unknown = { ...base, ...(patch ?? {}) };
+
+      if (_label === "duplicate chunk") {
+        malformed = { ...base, chunks: [...base.chunks, base.chunks[0]] };
+      }
+      if (_label === "missing full chunk") {
+        malformed = { ...base, chunks: base.chunks.slice(0, -1) };
+      }
+      if (_label === "invalid elevation") {
+        const first = base.chunks[0];
+        if (first === undefined)
+          throw new Error("expected first snapshot chunk");
+        malformed = {
+          ...base,
+          chunks: [
+            { ...first, elevations: [4097, ...first.elevations.slice(1)] },
+            ...base.chunks.slice(1),
+          ],
+        };
+      }
+
+      const result = restoreTerrainSystem({
+        world: createPresentationWorldSpatialRead(),
+        mapDefinitionId: TEST_TERRAIN_PROVENANCE.mapDefinitionId,
+        snapshot: malformed as TerrainStateSnapshotV1,
+      });
+
+      expect(result).toMatchObject({
+        status: "rejected",
+        reason: expectedReason,
+      });
+      expect("value" in result).toBe(false);
+    },
+  );
 });

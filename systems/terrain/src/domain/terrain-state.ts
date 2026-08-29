@@ -38,8 +38,9 @@ export type TerrainStateElevationResult =
   | { readonly status: "success"; readonly value: LogicalElevation }
   | { readonly status: "unavailable" };
 
-export function createTerrainState(
+function assembleTerrainState(
   input: CreateTerrainStateInput,
+  revision: number,
 ): TerrainState {
   const loadedChunkKeys = new Set(input.loadedChunkKeys);
   const chunks = new Map<number, Map<number, LogicalElevation>>();
@@ -63,11 +64,23 @@ export function createTerrainState(
 
   return {
     provenance: input.provenance,
-    revision: 0,
+    revision,
     expectedChunkCount: input.expectedChunkCount,
     loadedChunkKeys,
     chunks,
   };
+}
+
+export function createTerrainState(
+  input: CreateTerrainStateInput,
+): TerrainState {
+  return assembleTerrainState(input, 0);
+}
+
+export function restoreTerrainState(
+  input: CreateTerrainStateInput & { readonly revision: number },
+): TerrainState {
+  return assembleTerrainState(input, input.revision);
 }
 
 export function terrainCompleteness(state: TerrainState): "partial" | "full" {

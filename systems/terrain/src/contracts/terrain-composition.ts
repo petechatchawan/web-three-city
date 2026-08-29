@@ -19,6 +19,12 @@ export interface CreateTerrainAuthorityInput {
   readonly source: TerrainFieldSource;
 }
 
+export interface RestoreTerrainInput {
+  readonly world: WorldSpatialRead;
+  readonly mapDefinitionId: string;
+  readonly snapshot: TerrainStateSnapshotV1;
+}
+
 export type TerrainConstructionResult<T> =
   | { readonly status: "success"; readonly value: T }
   | {
@@ -26,7 +32,9 @@ export type TerrainConstructionResult<T> =
       readonly reason:
         | "invalid-source-dimensions"
         | "invalid-elevation"
-        | "world-topology-rejected";
+        | "world-topology-rejected"
+        | "snapshot-incompatible"
+        | "snapshot-invalid";
       readonly detail?: Readonly<Record<string, unknown>>;
     };
 

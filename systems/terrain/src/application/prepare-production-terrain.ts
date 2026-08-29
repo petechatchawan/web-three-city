@@ -9,17 +9,19 @@ import type {
 import type { TerrainFieldSource } from "../contracts/terrain-composition";
 import { fingerprintProductionTerrainField } from "../domain/generation/fingerprint";
 import {
+  canonicalTerrainSeed64,
+  TERRAIN_GENERATION_PROFILE_ID,
+  TERRAIN_GENERATION_PROFILE_VERSION,
+} from "../domain/generation/profile";
+import {
   generateProductionTerrainField,
   type ProductionTerrainField,
 } from "../domain/generation/production-field";
 import { evaluateStartingCandidates } from "./evaluate-starting-candidates";
 
-const PRODUCTION_PROFILE_ID = "balanced-temperate-generation";
-const PRODUCTION_PROFILE_VERSION = 2;
 const PRODUCTION_VERTEX_AXIS_COUNT = 513;
 const MIN_PRODUCTION_ELEVATION = 32;
 const MAX_PRODUCTION_ELEVATION = 288;
-const SEED64_PATTERN = /^0x[0-9a-fA-F]{16}$/;
 
 export interface PrepareProductionTerrainDependencies {
   generateField(seed64: bigint): ProductionTerrainField;
@@ -43,11 +45,6 @@ function reject<T>(
   return detail === undefined
     ? { status: "rejected", code }
     : { status: "rejected", code, detail: Object.freeze({ ...detail }) };
-}
-
-function canonicalSeed64(seed64: string): string | undefined {
-  if (!SEED64_PATTERN.test(seed64)) return undefined;
-  return `0x${seed64.slice(2).toUpperCase()}`;
 }
 
 function validateProductionEnvelope(field: TerrainFieldSource): boolean {
@@ -80,13 +77,14 @@ export function prepareProductionTerrainInternal(
 ): TerrainGenerationResult<PreparedProductionTerrain> {
   const definition = input.world.mapDefinition;
   if (
-    definition.terrainGenerationProfileId !== PRODUCTION_PROFILE_ID ||
-    definition.terrainGenerationProfileVersion !== PRODUCTION_PROFILE_VERSION
+    definition.terrainGenerationProfileId !== TERRAIN_GENERATION_PROFILE_ID ||
+    definition.terrainGenerationProfileVersion !==
+      TERRAIN_GENERATION_PROFILE_VERSION
   ) {
     return reject("TERRAIN_GENERATION_PROFILE_UNSUPPORTED");
   }
 
-  const selectedSeed64 = canonicalSeed64(input.seed64);
+  const selectedSeed64 = canonicalTerrainSeed64(input.seed64);
   if (selectedSeed64 === undefined) {
     return reject("TERRAIN_GENERATION_SEED_INVALID");
   }

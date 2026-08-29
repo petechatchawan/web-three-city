@@ -2,6 +2,7 @@ import { prepareProductionTerrainInternal } from "./application/prepare-producti
 import {
   createTerrainAuthorityInternal,
   createTerrainSystemInternal,
+  restoreTerrainSystemInternal,
   createTerrainThreeProjectionCompositionInternal,
 } from "./composition/create-terrain";
 import type {
@@ -11,6 +12,7 @@ import type {
 } from "./contracts/generation";
 import type {
   CreateTerrainAuthorityInput,
+  RestoreTerrainInput,
   TerrainAuthoritySystem,
   TerrainConstructionResult,
   TerrainSystem,
@@ -56,6 +58,18 @@ export function prepareProductionTerrain(
   return prepareTerrain(input);
 }
 
+function constructRestoredTerrain(
+  input: RestoreTerrainInput,
+): TerrainConstructionResult<TerrainSystem> {
+  return restoreTerrainSystemInternal(input);
+}
+
+export function restoreTerrainSystem(
+  input: RestoreTerrainInput,
+): TerrainConstructionResult<TerrainSystem> {
+  return constructRestoredTerrain(input);
+}
+
 export function createTerrainAuthoritySystem(
   input: CreateTerrainAuthorityInput,
 ): TerrainConstructionResult<TerrainAuthoritySystem> {
@@ -79,6 +93,7 @@ export type {
 
 export type {
   CreateTerrainAuthorityInput,
+  RestoreTerrainInput,
   TerrainAuthoritySystem,
   TerrainConstructionResult,
   TerrainFieldSource,

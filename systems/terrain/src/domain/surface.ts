@@ -4,6 +4,18 @@ export const Q16_ONE = 65536;
 
 export type TerrainTriangle = "SW_TRIANGLE" | "NE_TRIANGLE";
 
+export type TerrainCellCorner = "sw" | "se" | "nw" | "ne";
+
+export const TERRAIN_CELL_TRIANGLE_CORNERS = {
+  SW_TRIANGLE: ["sw", "se", "nw"],
+  NE_TRIANGLE: ["nw", "se", "ne"],
+} as const satisfies Readonly<
+  Record<
+    TerrainTriangle,
+    readonly [TerrainCellCorner, TerrainCellCorner, TerrainCellCorner]
+  >
+>;
+
 export interface CellCorners {
   readonly sw: LogicalElevation;
   readonly se: LogicalElevation;

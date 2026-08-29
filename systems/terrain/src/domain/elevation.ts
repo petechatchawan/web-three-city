@@ -1,5 +1,6 @@
 export const MIN_LOGICAL_ELEVATION = -4096;
 export const MAX_LOGICAL_ELEVATION = 4096;
+export const LOGICAL_ELEVATION_METERS = 0.25;
 
 export type LogicalElevation = number & {
   readonly __logicalElevationBrand: "LogicalElevation";
@@ -24,4 +25,8 @@ export function parseLogicalElevation(value: number): TerrainElevationResult {
   }
 
   return { status: "success", value: value as LogicalElevation };
+}
+
+export function logicalElevationToMeters(elevation: LogicalElevation): number {
+  return elevation * LOGICAL_ELEVATION_METERS;
 }

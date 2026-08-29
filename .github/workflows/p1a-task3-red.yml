@@ -1,0 +1,50 @@
+name: P1-A Task 3 RED
+
+on:
+  push:
+    branches:
+      - feat/phase-1a-world-authority
+
+permissions:
+  contents: write
+
+jobs:
+  red-task-3:
+    if: contains(github.event.head_commit.message, '[RED-T3]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: feat/phase-1a-world-authority
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22.18.0
+          package-manager-cache: false
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.15.1 --activate
+      - name: Install locked dependencies
+        run: |
+          pnpm install --frozen-lockfile --ignore-scripts
+          pnpm rebuild esbuild
+      - name: Verify intended RED
+        run: |
+          set +e
+          pnpm --filter @web-three-city/world exec vitest run tests/map-region.test.ts 2>&1 | tee /tmp/p1a-task3-red.log
+          status=${PIPESTATUS[0]}
+          set -e
+          test "$status" -ne 0
+          grep -E "prepare-world-definition|Cannot find module|Failed to load url|ENOENT" /tmp/p1a-task3-red.log
+          echo "Observed intended RED: production MapDefinition and Region preparation are absent."
+      - name: Remove RED helper after evidence
+        run: |
+          rm .github/workflows/p1a-task3-red.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/workflows/p1a-task3-red.yml
+          git diff --cached --check
+          git commit -m 'chore(world): record Task 3 RED evidence'
+          git push origin HEAD:feat/phase-1a-world-authority

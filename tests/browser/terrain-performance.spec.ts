@@ -11,7 +11,8 @@ function environmentFlag(name: string): boolean {
 const BASELINE_ENABLED = environmentFlag("TERRAIN_PERFORMANCE_BASELINE");
 
 function percentile(values: readonly number[], ratio: number): number {
-  if (values.length === 0) throw new Error("Cannot measure an empty sample set.");
+  if (values.length === 0)
+    throw new Error("Cannot measure an empty sample set.");
   const sorted = [...values].sort((left, right) => left - right);
   const index = Math.min(
     sorted.length - 1,

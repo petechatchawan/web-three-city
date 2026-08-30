@@ -23,7 +23,7 @@ function invalidPreview(
   return Object.freeze({
     status: "invalid" as const,
     operation: input.operation,
-    targetCell: input.targetCell,
+    targetCell: Object.freeze({ x: input.targetCell.x, z: input.targetCell.z }),
     footprintCells,
     reason,
     expectedTerrainRevision,

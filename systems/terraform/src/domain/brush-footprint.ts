@@ -20,14 +20,14 @@ export function buildBrushFootprint(
   const cells: CellCoord[] = [];
   for (let z = minZ; z <= maxZ; z += 1) {
     for (let x = minX; x <= maxX; x += 1) {
-      cells.push({ x, z });
+      cells.push(Object.freeze({ x, z }));
     }
   }
 
   const vertices: VertexCoord[] = [];
   for (let z = minZ; z <= maxZ + 1; z += 1) {
     for (let x = minX; x <= maxX + 1; x += 1) {
-      vertices.push({ x, z });
+      vertices.push(Object.freeze({ x, z }));
     }
   }
 

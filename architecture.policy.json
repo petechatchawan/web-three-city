@@ -5,6 +5,16 @@
       "from": "@web-three-city/terrain",
       "to": "@web-three-city/world",
       "reference": "docs/systems/terrain/specs/TERRAIN-SYSTEM-DESIGN.md § 4"
+    },
+    {
+      "from": "@web-three-city/terraform",
+      "to": "@web-three-city/world",
+      "reference": "docs/systems/terraform/specs/TERRAFORM-V1-PRODUCT-SPEC.md § 3"
+    },
+    {
+      "from": "@web-three-city/terraform",
+      "to": "@web-three-city/terrain",
+      "reference": "docs/systems/terraform/specs/TERRAFORM-V1-PRODUCT-SPEC.md § 3"
     }
   ],
   "approvedSameLayerEdges": [],

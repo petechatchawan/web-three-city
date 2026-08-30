@@ -1,0 +1,28 @@
+name: Terrain Closure Format Probe
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22.18.0
+          package-manager-cache: false
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.15.1 --activate
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Format closure record and print exact diff
+        run: |
+          pnpm exec prettier --write docs/systems/terrain/verification/TERRAIN-ENGINE-V1-PRODUCTION-CLOSURE.md
+          git diff -- docs/systems/terrain/verification/TERRAIN-ENGINE-V1-PRODUCTION-CLOSURE.md

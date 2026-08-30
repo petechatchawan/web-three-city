@@ -14,30 +14,11 @@ import {
   type TerrainRevision,
 } from "@web-three-city/terrain";
 import type {
-  TerraformBrushSize,
-  TerraformOperation,
+  PlanTerraformInput,
   TerraformPreview,
-  TerraformStrength,
 } from "@web-three-city/terraform";
-import * as terraform from "@web-three-city/terraform";
+import { planTerraform } from "@web-three-city/terraform/composition";
 
-interface PlanTerraformInputUnderTest {
-  readonly operation: TerraformOperation;
-  readonly targetCell: CellCoord;
-  readonly brushSize: TerraformBrushSize;
-  readonly strength: TerraformStrength;
-  readonly flattenTarget?: LogicalElevation;
-  readonly mapDefinition: MapDefinitionRead;
-  readonly mapState: MapStateRead;
-  readonly spatial: WorldSpatialRead;
-  readonly terrain: TerrainAuthorityRead;
-}
-
-type TerraformApiUnderTest = typeof terraform & {
-  readonly planTerraform?: (input: PlanTerraformInputUnderTest) => TerraformPreview;
-};
-
-const api = terraform as TerraformApiUnderTest;
 const UNLOCKED = "region-unlocked" as RegionId;
 const LOCKED = "region-locked" as RegionId;
 
@@ -117,8 +98,8 @@ function terrain(options?: {
   } as unknown as TerrainAuthorityRead;
 }
 
-function plan(overrides: Partial<PlanTerraformInputUnderTest> = {}): TerraformPreview | undefined {
-  return api.planTerraform?.({
+function plan(overrides: Partial<PlanTerraformInput> = {}): TerraformPreview {
+  return planTerraform({
     operation: "raise",
     targetCell: { x: 10, z: 10 },
     brushSize: 1,
@@ -135,8 +116,8 @@ describe("planTerraform raise/lower", () => {
   it("plans a valid Normal 1x1 Raise against the captured Terrain revision", () => {
     const preview = plan();
 
-    expect(preview?.status).toBe("valid");
-    if (preview?.status !== "valid") return;
+    expect(preview.status).toBe("valid");
+    if (preview.status !== "valid") return;
 
     expect(preview.plan.edits).toHaveLength(4);
     expect(preview.plan.edits.every((edit) => edit.desiredElevation === 24)).toBe(true);

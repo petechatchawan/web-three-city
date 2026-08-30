@@ -1,4 +1,4 @@
-import type { TerraformStrength } from "../contracts/terraform-types";
+export type TerraformStrength = "fine" | "normal" | "strong";
 
 export function strengthLevels(strength: TerraformStrength): 1 | 4 | 16 {
   switch (strength) {

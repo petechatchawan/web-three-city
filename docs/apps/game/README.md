@@ -16,7 +16,8 @@ composition adapters
 Home / New City / Load City / Game screens
 shadcn-like design tokens and DOM primitives
 Three.js Scene/Renderer lifecycle
-production city camera
+production city camera with demand-driven keyboard/wheel motion
+PC WASD + Q/E + Shift keyboard routing
 PC/mobile Pointer Event gesture routing
 pointer -> Raycaster adapter
 IndexedDB CitySaveRepository adapter
@@ -41,9 +42,9 @@ App-owned camera/input/UI/IndexedDB objects are not gameplay authority. Canonica
 ## Interaction lifecycle
 
 ```text
-Pointer Events
--> app gesture recognizer
--> camera intent OR semantic tap
+Pointer/Keyboard/Wheel Events
+-> direct gesture intent OR driven camera motion OR semantic tap
+-> driven motion uses demand RAF + frame-rate-independent damping
 -> tap only -> pointer/NDC/Raycaster
 -> Terrain semantic pick
 ```

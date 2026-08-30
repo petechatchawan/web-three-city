@@ -354,14 +354,6 @@ describe("city camera imperative adapters", () => {
     expect(taps).toEqual([{ x: 11, y: 11 }]);
     expect(surface.captured.has(1)).toBe(false);
 
-    const beforeWheel = cameraController.state().distance;
-    surface.emit("wheel", { deltaY: 120 });
-    expect(cameraController.state().distance).toBeGreaterThan(beforeWheel);
-    const afterZoomOut = cameraController.state().distance;
-    surface.emit("wheel", { deltaY: -240 });
-    expect(cameraController.state().distance).toBeLessThan(afterZoomOut);
-    expect(render).toHaveBeenCalled();
-
     controller.dispose();
     controller.dispose();
     expect(surface.style.touchAction).toBe("");

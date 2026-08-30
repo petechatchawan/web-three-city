@@ -47,3 +47,57 @@ test("live city shell fits a mobile viewport", async ({ page }) => {
     ),
   ).toBe(false);
 });
+
+test("supports smooth PC keyboard pan, rotation and wheel zoom", async ({
+  page,
+}) => {
+  await page.goto("/live-city-test.html");
+  const game = page.getByTestId("game-screen");
+  const viewport = page.getByTestId("game-viewport");
+  await expect(game).toHaveAttribute("data-input-controller", "ready");
+  await expect(game).toHaveAttribute("data-camera-target");
+  await expect(game).toHaveAttribute("data-camera-azimuth");
+  await expect(game).toHaveAttribute("data-camera-distance");
+
+  const beforeW = await game.getAttribute("data-camera-target");
+  await page.keyboard.down("w");
+  await page.waitForTimeout(140);
+  await page.keyboard.up("w");
+  const atRelease = await game.getAttribute("data-camera-target");
+  expect(atRelease).not.toBe(beforeW);
+  await page.waitForTimeout(80);
+  const afterRelease = await game.getAttribute("data-camera-target");
+  expect(afterRelease).not.toBe(atRelease);
+
+  await page.waitForTimeout(900);
+  const beforeQ = Number(await game.getAttribute("data-camera-azimuth"));
+  await page.keyboard.down("q");
+  await page.waitForTimeout(140);
+  await page.keyboard.up("q");
+  const afterQ = Number(await game.getAttribute("data-camera-azimuth"));
+  expect(afterQ).toBeGreaterThan(beforeQ);
+
+  await page.waitForTimeout(900);
+  const beforeE = Number(await game.getAttribute("data-camera-azimuth"));
+  await page.keyboard.down("e");
+  await page.waitForTimeout(140);
+  await page.keyboard.up("e");
+  const afterE = Number(await game.getAttribute("data-camera-azimuth"));
+  expect(afterE).toBeLessThan(beforeE);
+
+  const wheelResult = await viewport.evaluate((element) => {
+    const game = document.querySelector<HTMLElement>(
+      "[data-testid='game-screen']",
+    );
+    if (game === null) throw new Error("Game screen unavailable.");
+    const before = game.dataset.cameraDistance;
+    element.dispatchEvent(
+      new WheelEvent("wheel", { deltaY: 180, cancelable: true, bubbles: true }),
+    );
+    return { before, immediate: game.dataset.cameraDistance };
+  });
+  expect(wheelResult.immediate).toBe(wheelResult.before);
+  await expect
+    .poll(() => game.getAttribute("data-camera-distance"))
+    .not.toBe(wheelResult.before);
+});

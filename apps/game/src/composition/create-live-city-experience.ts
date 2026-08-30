@@ -59,6 +59,23 @@ function writePick(
   );
 }
 
+function writeCameraDiagnostics(
+  screen: GameScreenHandle,
+  camera: ReturnType<typeof createCityCamera>,
+): void {
+  const state = camera.state();
+  screen.element.dataset.cameraTarget = [
+    state.targetX,
+    state.targetY,
+    state.targetZ,
+  ]
+    .map((value) => value.toFixed(3))
+    .join(",");
+  screen.element.dataset.cameraDistance = state.distance.toFixed(3);
+  screen.element.dataset.cameraAzimuth = state.azimuthRadians.toFixed(6);
+  screen.element.dataset.cameraElevation = state.elevationRadians.toFixed(6);
+}
+
 function debugLayers(overlay: TerrainThreeDebugOverlay): string {
   const visibility = overlay.visibility();
   return DEBUG_LAYER_ORDER.filter((layer) => visibility[layer]).join(",");
@@ -76,6 +93,7 @@ export function createLiveCityExperience(input: {
   let overlay: TerrainThreeDebugOverlay | undefined;
   let liveProjection: TerrainThreeProjection | undefined;
   let inputController: CityInputController | undefined;
+  let cameraController: ReturnType<typeof createCityCamera> | undefined;
   let saving = false;
 
   const updateDebugDiagnostics = (): void => {
@@ -84,6 +102,9 @@ export function createLiveCityExperience(input: {
   };
 
   const requestRender = (): void => {
+    if (cameraController !== undefined) {
+      writeCameraDiagnostics(screen, cameraController);
+    }
     if (scene.available) scene.render();
   };
 
@@ -151,6 +172,7 @@ export function createLiveCityExperience(input: {
     scene.scene.add(projection.root, overlay.root);
 
     const camera = createCityCamera({ camera: scene.camera, map });
+    cameraController = camera;
     const picker = createTerrainPointerPicker({
       viewport: screen.viewport,
       camera: scene.camera,

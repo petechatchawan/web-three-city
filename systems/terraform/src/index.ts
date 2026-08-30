@@ -4,6 +4,8 @@ export type {
   TerraformOperation,
   TerraformPlan,
   TerraformPreview,
+  TerraformUndoEntry,
+  TerraformUndoHistory,
   TerraformVertexMutation,
 } from "./contracts/terraform-types";
 export {

@@ -1,10 +1,13 @@
 # Terrain System
 
-- **Status:** FROZEN — OWNER APPROVED 2026-08-29
-- **Date:** 2026-08-29
+- **Status:** PRODUCTION CLOSED — 2026-08-30
+- **Date:** 2026-08-30
+- **Closed code baseline:** `master@19fb9e6e9999ecb69cba0ad51ada3e0685c48b51`
 - **Owner:** `systems/terrain`
 - **Phase:** Phase 1 — World / Map / Terrain
 - **Umbrella:** `docs/architecture/PHASE-1-WORLD-MAP-TERRAIN-DESIGN.md`
+
+Terrain Engine v1 production responsibilities are closed. Its binding contracts remain frozen; downstream gameplay systems consume Terrain through its public surfaces and do not reopen Terrain ownership by adding product semantics.
 
 ## Purpose
 
@@ -84,6 +87,7 @@ Terrain owns semantic snapshots of its canonical state and provenance. A later p
 
 ## Verification evidence
 
+- `verification/TERRAIN-ENGINE-V1-PRODUCTION-CLOSURE.md`
 - `verification/TERRAIN-PRODUCT-INTEGRATION-V1.md`
 
 ## Verification boundary

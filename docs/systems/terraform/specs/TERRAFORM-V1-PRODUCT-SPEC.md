@@ -182,10 +182,10 @@ Flatten never stores or commits an arbitrary interpolated triangle height.
 Frozen strengths:
 
 | Strength | Levels | Vertical change |
-| --- | ---: | ---: |
-| Fine | 1 | 0.25m |
-| Normal | 4 | 1m |
-| Strong | 16 | 4m |
+| -------- | -----: | --------------: |
+| Fine     |      1 |           0.25m |
+| Normal   |      4 |              1m |
+| Strong   |     16 |              4m |
 
 Default:
 

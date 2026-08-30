@@ -1,5 +1,6 @@
 import type {
   CellCoord,
+  ChunkCoord,
   MapDefinitionRead,
   MapStateRead,
   VertexCoord,
@@ -58,6 +59,10 @@ export interface PlanTerraformInput {
   readonly mapState: MapStateRead;
   readonly spatial: WorldSpatialRead;
   readonly terrain: TerrainAuthorityRead;
+}
+
+export interface TerraformTerrainInvalidation {
+  readonly touchingLogicalChunks: readonly ChunkCoord[];
 }
 
 export interface TerraformUndoEntry {

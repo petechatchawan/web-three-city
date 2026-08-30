@@ -4,6 +4,7 @@ export type {
   TerraformOperation,
   TerraformPlan,
   TerraformPreview,
+  TerraformTerrainInvalidation,
   TerraformUndoEntry,
   TerraformUndoHistory,
   TerraformVertexMutation,

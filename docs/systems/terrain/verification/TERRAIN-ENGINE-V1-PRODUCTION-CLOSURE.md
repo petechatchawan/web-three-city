@@ -62,19 +62,19 @@ Measured on the GitHub-hosted Ubuntu runner from post-merge `master@19fb9e6e`.
 
 ### Node / composition baseline
 
-| Measurement | Baseline |
-| --- | ---: |
-| World preparation | 33.343 ms |
-| Terrain generation | 155.817 ms |
-| Terrain system creation | 88.772 ms |
+| Measurement                  |   Baseline |
+| ---------------------------- | ---------: |
+| World preparation            |  33.343 ms |
+| Terrain generation           | 155.817 ms |
+| Terrain system creation      |  88.772 ms |
 | Initial 64-sector projection | 578.421 ms |
-| 1-sector localized rebuild | 17.145 ms |
-| 2-sector localized rebuild | 16.283 ms |
-| 4-sector localized rebuild | 31.018 ms |
-| Snapshot capture | 18.628 ms |
-| Snapshot JSON encode | 10.444 ms |
-| Restore | 86.763 ms |
-| Snapshot encoded bytes | 1,061,193 |
+| 1-sector localized rebuild   |  17.145 ms |
+| 2-sector localized rebuild   |  16.283 ms |
+| 4-sector localized rebuild   |  31.018 ms |
+| Snapshot capture             |  18.628 ms |
+| Snapshot JSON encode         |  10.444 ms |
+| Restore                      |  86.763 ms |
+| Snapshot encoded bytes       |  1,061,193 |
 
 These are regression reference measurements, not optimization thresholds. Performance work must compare equivalent environment/workload evidence before changing production contracts.
 

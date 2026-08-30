@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  buildBrushFootprint,
-  strengthLevels,
-} from "@web-three-city/terraform";
+import { buildBrushFootprint, strengthLevels } from "@web-three-city/terraform";
 
 describe("Terraform strength", () => {
   it("maps Fine, Normal, and Strong to the frozen logical elevation deltas", () => {

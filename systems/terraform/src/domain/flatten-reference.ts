@@ -47,7 +47,10 @@ export function resolveFlattenCorner(pick: FlattenReferencePick): VertexCoord {
   });
 }
 
-function isCellInWorld(cell: CellCoord, mapDefinition: MapDefinitionRead): boolean {
+function isCellInWorld(
+  cell: CellCoord,
+  mapDefinition: MapDefinitionRead,
+): boolean {
   return (
     cell.x >= 0 &&
     cell.z >= 0 &&
@@ -60,7 +63,10 @@ export function selectFlattenReference(
   input: SelectFlattenReferenceInput,
 ): FlattenReferenceResult {
   if (!isCellInWorld(input.pick.cell, input.mapDefinition)) {
-    return Object.freeze({ status: "rejected" as const, reason: "OUT_OF_WORLD" as const });
+    return Object.freeze({
+      status: "rejected" as const,
+      reason: "OUT_OF_WORLD" as const,
+    });
   }
 
   const region = input.spatial.regionAtCell(input.pick.cell);
@@ -68,7 +74,10 @@ export function selectFlattenReference(
     region.status !== "success" ||
     !input.mapState.unlockedRegionIds.includes(region.value)
   ) {
-    return Object.freeze({ status: "rejected" as const, reason: "LOCKED_REGION" as const });
+    return Object.freeze({
+      status: "rejected" as const,
+      reason: "LOCKED_REGION" as const,
+    });
   }
 
   const vertex = resolveFlattenCorner(input.pick);

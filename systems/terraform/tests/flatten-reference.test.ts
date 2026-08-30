@@ -41,7 +41,8 @@ const mapState: MapStateRead = {
 
 function elevation(value: number): LogicalElevation {
   const parsed = parseLogicalElevation(value);
-  if (parsed.status !== "success") throw new Error(`invalid test elevation ${value}`);
+  if (parsed.status !== "success")
+    throw new Error(`invalid test elevation ${value}`);
   return parsed.value;
 }
 
@@ -51,7 +52,9 @@ function spatial(region: RegionId = UNLOCKED): WorldSpatialRead {
   } as unknown as WorldSpatialRead;
 }
 
-function terrain(options?: { readonly unavailable?: boolean }): TerrainAuthorityRead {
+function terrain(options?: {
+  readonly unavailable?: boolean;
+}): TerrainAuthorityRead {
   return {
     elevationAt: (vertex: VertexCoord) =>
       options?.unavailable
@@ -66,10 +69,22 @@ function terrain(options?: { readonly unavailable?: boolean }): TerrainAuthority
 
 describe("Flatten nearest canonical corner", () => {
   it.each([
-    [{ cell: { x: 5, z: 7 }, uQ16: 0, vQ16: 0 }, { x: 5, z: 7 }],
-    [{ cell: { x: 5, z: 7 }, uQ16: 65535, vQ16: 0 }, { x: 6, z: 7 }],
-    [{ cell: { x: 5, z: 7 }, uQ16: 0, vQ16: 65535 }, { x: 5, z: 8 }],
-    [{ cell: { x: 5, z: 7 }, uQ16: 32768, vQ16: 32768 }, { x: 6, z: 8 }],
+    [
+      { cell: { x: 5, z: 7 }, uQ16: 0, vQ16: 0 },
+      { x: 5, z: 7 },
+    ],
+    [
+      { cell: { x: 5, z: 7 }, uQ16: 65535, vQ16: 0 },
+      { x: 6, z: 7 },
+    ],
+    [
+      { cell: { x: 5, z: 7 }, uQ16: 0, vQ16: 65535 },
+      { x: 5, z: 8 },
+    ],
+    [
+      { cell: { x: 5, z: 7 }, uQ16: 32768, vQ16: 32768 },
+      { x: 6, z: 8 },
+    ],
   ] as const)("resolves deterministic corner %#", (pick, expected) => {
     expect(resolveFlattenCorner(pick)).toEqual(expected);
   });

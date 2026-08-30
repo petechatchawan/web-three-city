@@ -17,7 +17,8 @@ function revision(value: number): TerrainRevision {
 
 function elevation(value: number): LogicalElevation {
   const parsed = parseLogicalElevation(value);
-  if (parsed.status !== "success") throw new Error(`invalid test elevation ${value}`);
+  if (parsed.status !== "success")
+    throw new Error(`invalid test elevation ${value}`);
   return parsed.value;
 }
 

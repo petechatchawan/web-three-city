@@ -30,7 +30,10 @@ function invalidPreview(
   });
 }
 
-function isCellInWorld(cell: CellCoord, mapDefinition: MapDefinitionRead): boolean {
+function isCellInWorld(
+  cell: CellCoord,
+  mapDefinition: MapDefinitionRead,
+): boolean {
   return (
     cell.x >= 0 &&
     cell.z >= 0 &&
@@ -64,11 +67,15 @@ function desiredElevationFor(
   return parsed.status === "success" ? parsed.value : undefined;
 }
 
-export function planTerraformInternal(input: PlanTerraformInput): TerraformPreview {
+export function planTerraformInternal(
+  input: PlanTerraformInput,
+): TerraformPreview {
   const expectedTerrainRevision = input.terrain.revision();
   const footprint = buildBrushFootprint(input.targetCell, input.brushSize);
 
-  if (footprint.cells.some((cell) => !isCellInWorld(cell, input.mapDefinition))) {
+  if (
+    footprint.cells.some((cell) => !isCellInWorld(cell, input.mapDefinition))
+  ) {
     return invalidPreview(
       input,
       expectedTerrainRevision,

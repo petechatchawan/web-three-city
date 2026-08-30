@@ -44,7 +44,8 @@ const mapState: MapStateRead = {
 
 function elevation(value: number): LogicalElevation {
   const parsed = parseLogicalElevation(value);
-  if (parsed.status !== "success") throw new Error(`invalid test elevation ${value}`);
+  if (parsed.status !== "success")
+    throw new Error(`invalid test elevation ${value}`);
   return parsed.value;
 }
 
@@ -53,7 +54,8 @@ function spatial(options?: { readonly lockedCell?: string }): WorldSpatialRead {
     regionAtCell(cell: CellCoord) {
       return {
         status: "success",
-        value: `${cell.x}:${cell.z}` === options?.lockedCell ? LOCKED : UNLOCKED,
+        value:
+          `${cell.x}:${cell.z}` === options?.lockedCell ? LOCKED : UNLOCKED,
       };
     },
     incidentCells(vertex: VertexCoord) {
@@ -120,7 +122,9 @@ describe("planTerraform raise/lower", () => {
     if (preview.status !== "valid") return;
 
     expect(preview.plan.edits).toHaveLength(4);
-    expect(preview.plan.edits.every((edit) => edit.desiredElevation === 24)).toBe(true);
+    expect(
+      preview.plan.edits.every((edit) => edit.desiredElevation === 24),
+    ).toBe(true);
     expect(preview.plan.expectedTerrainRevision).toBe(7);
     expect(preview.plan.influenceCells).not.toContainEqual({ x: 10, z: 10 });
     expect(preview.plan.influenceCells).toEqual([
@@ -143,14 +147,18 @@ describe("planTerraform raise/lower", () => {
   });
 
   it("rejects the whole footprint when one selected cell belongs to a locked region", () => {
-    expect(plan({ brushSize: 3, spatial: spatial({ lockedCell: "11:10" }) })).toMatchObject({
+    expect(
+      plan({ brushSize: 3, spatial: spatial({ lockedCell: "11:10" }) }),
+    ).toMatchObject({
       status: "invalid",
       reason: "LOCKED_REGION",
     });
   });
 
   it("rejects when one required canonical vertex is unavailable", () => {
-    expect(plan({ terrain: terrain({ unavailableVertex: "11:11" }) })).toMatchObject({
+    expect(
+      plan({ terrain: terrain({ unavailableVertex: "11:11" }) }),
+    ).toMatchObject({
       status: "invalid",
       reason: "TERRAIN_UNAVAILABLE",
     });
@@ -158,7 +166,10 @@ describe("planTerraform raise/lower", () => {
 
   it("rejects Strong Raise that exceeds the Terrain logical elevation maximum", () => {
     expect(
-      plan({ strength: "strong", terrain: terrain({ defaultElevation: 4090 }) }),
+      plan({
+        strength: "strong",
+        terrain: terrain({ defaultElevation: 4090 }),
+      }),
     ).toMatchObject({ status: "invalid", reason: "ELEVATION_LIMIT" });
   });
 
@@ -191,7 +202,9 @@ describe("planTerraform flatten", () => {
     expect(preview.status).toBe("valid");
     if (preview.status !== "valid") return;
     expect(preview.plan.edits).toHaveLength(4);
-    expect(preview.plan.edits.every((edit) => edit.desiredElevation === 31)).toBe(true);
+    expect(
+      preview.plan.edits.every((edit) => edit.desiredElevation === 31),
+    ).toBe(true);
   });
 
   it("returns a valid zero-edit plan when the footprint is already flat at target", () => {
@@ -219,7 +232,9 @@ describe("planTerraform flatten", () => {
 
       expect(preview.status).toBe("valid");
       if (preview.status !== "valid") return;
-      expect(preview.plan.edits.every((edit) => edit.desiredElevation === 31)).toBe(true);
+      expect(
+        preview.plan.edits.every((edit) => edit.desiredElevation === 31),
+      ).toBe(true);
     },
   );
 });

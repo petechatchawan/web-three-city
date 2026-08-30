@@ -1,5 +1,9 @@
 import type { CellCoord, MapDefinitionRead } from "@web-three-city/world";
-import { parseLogicalElevation, type TerrainRevision } from "@web-three-city/terrain";
+import {
+  parseLogicalElevation,
+  type LogicalElevation,
+  type TerrainRevision,
+} from "@web-three-city/terrain";
 import type {
   PlanTerraformInput,
   TerraformInvalidReason,
@@ -47,6 +51,19 @@ function sortCells(cells: Iterable<CellCoord>): readonly CellCoord[] {
   );
 }
 
+function desiredElevationFor(
+  input: PlanTerraformInput,
+  current: LogicalElevation,
+): LogicalElevation | undefined {
+  if (input.operation === "flatten") return input.flattenTarget;
+
+  const direction = input.operation === "lower" ? -1 : 1;
+  const parsed = parseLogicalElevation(
+    current + strengthLevels(input.strength) * direction,
+  );
+  return parsed.status === "success" ? parsed.value : undefined;
+}
+
 export function planTerraformInternal(input: PlanTerraformInput): TerraformPreview {
   const expectedTerrainRevision = input.terrain.revision();
   const footprint = buildBrushFootprint(input.targetCell, input.brushSize);
@@ -73,13 +90,16 @@ export function planTerraformInternal(input: PlanTerraformInput): TerraformPrevi
     }
   }
 
-  if (input.operation === "flatten") {
-    throw new Error("Flatten planning is not implemented in TF1 Task 3");
+  if (input.operation === "flatten" && input.flattenTarget === undefined) {
+    return invalidPreview(
+      input,
+      expectedTerrainRevision,
+      footprint.cells,
+      "FLATTEN_TARGET_NOT_SELECTED",
+    );
   }
 
   const edits: TerraformVertexMutation[] = [];
-  const changedVertices: TerraformVertexMutation[] = [];
-  const delta = strengthLevels(input.strength) * (input.operation === "lower" ? -1 : 1);
 
   for (const vertex of footprint.vertices) {
     const current = input.terrain.elevationAt(vertex);
@@ -92,8 +112,8 @@ export function planTerraformInternal(input: PlanTerraformInput): TerraformPrevi
       );
     }
 
-    const parsed = parseLogicalElevation(current.value + delta);
-    if (parsed.status !== "success") {
+    const desiredElevation = desiredElevationFor(input, current.value);
+    if (desiredElevation === undefined) {
       return invalidPreview(
         input,
         expectedTerrainRevision,
@@ -102,21 +122,21 @@ export function planTerraformInternal(input: PlanTerraformInput): TerraformPrevi
       );
     }
 
-    if (parsed.value !== current.value) {
-      const edit = Object.freeze({
-        vertex: Object.freeze({ x: vertex.x, z: vertex.z }),
-        previousElevation: current.value,
-        desiredElevation: parsed.value,
-      });
-      edits.push(edit);
-      changedVertices.push(edit);
+    if (desiredElevation !== current.value) {
+      edits.push(
+        Object.freeze({
+          vertex: Object.freeze({ x: vertex.x, z: vertex.z }),
+          previousElevation: current.value,
+          desiredElevation,
+        }),
+      );
     }
   }
 
   const primaryCellKeys = new Set(footprint.cells.map(cellKey));
   const influenceByKey = new Map<string, CellCoord>();
 
-  for (const edit of changedVertices) {
+  for (const edit of edits) {
     const incident = input.spatial.incidentCells(edit.vertex);
     if (incident.status !== "success") continue;
 

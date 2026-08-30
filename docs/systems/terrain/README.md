@@ -44,7 +44,7 @@ golden regression seed 0x5EED5EED5EED5EED
 
 ## Public surfaces
 
-Expected after implementation approval:
+Implemented package surfaces:
 
 ```text
 @web-three-city/terrain
@@ -81,6 +81,10 @@ Terrain contracts/application may use stable World public values/read capabiliti
 ## Snapshot ownership
 
 Terrain owns semantic snapshots of its canonical state and provenance. A later persistence layer serializes those snapshots but never owns Terrain meaning.
+
+## Verification evidence
+
+- `verification/TERRAIN-PRODUCT-INTEGRATION-V1.md`
 
 ## Verification boundary
 

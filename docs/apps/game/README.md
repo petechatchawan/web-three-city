@@ -70,6 +70,10 @@ Neutral, compact, accessible, mobile-first visual language inspired by shadcn. N
 - `specs/CAMERA-AND-INPUT-DESIGN.md`
 - `specs/CITY-UI-AND-PERSISTENCE-ADAPTER-DESIGN.md`
 
+## Verification evidence
+
+- `verification/TERRAIN-PRODUCT-INTEGRATION-V1.md`
+
 ## Explicit non-goals
 
 ```text

@@ -45,6 +45,10 @@ The concern never imports `@web-three-city/world/composition` or `@web-three-cit
 
 Expected failures are typed and propagated. No fallback seed, fallback Region, silent save deletion, or regeneration of corrupt loaded Terrain is permitted.
 
+## Verification evidence
+
+- `verification/TERRAIN-PRODUCT-INTEGRATION-V1.md`
+
 ## Binding spec
 
 - `specs/CITY-SESSION-DESIGN.md`

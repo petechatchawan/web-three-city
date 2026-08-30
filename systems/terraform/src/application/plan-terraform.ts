@@ -1,38 +1,14 @@
+import type { CellCoord, MapDefinitionRead } from "@web-three-city/world";
+import { parseLogicalElevation, type TerrainRevision } from "@web-three-city/terrain";
 import type {
-  CellCoord,
-  MapDefinitionRead,
-  MapStateRead,
-  WorldSpatialRead,
-} from "@web-three-city/world";
-import {
-  parseLogicalElevation,
-  type LogicalElevation,
-  type TerrainAuthorityRead,
-  type TerrainRevision,
-} from "@web-three-city/terrain";
-import type {
-  TerraformBrushSize,
+  PlanTerraformInput,
   TerraformInvalidReason,
-  TerraformOperation,
   TerraformPlan,
   TerraformPreview,
-  TerraformStrength,
   TerraformVertexMutation,
 } from "../contracts/terraform-types";
 import { buildBrushFootprint } from "../domain/brush-footprint";
 import { strengthLevels } from "../domain/strength";
-
-export interface PlanTerraformInput {
-  readonly operation: TerraformOperation;
-  readonly targetCell: CellCoord;
-  readonly brushSize: TerraformBrushSize;
-  readonly strength: TerraformStrength;
-  readonly flattenTarget?: LogicalElevation;
-  readonly mapDefinition: MapDefinitionRead;
-  readonly mapState: MapStateRead;
-  readonly spatial: WorldSpatialRead;
-  readonly terrain: TerrainAuthorityRead;
-}
 
 function invalidPreview(
   input: PlanTerraformInput,
@@ -71,7 +47,7 @@ function sortCells(cells: Iterable<CellCoord>): readonly CellCoord[] {
   );
 }
 
-export function planTerraform(input: PlanTerraformInput): TerraformPreview {
+export function planTerraformInternal(input: PlanTerraformInput): TerraformPreview {
   const expectedTerrainRevision = input.terrain.revision();
   const footprint = buildBrushFootprint(input.targetCell, input.brushSize);
 

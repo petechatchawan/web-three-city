@@ -12,7 +12,10 @@ import {
   type LiveCityExperience,
 } from "./create-live-city-experience";
 import { citySessionErrorMessage } from "./city-session-error-message";
-import { createHomeScreen } from "../ui/screens/create-home-screen";
+import {
+  createHomeScreen,
+  type HomeScreenHandle,
+} from "../ui/screens/create-home-screen";
 import {
   createLoadCityScreen,
   type LoadCityScreenHandle,
@@ -104,8 +107,10 @@ export function createCityLifecycleCoordinator(input: {
     token: number,
   ): Promise<void> => {
     screen.setError(undefined);
+    screen.setBusy(cityId);
     const result = await input.service.loadCity(cityId);
     if (!isCurrent(token)) return;
+    screen.setBusy(undefined);
     if (result.status !== "success") {
       screen.setError(citySessionErrorMessage(result.code));
       return;
@@ -182,15 +187,21 @@ export function createCityLifecycleCoordinator(input: {
     showScreen("new-city", screen);
   };
 
-  const resumeLatest = async (token: number): Promise<void> => {
+  const resumeLatest = async (
+    screen: HomeScreenHandle,
+    token: number,
+  ): Promise<void> => {
+    screen.setBusy(true);
+    screen.setError(undefined);
     const result = await input.service.resumeCity();
     if (!isCurrent(token)) return;
+    screen.setBusy(false);
     if (result.status === "empty") {
       await renderHome();
       return;
     }
     if (result.status !== "success") {
-      setMountError(citySessionErrorMessage(result.code));
+      screen.setError(citySessionErrorMessage(result.code));
       return;
     }
     enterLive(result.value);
@@ -199,15 +210,18 @@ export function createCityLifecycleCoordinator(input: {
   const mountHome = (
     cities: readonly CitySaveSummary[],
     token: number,
+    errorMessage?: string,
   ): void => {
     if (!isCurrent(token)) return;
-    const screen = createHomeScreen({
+    let screen: HomeScreenHandle;
+    screen = createHomeScreen({
       latest: cities[0],
       cityCount: cities.length,
       onNewCity: renderNew,
       onLoadCity: () => void renderLoad(),
-      onResume: () => void resumeLatest(token),
+      onResume: () => void resumeLatest(screen, token),
     });
+    screen.setError(errorMessage);
     activeScreen = screen;
     input.mount.replaceChildren(screen.element);
     input.mount.dataset.screen = "home";
@@ -220,8 +234,9 @@ export function createCityLifecycleCoordinator(input: {
     const listed = await input.service.listCities();
     if (!isCurrent(token)) return;
     if (listed.status !== "success") {
-      setMountError(citySessionErrorMessage(listed.code));
-      mountHome([], token);
+      const message = citySessionErrorMessage(listed.code);
+      setMountError(message);
+      mountHome([], token, message);
       return;
     }
     mountHome(listed.value, token);

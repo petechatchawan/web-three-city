@@ -59,6 +59,8 @@ if (mode === "home-empty" || mode === "home-populated") {
   screen.element.addEventListener("click", () => {
     mount.dataset.calls = calls.join(",");
   });
+  (window as typeof window & { screenHandle?: typeof screen }).screenHandle =
+    screen;
   dispose = screen.dispose;
 } else if (mode === "new") {
   const calls: string[] = [];
@@ -103,6 +105,8 @@ if (mode === "home-empty" || mode === "home-populated") {
   screen.element.addEventListener("click", () => {
     mount.dataset.calls = calls.join(",");
   });
+  (window as typeof window & { screenHandle?: typeof screen }).screenHandle =
+    screen;
   dispose = screen.dispose;
 } else {
   throw new Error(`Unsupported screen test mode ${mode}`);

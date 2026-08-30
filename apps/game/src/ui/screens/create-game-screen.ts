@@ -6,13 +6,38 @@ import type { ScreenHandle } from "./screen-types";
 const DEBUG_OPTIONS: readonly {
   readonly layer: TerrainDebugLayer;
   readonly label: string;
+  readonly description: string;
 }[] = Object.freeze([
-  { layer: "cellGrid", label: "Gameplay grid" },
-  { layer: "renderSectors", label: "Render sectors" },
-  { layer: "vertices", label: "Terrain vertices" },
-  { layer: "triangles", label: "Triangle topology" },
-  { layer: "normals", label: "Normals" },
-  { layer: "elevation", label: "Elevation" },
+  {
+    layer: "cellGrid",
+    label: "Gameplay grid",
+    description: "Gameplay Cell boundaries conforming to Terrain.",
+  },
+  {
+    layer: "renderSectors",
+    label: "Render sectors",
+    description: "Presentation-sector boundaries used for localized rebuilds.",
+  },
+  {
+    layer: "vertices",
+    label: "Terrain vertices",
+    description: "Canonical Terrain Vertex positions sampled by the surface.",
+  },
+  {
+    layer: "triangles",
+    label: "Triangle topology",
+    description: "Fixed semantic triangle topology for every Terrain Cell.",
+  },
+  {
+    layer: "normals",
+    label: "Normals",
+    description: "Sampled global presentation normals for seam inspection.",
+  },
+  {
+    layer: "elevation",
+    label: "Elevation",
+    description: "Deterministic colorized elevation diagnostic surface.",
+  },
 ]);
 
 export interface GameScreenHandle extends ScreenHandle {
@@ -20,6 +45,7 @@ export interface GameScreenHandle extends ScreenHandle {
   setSaving(saving: boolean): void;
   setSaveStatus(message?: string): void;
   setPickStatus(message: string): void;
+  setDebugLayers(layers: readonly TerrainDebugLayer[]): void;
 }
 
 export function createGameScreen(input: {
@@ -29,6 +55,7 @@ export function createGameScreen(input: {
   readonly onSave: () => void;
   readonly onExit: () => void;
   readonly onDebugChange: (layer: TerrainDebugLayer, checked: boolean) => void;
+  readonly onClearDebug: () => void;
 }): GameScreenHandle {
   const element = document.createElement("section");
   element.className = "game-screen";
@@ -70,17 +97,34 @@ export function createGameScreen(input: {
   const debug = document.createElement("details");
   debug.className = "game-debug";
   const debugSummary = document.createElement("summary");
-  debugSummary.textContent = "Terrain Debug";
+  const debugSummaryText = document.createElement("span");
+  debugSummaryText.textContent = "Terrain Debug · 0 active";
+  debugSummary.append(debugSummaryText);
   const debugBody = document.createElement("div");
   debugBody.className = "game-debug__body";
-  const switches = DEBUG_OPTIONS.map(({ layer, label }) =>
-    createSwitch({
+  const switches = DEBUG_OPTIONS.map(({ layer, label, description }) => {
+    const entry = createSwitch({
       id: `game-debug-${layer}`,
       label,
       onChange: (checked) => input.onDebugChange(layer, checked),
-    }),
+    });
+    const detail = document.createElement("span");
+    detail.className = "game-debug__description";
+    detail.textContent = description;
+    entry.element.append(detail);
+    return entry;
+  });
+  const clearDebug = createButton({
+    label: "Clear debug",
+    variant: "ghost",
+    onPress: input.onClearDebug,
+  });
+  clearDebug.element.disabled = true;
+  clearDebug.element.classList.add("game-debug__clear");
+  debugBody.append(
+    ...switches.map((entry) => entry.element),
+    clearDebug.element,
   );
-  debugBody.append(...switches.map((entry) => entry.element));
   debug.append(debugSummary, debugBody);
 
   const pickStatus = document.createElement("div");
@@ -103,11 +147,20 @@ export function createGameScreen(input: {
     setPickStatus(message): void {
       pickStatus.textContent = message;
     },
+    setDebugLayers(layers): void {
+      const active = new Set(layers);
+      for (const [index, option] of DEBUG_OPTIONS.entries()) {
+        switches[index]!.input.checked = active.has(option.layer);
+      }
+      debugSummaryText.textContent = `Terrain Debug · ${layers.length} active`;
+      clearDebug.element.disabled = layers.length === 0;
+    },
     dispose(): void {
       if (disposed) return;
       disposed = true;
       save.dispose();
       exit.dispose();
+      clearDebug.dispose();
       for (const item of switches) item.dispose();
     },
   };

@@ -64,9 +64,28 @@ test("composes a live city with Terrain, camera, picking, debug and lifecycle co
     .poll(() => game.getAttribute("data-camera-distance"))
     .not.toBe(wheelResult.before);
 
-  await page.getByText("Terrain Debug", { exact: true }).click();
+  await expect(
+    page.getByText("Terrain Debug · 0 active", { exact: true }),
+  ).toBeVisible();
+  await page.getByText("Terrain Debug · 0 active", { exact: true }).click();
+  await expect(
+    page.getByText("Gameplay Cell boundaries conforming to Terrain.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  const clearDebug = page.getByRole("button", { name: "Clear debug" });
+  await expect(clearDebug).toBeDisabled();
   await page.getByRole("checkbox", { name: "Gameplay grid" }).check();
   await expect(game).toHaveAttribute("data-debug-layers", "cellGrid");
+  await expect(
+    page.getByText("Terrain Debug · 1 active", { exact: true }),
+  ).toBeVisible();
+  await expect(clearDebug).toBeEnabled();
+  await clearDebug.click();
+  await expect(game).toHaveAttribute("data-debug-layers", "");
+  await expect(
+    page.getByText("Terrain Debug · 0 active", { exact: true }),
+  ).toBeVisible();
 
   await page.getByRole("button", { name: "Save city" }).click();
   await expect(mount).toHaveAttribute("data-saves", "1");

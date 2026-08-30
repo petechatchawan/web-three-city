@@ -20,6 +20,40 @@ test("home screen cleanly separates empty and resumable states", async ({
   ).toBeVisible();
   const resume = page.getByRole("button", { name: /Resume Metro Alpha/i });
   await expect(resume).toBeVisible();
+  await expect(
+    page.getByText("Last played 30 Aug 2026, 04:00 UTC", { exact: true }),
+  ).toBeVisible();
+  await page.evaluate(() => {
+    const handle = (
+      window as typeof window & {
+        screenHandle?: {
+          setBusy(value: boolean): void;
+          setError(value?: string): void;
+        };
+      }
+    ).screenHandle;
+    if (handle === undefined) throw new Error("screen handle unavailable");
+    handle.setBusy(true);
+    handle.setError("Resume temporarily unavailable");
+  });
+  await expect(resume).toBeDisabled();
+  await expect(
+    page.getByText("Resume temporarily unavailable", { exact: true }),
+  ).toBeVisible();
+  await page.evaluate(() => {
+    const handle = (
+      window as typeof window & {
+        screenHandle?: {
+          setBusy(value: boolean): void;
+          setError(value?: string): void;
+        };
+      }
+    ).screenHandle;
+    if (handle === undefined) throw new Error("screen handle unavailable");
+    handle.setBusy(false);
+    handle.setError(undefined);
+  });
+  await expect(resume).toBeEnabled();
   await resume.click();
   await expect(page.locator("#city-screens-test")).toHaveAttribute(
     "data-calls",
@@ -122,6 +156,47 @@ test("load screen presents empty and populated save states without horizontal ov
   await expect(
     page.getByRole("heading", { name: "Metro Beta", exact: true }),
   ).toBeVisible();
+  await expect(
+    page.getByText("Last played 30 Aug 2026, 03:00 UTC", { exact: true }),
+  ).toBeVisible();
+  await page.evaluate(() => {
+    const handle = (
+      window as typeof window & {
+        screenHandle?: {
+          setBusy(cityId?: string): void;
+          setError(value?: string): void;
+        };
+      }
+    ).screenHandle;
+    if (handle === undefined) throw new Error("screen handle unavailable");
+    handle.setBusy("city-b");
+    handle.setError("Restore temporarily unavailable");
+  });
+  await expect(
+    page.getByRole("button", { name: "Load Metro Alpha" }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "Load Metro Beta" }),
+  ).toBeDisabled();
+  await expect(
+    page.getByText("Loading Metro Beta…", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Restore temporarily unavailable", { exact: true }),
+  ).toBeVisible();
+  await page.evaluate(() => {
+    const handle = (
+      window as typeof window & {
+        screenHandle?: {
+          setBusy(cityId?: string): void;
+          setError(value?: string): void;
+        };
+      }
+    ).screenHandle;
+    if (handle === undefined) throw new Error("screen handle unavailable");
+    handle.setBusy(undefined);
+    handle.setError(undefined);
+  });
   await page.getByRole("button", { name: "Load Metro Beta" }).click();
   await expect(page.locator("#city-screens-test")).toHaveAttribute(
     "data-calls",

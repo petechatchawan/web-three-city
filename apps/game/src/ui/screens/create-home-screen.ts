@@ -5,7 +5,13 @@ import type {
 import { createButton } from "../primitives/button";
 import { createCard } from "../primitives/card";
 import { createEmptyState } from "../primitives/empty-state";
+import { formatCityTimestamp } from "../format-city-timestamp";
 import { createScreenFrame, type ScreenHandle } from "./screen-types";
+
+export interface HomeScreenHandle extends ScreenHandle {
+  setBusy(busy: boolean): void;
+  setError(message: string | undefined): void;
+}
 
 export function createHomeScreen(input: {
   readonly latest?: CitySaveSummary | undefined;
@@ -13,7 +19,7 @@ export function createHomeScreen(input: {
   readonly onNewCity: () => void;
   readonly onLoadCity: () => void;
   readonly onResume: (cityId: CityId) => void;
-}): ScreenHandle {
+}): HomeScreenHandle {
   const frame = createScreenFrame({
     eyebrow: "Deterministic city builder",
     title: "Web Three City",
@@ -57,7 +63,9 @@ export function createHomeScreen(input: {
     seed.textContent = `Seed ${latest.selectedSeed64}`;
     const revision = document.createElement("span");
     revision.textContent = `Revision ${latest.terrainRevision}`;
-    facts.append(seed, revision);
+    const played = document.createElement("span");
+    played.textContent = `Last played ${formatCityTimestamp(latest.lastPlayedAt)}`;
+    facts.append(seed, revision, played);
     resumeButton = createButton({
       label: `Resume ${latest.name}`,
       variant: "primary",
@@ -67,9 +75,25 @@ export function createHomeScreen(input: {
     frame.body.prepend(card.element);
   }
 
+  const error = document.createElement("p");
+  error.className = "city-screen__error";
+  error.setAttribute("role", "alert");
+  error.hidden = true;
+  frame.body.append(error);
+
   let disposed = false;
-  return Object.freeze({
+  const handle: HomeScreenHandle = {
     element: frame.element,
+    setBusy(busy): void {
+      newButton.element.disabled = busy;
+      loadButton.element.disabled = busy;
+      if (resumeButton !== undefined) resumeButton.element.disabled = busy;
+      frame.element.dataset.busy = String(busy);
+    },
+    setError(message): void {
+      error.hidden = message === undefined;
+      error.textContent = message ?? "";
+    },
     dispose(): void {
       if (disposed) return;
       disposed = true;
@@ -77,5 +101,6 @@ export function createHomeScreen(input: {
       loadButton.dispose();
       resumeButton?.dispose();
     },
-  });
+  };
+  return Object.freeze(handle);
 }

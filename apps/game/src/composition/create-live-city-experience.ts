@@ -98,7 +98,11 @@ export function createLiveCityExperience(input: {
 
   const updateDebugDiagnostics = (): void => {
     if (overlay === undefined) return;
-    screen.element.dataset.debugLayers = debugLayers(overlay);
+    const layers = DEBUG_LAYER_ORDER.filter(
+      (layer) => overlay?.visibility()[layer],
+    );
+    screen.element.dataset.debugLayers = layers.join(",");
+    screen.setDebugLayers(layers);
   };
 
   const requestRender = (): void => {
@@ -139,6 +143,14 @@ export function createLiveCityExperience(input: {
     onSave: () => void save(),
     onExit: input.onExit,
     onDebugChange,
+    onClearDebug: () => {
+      if (overlay === undefined || disposed) return;
+      overlay.setVisibility(
+        Object.fromEntries(DEBUG_LAYER_ORDER.map((layer) => [layer, false])),
+      );
+      updateDebugDiagnostics();
+      requestRender();
+    },
   });
   input.mount.replaceChildren(screen.element);
   input.mount.dataset.liveRuntime = "booting";

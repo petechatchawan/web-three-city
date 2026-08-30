@@ -172,3 +172,54 @@ describe("planTerraform raise/lower", () => {
     ).toMatchObject({ status: "invalid", reason: "ELEVATION_LIMIT" });
   });
 });
+
+describe("planTerraform flatten", () => {
+  it("rejects Flatten when no canonical target level has been selected", () => {
+    expect(plan({ operation: "flatten" })).toMatchObject({
+      status: "invalid",
+      reason: "FLATTEN_TARGET_NOT_SELECTED",
+    });
+  });
+
+  it("sets every changed footprint vertex to the exact canonical target", () => {
+    const preview = plan({
+      operation: "flatten",
+      flattenTarget: elevation(31),
+      terrain: terrain({ defaultElevation: 20 }),
+    });
+
+    expect(preview.status).toBe("valid");
+    if (preview.status !== "valid") return;
+    expect(preview.plan.edits).toHaveLength(4);
+    expect(preview.plan.edits.every((edit) => edit.desiredElevation === 31)).toBe(true);
+  });
+
+  it("returns a valid zero-edit plan when the footprint is already flat at target", () => {
+    const preview = plan({
+      operation: "flatten",
+      flattenTarget: elevation(31),
+      terrain: terrain({ defaultElevation: 31 }),
+    });
+
+    expect(preview.status).toBe("valid");
+    if (preview.status !== "valid") return;
+    expect(preview.plan.edits).toHaveLength(0);
+    expect(preview.plan.influenceCells).toHaveLength(0);
+  });
+
+  it.each(["fine", "normal", "strong"] as const)(
+    "ignores %s strength and preserves the same Flatten target",
+    (strength) => {
+      const preview = plan({
+        operation: "flatten",
+        strength,
+        flattenTarget: elevation(31),
+        terrain: terrain({ defaultElevation: 20 }),
+      });
+
+      expect(preview.status).toBe("valid");
+      if (preview.status !== "valid") return;
+      expect(preview.plan.edits.every((edit) => edit.desiredElevation === 31)).toBe(true);
+    },
+  );
+});

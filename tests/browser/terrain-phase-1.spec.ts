@@ -17,6 +17,7 @@ function parseCameraTarget(
 test("projects production Terrain through real WebGL and semantic picking", async ({
   page,
 }) => {
+  test.setTimeout(60_000);
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
 

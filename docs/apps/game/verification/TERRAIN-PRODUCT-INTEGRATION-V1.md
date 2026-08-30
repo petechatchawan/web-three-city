@@ -28,6 +28,6 @@ IndexedDB canonical payload authority audit
 
 The app uses explicit save only. `pagehide` disposes resources and never initiates persistence. No `localStorage` or production `OrbitControls` path exists.
 
-Browser acceptance is serialized to one Playwright worker because the full-map Terrain/WebGL journeys allocate the complete production Terrain and 64-sector projection. This keeps local and CI release gates deterministic without relaxing per-test timeouts; focused Playwright specs can still be run directly during development.
+Browser acceptance is serialized to one Playwright worker because the full-map Terrain/WebGL journeys allocate the complete production Terrain and 64-sector projection. The two full-map correctness journeys use an explicit 60-second per-test runner budget because GitHub-hosted software WebGL has shown 25–30+ second variance at the same commit. Performance regression is measured separately from correctness acceptance; focused Playwright specs can still be run directly during development.
 
 Known build observation: Vite reports a non-blocking chunk-size warning for the current single application bundle. Code splitting is deferred to a dedicated performance/packaging tranche rather than mixed into Terrain semantics.

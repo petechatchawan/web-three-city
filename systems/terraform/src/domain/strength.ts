@@ -1,11 +1,12 @@
-export type TerraformStrength = "fine" | "normal" | "strong";
+import type { TerraformStrength } from "../contracts/terraform-types";
 
-const STRENGTH_LEVELS: Readonly<Record<TerraformStrength, number>> = {
-  fine: 1,
-  normal: 4,
-  strong: 16,
-};
-
-export function strengthLevels(strength: TerraformStrength): number {
-  return STRENGTH_LEVELS[strength];
+export function strengthLevels(strength: TerraformStrength): 1 | 4 | 16 {
+  switch (strength) {
+    case "fine":
+      return 1;
+    case "normal":
+      return 4;
+    case "strong":
+      return 16;
+  }
 }

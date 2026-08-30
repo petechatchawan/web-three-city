@@ -2,6 +2,7 @@ import { prepareProductionTerrainInternal } from "./application/prepare-producti
 import {
   createTerrainAuthorityInternal,
   createTerrainSystemInternal,
+  createTerrainThreeProjectionCompositionInternal,
 } from "./composition/create-terrain";
 import type {
   PrepareProductionTerrainInput,
@@ -14,6 +15,10 @@ import type {
   TerrainConstructionResult,
   TerrainSystem,
 } from "./contracts/terrain-composition";
+import type {
+  CreateTerrainThreeProjectionInput,
+  TerrainThreeProjectionConstructionResult,
+} from "./contracts/terrain-three";
 
 function constructTerrainAuthority(
   input: CreateTerrainAuthorityInput,
@@ -27,10 +32,22 @@ function constructTerrainSystem(
   return createTerrainSystemInternal(input);
 }
 
+function constructTerrainThreeProjection(
+  input: CreateTerrainThreeProjectionInput,
+): TerrainThreeProjectionConstructionResult {
+  return createTerrainThreeProjectionCompositionInternal(input);
+}
+
 function prepareTerrain(
   input: PrepareProductionTerrainInput,
 ): TerrainGenerationResult<PreparedProductionTerrain> {
   return prepareProductionTerrainInternal(input);
+}
+
+export function createTerrainThreeProjection(
+  input: CreateTerrainThreeProjectionInput,
+): TerrainThreeProjectionConstructionResult {
+  return constructTerrainThreeProjection(input);
 }
 
 export function prepareProductionTerrain(
@@ -67,3 +84,11 @@ export type {
   TerrainFieldSource,
   TerrainSystem,
 } from "./contracts/terrain-composition";
+
+export type {
+  CreateTerrainThreeProjectionInput,
+  TerrainSemanticPick,
+  TerrainSemanticPickResult,
+  TerrainThreeProjection,
+  TerrainThreeProjectionConstructionResult,
+} from "./contracts/terrain-three";

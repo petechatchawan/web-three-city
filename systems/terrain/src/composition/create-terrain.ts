@@ -1,4 +1,8 @@
 import type {
+  CreateTerrainThreeProjectionInput,
+  TerrainThreeProjectionConstructionResult,
+} from "../contracts/terrain-three";
+import type {
   CreateTerrainAuthorityInput,
   TerrainAuthoritySystem,
   TerrainConstructionResult,
@@ -10,6 +14,7 @@ import { createTerrainAuthorityRead } from "../application/terrain-read";
 import { materializeTerrain } from "../application/materialize-terrain";
 import { TERRAIN_VERTEX_AXIS_COUNT } from "../application/world-index";
 import type { TerrainState } from "../domain/terrain-state";
+import { createTerrainThreeProjectionInternal } from "../presentation/three/projection/terrain-projection";
 
 function createLiveTerrainRead(
   state: () => TerrainState,
@@ -76,4 +81,10 @@ export function createTerrainSystemInternal(
       },
     },
   };
+}
+
+export function createTerrainThreeProjectionCompositionInternal(
+  input: CreateTerrainThreeProjectionInput,
+): TerrainThreeProjectionConstructionResult {
+  return createTerrainThreeProjectionInternal(input);
 }

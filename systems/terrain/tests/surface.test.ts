@@ -7,6 +7,7 @@ import {
 } from "../src/domain/terrain-state";
 import {
   Q16_ONE,
+  TERRAIN_CELL_TRIANGLE_CORNERS,
   evaluateSurface,
   type CellCorners,
 } from "../src/domain/surface";
@@ -79,6 +80,13 @@ function sampleCellRead(revision = 0) {
 
 describe("exact Terrain surface", () => {
   const sampleCorners = corners(0, 8, 4, 20);
+
+  it("owns one canonical triangle-corner order for semantic and presentation use", () => {
+    expect(TERRAIN_CELL_TRIANGLE_CORNERS).toEqual({
+      SW_TRIANGLE: ["sw", "se", "nw"],
+      NE_TRIANGLE: ["nw", "se", "ne"],
+    });
+  });
 
   it("uses the frozen NW→SE triangle identity and diagonal tie rule", () => {
     expect(evaluateSurface(sampleCorners, 0, 0)).toMatchObject({

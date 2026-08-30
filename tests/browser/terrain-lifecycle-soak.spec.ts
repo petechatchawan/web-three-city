@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 const GOLDEN_SEED = "0x5EED5EED5EED5EED";
 const GOLDEN_FINGERPRINT = "0xF2FA29BFD2AEB069";
@@ -13,7 +13,7 @@ interface LifecycleDiagnostics {
   readonly pendingAnimationFrames: number;
 }
 
-async function diagnostics(page: Parameters<typeof test>[0] extends never ? never : any): Promise<LifecycleDiagnostics> {
+async function diagnostics(page: Page): Promise<LifecycleDiagnostics> {
   return page.evaluate(() => {
     const source = (
       window as unknown as {
@@ -58,7 +58,11 @@ test("cycles New, Load and Resume without accumulating presentation resources", 
     let nextTargetId = 1;
     let nextListenerId = 1;
 
-    const idFor = (map: WeakMap<object, number>, value: object, next: () => number) => {
+    const idFor = (
+      map: WeakMap<object, number>,
+      value: object,
+      next: () => number,
+    ) => {
       const existing = map.get(value);
       if (existing !== undefined) return existing;
       const created = next();
@@ -139,7 +143,9 @@ test("cycles New, Load and Resume without accumulating presentation resources", 
   await page.goto("/");
   const app = page.locator("#app");
   await expect(app).toHaveAttribute("data-screen", "home");
-  await expect.poll(async () => (await diagnostics(page)).pendingAnimationFrames).toBe(0);
+  await expect
+    .poll(async () => (await diagnostics(page)).pendingAnimationFrames)
+    .toBe(0);
   expect((await diagnostics(page)).activeTrackedListeners).toBe(0);
 
   await page.getByRole("button", { name: "New City" }).click();

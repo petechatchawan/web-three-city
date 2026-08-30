@@ -1,6 +1,5 @@
 import type { CellCoord, VertexCoord } from "@web-three-city/world";
-
-export type TerraformBrushSize = 1 | 3 | 5;
+import type { TerraformBrushSize } from "../contracts/terraform-types";
 
 export interface TerraformBrushFootprint {
   readonly cells: readonly CellCoord[];
@@ -31,5 +30,8 @@ export function buildBrushFootprint(
     }
   }
 
-  return { cells, vertices };
+  return Object.freeze({
+    cells: Object.freeze(cells),
+    vertices: Object.freeze(vertices),
+  });
 }

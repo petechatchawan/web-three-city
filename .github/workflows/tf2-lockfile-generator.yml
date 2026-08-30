@@ -10,7 +10,6 @@ permissions:
 
 jobs:
   generate:
-    if: github.event.head_commit.message != 'chore(terraform): link app runtime dependency'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
@@ -22,28 +21,24 @@ jobs:
         run: |
           corepack enable
           corepack prepare pnpm@10.15.1 --activate
-      - name: Add Terraform app dependency
+      - name: Stop after generated dependency commit
+        id: guard
         run: |
-          node <<'NODE'
-          const fs = require('node:fs');
-          const path = 'apps/game/package.json';
-          const pkg = JSON.parse(fs.readFileSync(path, 'utf8'));
-          pkg.dependencies = {
-            '@web-three-city/orchestration-city-session': pkg.dependencies['@web-three-city/orchestration-city-session'],
-            '@web-three-city/terraform': 'workspace:*',
-            '@web-three-city/terrain': pkg.dependencies['@web-three-city/terrain'],
-            '@web-three-city/world': pkg.dependencies['@web-three-city/world'],
-            three: pkg.dependencies.three,
-          };
-          fs.writeFileSync(path, `${JSON.stringify(pkg, null, 2)}\n`);
-          NODE
-      - name: Generate lockfile with repository pnpm
-        run: pnpm install --lockfile-only --ignore-scripts
+          if [ "$(git log -1 --pretty=%s)" = "chore(terraform): link app runtime dependency" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Add Terraform app dependency and generate lockfile
+        if: steps.guard.outputs.skip != 'true'
+        run: pnpm --filter @web-three-city/app-game add '@web-three-city/terraform@workspace:*' --lockfile-only --ignore-scripts
       - name: Verify generated diff
+        if: steps.guard.outputs.skip != 'true'
         run: |
           git diff --check
           git diff -- apps/game/package.json pnpm-lock.yaml
       - name: Commit generated package metadata
+        if: steps.guard.outputs.skip != 'true'
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'

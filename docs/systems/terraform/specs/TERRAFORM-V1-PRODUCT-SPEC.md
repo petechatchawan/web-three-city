@@ -5,7 +5,7 @@
 - **Baseline:** `master@e07e1e0e0f6843826d6c362fc020d5be6c94969a`
 - **Terrain baseline:** Terrain Engine v1 — Production Closed
 - **Natural World baseline:** Natural World Architecture v1 — Frozen
-- **Scope:** Player-facing land editing policy, planning, preview, interaction, undo, presentation, persistence acceptance, and release gates
+- **Scope:** Player-facing land editing policy, planning, preview, interaction, undo, presentation, persistence acceptance, hardening, and release closure
 
 ## 1. Decision
 
@@ -19,7 +19,7 @@ Terrain
 = canonical land geometry/elevation truth
 ```
 
-The binding pipeline is:
+Binding pipeline:
 
 ```text
 Pointer / tool intent
@@ -28,9 +28,9 @@ Terrain semantic pick
         ↓
 Gameplay Cell target
         ↓
-Terraform footprint + policy validation
+Terraform footprint + validation
         ↓
-Terraform immutable mutation plan
+immutable Terraform plan
         ↓
 apps/game execution boundary
         ↓
@@ -38,16 +38,18 @@ TerrainCommands.applyEdits()
         ↓
 TerrainMutationReceipt / TerrainChangeSet
         ↓
-localized Terrain + Terraform presentation rebuild
+Terrain presentation rebuild
++ Terraform-local invalidation mapping
         ↓
-transient Terraform undo history
+Terraform presentation rebuild
++ transient Undo history
 ```
 
-Terraform must never mutate Terrain internals, Three.js Terrain geometry, snapshots, or persistence data directly.
+Terraform must never mutate Terrain internals, Terrain Three.js geometry, Terrain snapshots, or persistence data directly.
 
-## 2. Existing world and Terrain facts
+## 2. Existing production facts
 
-Terraform v1 is designed against the existing production map and Terrain contracts:
+Terraform v1 is designed against the current production World/Terrain contracts:
 
 ```text
 World cells              512 × 512
@@ -59,7 +61,7 @@ Terrain max              +4096 levels = +1024m
 Logical chunk            32 × 32 cells
 ```
 
-Terrain canonical mutation remains vertex-based. Terraform may present cell-based editing to the player, but the resulting commit is an immutable set of desired canonical vertex elevations.
+Terrain canonical mutation remains vertex-based. Terraform presents cell-based editing to the player and resolves it into desired canonical vertex elevations.
 
 ## 3. Architecture boundary
 
@@ -82,7 +84,7 @@ Approved direct read dependencies:
 @web-three-city/terraform -> @web-three-city/terrain
 ```
 
-Both dependencies use root read/public surfaces only.
+Both are root read/public surfaces only.
 
 `systems/terraform` must not import:
 
@@ -93,9 +95,9 @@ Terrain internal modules
 World composition surfaces
 ```
 
-The application/composition layer may import Terrain command/composition surfaces and execute a validated Terraform plan. This preserves ADR-001: one system never commands another system directly.
+`apps/game` may import Terraform composition plus Terrain command/composition surfaces and is the v1 execution boundary. This preserves ADR-001: one production system does not command another production system.
 
-Terraform v1 has no independent canonical save authority. Its tool/session state and undo history are transient.
+Terraform v1 has no independent canonical save authority. Tool state, preview state, and Undo history are transient.
 
 ## 4. Product operations
 
@@ -119,7 +121,7 @@ Road grading
 construction cost/economy policy
 Redo
 continuous paint while dragging
-continuous radial falloff/sculpt brush
+continuous radial/falloff sculpting
 ```
 
 ### 4.1 Raise
@@ -130,11 +132,9 @@ For every unique canonical vertex touched by the selected Gameplay Cell footprin
 desiredElevation = currentElevation + strengthLevels
 ```
 
-The operation preserves local height differences inside the footprint because each vertex is offset by the same delta.
+All touched vertices receive the same delta, preserving local height differences inside the footprint.
 
 ### 4.2 Lower
-
-For every unique canonical vertex touched by the selected Gameplay Cell footprint:
 
 ```text
 desiredElevation = currentElevation - strengthLevels
@@ -144,34 +144,44 @@ desiredElevation = currentElevation - strengthLevels
 
 Flatten is reference-level based.
 
-When Flatten becomes active without a target level, the next valid Terrain tap selects a canonical `LogicalElevation` reference and does not mutate Terrain.
+When Flatten is active without a target, the next valid reference tap selects one canonical `LogicalElevation` and does not mutate Terrain.
 
 Reference selection uses the nearest canonical corner of the semantic-picked cell:
 
 ```text
-uQ16 < 32768  -> west corner
-uQ16 >= 32768 -> east corner
-vQ16 < 32768  -> south corner
-vQ16 >= 32768 -> north corner
+uQ16 < 32768  -> west
+uQ16 >= 32768 -> east
+vQ16 < 32768  -> south
+vQ16 >= 32768 -> north
+```
+
+Exact midpoint ties therefore resolve east/north deterministically.
+
+A valid reference tap must be:
+
+```text
+inside World bounds
+inside an unlocked region
+Terrain-readable
 ```
 
 The chosen corner elevation becomes `flattenTarget`.
 
-Subsequent valid taps set every unique vertex in the footprint to exactly that canonical level:
+Subsequent valid taps set all unique footprint vertices to that exact canonical level:
 
 ```text
 desiredElevation = flattenTarget
 ```
 
-The player can explicitly choose `Repick Level`, which clears the target and makes the next valid tap select a new reference.
+`Repick Level` clears the target; the next valid reference tap selects a new one.
 
-Flatten never stores or commits an arbitrary interpolated triangle height; the target is always an existing valid canonical `LogicalElevation`.
+Flatten never stores or commits an arbitrary interpolated triangle height.
 
 ## 5. Strength
 
-The frozen Terraform v1 strength model is:
+Frozen strengths:
 
-| Strength | Levels | Meters |
+| Strength | Levels | Vertical change |
 | --- | ---: | ---: |
 | Fine | 1 | 0.25m |
 | Normal | 4 | 1m |
@@ -180,10 +190,10 @@ The frozen Terraform v1 strength model is:
 Default:
 
 ```text
-Normal = 4 LogicalElevation levels = 1m
+Normal = 4 levels = 1m
 ```
 
-Strength changes Terraform action magnitude only. It does not change Terrain precision.
+Strength changes action magnitude only; Terrain precision remains 0.25m.
 
 ## 6. Brush footprints
 
@@ -195,22 +205,23 @@ Frozen brush sizes:
 5 × 5 Gameplay Cells = 40m × 40m
 ```
 
-Only odd square sizes are supported in v1 so the semantic-picked cell is always the center.
+Only odd square brushes exist in v1 so the picked Gameplay Cell is always the center.
 
-For brush size `N`, with `half = (N - 1) / 2`:
+For `N`:
 
 ```text
+half   = (N - 1) / 2
 xStart = target.x - half
 xEnd   = target.x + half
 zStart = target.z - half
 zEnd   = target.z + half
 ```
 
-The primary footprint is the inclusive cell rectangle `[xStart..xEnd] × [zStart..zEnd]`.
+The primary footprint is the inclusive cell rectangle.
 
 ## 7. Footprint to canonical vertices
 
-A cell footprint maps to the unique vertex rectangle surrounding it:
+A cell footprint maps to the unique surrounding vertex rectangle:
 
 ```text
 1×1 cells -> 2×2 vertices -> 4 candidate vertices
@@ -218,38 +229,36 @@ A cell footprint maps to the unique vertex rectangle surrounding it:
 5×5 cells -> 6×6 vertices -> 36 candidate vertices
 ```
 
-For footprint bounds:
-
 ```text
 vertexX = xStart .. xEnd + 1
 vertexZ = zStart .. zEnd + 1
 ```
 
-Terraform plans contain only vertices whose desired elevation differs from current elevation. A plan with zero changed vertices is a no-op.
+Plans include only vertices whose desired elevation differs from current elevation. Zero changed vertices means a no-op.
 
-## 8. Primary footprint and influence cells
+## 8. Primary footprint and shared-vertex influence
 
-Because Terrain vertices are shared, editing boundary vertices can change the visible slope of cells immediately outside the selected footprint.
+Terrain vertices are shared, so changing boundary vertices can change neighboring cells outside the selected footprint.
 
-Terraform must expose both concepts:
+Terraform exposes:
 
 ```text
 footprintCells
 = cells explicitly selected by the player
 
 influenceCells
-= additional cells whose exact Terrain surface can change because they are incident to edited shared vertices
+= additional incident cells whose exact surface can change
 ```
 
 `influenceCells` excludes cells already in `footprintCells`.
 
-Influence calculation uses public World spatial facts, especially `incidentCells(vertex)`, and must be deterministic.
+Influence is derived through public World facts such as `incidentCells(vertex)` and sorted deterministically.
 
-The preview must visually distinguish the primary footprint from the influence ring. This prevents the product UI from pretending a shared-vertex Terrain mutation affects only the selected cells.
+Gameplay preview must visually distinguish primary footprint and influence ring.
 
 ## 9. Validation
 
-Terraform planning is pure with respect to canonical state: it reads World/Terrain and returns either an immutable valid plan or an immutable invalid preview. It never partially mutates while validating.
+Planning reads canonical state and returns either an immutable valid plan or immutable invalid preview. It never partially mutates while validating.
 
 Frozen invalid reasons:
 
@@ -264,35 +273,31 @@ STALE_TERRAIN_REVISION
 
 ### 9.1 World boundary
 
-A footprint is all-or-nothing.
-
-If any selected cell is outside the world:
+If any selected cell is outside World bounds:
 
 ```text
 INVALID -> OUT_OF_WORLD
 ```
 
-No clipping and no partial execution are allowed.
+No clipping and no partial execution.
 
 ### 9.2 Region ownership
 
-Every cell in the footprint must belong to a currently unlocked World region:
+Every footprint cell must satisfy:
 
 ```text
 regionAtCell(cell) ∈ world.mapState.unlockedRegionIds
 ```
 
-If one cell is locked:
+One locked cell rejects the whole footprint:
 
 ```text
 INVALID -> LOCKED_REGION
 ```
 
-No partial execution is allowed.
-
 ### 9.3 Terrain availability
 
-Every required current vertex elevation must be available through Terrain root read contracts. Any unavailable required chunk rejects the plan as:
+Every required current vertex elevation must be available through Terrain root read contracts. Any unavailable required chunk yields:
 
 ```text
 TERRAIN_UNAVAILABLE
@@ -302,17 +307,17 @@ TERRAIN_UNAVAILABLE
 
 Terraform never silently clamps.
 
-For Raise/Lower, if any desired elevation would fall outside Terrain's frozen logical range:
+If any Raise/Lower desired elevation exceeds Terrain's frozen logical range:
 
 ```text
 INVALID -> ELEVATION_LIMIT
 ```
 
-The entire action is rejected before a Terrain command is issued.
+The whole action is rejected before issuing a Terrain command.
 
-## 10. Immutable preview/plan contract
+## 10. Immutable plan contract
 
-The v1 domain contract is conceptually:
+Binding semantic shape:
 
 ```ts
 export type TerraformOperation = "raise" | "lower" | "flatten";
@@ -335,14 +340,11 @@ export interface TerraformPlan {
 }
 ```
 
-Preview result:
+Preview:
 
 ```ts
 export type TerraformPreview =
-  | {
-      readonly status: "valid";
-      readonly plan: TerraformPlan;
-    }
+  | { readonly status: "valid"; readonly plan: TerraformPlan }
   | {
       readonly status: "invalid";
       readonly operation: TerraformOperation;
@@ -353,47 +355,41 @@ export type TerraformPreview =
     };
 ```
 
-Exact names may be split across focused files, but the semantics above are binding.
+Exact file split may vary; these semantics are binding.
 
 ## 11. Revision safety
 
-Every plan captures:
+Every plan captures `expectedTerrainRevision`.
 
-```text
-expectedTerrainRevision
-```
-
-Immediately before execution, the app runtime compares:
+Immediately before execution:
 
 ```text
 terrain.read.revision() === plan.expectedTerrainRevision
 ```
 
-If not equal:
+If false:
 
 ```text
 reject stale plan
-recompute preview from current Terrain
-no mutation from stale plan
+invalidate/recompute preview
+issue no Terrain mutation
 ```
 
-The revision check and synchronous `TerrainCommands.applyEdits()` call must have no `await` or asynchronous boundary between them.
+The revision comparison and synchronous `TerrainCommands.applyEdits()` call have no `await` or asynchronous boundary between them.
 
-Terraform does not change Terrain's frozen mutation contract to add CAS semantics.
+Terraform does not alter Terrain's frozen command contract to add CAS.
 
 ## 12. Commit semantics
 
-One committed player action has this invariant:
-
 ```text
-1 valid tap/release
+1 valid changed tap/release
 = 1 Terraform action
 = at most 1 TerrainCommands.applyEdits() call
 = at most 1 Terrain revision increment
 = at most 1 Undo entry
 ```
 
-A zero-edit plan:
+Zero-edit plan:
 
 ```text
 no Terrain command required
@@ -401,42 +397,56 @@ no Terrain revision increment
 no Undo entry
 ```
 
-Terrain mutation remains the canonical atomicity boundary.
+Terrain remains the atomic mutation authority.
 
-## 13. Execution boundary
+## 13. Execution boundary and invalidation mapping
 
-The Terraform package produces a domain plan; it does not call Terrain commands.
+`systems/terraform` produces plans and presentation-local contracts; it does not call Terrain commands.
 
-Execution belongs to `apps/game` composition/runtime:
+`apps/game` executes:
 
 ```text
 TerraformPlan
-        ↓
-verify expected Terrain revision
-        ↓
+↓
+verify revision
+↓
 map TerraformVertexMutation[] -> TerrainVertexEdit[]
-        ↓
+↓
 TerrainCommands.applyEdits()
 ```
 
-On success with `changed=true`:
+On successful changed receipt:
 
 ```text
-TerrainThreeProjection.rebuild(changeSet)
-TerrainThreeDebugOverlay.rebuild(changeSet)
-TerraformThreeOverlay.rebuild(changeSet)
-push Terraform Undo entry
-refresh Terraform preview/HUD
-render
+TerrainThreeProjection.rebuild(receipt.changeSet)
+TerrainThreeDebugOverlay.rebuild(receipt.changeSet)
 ```
 
-Terrain debug presentation must remain correct after Terraform mutations; it cannot be left stale merely because it is diagnostic.
+Terraform system presentation must not import the Terrain command surface merely to consume `TerrainChangeSet`. Instead the app maps the Terrain receipt to a minimal Terraform-owned invalidation DTO:
+
+```ts
+export interface TerraformTerrainInvalidation {
+  readonly touchingLogicalChunks: readonly ChunkCoord[];
+}
+```
+
+Then:
+
+```text
+TerraformThreeOverlay.rebuild({
+  touchingLogicalChunks: receipt.changeSet.touchingLogicalChunks
+})
+```
+
+This keeps `TerrainChangeSet` Terrain-only while still using it as the source of localized invalidation.
+
+Terrain Debug presentation must also rebuild after Terraform changes; diagnostic presentation may not remain stale.
 
 ## 14. Live City session access
 
-The live city runtime must receive typed Terrain mutation capability without casting `opaque`.
+Terraform runtime receives typed Terrain mutation capability without casting `opaque`.
 
-The `TerrainSessionHandle` direction is:
+Direction:
 
 ```ts
 export interface TerrainSessionHandle {
@@ -446,23 +456,21 @@ export interface TerrainSessionHandle {
 }
 ```
 
-The existing internal opaque handle may remain only if another lifecycle concern still requires it; Terraform runtime must not rely on it.
+The existing opaque value may remain only for lifecycle internals that still need it; Terraform must not depend on it.
 
-This is a City Session orchestration contract change, not a Terrain Engine v1 redesign.
+This changes City Session orchestration contracts, not Terrain Engine v1.
 
 ## 15. Undo
 
-Terraform Undo is transient live-session history and is not canonical save data.
+Terraform Undo is transient live-session history.
 
-Frozen limit:
+Frozen cap:
 
 ```text
 MAX_UNDO_ENTRIES = 100
 ```
 
-Each successful changed Terraform action records enough previous vertex elevations to restore the immediately prior canonical Terrain state.
-
-Conceptually:
+Each changed action records inverse canonical elevations:
 
 ```ts
 export interface TerraformUndoEntry {
@@ -475,13 +483,13 @@ export interface TerraformUndoEntry {
 
 ### 15.1 Revision-safe history
 
-The undo manager tracks one session-level expected Terrain revision:
+The history owns one session-level expected revision:
 
 ```text
 undoHistory.expectedTerrainRevision
 ```
 
-After a successful Terraform commit:
+After changed commit:
 
 ```text
 expectedTerrainRevision = receipt.newRevision
@@ -494,25 +502,26 @@ Before Undo:
 terrain.read.revision() must equal expectedTerrainRevision
 ```
 
-If another actor changed Terrain:
+If an external actor changed Terrain:
 
 ```text
-clear/invalidate Terraform undo history
+clear history
 synchronize expectedTerrainRevision to current Terrain revision
-Undo disabled until a new Terraform action is committed
+Undo disabled until a new Terraform action commits
 ```
 
-After a successful Undo, the undo entry is popped and:
+After successful Undo:
 
 ```text
+pop one entry
 expectedTerrainRevision = undoReceipt.newRevision
 ```
 
-This permits multiple sequential Undo operations even though each inverse mutation advances Terrain revision.
+This explicitly permits multiple sequential Undo operations even though each inverse Terrain mutation advances revision.
 
-### 15.2 No Redo in v1
+### 15.2 Redo
 
-Redo is deferred. After Undo, a new Terraform action simply continues from the current canonical Terrain state.
+Redo is deferred from v1.
 
 ## 16. Undo and persistence
 
@@ -524,69 +533,43 @@ Raise -> Save -> Undo
 
 is allowed while the same live session remains active.
 
-But:
-
 ```text
 Raise -> Save -> Exit -> Load
 ```
 
-restores the modified Terrain and starts with:
+restores modified Terrain but starts with empty Terraform Undo history.
 
-```text
-undoHistory = empty
-```
-
-`CitySaveV1` does not change for Terraform v1 because canonical modified Terrain is already captured by the Terrain snapshot.
+`CitySaveV1` remains unchanged because canonical modified Terrain already lives in `terrainSnapshot`.
 
 ## 17. Input and camera precedence
 
-Existing camera gestures remain authoritative for navigation.
+Existing City Input remains navigation authority.
 
-The frozen tap/drag threshold remains the current City Input default:
+Frozen tap/drag threshold:
 
 ```text
-9 pixels
+9 CSS pixels
 ```
 
-### 17.1 Mouse
+### Mouse
 
 ```text
-hover with no pressed button
--> update Terraform preview
-
-left pointer down
--> show transient candidate preview
-
-left release within tap threshold
--> commit valid Terraform action
-
-left movement beyond tap threshold
--> cancel Terraform candidate
--> camera pan
-
-right drag
--> camera rotate
-
-wheel
--> camera zoom
+hover, no button -> preview
+left down -> transient candidate preview
+left up within threshold -> commit
+left move beyond threshold -> cancel candidate + camera pan
+right drag -> camera rotate
+wheel -> camera zoom
 ```
 
-### 17.2 Touch
+### Touch
 
 ```text
-first touch down
--> transient candidate preview
-
-release within tap threshold
--> commit valid Terraform action
-
-movement beyond tap threshold
--> cancel Terraform candidate
--> camera pan
-
-second touch appears
--> cancel Terraform candidate immediately
--> camera multi-touch pan/zoom/rotate owns the gesture
+first touch down -> transient candidate preview
+release within threshold -> commit
+movement beyond threshold -> cancel candidate + camera pan
+second touch appears -> cancel candidate immediately
+multi-touch -> camera pan/zoom/rotate
 ```
 
 Binding invariant:
@@ -599,9 +582,9 @@ Terraform never continuously mutates while dragging.
 
 ## 18. Input integration shape
 
-The generic City Input controller remains responsible for DOM pointer capture and camera gesture recognition.
+The generic City Input controller remains sole owner of viewport pointer DOM listeners/capture.
 
-It must expose enough normalized pointer lifecycle information for an active tool runtime without creating a second DOM gesture listener stack. The recommended v1 shape is:
+It forwards the same normalized pointer stream to an optional tool sink:
 
 ```ts
 export interface CityToolPointerSink {
@@ -609,22 +592,26 @@ export interface CityToolPointerSink {
 }
 ```
 
-`createCityInputController` forwards the same normalized down/move/up/cancel stream to the optional tool sink and retains `onTap` as the only commit signal.
+Existing `onTap` remains the only commit signal.
 
-The Terraform runtime may maintain transient candidate/hover state from these normalized events, but commit occurs only through the existing tap recognition path. This guarantees that a gesture promoted to camera pan/multitouch does not accidentally commit Terraform.
+Terraform may use normalized pointer lifecycle for hover/transient preview/cancel, but no second Terraform DOM pointer listener stack is introduced.
 
 ## 19. Terraform Three.js overlay
 
 Terrain Debug Grid remains diagnostic-only. Terraform owns a separate gameplay overlay.
 
-Conceptual interface:
+Terraform-local interface:
 
 ```ts
+export interface TerraformTerrainInvalidation {
+  readonly touchingLogicalChunks: readonly ChunkCoord[];
+}
+
 export interface TerraformThreeOverlay {
   readonly root: Group;
   setActive(active: boolean): void;
   setPreview(preview: TerraformPreview | undefined): void;
-  rebuild(changeSet: TerrainChangeSet): void;
+  rebuild(invalidation: TerraformTerrainInvalidation): void;
   dispose(): void;
 }
 ```
@@ -643,32 +630,31 @@ The overlay is derived presentation only and never persistence authority.
 
 ## 20. Overlay geometry truth
 
-Terraform overlay geometry must conform to Terrain public authority reads.
+Terraform overlay geometry conforms to Terrain root authority reads.
 
-It must not reconstruct canonical height from rendered Terrain meshes.
+It must not infer canonical height from rendered Terrain meshes.
 
-Gameplay grid boundaries are rendered from exact canonical Terrain vertex elevations along each 8m cell boundary.
+Gameplay grid boundaries use exact canonical Terrain vertex elevations along each 8m cell boundary.
 
-After Terrain mutation, only affected overlay chunks are rebuilt.
+## 21. Overlay chunking and localized rebuild
 
-## 21. Overlay chunking and performance model
-
-Terraform grid batching uses World logical chunks:
+Chunking uses World logical chunks:
 
 ```text
-logical chunk = 32 × 32 cells
-production map = 16 × 16 logical chunks = 256 maximum chunks
+32 × 32 cells per logical chunk
+512 / 32 = 16 chunks per axis
+16 × 16 = 256 maximum logical chunks
 ```
 
-The overlay builds/renderers only for currently editable/unlocked land while Terraform is active.
+Only currently editable/unlocked land needs gameplay grid geometry while Terraform is active.
 
-Terrain mutation `touchingLogicalChunks[]` is the initial localized invalidation source for overlay rebuild.
+`TerrainChangeSet.touchingLogicalChunks[]` is mapped by `apps/game` into `TerraformTerrainInvalidation.touchingLogicalChunks[]`.
 
-The implementation must not create one DOM element or one independent Three.js object per Gameplay Cell.
+No DOM element or independent Three.js object is created per Gameplay Cell.
 
 ## 22. Tool session state
 
-Terraform tool session state is transient:
+Transient state:
 
 ```ts
 export interface TerraformSessionState {
@@ -691,21 +677,26 @@ flattenTarget  none
 undoHistory    empty
 ```
 
-Closing/deactivating the Terraform tool:
+Closing Terraform:
 
 ```text
-clears preview
-clears flattenTarget
-retains undo history while the same LiveCitySession remains alive
+clear preview
+clear flatten target
+hide gameplay overlay
+retain Undo history while same LiveCitySession remains alive
 ```
 
-A newly created, loaded, or resumed LiveCitySession starts with empty Terraform undo history.
+New/Create/Load/Resume live session:
+
+```text
+undoHistory = empty
+```
 
 ## 23. UI
 
-Terraform v1 adds a mobile-first tool tray independent from Terrain Debug controls.
+Game UI exposes an explicit `Terraform` entry control that opens a mobile-first tool tray.
 
-Required controls:
+Required tray controls:
 
 ```text
 Raise
@@ -727,39 +718,30 @@ Undo
 Close
 ```
 
+Strength controls are disabled/irrelevant while Flatten is active.
+
 Undo is disabled when history is empty or invalidated.
 
-Strength controls are disabled/visually irrelevant while Flatten is active because Flatten uses an absolute reference level.
-
-UI strings do not define domain policy; the Terraform package exposes typed semantics and the app UI maps them to labels.
+UI labels map typed product semantics; UI code does not own Terraform rules.
 
 ## 24. Natural World compatibility
 
-Terraform v1 is Terrain-only at canonical mutation time.
+Terraform v1 mutates Terrain only.
 
-It does not require Ground, Water, Environment, or Vegetation runtime implementation.
+Ground, Water, Environment, and Vegetation runtime implementation is not required before Terraform v1.
 
-When future natural-world systems exist:
-
-```text
-Terraform intent
--> explicit cross-system orchestration
--> Terrain command
--> downstream owner reconciliation
-```
-
-must follow Natural World Architecture v1. Terrain must not gain Water/Ground/Vegetation semantics merely to support Terraform.
+When future natural-world owners exist, multi-authority effects move behind explicit orchestration according to Natural World Architecture v1. Terrain does not gain Water/Ground/Vegetation semantics for Terraform convenience.
 
 ## 25. Save/load acceptance
 
-Required canonical persistence scenario:
+Required scenario:
 
 ```text
 New City
 ↓
 enter Terraform
 ↓
-valid Raise/Lower/Flatten edit
+Raise/Lower/Flatten edit
 ↓
 Save
 ↓
@@ -770,11 +752,11 @@ Load
 exact modified Terrain restored
 ```
 
-The restored session starts with no Terraform undo history.
+Loaded session starts with empty Terraform Undo history.
 
-No separate Terraform snapshot is added to `CitySaveV1`.
+No Terraform snapshot is added to `CitySaveV1`.
 
-## 26. Lifecycle and resource requirements
+## 26. Lifecycle/resource requirements
 
 Repeated Terraform activation/deactivation and city enter/exit must not leak:
 
@@ -782,38 +764,35 @@ Repeated Terraform activation/deactivation and city enter/exit must not leak:
 DOM event listeners
 pointer capture
 requestAnimationFrame work
-Three.js geometries
-Three.js materials
+Three.js geometries/materials
 Terraform overlay roots
 stale previews
-undo history across LiveCitySession boundaries
+Undo history across LiveCitySession boundaries
 ```
 
-`dispose()` must be idempotent for Terraform presentation/runtime resources.
+Terraform runtime/presentation `dispose()` operations are idempotent.
 
-## 27. Performance measurement
+## 27. Performance baseline
 
-Before Production Closure, establish measurement baselines for at least:
+Before Production Closure, record measurement baselines for:
 
 ```text
 1×1 Raise plan
 3×3 Raise plan
 5×5 Raise plan
 Flatten plan
-commit + Terrain localized projection rebuild
-Terraform overlay localized rebuild
-Undo
+commit + localized Terrain projection rebuild
 Terraform overlay initial construction for unlocked land
+localized overlay rebuild
+Undo
 browser interaction-to-visible-update latency
 CPU-side Terraform geometry memory
 Three.js geometry/material/object counts
 ```
 
-Initial baseline is measurement-first. Do not invent pass/fail thresholds without observed evidence and an explicitly adopted target.
+Baseline is measurement-first. No pass/fail threshold is invented without observed evidence and explicit adoption.
 
-## 28. Release gates
-
-Terraform v1 implementation is divided into:
+## 28. Delivery gates
 
 ```text
 TF0 Product/Architecture Freeze
@@ -821,134 +800,66 @@ TF1 Pure Terraform Core
 TF2 Live Terrain Mutation + Undo Integration
 TF3 Terraform Three.js Presentation
 TF4 Mouse + Touch Interaction
-TF5 Production UI
+TF5 Production UI + Live Composition
 TF6 Persistence + Browser E2E
 TF7 Hardening + Production Closure
 ```
 
-### TF1 gate
+### TF1
 
-Must prove:
+Must prove footprint/vertex mapping, strengths, Raise/Lower/Flatten, canonical Flatten reference, bounds/lock/availability/elevation rejection, influence cells, no-op planning, revision capture, deterministic purity.
 
-```text
-footprint mapping
-vertex mapping
-Raise/Lower/Flatten
-nearest canonical Flatten reference selection
-world boundary rejection
-locked-region rejection
-Terrain unavailable rejection
-elevation-limit rejection
-influence-cell calculation
-no-op plan
-expected Terrain revision capture
-pure deterministic planning
-```
+### TF2
 
-### TF2 gate
+Must prove typed live Terrain commands, one action/one transaction, stale-plan rejection, Terrain projection/debug rebuild, mapped Terraform invalidation, one changed action/one Undo entry, sequential Undo, external-revision invalidation.
 
-Must prove:
+### TF3
 
-```text
-TerrainSessionHandle exposes typed commands
-one action -> one Terrain transaction
-stale plan rejected before command
-projection/debug/overlay localized rebuild
-one changed action -> one undo entry
-multiple sequential Undo works
-external Terrain revision invalidates undo history
-```
+Must prove separate gameplay grid, exact surface-conforming geometry, valid/invalid/influence/reference presentation, logical-chunk rebuild, resource disposal.
 
-### TF3 gate
+### TF4
 
-Must prove:
+Must prove mouse hover/tap/drag/rotate/wheel and touch tap/drag/second-finger takeover with camera precedence.
 
-```text
-Terraform grid is separate from Terrain Debug
-exact surface-conforming geometry
-valid/invalid/influence/reference presentation states
-localized logical-chunk rebuild
-resource disposal
-```
+### TF5
 
-### TF4 gate
+Must prove explicit Terraform entry, required controls/defaults, Flatten target/repick, Undo enablement, mobile/accessibility behavior, live composition wiring.
 
-Must prove:
+### TF6
 
-```text
-mouse hover preview
-mouse tap commit
-mouse drag camera-only
-right-drag rotate
-wheel zoom
-touch tap commit
-touch drag camera-only
-second finger cancels candidate
-pinch/rotate never commits Terraform
-```
+Must prove edit -> Save -> Exit -> Load -> exact Terrain restoration and empty Undo after Load/Resume, with unchanged `CitySaveV1` schema.
 
-### TF5 gate
+### TF7
 
-Must prove:
-
-```text
-all required controls
-correct defaults
-Flatten target/repick behavior
-Undo enablement
-mobile layout
-keyboard/accessibility basics for controls
-```
-
-### TF6 gate
-
-Must prove:
-
-```text
-Terraform edit -> Save -> Exit -> Load -> exact Terrain restored
-Load/Resume -> undo history empty
-existing city lifecycle remains valid
-```
-
-### TF7 gate
-
-Must prove:
-
-```text
-full repository verify
-architecture check
-browser E2E
-lifecycle soak
-performance baseline
-no resource/listener leak
-canonical documentation
-post-merge verification
-```
+Must prove full repository verify, architecture check, browser E2E, lifecycle soak, performance baseline, no Terraform-owned resource leak, canonical closure docs, and post-merge verification.
 
 ## 29. Binding invariants
 
 ```text
-Terrain Engine v1 remains production closed.
+Terrain Engine v1 remains Production Closed.
 Terraform never owns canonical elevation.
 Player targeting is Gameplay Cell based.
 Terrain commit remains canonical vertex based.
-Brushes are exactly 1×1, 3×3, 5×5 cells in v1.
+Brushes are exactly 1×1, 3×3, 5×5 cells.
 Strengths are exactly Fine 0.25m, Normal 1m, Strong 4m; Normal is default.
-Flatten uses a canonical reference LogicalElevation, never an arbitrary interpolated height.
+Flatten uses a canonical reference LogicalElevation, never arbitrary interpolated height.
+Flatten reference sampling is in-world, unlocked, and Terrain-readable.
 Primary footprint and shared-vertex influence cells are distinct product concepts.
-Footprints are all-or-nothing at world and unlocked-region boundaries.
+Footprints are all-or-nothing at World and unlocked-region boundaries.
 Invalid elevation is rejected, never silently clamped.
-Terraform system reads World/Terrain root surfaces only and never imports Terrain commands/composition.
+Terraform system reads World/Terrain root surfaces only.
+Terraform system never imports Terrain commands/composition.
 apps/game executes Terrain commands from validated Terraform plans.
-One valid changed player action creates at most one Terrain transaction and one Undo entry.
-Preview plans are revision-bound and stale plans never commit.
-Undo history is transient, capped at 100, revision-safe, and not persisted.
+TerrainChangeSet remains Terrain-owned; apps/game maps it to TerraformTerrainInvalidation.
+One valid changed action creates at most one Terrain transaction and one Undo entry.
+Preview plans are revision-bound; stale plans never commit.
+Undo is transient, capped at 100, sequentially usable, revision-safe, and not persisted.
 Redo is deferred.
 Camera gestures always win over Terraform commit.
 Terraform never continuously mutates while dragging.
-Terraform Grid Overlay is gameplay presentation and is separate from Terrain Debug Grid.
-Derived overlay state is never canonical persistence data.
+Terraform Grid Overlay is gameplay presentation separate from Terrain Debug Grid.
+Derived overlay state is never persistence authority.
 Terraform v1 does not require Ground/Water/Environment/Vegetation runtime implementation.
-CitySaveV1 remains unchanged; current Terrain snapshot persists Terraform edits.
-TF1-TF7 must close independently with tests before Terraform v1 Production Closure.
+CitySaveV1 remains unchanged; Terrain snapshot persists Terraform edits.
+TF1-TF7 close independently before Terraform v1 Production Closure.
 ```

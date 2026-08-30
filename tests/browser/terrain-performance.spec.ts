@@ -1,9 +1,14 @@
 import { expect, test } from "@playwright/test";
 
-const BASELINE_ENABLED =
-  (globalThis as unknown as {
-    readonly process?: { readonly env?: Readonly<Record<string, string | undefined>> } };
-  }).process?.env?.TERRAIN_PERFORMANCE_BASELINE === "1";
+function environmentFlag(name: string): boolean {
+  const processValue = Reflect.get(globalThis, "process");
+  if (typeof processValue !== "object" || processValue === null) return false;
+  const environment = Reflect.get(processValue, "env");
+  if (typeof environment !== "object" || environment === null) return false;
+  return Reflect.get(environment, name) === "1";
+}
+
+const BASELINE_ENABLED = environmentFlag("TERRAIN_PERFORMANCE_BASELINE");
 
 function percentile(values: readonly number[], ratio: number): number {
   if (values.length === 0) throw new Error("Cannot measure an empty sample set.");
@@ -82,5 +87,7 @@ test("records browser first-ready, active frame interval and JS heap baseline", 
     })),
   });
 
-  console.info(`TERRAIN_BROWSER_PERFORMANCE_BASELINE ${JSON.stringify(report)}`);
+  console.info(
+    `TERRAIN_BROWSER_PERFORMANCE_BASELINE ${JSON.stringify(report)}`,
+  );
 });

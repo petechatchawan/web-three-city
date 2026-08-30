@@ -2,6 +2,7 @@ import type {
   TerrainAuthorityRead,
   TerrainStateSnapshotV1,
 } from "@web-three-city/terrain";
+import type { TerrainCommands } from "@web-three-city/terrain/commands";
 import type {
   MapStateSnapshot,
   PreparedWorldDefinition,
@@ -105,6 +106,13 @@ function createTerrainSession(
 ): TerrainSessionHandle {
   return {
     read: {} as TerrainAuthorityRead,
+    commands: {
+      applyEdits() {
+        throw new Error(
+          "Terrain commands are not exercised by lifecycle tests",
+        );
+      },
+    } as TerrainCommands,
     opaque: { kind: "terrain-system" },
     captureSnapshot: () => snapshot,
   };

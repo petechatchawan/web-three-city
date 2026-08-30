@@ -11,10 +11,16 @@ import {
 } from "../src/composition";
 
 const GOLDEN_SEED = "0x5EED5EED5EED5EED";
-const BASELINE_ENABLED =
-  (globalThis as unknown as {
-    readonly process?: { readonly env?: Readonly<Record<string, string | undefined>> };
-  }).process?.env?.TERRAIN_PERFORMANCE_BASELINE === "1";
+
+function environmentFlag(name: string): boolean {
+  const processValue = Reflect.get(globalThis, "process");
+  if (typeof processValue !== "object" || processValue === null) return false;
+  const environment = Reflect.get(processValue, "env");
+  if (typeof environment !== "object" || environment === null) return false;
+  return Reflect.get(environment, name) === "1";
+}
+
+const BASELINE_ENABLED = environmentFlag("TERRAIN_PERFORMANCE_BASELINE");
 
 interface Timing<T> {
   readonly value: T;
@@ -30,25 +36,15 @@ function timed<T>(operation: () => T): Timing<T> {
   });
 }
 
-function requireSuccess<T>(
-  result: { readonly status: string; readonly value?: T },
-  operation: string,
-): T {
-  if (result.status !== "success" || result.value === undefined) {
-    throw new Error(`${operation} failed with status ${result.status}.`);
-  }
-  return result.value;
-}
-
 function memoryUsageBytes(): number | undefined {
-  const processLike = (
-    globalThis as unknown as {
-      readonly process?: {
-        memoryUsage?: () => { readonly heapUsed: number };
-      };
-    }
-  ).process;
-  return processLike?.memoryUsage?.().heapUsed;
+  const processValue = Reflect.get(globalThis, "process");
+  if (typeof processValue !== "object" || processValue === null) return undefined;
+  const memoryUsage = Reflect.get(processValue, "memoryUsage");
+  if (typeof memoryUsage !== "function") return undefined;
+  const result = Reflect.apply(memoryUsage, processValue, []) as unknown;
+  if (typeof result !== "object" || result === null) return undefined;
+  const heapUsed = Reflect.get(result, "heapUsed");
+  return typeof heapUsed === "number" ? heapUsed : undefined;
 }
 
 function byteLength(value: unknown): number {
@@ -90,6 +86,7 @@ function projectionFacts(root: Group): {
       };
       geometryBufferBytes += byteLength(storage.array ?? storage.data?.array);
     }
+
     const index = geometry.getIndex();
     if (index !== null) {
       indexCount += index.count;
@@ -120,6 +117,7 @@ function changeOneVertex(input: {
   if (current.status !== "success") {
     throw new Error(`Unable to read baseline vertex ${input.x},${input.z}.`);
   }
+
   const mutation = input.terrain.commands.applyEdits({
     edits: [
       {
@@ -134,9 +132,7 @@ function changeOneVertex(input: {
   return mutation.value.changeSet;
 }
 
-function requireProjection(
-  result: ReturnType<typeof createTerrainThreeProjection>,
-) {
+function requireProjection(result: ReturnType<typeof createTerrainThreeProjection>) {
   if (result.status !== "success") {
     throw new Error(`Terrain projection failed with code ${result.code}.`);
   }
@@ -160,6 +156,7 @@ function measureRebuild(input: {
   const replacedSectors = input.projection.root.children.filter(
     (child) => before.get(child.name) !== child,
   ).length;
+
   expect(replacedSectors).toBe(input.expectedReplacedSectors);
   return Object.freeze({
     mutationMilliseconds: mutation.milliseconds,
@@ -172,40 +169,43 @@ describe("Terrain production performance baseline", () => {
   it.skipIf(!BASELINE_ENABLED)(
     "records production generation, projection, rebuild, snapshot, restore and memory facts",
     () => {
-      const worldTiming = timed(() =>
-        requireSuccess(
-          prepareProductionWorldDefinition(),
-          "Production World preparation",
-        ),
-      );
-      const world = worldTiming.value;
+      const worldTiming = timed(() => prepareProductionWorldDefinition());
+      if (worldTiming.value.status !== "success") {
+        throw new Error(
+          `Production World preparation failed with code ${worldTiming.value.code}.`,
+        );
+      }
+      const world = worldTiming.value.value;
 
       const generationTiming = timed(() =>
-        requireSuccess(
-          prepareProductionTerrain({ world, seed64: GOLDEN_SEED }),
-          "Production Terrain generation",
-        ),
+        prepareProductionTerrain({ world, seed64: GOLDEN_SEED }),
       );
-      const generated = generationTiming.value;
+      if (generationTiming.value.status !== "success") {
+        throw new Error(
+          `Production Terrain generation failed with code ${generationTiming.value.code}.`,
+        );
+      }
+      const generated = generationTiming.value.value;
 
       const creationHeapBefore = memoryUsageBytes();
       const systemTiming = timed(() =>
-        requireSuccess(
-          createTerrainSystem({
-            world: world.spatial,
-            mapDefinitionId: world.mapDefinition.mapDefinitionId,
-            generationProfileId:
-              world.mapDefinition.terrainGenerationProfileId,
-            generationProfileVersion:
-              world.mapDefinition.terrainGenerationProfileVersion,
-            selectedSeed64: generated.selectedSeed64,
-            fingerprint: generated.fingerprint,
-            source: generated.field,
-          }),
-          "Terrain system creation",
-        ),
+        createTerrainSystem({
+          world: world.spatial,
+          mapDefinitionId: world.mapDefinition.mapDefinitionId,
+          generationProfileId: world.mapDefinition.terrainGenerationProfileId,
+          generationProfileVersion:
+            world.mapDefinition.terrainGenerationProfileVersion,
+          selectedSeed64: generated.selectedSeed64,
+          fingerprint: generated.fingerprint,
+          source: generated.field,
+        }),
       );
-      const terrain = systemTiming.value;
+      if (systemTiming.value.status !== "success") {
+        throw new Error(
+          `Terrain system creation failed with reason ${systemTiming.value.reason}.`,
+        );
+      }
+      const terrain = systemTiming.value.value;
 
       const projectionHeapBefore = memoryUsageBytes();
       const projectionTiming = timed(() =>
@@ -244,18 +244,24 @@ describe("Terrain production performance baseline", () => {
 
       const snapshotTiming = timed(() => terrain.captureSnapshot());
       const encodeTiming = timed(() => JSON.stringify(snapshotTiming.value));
-      const encodedBytes = new TextEncoder().encode(encodeTiming.value).byteLength;
+      const encodedBytes = new TextEncoder().encode(
+        encodeTiming.value,
+      ).byteLength;
       const restoreTiming = timed(() =>
-        requireSuccess(
-          restoreTerrainSystem({
-            world: world.spatial,
-            mapDefinitionId: world.mapDefinition.mapDefinitionId,
-            snapshot: snapshotTiming.value,
-          }),
-          "Terrain restore",
-        ),
+        restoreTerrainSystem({
+          world: world.spatial,
+          mapDefinitionId: world.mapDefinition.mapDefinitionId,
+          snapshot: snapshotTiming.value,
+        }),
       );
-      expect(restoreTiming.value.captureSnapshot()).toEqual(snapshotTiming.value);
+      if (restoreTiming.value.status !== "success") {
+        throw new Error(
+          `Terrain restore failed with reason ${restoreTiming.value.reason}.`,
+        );
+      }
+      expect(restoreTiming.value.value.captureSnapshot()).toEqual(
+        snapshotTiming.value,
+      );
 
       const facts = projectionFacts(projection.root);
       expect(facts).toMatchObject({
@@ -314,7 +320,9 @@ describe("Terrain production performance baseline", () => {
         },
       });
 
-      console.info(`TERRAIN_PERFORMANCE_BASELINE ${JSON.stringify(report)}`);
+      console.info(
+        `TERRAIN_PERFORMANCE_BASELINE ${JSON.stringify(report)}`,
+      );
       projection.dispose();
     },
     120_000,

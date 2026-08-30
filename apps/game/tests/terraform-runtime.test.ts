@@ -1,4 +1,7 @@
-import type { TerrainAuthorityRead, TerrainRevision } from "@web-three-city/terrain";
+import type {
+  TerrainAuthorityRead,
+  TerrainRevision,
+} from "@web-three-city/terrain";
 import type {
   ApplyTerrainEdits,
   TerrainCommands,

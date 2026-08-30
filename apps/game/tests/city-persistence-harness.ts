@@ -85,6 +85,56 @@ function requestResult<T>(request: IDBRequest<T>): Promise<T> {
   });
 }
 
+const FORBIDDEN_PERSISTED_KEY_PARTS = Object.freeze([
+  "mesh",
+  "material",
+  "camera",
+  "debug",
+  "rendersector",
+  "buffergeometry",
+  "gpu",
+]);
+
+function findForbiddenPersistedKey(
+  value: unknown,
+  path = "root",
+): string | undefined {
+  if (Array.isArray(value)) {
+    for (const [index, entry] of value.entries()) {
+      const found = findForbiddenPersistedKey(entry, `${path}[${index}]`);
+      if (found !== undefined) return found;
+    }
+    return undefined;
+  }
+  if (value === null || typeof value !== "object") return undefined;
+  for (const [key, entry] of Object.entries(value)) {
+    const normalized = key.toLowerCase();
+    if (
+      FORBIDDEN_PERSISTED_KEY_PARTS.some((part) => normalized.includes(part))
+    ) {
+      return `${path}.${key}`;
+    }
+    const found = findForbiddenPersistedKey(entry, `${path}.${key}`);
+    if (found !== undefined) return found;
+  }
+  return undefined;
+}
+
+async function readRawRecords(
+  databaseName: string,
+): Promise<readonly unknown[]> {
+  const request = indexedDB.open(databaseName);
+  const database = await requestResult(request);
+  try {
+    const transaction = database.transaction(CITY_SAVE_STORE_NAME, "readonly");
+    return await requestResult(
+      transaction.objectStore(CITY_SAVE_STORE_NAME).getAll(),
+    );
+  } finally {
+    database.close();
+  }
+}
+
 async function injectCorruptRecord(databaseName: string): Promise<void> {
   const request = indexedDB.open(databaseName);
   const database = await requestResult(request);
@@ -190,6 +240,10 @@ async function main(): Promise<void> {
     .join(",");
 
   root.dataset.indexes = (await readIndexNames(databaseName)).join(",");
+  const forbiddenKey = findForbiddenPersistedKey(
+    await readRawRecords(databaseName),
+  );
+  root.dataset.authorityPayload = forbiddenKey ?? "clean";
   await injectCorruptRecord(databaseName);
   const corrupt = await repository.load(id("corrupt"));
   root.dataset.corrupt =

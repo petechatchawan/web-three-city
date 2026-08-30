@@ -23,5 +23,6 @@ test("persists canonical city saves through real IndexedDB", async ({
     "data-expected-indexes",
     "lastPlayedAt,updatedAt",
   );
+  await expect(root).toHaveAttribute("data-authority-payload", "clean");
   expect(errors).toEqual([]);
 });

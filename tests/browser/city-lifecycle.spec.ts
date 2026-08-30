@@ -60,3 +60,46 @@ test("runs new save load and resume through the production city lifecycle", asyn
 
   expect(errors).toEqual([]);
 });
+
+test("repeats the same seed fingerprint and resumes the most recently played city", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const app = page.locator("#app");
+  await expect(app).toHaveAttribute("data-screen", "home");
+
+  async function createNamedCity(name: string): Promise<string> {
+    await page.getByRole("button", { name: "New City" }).click();
+    await page.getByLabel("City name").fill(name);
+    await page.getByLabel("Terrain seed").fill(GOLDEN_SEED);
+    await page.getByRole("button", { name: "Generate terrain" }).click();
+    const fingerprint = page
+      .getByText(/^0x[0-9A-F]{16}$/)
+      .filter({ hasText: GOLDEN_FINGERPRINT });
+    await expect(fingerprint).toBeVisible();
+    const value = (await fingerprint.textContent()) ?? "";
+    await page.getByRole("radio", { name: "R08" }).check();
+    await page.getByRole("button", { name: "Create city" }).click();
+    await expect(app).toHaveAttribute("data-screen", "live-city");
+    await expect(app).toHaveAttribute("data-live-runtime", "ready");
+    return value;
+  }
+
+  const firstFingerprint = await createNamedCity("Repeat A");
+  await page.getByRole("button", { name: "Exit city" }).click();
+  await expect(app).toHaveAttribute("data-screen", "home");
+
+  const secondFingerprint = await createNamedCity("Repeat B");
+  expect(secondFingerprint).toBe(firstFingerprint);
+  await page.getByRole("button", { name: "Exit city" }).click();
+  await expect(app).toHaveAttribute("data-screen", "home");
+
+  await expect(
+    page.getByRole("button", { name: "Resume Repeat B" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Resume Repeat B" }).click();
+  await expect(app).toHaveAttribute("data-screen", "live-city");
+  await expect(
+    page.getByRole("heading", { name: "Repeat B", exact: true }),
+  ).toBeVisible();
+});

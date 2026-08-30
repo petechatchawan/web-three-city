@@ -411,6 +411,25 @@ describe("city lifecycle orchestration", () => {
     expect(h.terrainCalls.restore).toBe(0);
   });
 
+  it("resumes the lexical-first city when latest timestamps tie", async () => {
+    const h = createHarness([NEXT_AT]);
+    const tiedAt = "2026-08-30T03:00:00.000Z";
+    h.repo.saves.set(
+      cityId("city-b"),
+      validSave(cityId("city-b"), { lastPlayedAt: tiedAt }),
+    );
+    h.repo.saves.set(
+      cityId("city-a"),
+      validSave(cityId("city-a"), { lastPlayedAt: tiedAt }),
+    );
+
+    const result = await h.service.resumeCity();
+    expect(result.status).toBe("success");
+    if (result.status === "success") {
+      expect(result.value.metadata.cityId).toBe("city-a");
+    }
+  });
+
   it("returns empty resume and canonical list ordering", async () => {
     const h = createHarness();
     expect(await h.service.resumeCity()).toEqual({ status: "empty" });

@@ -1,5 +1,6 @@
 import type { CellCoord, VertexCoord } from "@web-three-city/world";
-import type { TerraformBrushSize } from "../contracts/terraform-types";
+
+export type TerraformBrushSize = 1 | 3 | 5;
 
 export interface TerraformBrushFootprint {
   readonly cells: readonly CellCoord[];

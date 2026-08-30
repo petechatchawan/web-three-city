@@ -7,6 +7,7 @@ on:
       - ".github/workflows/terrain-hardening.yml"
       - "package.json"
       - "pnpm-lock.yaml"
+      - "docs/systems/terrain/**"
       - "systems/terrain/**"
       - "systems/world/**"
       - "orchestration/city-session/**"
@@ -21,6 +22,7 @@ on:
       - ".github/workflows/terrain-hardening.yml"
       - "package.json"
       - "pnpm-lock.yaml"
+      - "docs/systems/terrain/**"
       - "systems/terrain/**"
       - "systems/world/**"
       - "orchestration/city-session/**"
@@ -61,11 +63,17 @@ jobs:
       - name: Create hardening artifact directory
         run: mkdir -p artifacts/terrain-hardening
       - name: Record Node Terrain performance baseline
-        run: pnpm terrain:performance:node 2>&1 | tee artifacts/terrain-hardening/node-performance.txt
+        run: |
+          set -o pipefail
+          pnpm terrain:performance:node 2>&1 | tee artifacts/terrain-hardening/node-performance.txt
       - name: Record browser Terrain performance baseline
-        run: pnpm terrain:performance:browser 2>&1 | tee artifacts/terrain-hardening/browser-performance.txt
+        run: |
+          set -o pipefail
+          pnpm terrain:performance:browser 2>&1 | tee artifacts/terrain-hardening/browser-performance.txt
       - name: Run Terrain lifecycle soak
-        run: pnpm terrain:lifecycle:soak 2>&1 | tee artifacts/terrain-hardening/lifecycle-soak.txt
+        run: |
+          set -o pipefail
+          pnpm terrain:lifecycle:soak 2>&1 | tee artifacts/terrain-hardening/lifecycle-soak.txt
       - name: Verify tracked worktree remains clean
         run: git diff --exit-code
       - name: Upload Terrain hardening evidence

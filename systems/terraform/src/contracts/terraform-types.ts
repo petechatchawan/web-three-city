@@ -1,9 +1,19 @@
-import type { CellCoord, VertexCoord } from "@web-three-city/world";
-import type { LogicalElevation, TerrainRevision } from "@web-three-city/terrain";
+import type {
+  CellCoord,
+  MapDefinitionRead,
+  MapStateRead,
+  VertexCoord,
+  WorldSpatialRead,
+} from "@web-three-city/world";
+import type {
+  LogicalElevation,
+  TerrainAuthorityRead,
+  TerrainRevision,
+} from "@web-three-city/terrain";
+import type { TerraformBrushSize } from "../domain/brush-footprint";
+import type { TerraformStrength } from "../domain/strength";
 
 export type TerraformOperation = "raise" | "lower" | "flatten";
-export type TerraformBrushSize = 1 | 3 | 5;
-export type TerraformStrength = "fine" | "normal" | "strong";
 export type TerraformInvalidReason =
   | "OUT_OF_WORLD"
   | "LOCKED_REGION"
@@ -37,3 +47,15 @@ export type TerraformPreview =
       readonly reason: TerraformInvalidReason;
       readonly expectedTerrainRevision: TerrainRevision;
     };
+
+export interface PlanTerraformInput {
+  readonly operation: TerraformOperation;
+  readonly targetCell: CellCoord;
+  readonly brushSize: TerraformBrushSize;
+  readonly strength: TerraformStrength;
+  readonly flattenTarget?: LogicalElevation;
+  readonly mapDefinition: MapDefinitionRead;
+  readonly mapState: MapStateRead;
+  readonly spatial: WorldSpatialRead;
+  readonly terrain: TerrainAuthorityRead;
+}

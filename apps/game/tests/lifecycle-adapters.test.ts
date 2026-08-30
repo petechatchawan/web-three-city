@@ -26,7 +26,7 @@ describe("game lifecycle adapters", () => {
     expect(restored.value.captureSnapshot()).toEqual(snapshot);
   });
 
-  it("adapts Terrain prepare/create/restore and preserves exact canonical snapshot", () => {
+  it("adapts Terrain prepare/create/restore with typed commands and exact canonical snapshot", () => {
     const world = createWorldLifecycleAdapter();
     const preparedWorld = world.prepareDefinition();
     expect(preparedWorld.status).toBe("success");
@@ -50,11 +50,13 @@ describe("game lifecycle adapters", () => {
     );
     expect(created.status).toBe("success");
     if (created.status !== "success") return;
+    expect(typeof created.value.commands.applyEdits).toBe("function");
     const snapshot = created.value.captureSnapshot();
 
     const restored = terrain.restore(preparedWorld.value.spatial, snapshot);
     expect(restored.status).toBe("success");
     if (restored.status !== "success") return;
+    expect(typeof restored.value.commands.applyEdits).toBe("function");
     expect(restored.value.captureSnapshot()).toEqual(snapshot);
   });
 });

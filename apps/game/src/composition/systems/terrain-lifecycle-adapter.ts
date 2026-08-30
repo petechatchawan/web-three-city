@@ -41,6 +41,7 @@ function adaptTerrainSystem(
     status: "success",
     value: Object.freeze({
       read: system.read,
+      commands: system.commands,
       opaque: system,
       captureSnapshot: () => system.captureSnapshot(),
     }),

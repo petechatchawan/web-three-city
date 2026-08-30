@@ -8,6 +8,7 @@ import type {
   TerrainAuthorityRead,
   TerrainStateSnapshotV1,
 } from "@web-three-city/terrain";
+import type { TerrainCommands } from "@web-three-city/terrain/commands";
 import type { CityId, CityName } from "./identity";
 
 export interface CityMetadata {
@@ -54,6 +55,7 @@ export interface NewCityPreview {
 
 export interface TerrainSessionHandle {
   readonly read: TerrainAuthorityRead;
+  readonly commands: TerrainCommands;
   readonly opaque: unknown;
   captureSnapshot(): TerrainStateSnapshotV1;
 }

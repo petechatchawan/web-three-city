@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type {
+  CellCoord,
   MapDefinitionRead,
   MapStateRead,
   RegionId,
+  VertexCoord,
   WorldSpatialRead,
 } from "@web-three-city/world";
 import {
@@ -11,8 +13,31 @@ import {
   type TerrainAuthorityRead,
   type TerrainRevision,
 } from "@web-three-city/terrain";
+import type {
+  TerraformBrushSize,
+  TerraformOperation,
+  TerraformPreview,
+  TerraformStrength,
+} from "@web-three-city/terraform";
 import * as terraform from "@web-three-city/terraform";
 
+interface PlanTerraformInputUnderTest {
+  readonly operation: TerraformOperation;
+  readonly targetCell: CellCoord;
+  readonly brushSize: TerraformBrushSize;
+  readonly strength: TerraformStrength;
+  readonly flattenTarget?: LogicalElevation;
+  readonly mapDefinition: MapDefinitionRead;
+  readonly mapState: MapStateRead;
+  readonly spatial: WorldSpatialRead;
+  readonly terrain: TerrainAuthorityRead;
+}
+
+type TerraformApiUnderTest = typeof terraform & {
+  readonly planTerraform?: (input: PlanTerraformInputUnderTest) => TerraformPreview;
+};
+
+const api = terraform as TerraformApiUnderTest;
 const UNLOCKED = "region-unlocked" as RegionId;
 const LOCKED = "region-locked" as RegionId;
 
@@ -44,13 +69,13 @@ function elevation(value: number): LogicalElevation {
 
 function spatial(options?: { readonly lockedCell?: string }): WorldSpatialRead {
   return {
-    regionAtCell(cell) {
+    regionAtCell(cell: CellCoord) {
       return {
         status: "success",
         value: `${cell.x}:${cell.z}` === options?.lockedCell ? LOCKED : UNLOCKED,
       };
     },
-    incidentCells(vertex) {
+    incidentCells(vertex: VertexCoord) {
       const cells = [
         { x: vertex.x - 1, z: vertex.z - 1 },
         { x: vertex.x, z: vertex.z - 1 },
@@ -76,7 +101,7 @@ function terrain(options?: {
   return {
     revision: () => revision,
     completeness: () => "full",
-    elevationAt(vertex) {
+    elevationAt(vertex: VertexCoord) {
       if (`${vertex.x}:${vertex.z}` === options?.unavailableVertex) {
         return {
           status: "unavailable",
@@ -92,10 +117,8 @@ function terrain(options?: {
   } as unknown as TerrainAuthorityRead;
 }
 
-function plan(
-  overrides: Partial<Parameters<NonNullable<(typeof terraform)["planTerraform"]>>[0]> = {},
-) {
-  return terraform.planTerraform({
+function plan(overrides: Partial<PlanTerraformInputUnderTest> = {}): TerraformPreview | undefined {
+  return api.planTerraform?.({
     operation: "raise",
     targetCell: { x: 10, z: 10 },
     brushSize: 1,
@@ -112,8 +135,8 @@ describe("planTerraform raise/lower", () => {
   it("plans a valid Normal 1x1 Raise against the captured Terrain revision", () => {
     const preview = plan();
 
-    expect(preview.status).toBe("valid");
-    if (preview.status !== "valid") return;
+    expect(preview?.status).toBe("valid");
+    if (preview?.status !== "valid") return;
 
     expect(preview.plan.edits).toHaveLength(4);
     expect(preview.plan.edits.every((edit) => edit.desiredElevation === 24)).toBe(true);

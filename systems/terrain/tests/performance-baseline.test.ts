@@ -38,7 +38,8 @@ function timed<T>(operation: () => T): Timing<T> {
 
 function memoryUsageBytes(): number | undefined {
   const processValue = Reflect.get(globalThis, "process");
-  if (typeof processValue !== "object" || processValue === null) return undefined;
+  if (typeof processValue !== "object" || processValue === null)
+    return undefined;
   const memoryUsage = Reflect.get(processValue, "memoryUsage");
   if (typeof memoryUsage !== "function") return undefined;
   const result = Reflect.apply(memoryUsage, processValue, []) as unknown;
@@ -132,7 +133,9 @@ function changeOneVertex(input: {
   return mutation.value.changeSet;
 }
 
-function requireProjection(result: ReturnType<typeof createTerrainThreeProjection>) {
+function requireProjection(
+  result: ReturnType<typeof createTerrainThreeProjection>,
+) {
   if (result.status !== "success") {
     throw new Error(`Terrain projection failed with code ${result.code}.`);
   }
@@ -314,15 +317,14 @@ describe("Terrain production performance baseline", () => {
           heapUsedAfterProjection: projectionHeapAfter,
           heapUsedAfterMeasurements: creationHeapAfter,
           projectionHeapDelta:
-            projectionHeapBefore === undefined || projectionHeapAfter === undefined
+            projectionHeapBefore === undefined ||
+            projectionHeapAfter === undefined
               ? undefined
               : projectionHeapAfter - projectionHeapBefore,
         },
       });
 
-      console.info(
-        `TERRAIN_PERFORMANCE_BASELINE ${JSON.stringify(report)}`,
-      );
+      console.info(`TERRAIN_PERFORMANCE_BASELINE ${JSON.stringify(report)}`);
       projection.dispose();
     },
     120_000,

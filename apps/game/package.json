@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@web-three-city/orchestration-city-session": "workspace:*",
+    "@web-three-city/terraform": "workspace:*",
     "@web-three-city/terrain": "workspace:*",
     "@web-three-city/world": "workspace:*",
     "three": "0.179.1"

@@ -35,6 +35,9 @@ importers:
       '@web-three-city/orchestration-city-session':
         specifier: workspace:*
         version: link:../../orchestration/city-session
+      '@web-three-city/terraform':
+        specifier: workspace:*
+        version: link:../../systems/terraform
       '@web-three-city/terrain':
         specifier: workspace:*
         version: link:../../systems/terrain

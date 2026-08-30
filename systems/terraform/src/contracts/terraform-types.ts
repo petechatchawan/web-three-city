@@ -59,3 +59,20 @@ export interface PlanTerraformInput {
   readonly spatial: WorldSpatialRead;
   readonly terrain: TerrainAuthorityRead;
 }
+
+export interface TerraformUndoEntry {
+  readonly inverseEdits: readonly {
+    readonly vertex: VertexCoord;
+    readonly elevation: LogicalElevation;
+  }[];
+}
+
+export interface TerraformUndoHistory {
+  depth(): number;
+  expectedTerrainRevision(): TerrainRevision;
+  recordCommit(plan: TerraformPlan, newRevision: TerrainRevision): void;
+  peekUndo(currentRevision: TerrainRevision): TerraformUndoEntry | undefined;
+  recordUndo(newRevision: TerrainRevision): void;
+  synchronizeExternalRevision(currentRevision: TerrainRevision): void;
+  clear(): void;
+}

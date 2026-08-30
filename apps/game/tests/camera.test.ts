@@ -1,4 +1,4 @@
-import { PerspectiveCamera } from "three";
+import { PerspectiveCamera, Vector3 } from "three";
 import { describe, expect, it, vi } from "vitest";
 import { createCityCamera } from "../src/presentation/camera/create-city-camera";
 import { createCitySceneCameraConfig } from "../src/presentation/camera/create-city-scene-camera-config";
@@ -72,6 +72,48 @@ describe("city camera functional core", () => {
     expect(zoomed.distance).toBe(constraints.maxDistanceMeters);
   });
 
+  it("defines pan intents in the camera-relative ground plane", () => {
+    const constraints = createCityCameraConstraints(
+      map,
+      CITY_CAMERA_DEFAULT_CONFIG,
+    );
+    const center = createInitialCityCameraState(
+      map,
+      CITY_CAMERA_DEFAULT_CONFIG,
+    );
+    const northFacing = { ...center, azimuthRadians: 0 };
+    const northRight = reduceCityCamera(
+      northFacing,
+      { type: "pan", rightMeters: 100, forwardMeters: 0 },
+      constraints,
+    );
+    expect(northRight.targetX).toBeCloseTo(northFacing.targetX + 100);
+    expect(northRight.targetZ).toBeCloseTo(northFacing.targetZ);
+    const northForward = reduceCityCamera(
+      northFacing,
+      { type: "pan", rightMeters: 0, forwardMeters: 100 },
+      constraints,
+    );
+    expect(northForward.targetX).toBeCloseTo(northFacing.targetX);
+    expect(northForward.targetZ).toBeCloseTo(northFacing.targetZ - 100);
+
+    const eastFacing = { ...center, azimuthRadians: Math.PI / 2 };
+    const eastRight = reduceCityCamera(
+      eastFacing,
+      { type: "pan", rightMeters: 100, forwardMeters: 0 },
+      constraints,
+    );
+    expect(eastRight.targetX).toBeCloseTo(eastFacing.targetX);
+    expect(eastRight.targetZ).toBeCloseTo(eastFacing.targetZ - 100);
+    const eastForward = reduceCityCamera(
+      eastFacing,
+      { type: "pan", rightMeters: 0, forwardMeters: 100 },
+      constraints,
+    );
+    expect(eastForward.targetX).toBeCloseTo(eastFacing.targetX - 100);
+    expect(eastForward.targetZ).toBeCloseTo(eastFacing.targetZ);
+  });
+
   it("resets deterministically to an explicit state", () => {
     const constraints = createCityCameraConstraints(
       map,
@@ -143,6 +185,139 @@ describe("city camera imperative adapters", () => {
     expect(controller.state()).toEqual(controller.initialState());
   });
 
+  it("keeps primary pan content under the pointer on both screen axes", () => {
+    const surface = new FakeInputSurface();
+    const camera = new PerspectiveCamera(50, 1, 1, 20_000);
+    const cameraController = createCityCamera({
+      camera,
+      map,
+      config: CITY_CAMERA_DEFAULT_CONFIG,
+    });
+    const anchorState = cameraController.state();
+    const anchor = new Vector3(
+      anchorState.targetX,
+      anchorState.targetY,
+      anchorState.targetZ,
+    );
+    const projectToScreen = (): { readonly x: number; readonly y: number } => {
+      camera.updateProjectionMatrix();
+      camera.updateMatrixWorld(true);
+      const ndc = anchor.clone().project(camera);
+      return { x: ndc.x, y: -ndc.y };
+    };
+    const controller = createCityInputController({
+      viewport: surface as unknown as HTMLElement,
+      camera: cameraController,
+      requestRender: vi.fn(),
+      onTap: vi.fn(),
+    });
+
+    const beforeDown = projectToScreen();
+    surface.emit("pointerdown", {
+      pointerId: 1,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 250,
+      clientY: 200,
+    });
+    surface.emit("pointermove", {
+      pointerId: 1,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 250,
+      clientY: 300,
+    });
+    surface.emit("pointerup", {
+      pointerId: 1,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 250,
+      clientY: 300,
+    });
+    const afterDown = projectToScreen();
+    expect(afterDown.y).toBeGreaterThan(beforeDown.y);
+
+    cameraController.reset();
+    const beforeRight = projectToScreen();
+    surface.emit("pointerdown", {
+      pointerId: 2,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 200,
+      clientY: 250,
+    });
+    surface.emit("pointermove", {
+      pointerId: 2,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 300,
+      clientY: 250,
+    });
+    surface.emit("pointerup", {
+      pointerId: 2,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 300,
+      clientY: 250,
+    });
+    const afterRight = projectToScreen();
+    expect(afterRight.x).toBeGreaterThan(beforeRight.x);
+
+    controller.dispose();
+  });
+
+  it("keeps two-finger centroid pan aligned with downward touch movement", () => {
+    const surface = new FakeInputSurface();
+    const camera = new PerspectiveCamera(50, 1, 1, 20_000);
+    const cameraController = createCityCamera({
+      camera,
+      map,
+      config: CITY_CAMERA_DEFAULT_CONFIG,
+    });
+    const before = cameraController.state();
+    const controller = createCityInputController({
+      viewport: surface as unknown as HTMLElement,
+      camera: cameraController,
+      requestRender: vi.fn(),
+      onTap: vi.fn(),
+    });
+
+    surface.emit("pointerdown", {
+      pointerId: 1,
+      pointerType: "touch",
+      button: 0,
+      clientX: 200,
+      clientY: 200,
+    });
+    surface.emit("pointerdown", {
+      pointerId: 2,
+      pointerType: "touch",
+      button: 0,
+      clientX: 300,
+      clientY: 200,
+    });
+    surface.emit("pointermove", {
+      pointerId: 1,
+      pointerType: "touch",
+      button: 0,
+      clientX: 200,
+      clientY: 260,
+    });
+    surface.emit("pointermove", {
+      pointerId: 2,
+      pointerType: "touch",
+      button: 0,
+      clientX: 300,
+      clientY: 260,
+    });
+
+    const after = cameraController.state();
+    expect(after.targetX).toBeLessThan(before.targetX);
+    expect(after.targetZ).toBeLessThan(before.targetZ);
+
+    controller.dispose();
+  });
+
   it("owns viewport input listeners, pointer capture, and disposal", () => {
     const surface = new FakeInputSurface();
     const camera = new PerspectiveCamera();
@@ -179,7 +354,12 @@ describe("city camera imperative adapters", () => {
     expect(taps).toEqual([{ x: 11, y: 11 }]);
     expect(surface.captured.has(1)).toBe(false);
 
+    const beforeWheel = cameraController.state().distance;
     surface.emit("wheel", { deltaY: 120 });
+    expect(cameraController.state().distance).toBeGreaterThan(beforeWheel);
+    const afterZoomOut = cameraController.state().distance;
+    surface.emit("wheel", { deltaY: -240 });
+    expect(cameraController.state().distance).toBeLessThan(afterZoomOut);
     expect(render).toHaveBeenCalled();
 
     controller.dispose();

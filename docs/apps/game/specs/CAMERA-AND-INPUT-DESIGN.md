@@ -72,6 +72,17 @@ two pointers angle delta    -> rotate
 
 Two-pointer takeover cancels any pending single-pointer tap.
 
+## Pan direction invariant
+
+Pan uses grab/map-drag semantics on desktop and touch: projected world content follows the pointer. DOM client coordinates are `+X = right` and `+Y = down`, while camera pan intent is expressed as camera-relative ground-plane `rightMeters` / `forwardMeters`. The normalized mapping is therefore:
+
+```text
+rightMeters   = -screenDeltaX * metersPerPixel
+forwardMeters = +screenDeltaY * metersPerPixel
+```
+
+Do not symmetrically negate both screen axes. With a pitched camera, doing so makes vertical pan run opposite the pointer even though horizontal pan still appears correct. Single-pointer pan and two-pointer centroid pan must share this same mapping owner.
+
 ## Browser integration
 
 Interactive viewport uses `touch-action: none`. Event handlers attach to the viewport only. Active pointers are captured with `setPointerCapture` and always released on up/cancel/dispose when still captured.

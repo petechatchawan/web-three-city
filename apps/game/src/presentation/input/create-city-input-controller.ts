@@ -1,4 +1,5 @@
 import type { CityCameraController } from "../camera/create-city-camera";
+import type { CityCameraIntent } from "../camera/camera-types";
 import {
   CITY_INPUT_DEFAULT_CONFIG,
   type CityInputConfig,
@@ -12,6 +13,18 @@ import {
 
 export interface CityInputController {
   dispose(): void;
+}
+
+function screenPanToCameraIntent(
+  deltaX: number,
+  deltaY: number,
+  metersPerPixel: number,
+): Extract<CityCameraIntent, { readonly type: "pan" }> {
+  return {
+    type: "pan",
+    rightMeters: -deltaX * metersPerPixel,
+    forwardMeters: deltaY * metersPerPixel,
+  };
 }
 
 function normalizePointerEvent(
@@ -52,11 +65,9 @@ export function createCityInputController(input: {
         config.panDistancePerViewportHeightFactor) /
       viewportHeight;
     if (intent.type === "panPixels") {
-      input.camera.dispatch({
-        type: "pan",
-        rightMeters: -intent.deltaX * panScale,
-        forwardMeters: -intent.deltaY * panScale,
-      });
+      input.camera.dispatch(
+        screenPanToCameraIntent(intent.deltaX, intent.deltaY, panScale),
+      );
     } else if (intent.type === "rotatePixels") {
       input.camera.dispatch({
         type: "rotate",
@@ -64,11 +75,9 @@ export function createCityInputController(input: {
         elevationDeltaRadians: -intent.deltaY * config.rotateRadiansPerPixel,
       });
     } else {
-      input.camera.dispatch({
-        type: "pan",
-        rightMeters: -intent.panDeltaX * panScale,
-        forwardMeters: -intent.panDeltaY * panScale,
-      });
+      input.camera.dispatch(
+        screenPanToCameraIntent(intent.panDeltaX, intent.panDeltaY, panScale),
+      );
       input.camera.dispatch({
         type: "zoom",
         distanceFactor: intent.distanceRatio,

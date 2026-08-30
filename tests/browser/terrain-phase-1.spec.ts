@@ -2,6 +2,18 @@ import { expect, test } from "@playwright/test";
 
 test.use({ deviceScaleFactor: 2 });
 
+function parseCameraTarget(
+  value: string | null,
+): readonly [number, number, number] {
+  if (value === null)
+    throw new Error("Camera target diagnostics are unavailable.");
+  const parts = value.split(",").map(Number);
+  if (parts.length != 3 || parts.some((part) => !Number.isFinite(part))) {
+    throw new Error(`Invalid camera target diagnostics: ${value}`);
+  }
+  return [parts[0]!, parts[1]!, parts[2]!] as const;
+}
+
 test("projects production Terrain through real WebGL and semantic picking", async ({
   page,
 }) => {
@@ -58,6 +70,20 @@ test("projects production Terrain through real WebGL and semantic picking", asyn
   if (viewportRect === null) return;
   const centerX = viewportRect.x + viewportRect.width / 2;
   const centerY = viewportRect.y + viewportRect.height / 2;
+
+  const beforeDownTarget = parseCameraTarget(
+    await root.getAttribute("data-camera-target"),
+  );
+  await page.mouse.move(centerX, centerY);
+  await page.mouse.down({ button: "left" });
+  await page.mouse.move(centerX, centerY + 80, { steps: 4 });
+  await page.mouse.up({ button: "left" });
+  const afterDownTarget = parseCameraTarget(
+    await root.getAttribute("data-camera-target"),
+  );
+  expect(afterDownTarget[0]).toBeLessThan(beforeDownTarget[0]);
+  expect(afterDownTarget[2]).toBeLessThan(beforeDownTarget[2]);
+  await expect(root).toHaveAttribute("data-tap-count", "0");
 
   const initialTarget = await root.getAttribute("data-camera-target");
   await page.mouse.move(centerX, centerY);
@@ -119,6 +145,28 @@ test("routes mobile touch gestures to camera without accidental terrain taps", a
   const cx = box.x + box.width / 2;
   const cy = box.y + box.height / 2;
 
+  const beforeTouchDownTarget = parseCameraTarget(
+    await root.getAttribute("data-camera-target"),
+  );
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: [{ x: cx, y: cy, id: 1 }],
+  });
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchMove",
+    touchPoints: [{ x: cx, y: cy + 80, id: 1 }],
+  });
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchEnd",
+    touchPoints: [],
+  });
+  const afterTouchDownTarget = parseCameraTarget(
+    await root.getAttribute("data-camera-target"),
+  );
+  expect(afterTouchDownTarget[0]).toBeLessThan(beforeTouchDownTarget[0]);
+  expect(afterTouchDownTarget[2]).toBeLessThan(beforeTouchDownTarget[2]);
+  await expect(root).toHaveAttribute("data-tap-count", "0");
+
   const initialTarget = await root.getAttribute("data-camera-target");
   await cdp.send("Input.dispatchTouchEvent", {
     type: "touchStart",
@@ -136,6 +184,34 @@ test("routes mobile touch gestures to camera without accidental terrain taps", a
     "data-camera-target",
     initialTarget ?? "",
   );
+  await expect(root).toHaveAttribute("data-tap-count", "0");
+
+  const beforeCentroidTarget = parseCameraTarget(
+    await root.getAttribute("data-camera-target"),
+  );
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: [
+      { x: cx - 50, y: cy, id: 1 },
+      { x: cx + 50, y: cy, id: 2 },
+    ],
+  });
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchMove",
+    touchPoints: [
+      { x: cx - 50, y: cy + 60, id: 1 },
+      { x: cx + 50, y: cy + 60, id: 2 },
+    ],
+  });
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchEnd",
+    touchPoints: [],
+  });
+  const afterCentroidTarget = parseCameraTarget(
+    await root.getAttribute("data-camera-target"),
+  );
+  expect(afterCentroidTarget[0]).toBeLessThan(beforeCentroidTarget[0]);
+  expect(afterCentroidTarget[2]).toBeLessThan(beforeCentroidTarget[2]);
   await expect(root).toHaveAttribute("data-tap-count", "0");
 
   const beforeDistance = await root.getAttribute("data-camera-distance");

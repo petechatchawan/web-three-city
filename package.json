@@ -21,7 +21,7 @@
     "architecture:check": "pnpm --filter @web-three-city/tooling-architecture architecture:check",
     "build": "pnpm -r --if-present build",
     "test:browser": "playwright test",
-    "terrain:performance:node": "TERRAIN_PERFORMANCE_BASELINE=1 pnpm --filter @web-three-city/terrain exec vitest run tests/performance-baseline.test.ts --reporter=verbose",
+    "terrain:performance:node": "TERRAIN_PERFORMANCE_BASELINE=1 pnpm --filter @web-three-city/app-game exec vitest run tests/terrain-performance-baseline.test.ts --reporter=verbose",
     "terrain:performance:browser": "TERRAIN_PERFORMANCE_BASELINE=1 playwright test tests/browser/terrain-performance.spec.ts --workers=1",
     "terrain:performance:baseline": "pnpm terrain:performance:node && pnpm terrain:performance:browser",
     "terrain:lifecycle:soak": "TERRAIN_LIFECYCLE_SOAK=1 playwright test tests/browser/terrain-lifecycle-soak.spec.ts --workers=1",

@@ -84,9 +84,9 @@ describe("Terraform immutable planning contracts", () => {
     expect(preview.plan.footprintCells.every(Object.isFrozen)).toBe(true);
     expect(Object.isFrozen(preview.plan.edits)).toBe(true);
     expect(preview.plan.edits.every(Object.isFrozen)).toBe(true);
-    expect(preview.plan.edits.every((edit) => Object.isFrozen(edit.vertex))).toBe(
-      true,
-    );
+    expect(
+      preview.plan.edits.every((edit) => Object.isFrozen(edit.vertex)),
+    ).toBe(true);
   });
 
   it("deep-freezes coordinates exposed by an invalid Terraform preview", () => {

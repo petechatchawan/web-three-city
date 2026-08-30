@@ -131,11 +131,11 @@ If migration fails at any step, loading fails with a typed incompatibility/inval
 
 ### Compatibility matrix
 
-| Persisted Terrain snapshot | Terrain Engine v1 behavior |
-| --- | --- |
-| V1 | validate and restore |
-| V2+ | reject until an explicit migrator is shipped |
-| missing/invalid version | reject as invalid/incompatible |
+| Persisted Terrain snapshot | Terrain Engine v1 behavior                   |
+| -------------------------- | -------------------------------------------- |
+| V1                         | validate and restore                         |
+| V2+                        | reject until an explicit migrator is shipped |
+| missing/invalid version    | reject as invalid/incompatible               |
 
 This policy deliberately separates **format compatibility** from **generator compatibility**: canonical saved Terrain state remains authority, while generation fingerprints continue to serve regression/provenance diagnostics only.
 

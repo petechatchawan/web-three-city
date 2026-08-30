@@ -13,7 +13,7 @@ import {
 const GOLDEN_SEED = "0x5EED5EED5EED5EED";
 const BASELINE_ENABLED =
   (globalThis as unknown as {
-    readonly process?: { readonly env?: Readonly<Record<string, string | undefined>> } };
+    readonly process?: { readonly env?: Readonly<Record<string, string | undefined>> };
   }).process?.env?.TERRAIN_PERFORMANCE_BASELINE === "1";
 
 interface Timing<T> {
@@ -31,12 +31,10 @@ function timed<T>(operation: () => T): Timing<T> {
 }
 
 function requireSuccess<T>(
-  result:
-    | { readonly status: "success"; readonly value: T }
-    | { readonly status: string },
+  result: { readonly status: string; readonly value?: T },
   operation: string,
 ): T {
-  if (result.status !== "success") {
+  if (result.status !== "success" || result.value === undefined) {
     throw new Error(`${operation} failed with status ${result.status}.`);
   }
   return result.value;
@@ -136,6 +134,15 @@ function changeOneVertex(input: {
   return mutation.value.changeSet;
 }
 
+function requireProjection(
+  result: ReturnType<typeof createTerrainThreeProjection>,
+) {
+  if (result.status !== "success") {
+    throw new Error(`Terrain projection failed with code ${result.code}.`);
+  }
+  return result.value;
+}
+
 function measureRebuild(input: {
   readonly terrain: TerrainSystem;
   readonly projection: ReturnType<typeof requireProjection>;
@@ -159,15 +166,6 @@ function measureRebuild(input: {
     rebuildMilliseconds: rebuild.milliseconds,
     replacedSectors,
   });
-}
-
-function requireProjection(
-  result: ReturnType<typeof createTerrainThreeProjection>,
-) {
-  if (result.status !== "success") {
-    throw new Error(`Terrain projection failed with code ${result.code}.`);
-  }
-  return result.value;
 }
 
 describe("Terrain production performance baseline", () => {
@@ -221,7 +219,6 @@ describe("Terrain production performance baseline", () => {
       );
       const projection = projectionTiming.value;
       const projectionHeapAfter = memoryUsageBytes();
-      const projection = projectionTiming.value;
 
       const oneSector = measureRebuild({
         terrain,

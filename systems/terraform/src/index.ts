@@ -7,6 +7,7 @@ export type {
   TerraformStrength,
   TerraformVertexMutation,
 } from "./contracts/terraform-types";
+export { planTerraform, type PlanTerraformInput } from "./application/plan-terraform";
 export {
   buildBrushFootprint,
   type TerraformBrushFootprint,

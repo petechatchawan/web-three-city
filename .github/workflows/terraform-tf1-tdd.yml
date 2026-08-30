@@ -1,0 +1,28 @@
+name: Terraform TF1 TDD
+
+on:
+  push:
+    branches:
+      - feat/terraform-v1-core
+
+jobs:
+  terraform-core:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22.18.0
+          package-manager-cache: false
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.15.1 --activate
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Terraform typecheck
+        run: pnpm --filter @web-three-city/terraform typecheck
+      - name: Terraform tests
+        run: pnpm --filter @web-three-city/terraform test
+      - name: Architecture check
+        run: pnpm architecture:check

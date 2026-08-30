@@ -20,6 +20,7 @@ export interface SectorGeometryData {
 
 const POSITION_COMPONENTS = 3;
 const NORMAL_COMPONENTS = 3;
+const TRIANGLE_VERTEX_COUNT = 3;
 
 function localCornerIndices(
   sw: number,
@@ -50,11 +51,10 @@ export function buildSectorGeometryData(input: {
   const vertexCount = vertexAxis * vertexAxis;
   const cellCount = input.layout.cellsPerSector * input.layout.cellsPerSector;
   const trianglesPerCell = Object.keys(TERRAIN_CELL_TRIANGLE_CORNERS).length;
-  const triangleVertexCount = 3;
   const positions = new Float32Array(vertexCount * POSITION_COMPONENTS);
   const normals = new Float32Array(vertexCount * NORMAL_COMPONENTS);
   const indices = new Uint16Array(
-    cellCount * trianglesPerCell * triangleVertexCount,
+    cellCount * trianglesPerCell * TRIANGLE_VERTEX_COUNT,
   );
 
   let vertexIndex = 0;
@@ -109,6 +109,34 @@ export function buildSectorGeometryData(input: {
   return Object.freeze({ positions, normals, indices });
 }
 
+function createFrontFacingPresentationIndices(
+  canonicalIndices: Uint16Array,
+): Uint16Array {
+  if (canonicalIndices.length % TRIANGLE_VERTEX_COUNT !== 0) {
+    throw new Error(
+      "Terrain presentation indices must contain complete triangles.",
+    );
+  }
+
+  const presentationIndices = new Uint16Array(canonicalIndices.length);
+  for (
+    let offset = 0;
+    offset < canonicalIndices.length;
+    offset += TRIANGLE_VERTEX_COUNT
+  ) {
+    const first = canonicalIndices[offset];
+    const second = canonicalIndices[offset + 1];
+    const third = canonicalIndices[offset + 2];
+    if (first === undefined || second === undefined || third === undefined) {
+      throw new Error("Terrain presentation triangle index invariant failed.");
+    }
+    presentationIndices[offset] = first;
+    presentationIndices[offset + 1] = third;
+    presentationIndices[offset + 2] = second;
+  }
+  return presentationIndices;
+}
+
 export function createSectorBufferGeometry(
   data: SectorGeometryData,
 ): BufferGeometry {
@@ -121,7 +149,9 @@ export function createSectorBufferGeometry(
     "normal",
     new BufferAttribute(data.normals, NORMAL_COMPONENTS),
   );
-  geometry.setIndex(new BufferAttribute(data.indices, 1));
+  geometry.setIndex(
+    new BufferAttribute(createFrontFacingPresentationIndices(data.indices), 1),
+  );
   geometry.computeBoundingBox();
   geometry.computeBoundingSphere();
   return geometry;

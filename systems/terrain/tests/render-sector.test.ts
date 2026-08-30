@@ -173,6 +173,25 @@ describe("render-sector geometry", () => {
     expect(geometry.getAttribute("position").count).toBe(65 * 65);
     expect(geometry.getAttribute("normal").count).toBe(65 * 65);
     expect(geometry.index?.count).toBe(8192 * 3);
+    expect(Array.from(geometry.index?.array.slice(0, 6) ?? [])).toEqual([
+      0, 65, 1, 65, 66, 1,
+    ]);
+
+    const position = geometry.getAttribute("position");
+    const index = geometry.index;
+    if (index === null) throw new Error("Expected indexed Terrain geometry.");
+    const a = index.getX(0);
+    const b = index.getX(1);
+    const c = index.getX(2);
+    const ax = position.getX(a);
+    const az = position.getZ(a);
+    const abx = position.getX(b) - ax;
+    const abz = position.getZ(b) - az;
+    const acx = position.getX(c) - ax;
+    const acz = position.getZ(c) - az;
+    const geometricNormalY = abz * acx - abx * acz;
+    expect(geometricNormalY).toBeGreaterThan(0);
+
     expect(geometry.boundingBox).not.toBeNull();
     expect(geometry.boundingSphere).not.toBeNull();
 

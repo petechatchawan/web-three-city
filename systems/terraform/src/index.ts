@@ -11,4 +11,12 @@ export {
   type TerraformBrushFootprint,
   type TerraformBrushSize,
 } from "./domain/brush-footprint";
+export {
+  resolveFlattenCorner,
+  selectFlattenReference,
+  type FlattenReferencePick,
+  type FlattenReferenceRejectionReason,
+  type FlattenReferenceResult,
+  type SelectFlattenReferenceInput,
+} from "./domain/flatten-reference";
 export { strengthLevels, type TerraformStrength } from "./domain/strength";

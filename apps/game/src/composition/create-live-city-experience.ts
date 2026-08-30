@@ -76,11 +76,6 @@ function writeCameraDiagnostics(
   screen.element.dataset.cameraElevation = state.elevationRadians.toFixed(6);
 }
 
-function debugLayers(overlay: TerrainThreeDebugOverlay): string {
-  const visibility = overlay.visibility();
-  return DEBUG_LAYER_ORDER.filter((layer) => visibility[layer]).join(",");
-}
-
 export function createLiveCityExperience(input: {
   readonly mount: HTMLElement;
   readonly session: LiveCitySession;

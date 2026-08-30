@@ -213,8 +213,7 @@ export function createCityLifecycleCoordinator(input: {
     errorMessage?: string,
   ): void => {
     if (!isCurrent(token)) return;
-    let screen: HomeScreenHandle;
-    screen = createHomeScreen({
+    const screen: HomeScreenHandle = createHomeScreen({
       latest: cities[0],
       cityCount: cities.length,
       onNewCity: renderNew,

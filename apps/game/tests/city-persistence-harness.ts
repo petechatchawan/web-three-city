@@ -75,9 +75,13 @@ function requestResult<T>(request: IDBRequest<T>): Promise<T> {
     request.addEventListener("success", () => resolve(request.result), {
       once: true,
     });
-    request.addEventListener("error", () => reject(request.error), {
-      once: true,
-    });
+    request.addEventListener(
+      "error",
+      () => reject(request.error ?? new Error("IndexedDB request failed.")),
+      {
+        once: true,
+      },
+    );
   });
 }
 
@@ -98,12 +102,26 @@ async function injectCorruptRecord(databaseName: string): Promise<void> {
         schemaVersion: 99,
       });
       transaction.addEventListener("complete", () => resolve(), { once: true });
-      transaction.addEventListener("abort", () => reject(transaction.error), {
-        once: true,
-      });
-      transaction.addEventListener("error", () => reject(transaction.error), {
-        once: true,
-      });
+      transaction.addEventListener(
+        "abort",
+        () =>
+          reject(
+            transaction.error ?? new Error("IndexedDB transaction failed."),
+          ),
+        {
+          once: true,
+        },
+      );
+      transaction.addEventListener(
+        "error",
+        () =>
+          reject(
+            transaction.error ?? new Error("IndexedDB transaction failed."),
+          ),
+        {
+          once: true,
+        },
+      );
     });
   } finally {
     database.close();
@@ -117,7 +135,9 @@ async function readIndexNames(
   const database = await requestResult(request);
   try {
     const transaction = database.transaction(CITY_SAVE_STORE_NAME, "readonly");
-    return [...transaction.objectStore(CITY_SAVE_STORE_NAME).indexNames].sort();
+    return [...transaction.objectStore(CITY_SAVE_STORE_NAME).indexNames].sort(
+      (left, right) => left.localeCompare(right),
+    );
   } finally {
     database.close();
   }
@@ -179,7 +199,7 @@ async function main(): Promise<void> {
     CITY_SAVE_INDEX_LAST_PLAYED_AT,
     CITY_SAVE_INDEX_UPDATED_AT,
   ]
-    .sort()
+    .sort((left, right) => left.localeCompare(right))
     .join(",");
   root.dataset.status = "ready";
 
@@ -192,7 +212,9 @@ async function main(): Promise<void> {
   );
 }
 
-void main().catch((error: unknown) => {
+try {
+  await main();
+} catch (error: unknown) {
   root.dataset.status = "error";
   root.dataset.error = error instanceof Error ? error.message : String(error);
-});
+}

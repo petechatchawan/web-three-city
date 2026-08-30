@@ -18,7 +18,7 @@ export function reduceCityCamera(
   if (intent.type === "targetHeight")
     return Object.freeze({ ...state, targetY: intent.targetY });
   if (intent.type === "zoom") {
-    if (!(intent.distanceFactor > 0) || !Number.isFinite(intent.distanceFactor))
+    if (intent.distanceFactor <= 0 || !Number.isFinite(intent.distanceFactor))
       return state;
     return Object.freeze({
       ...state,

@@ -92,6 +92,26 @@ function geometryFromPositions(positions: Float32Array): BufferGeometry {
   return geometry;
 }
 
+function buildLinePositions(input: {
+  readonly layer: TerrainDebugLayer;
+  readonly layout: RenderSectorLayout;
+  readonly sector: RenderSectorCoord;
+  readonly snapshot: SectorSurfaceSnapshot;
+  readonly world: WorldSpatialRead;
+  readonly config: TerrainDebugConfig;
+}): Float32Array {
+  switch (input.layer) {
+    case "cellGrid":
+      return buildCellGridLineData(input).positions;
+    case "renderSectors":
+      return buildSectorBoundaryLineData(input).positions;
+    case "triangles":
+      return buildTriangleLineData(input).positions;
+    default:
+      return buildNormalLineData(input).positions;
+  }
+}
+
 export function createDebugSectorResource(input: {
   readonly layer: TerrainDebugLayer;
   readonly layout: RenderSectorLayout;
@@ -126,15 +146,7 @@ export function createDebugSectorResource(input: {
     geometry = geometryFromPositions(buildVertexPointData(input).positions);
     object = new Points(geometry, input.material);
   } else {
-    const data =
-      input.layer === "cellGrid"
-        ? buildCellGridLineData(input)
-        : input.layer === "renderSectors"
-          ? buildSectorBoundaryLineData(input)
-          : input.layer === "triangles"
-            ? buildTriangleLineData(input)
-            : buildNormalLineData(input);
-    geometry = geometryFromPositions(data.positions);
+    geometry = geometryFromPositions(buildLinePositions(input));
     object = new LineSegments(geometry, input.material);
   }
   object.name = `terrain-debug:${input.layer}:${input.sector.x}:${input.sector.z}`;

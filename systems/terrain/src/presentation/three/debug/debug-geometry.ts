@@ -220,8 +220,6 @@ export function buildNormalLineData(input: {
         x * input.layout.cellSizeMeters,
         startY,
         z * input.layout.cellSizeMeters,
-      );
-      positions.push(
         x * input.layout.cellSizeMeters +
           normal.x * input.config.normalLengthMeters,
         startY + normal.y * input.config.normalLengthMeters,

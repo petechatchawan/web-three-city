@@ -216,7 +216,7 @@ export function createCityLifecycleCoordinator(input: {
   async function renderHome(): Promise<void> {
     const token = nextTransition();
     clearPresentation();
-    setMountError(undefined);
+    setMountError();
     const listed = await input.service.listCities();
     if (!isCurrent(token)) return;
     if (listed.status !== "success") {
@@ -230,7 +230,7 @@ export function createCityLifecycleCoordinator(input: {
   function renderInitialHome(cities: readonly CitySaveSummary[]): void {
     const token = nextTransition();
     clearPresentation();
-    setMountError(undefined);
+    setMountError();
     mountHome(cities, token);
   }
 

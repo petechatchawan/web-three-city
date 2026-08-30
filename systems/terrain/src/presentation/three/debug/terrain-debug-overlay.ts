@@ -96,51 +96,79 @@ export function createTerrainThreeDebugOverlayInternal(
     layerStates.delete(layer);
   };
 
+  const createStagedLayerStates = (
+    layers: readonly TerrainDebugLayer[],
+  ): Map<TerrainDebugLayer, LayerState> => {
+    const staged = new Map<TerrainDebugLayer, LayerState>();
+    for (const layer of layers) {
+      staged.set(layer, {
+        group: createDebugLayerGroup(layer),
+        material: createDebugLayerMaterial(layer, config),
+        resources: new Map(),
+      });
+    }
+    return staged;
+  };
+
+  const disposeLayerStates = (
+    states: ReadonlyMap<TerrainDebugLayer, LayerState>,
+  ): void => {
+    for (const state of states.values()) {
+      for (const resource of state.resources.values()) resource.dispose();
+      state.material.dispose();
+    }
+  };
+
+  const stageSector = (
+    states: ReadonlyMap<TerrainDebugLayer, LayerState>,
+    sector: RenderSectorCoord,
+  ): void => {
+    const snapshot = readSectorSurface({
+      layout,
+      sector,
+      terrain: input.terrain,
+    });
+    if (snapshot.revision !== projectedRevision) {
+      throw new Error("Terrain debug snapshot revision mismatch.");
+    }
+    for (const [layer, state] of states) {
+      const resource = buildResource(
+        layer,
+        state,
+        sector,
+        projectedRevision,
+        snapshot,
+      );
+      state.resources.set(renderSectorKey(sector), resource);
+      state.group.add(resource.object);
+    }
+  };
+
+  const publishLayerStates = (
+    states: ReadonlyMap<TerrainDebugLayer, LayerState>,
+  ): void => {
+    for (const [layer, state] of states) {
+      layerStates.set(layer, state);
+      root.add(state.group);
+    }
+  };
+
   const enableLayers = (layers: readonly TerrainDebugLayer[]): void => {
     if (layers.length === 0) return;
     if (input.terrain.revision() !== projectedRevision) {
       throw new Error("Terrain debug overlay revision is stale.");
     }
-    const stagedStates = new Map<TerrainDebugLayer, LayerState>();
+    const stagedStates = createStagedLayerStates(layers);
     try {
-      for (const layer of layers) {
-        stagedStates.set(layer, {
-          group: createDebugLayerGroup(layer),
-          material: createDebugLayerMaterial(layer, config),
-          resources: new Map(),
-        });
-      }
       for (const sector of allRenderSectorCoords(layout)) {
-        const snapshot = readSectorSurface({
-          layout,
-          sector,
-          terrain: input.terrain,
-        });
-        if (snapshot.revision !== projectedRevision)
-          throw new Error("Terrain debug snapshot revision mismatch.");
-        for (const [layer, state] of stagedStates) {
-          const resource = buildResource(
-            layer,
-            state,
-            sector,
-            projectedRevision,
-            snapshot,
-          );
-          state.resources.set(renderSectorKey(sector), resource);
-          state.group.add(resource.object);
-        }
+        stageSector(stagedStates, sector);
       }
-      if (input.terrain.revision() !== projectedRevision)
+      if (input.terrain.revision() !== projectedRevision) {
         throw new Error("Terrain debug overlay revision changed during build.");
-      for (const [layer, state] of stagedStates) {
-        layerStates.set(layer, state);
-        root.add(state.group);
       }
+      publishLayerStates(stagedStates);
     } catch (error) {
-      for (const state of stagedStates.values()) {
-        for (const resource of state.resources.values()) resource.dispose();
-        state.material.dispose();
-      }
+      disposeLayerStates(stagedStates);
       throw error;
     }
   };
@@ -222,7 +250,7 @@ export function createTerrainThreeDebugOverlayInternal(
     dispose() {
       if (disposed) return;
       disposed = true;
-      for (const layer of [...layerStates.keys()]) disableLayer(layer);
+      for (const layer of layerStates.keys()) disableLayer(layer);
       root.clear();
     },
   };

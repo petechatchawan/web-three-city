@@ -194,7 +194,7 @@ export function createIndexedDbCitySaveRepository(
       if (records.status !== "success") return records;
       const summaries: CitySaveSummary[] = [...records.value]
         .sort(compareSaves)
-        .map(summarizeCitySave);
+        .map((record) => summarizeCitySave(record));
       return success(Object.freeze(summaries));
     },
 

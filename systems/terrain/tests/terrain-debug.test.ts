@@ -151,8 +151,8 @@ describe("TerrainThreeDebugOverlay", () => {
     const materialCount = materialDispose.mock.calls.length;
     result.value.dispose();
     result.value.dispose();
-    expect(geometryDispose.mock.calls.length).toBe(geometryCount);
-    expect(materialDispose.mock.calls.length).toBe(materialCount);
+    expect(geometryDispose.mock.calls).toHaveLength(geometryCount);
+    expect(materialDispose.mock.calls).toHaveLength(materialCount);
 
     geometryDispose.mockRestore();
     materialDispose.mockRestore();

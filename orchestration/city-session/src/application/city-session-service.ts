@@ -1,4 +1,4 @@
-import { parseCityName } from "../contracts/identity";
+import { CITY_SAVE_SCHEMA_VERSION, parseCityName } from "../contracts/identity";
 import { decodeCitySaveV1 } from "../contracts/save-codec";
 import type {
   CityMetadata,
@@ -11,7 +11,6 @@ import type {
   ResumeCityResult,
 } from "../contracts/city-session";
 import type { CitySessionDependencies } from "../contracts/ports";
-import { CITY_SAVE_SCHEMA_VERSION } from "../contracts/identity";
 
 function rejected<T>(
   code: Exclude<CitySessionResult<T>, { status: "success" }>["code"],

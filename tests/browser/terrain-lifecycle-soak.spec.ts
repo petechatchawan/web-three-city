@@ -115,8 +115,10 @@ test("cycles New, Load and Resume without accumulating presentation resources", 
       originalRemove.call(this, type, listener, options);
     };
 
-    const originalRequestAnimationFrame = window.requestAnimationFrame.bind(window);
-    const originalCancelAnimationFrame = window.cancelAnimationFrame.bind(window);
+    const originalRequestAnimationFrame =
+      window.requestAnimationFrame.bind(window);
+    const originalCancelAnimationFrame =
+      window.cancelAnimationFrame.bind(window);
     const pendingFrames = new Set<number>();
     window.requestAnimationFrame = (callback: FrameRequestCallback): number => {
       let handle = 0;
@@ -158,7 +160,9 @@ test("cycles New, Load and Resume without accumulating presentation resources", 
   await page.getByLabel("City name").fill("Terrain Soak City");
   await page.getByLabel("Terrain seed").fill(GOLDEN_SEED);
   await page.getByRole("button", { name: "Generate terrain" }).click();
-  await expect(page.getByText(GOLDEN_FINGERPRINT, { exact: true })).toBeVisible();
+  await expect(
+    page.getByText(GOLDEN_FINGERPRINT, { exact: true }),
+  ).toBeVisible();
   await page.getByRole("radio", { name: "R08" }).check();
   await page.getByRole("button", { name: "Create city" }).click();
   await expect(app).toHaveAttribute("data-live-runtime", "ready");

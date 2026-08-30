@@ -108,7 +108,9 @@ function createTerrainSession(
     read: {} as TerrainAuthorityRead,
     commands: {
       applyEdits() {
-        throw new Error("Terrain commands are not exercised by lifecycle tests");
+        throw new Error(
+          "Terrain commands are not exercised by lifecycle tests",
+        );
       },
     } as TerrainCommands,
     opaque: { kind: "terrain-system" },

@@ -1,15 +1,14 @@
 export type {
-  TerraformBrushSize,
+  PlanTerraformInput,
   TerraformInvalidReason,
   TerraformOperation,
   TerraformPlan,
   TerraformPreview,
-  TerraformStrength,
   TerraformVertexMutation,
 } from "./contracts/terraform-types";
-export { planTerraform, type PlanTerraformInput } from "./application/plan-terraform";
 export {
   buildBrushFootprint,
   type TerraformBrushFootprint,
+  type TerraformBrushSize,
 } from "./domain/brush-footprint";
-export { strengthLevels } from "./domain/strength";
+export { strengthLevels, type TerraformStrength } from "./domain/strength";

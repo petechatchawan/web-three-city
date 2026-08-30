@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import type {
-  CellCoord,
   MapDefinitionRead,
   MapStateRead,
   RegionId,
@@ -12,41 +11,11 @@ import {
   type LogicalElevation,
   type TerrainAuthorityRead,
 } from "@web-three-city/terrain";
-import * as terraform from "@web-three-city/terraform";
+import {
+  resolveFlattenCorner,
+  selectFlattenReference,
+} from "@web-three-city/terraform";
 
-interface FlattenReferencePick {
-  readonly cell: CellCoord;
-  readonly uQ16: number;
-  readonly vQ16: number;
-}
-
-interface SelectFlattenReferenceInputUnderTest {
-  readonly pick: FlattenReferencePick;
-  readonly mapDefinition: MapDefinitionRead;
-  readonly mapState: MapStateRead;
-  readonly spatial: WorldSpatialRead;
-  readonly terrain: TerrainAuthorityRead;
-}
-
-type FlattenReferenceResultUnderTest =
-  | {
-      readonly status: "success";
-      readonly value: LogicalElevation;
-      readonly vertex: VertexCoord;
-    }
-  | {
-      readonly status: "rejected";
-      readonly reason: "OUT_OF_WORLD" | "LOCKED_REGION" | "TERRAIN_UNAVAILABLE";
-    };
-
-type TerraformApiUnderTest = typeof terraform & {
-  readonly resolveFlattenCorner?: (pick: FlattenReferencePick) => VertexCoord;
-  readonly selectFlattenReference?: (
-    input: SelectFlattenReferenceInputUnderTest,
-  ) => FlattenReferenceResultUnderTest;
-};
-
-const api = terraform as TerraformApiUnderTest;
 const UNLOCKED = "region-unlocked" as RegionId;
 const LOCKED = "region-locked" as RegionId;
 
@@ -102,14 +71,14 @@ describe("Flatten nearest canonical corner", () => {
     [{ cell: { x: 5, z: 7 }, uQ16: 0, vQ16: 65535 }, { x: 5, z: 8 }],
     [{ cell: { x: 5, z: 7 }, uQ16: 32768, vQ16: 32768 }, { x: 6, z: 8 }],
   ] as const)("resolves deterministic corner %#", (pick, expected) => {
-    expect(api.resolveFlattenCorner?.(pick)).toEqual(expected);
+    expect(resolveFlattenCorner(pick)).toEqual(expected);
   });
 });
 
 describe("Flatten reference selection", () => {
   it("returns the exact LogicalElevation from the selected canonical corner", () => {
     expect(
-      api.selectFlattenReference?.({
+      selectFlattenReference({
         pick: { cell: { x: 5, z: 7 }, uQ16: 65535, vQ16: 0 },
         mapDefinition,
         mapState,
@@ -121,7 +90,7 @@ describe("Flatten reference selection", () => {
 
   it("rejects an out-of-world picked cell before selecting a corner", () => {
     expect(
-      api.selectFlattenReference?.({
+      selectFlattenReference({
         pick: { cell: { x: -1, z: 7 }, uQ16: 0, vQ16: 0 },
         mapDefinition,
         mapState,
@@ -133,7 +102,7 @@ describe("Flatten reference selection", () => {
 
   it("rejects a locked reference cell before reading Terrain", () => {
     expect(
-      api.selectFlattenReference?.({
+      selectFlattenReference({
         pick: { cell: { x: 5, z: 7 }, uQ16: 0, vQ16: 0 },
         mapDefinition,
         mapState,
@@ -145,7 +114,7 @@ describe("Flatten reference selection", () => {
 
   it("rejects when the selected canonical corner is unavailable", () => {
     expect(
-      api.selectFlattenReference?.({
+      selectFlattenReference({
         pick: { cell: { x: 5, z: 7 }, uQ16: 0, vQ16: 0 },
         mapDefinition,
         mapState,

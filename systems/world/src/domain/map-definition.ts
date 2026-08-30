@@ -13,7 +13,6 @@ export interface MapDefinitionSource {
   readonly terrainGenerationProfileVersion: number;
   readonly regions: readonly RegionDefinition[];
   readonly startingCandidates: readonly StartingCandidate[];
-  readonly acceptedTerrainSeeds: readonly string[];
 }
 
 export const PRODUCTION_X_BOUNDARIES = Object.freeze([
@@ -93,6 +92,5 @@ export function createProductionMapDefinitionSource(): MapDefinitionSource {
     terrainGenerationProfileVersion: 2,
     regions: createProductionRegions(),
     startingCandidates: PRODUCTION_STARTING_CANDIDATES,
-    acceptedTerrainSeeds: Object.freeze(["0x5EED5EED5EED5EED"]),
   });
 }

@@ -18,8 +18,9 @@ export type WorldErrorCode =
   | "WORLD_REGION_PARTITION_OVERLAP"
   | "WORLD_STARTING_CANDIDATE_INVALID"
   | "WORLD_STARTING_REGION_NOT_ELIGIBLE"
-  | "WORLD_SEED_NOT_ACCEPTED"
-  | "WORLD_COORD_OUT_OF_BOUNDS";
+  | "WORLD_COORD_OUT_OF_BOUNDS"
+  | "WORLD_SNAPSHOT_INCOMPATIBLE"
+  | "WORLD_SNAPSHOT_INVALID";
 
 export type WorldReadResult<T> =
   | { readonly status: "success"; readonly value: T }
@@ -61,7 +62,6 @@ export interface MapDefinitionRead {
   readonly terrainGenerationProfileVersion: 2;
   readonly regionIds: readonly RegionId[];
   readonly startingCandidates: readonly StartingCandidate[];
-  readonly acceptedTerrainSeeds: readonly string[];
 }
 
 export interface PreparedWorldDefinition {
@@ -73,6 +73,11 @@ export interface CreateInitialWorldInput {
   readonly prepared: PreparedWorldDefinition;
   readonly selectedStartingRegionId: RegionId;
   readonly eligibleStartingRegionIds: readonly RegionId[];
+}
+
+export interface RestoreWorldInput {
+  readonly prepared: PreparedWorldDefinition;
+  readonly snapshot: MapStateSnapshot;
 }
 
 export interface MapStateRead {

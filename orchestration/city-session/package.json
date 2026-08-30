@@ -1,0 +1,21 @@
+{
+  "name": "@web-three-city/orchestration-city-session",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./composition": "./src/composition.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@web-three-city/terrain": "workspace:*",
+    "@web-three-city/world": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "5.9.2",
+    "vitest": "3.2.4"
+  }
+}

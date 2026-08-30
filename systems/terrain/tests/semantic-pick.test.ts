@@ -54,10 +54,18 @@ describe("semantic Terrain picking", () => {
       status: "hit",
       value: {
         cell: { x: 0, z: 0 },
+        uQ16: Q16_ONE / 2,
+        vQ16: Q16_ONE / 2,
+        worldPosition: {
+          x: 4,
+          y: semantic.value.heightQ16 / Q16_ONE / 4,
+          z: 4,
+        },
         triangle: semantic.value.triangle,
         heightQ16: semantic.value.heightQ16,
         riseX: semantic.value.riseX,
         riseZ: semantic.value.riseZ,
+        runUnits: semantic.value.runUnits,
         revision: semantic.value.revision,
       },
     });

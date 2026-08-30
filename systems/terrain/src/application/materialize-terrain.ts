@@ -72,6 +72,7 @@ export function materializeTerrain(
         generationProfileId: input.generationProfileId,
         generationProfileVersion: input.generationProfileVersion,
         selectedSeed64: input.selectedSeed64,
+        fingerprint: input.fingerprint,
       },
       records: staged,
       loadedChunkKeys: Array.from(

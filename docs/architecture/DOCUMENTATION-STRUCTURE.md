@@ -39,12 +39,24 @@ docs/
 │  ├─ FOUNDATION-BOOTSTRAP-STRUCTURE.md
 │  └─ adr/
 │
-└─ systems/
-   └─ <system>/
+├─ systems/
+│  └─ <system>/
+│     ├─ README.md
+│     ├─ specs/
+│     ├─ adr/
+│     ├─ tdd/
+│     └─ verification/
+│
+├─ orchestration/
+│  └─ <concern>/
+│     ├─ README.md
+│     ├─ specs/
+│     └─ verification/
+│
+└─ apps/
+   └─ <app>/
       ├─ README.md
       ├─ specs/
-      ├─ adr/
-      ├─ tdd/
       └─ verification/
 ```
 
@@ -137,6 +149,12 @@ docs/systems/roads
 ```
 
 A system's documentation should be understandable without inspecting unrelated system internals.
+
+## 6.1 App and orchestration documentation ownership
+
+App-specific browser/presentation/environment decisions live under `docs/apps/<app>/`. Orchestration concern decisions live under `docs/orchestration/<concern>/`. These trees use the same ownership rule as systems: README is an entry map, `specs/` contains binding behavior/architecture for that owner, and `verification/` stores durable evidence when useful.
+
+App/orchestration documents must not override repository-wide architecture or system-owned semantic authority.
 
 ## 7. System `README.md`
 

@@ -16,6 +16,7 @@ export type {
   MapStateRead,
   MapStateSnapshot,
   PreparedWorldDefinition,
+  RestoreWorldInput,
   WorldConstructionResult,
   WorldErrorCode,
   WorldReadResult,

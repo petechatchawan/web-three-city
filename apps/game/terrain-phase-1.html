@@ -23,10 +23,26 @@
         height: 100%;
       }
 
-      [data-testid="terrain-rebuild"] {
+      .diagnostic-panel {
         position: absolute;
         inset: 1rem auto auto 1rem;
         z-index: 1;
+        display: grid;
+        gap: 0.5rem;
+        padding: 0.75rem;
+        color: #e5e7eb;
+        background: rgb(17 24 39 / 88%);
+        border: 1px solid rgb(148 163 184 / 30%);
+        border-radius: 0.5rem;
+        font:
+          12px/1.4 system-ui,
+          sans-serif;
+      }
+
+      .diagnostic-panel label {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
       }
     </style>
   </head>
@@ -36,9 +52,34 @@
         id="terrain-viewport"
         aria-label="Terrain presentation viewport"
       ></section>
-      <button type="button" data-testid="terrain-rebuild">
-        Rebuild terrain
-      </button>
+      <aside class="diagnostic-panel" aria-label="Terrain debug controls">
+        <button type="button" data-testid="terrain-rebuild">
+          Rebuild terrain
+        </button>
+        <label
+          ><input type="checkbox" data-testid="debug-cellGrid" /> Gameplay
+          grid</label
+        >
+        <label
+          ><input type="checkbox" data-testid="debug-renderSectors" /> Render
+          sectors</label
+        >
+        <label
+          ><input type="checkbox" data-testid="debug-vertices" />
+          Vertices</label
+        >
+        <label
+          ><input type="checkbox" data-testid="debug-triangles" />
+          Triangles</label
+        >
+        <label
+          ><input type="checkbox" data-testid="debug-normals" /> Normals</label
+        >
+        <label
+          ><input type="checkbox" data-testid="debug-elevation" />
+          Elevation</label
+        >
+      </aside>
     </main>
     <script type="module" src="/tests/terrain-phase-1-harness.ts"></script>
   </body>

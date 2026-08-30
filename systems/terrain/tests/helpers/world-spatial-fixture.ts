@@ -14,6 +14,7 @@ export const TEST_TERRAIN_PROVENANCE = {
   generationProfileId: "balanced-temperate-generation",
   generationProfileVersion: 2,
   selectedSeed64: "0x5EED5EED5EED5EED",
+  fingerprint: "0xF2FA29BFD2AEB069",
 } as const;
 
 export function testOwnerAxis(axis: number): number {

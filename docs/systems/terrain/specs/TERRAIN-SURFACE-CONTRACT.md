@@ -51,6 +51,12 @@ NE_TRIANGLE = [NW, SE, NE]
 
 The diagonal never changes based on heights, normals, camera, rendering optimization, or neighboring Cells.
 
+### Presentation winding is not semantic triangle identity
+
+The corner order above is the canonical semantic triangle identity. It does **not** require a renderer to submit the same vertex winding to the GPU. A presentation adapter may reverse the winding of each triangle, provided that it preserves the same three vertices and the same NW→SE diagonal.
+
+For Three.js lit Terrain, the GPU-facing winding must make the visible top surface a `+Y` front face. The canonical semantic index data remains unchanged; only the `BufferGeometry` adapter reverses presentation winding. This prevents `DoubleSide` back-face normal flipping from turning upward semantic normals into downward lighting normals.
+
 ## 4. Normative diagonal tie rule
 
 The diagonal equation in Q16 coordinates is:

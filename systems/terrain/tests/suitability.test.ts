@@ -33,7 +33,6 @@ function preparedWorld(): PreparedWorldDefinition {
         { regionId: "R11", anchor: { x: 153, z: 319 } },
         { regionId: "R13", anchor: { x: 358, z: 319 } },
       ],
-      acceptedTerrainSeeds: [PRODUCTION_SEED],
     },
     spatial: {} as PreparedWorldDefinition["spatial"],
   };
@@ -114,7 +113,7 @@ describe("Terrain starting suitability", () => {
 });
 
 describe("production Terrain preparation", () => {
-  it("prepares the selected accepted seed exactly once with frozen facts", () => {
+  it("prepares the selected valid seed exactly once with frozen facts", () => {
     const world = preparedWorld();
     let generationCalls = 0;
     const dependencies: PrepareProductionTerrainDependencies = {
@@ -149,7 +148,7 @@ describe("production Terrain preparation", () => {
     ).toBe(true);
   });
 
-  it("rejects invalid and unaccepted seeds before generation", () => {
+  it("rejects malformed Seed64 before generation and accepts canonicalized arbitrary Seed64", () => {
     const world = preparedWorld();
     let generationCalls = 0;
     const dependencies: PrepareProductionTerrainDependencies = {
@@ -158,7 +157,18 @@ describe("production Terrain preparation", () => {
         return generateProductionTerrainField(seed64);
       },
       fingerprintField: fingerprintProductionTerrainField,
-      evaluateCandidates: evaluateStartingCandidates,
+      evaluateCandidates() {
+        return [
+          {
+            regionId: "R06",
+            eligible: true,
+            patchElevationRange: 0,
+            maxCellCornerRange: 0,
+            anchorCellCornerRange: 0,
+            reasons: [],
+          },
+        ];
+      },
     };
 
     expect(
@@ -170,19 +180,19 @@ describe("production Terrain preparation", () => {
       status: "rejected",
       code: "TERRAIN_GENERATION_SEED_INVALID",
     });
-    expect(
-      prepareProductionTerrainInternal(
-        { world, seed64: "0x0000000000000001" },
-        dependencies,
-      ),
-    ).toMatchObject({
-      status: "rejected",
-      code: "TERRAIN_GENERATION_SEED_NOT_ACCEPTED",
-    });
-    expect(generationCalls).toBe(0);
+
+    const arbitrary = prepareProductionTerrainInternal(
+      { world, seed64: "0x00000000000000ab" },
+      dependencies,
+    );
+    expect(arbitrary.status).toBe("success");
+    if (arbitrary.status !== "success") return;
+    expect(arbitrary.value.selectedSeed64).toBe("0x00000000000000AB");
+    expect(arbitrary.value.fingerprint).toMatch(/^0x[0-9A-F]{16}$/);
+    expect(generationCalls).toBe(1);
   });
 
-  it("does not mine another seed after a fingerprint rejection", () => {
+  it("does not mine another seed when the selected seed has no eligible starting Region", () => {
     const world = preparedWorld();
     let generationCalls = 0;
     const dependencies: PrepareProductionTerrainDependencies = {
@@ -190,10 +200,19 @@ describe("production Terrain preparation", () => {
         generationCalls += 1;
         return generateProductionTerrainField(seed64);
       },
-      fingerprintField() {
-        return "0x0000000000000000";
+      fingerprintField: fingerprintProductionTerrainField,
+      evaluateCandidates() {
+        return [
+          {
+            regionId: "R06",
+            eligible: false,
+            patchElevationRange: 100,
+            maxCellCornerRange: 10,
+            anchorCellCornerRange: 10,
+            reasons: ["TERRAIN_START_PATCH_RELIEF_EXCEEDED"],
+          },
+        ];
       },
-      evaluateCandidates: evaluateStartingCandidates,
     };
 
     const result = prepareProductionTerrainInternal(
@@ -203,7 +222,7 @@ describe("production Terrain preparation", () => {
 
     expect(result).toMatchObject({
       status: "rejected",
-      code: "TERRAIN_GENERATION_FINGERPRINT_MISMATCH",
+      code: "TERRAIN_GENERATION_NO_ELIGIBLE_START",
     });
     expect(generationCalls).toBe(1);
   });

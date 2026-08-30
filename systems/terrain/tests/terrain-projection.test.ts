@@ -1,7 +1,7 @@
 import type { CellCoord } from "@web-three-city/world";
 import {
   BufferGeometry,
-  DoubleSide,
+  FrontSide,
   Group,
   type Mesh,
   MeshBasicMaterial,
@@ -116,7 +116,7 @@ describe("Terrain Three.js resource ownership", () => {
 
     expect(material).toBeInstanceOf(MeshStandardMaterial);
     expect(material).not.toBeInstanceOf(MeshBasicMaterial);
-    expect(material.side).toBe(DoubleSide);
+    expect(material.side).toBe(FrontSide);
     expect(resource00.mesh.material).toBe(material);
     expect(resource10.mesh.material).toBe(material);
     expect(resource00.geometry).toBe(geometry00);

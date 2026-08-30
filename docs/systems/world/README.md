@@ -48,7 +48,7 @@ Terrain and later consumers
 
 ## Public surfaces
 
-Expected Phase 1 package surfaces after implementation approval:
+Implemented Phase 1 package surfaces:
 
 ```text
 @web-three-city/world
@@ -83,6 +83,11 @@ A future persistence adapter serializes this snapshot; persistence never becomes
 - `specs/WORLD-SYSTEM-DESIGN.md`
 - `specs/WORLD-SPATIAL-CONTRACT.md`
 - `specs/MAP-AND-REGION-CONTRACT.md`
+- `specs/WORLD-SNAPSHOT-RESTORE-CONTRACT.md`
+
+## Verification evidence
+
+- `verification/TERRAIN-PRODUCT-INTEGRATION-V1.md`
 
 ## Verification boundary
 

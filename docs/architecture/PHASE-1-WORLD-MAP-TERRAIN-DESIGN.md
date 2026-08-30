@@ -761,7 +761,7 @@ The app composition root may perform construction from explicit, already-decided
 Canonical flow:
 
 ```text
-Caller selects accepted seed
+Caller selects explicit valid Seed64
         ↓
 Terrain generation preparation
         ↓
@@ -1196,7 +1196,7 @@ Resolve production MapDefinition
    ↓
 Construct GridTopology
    ↓
-Use explicit accepted seed
+Use explicit valid Seed64
    ↓
 Generate deterministic full Terrain field
    ↓

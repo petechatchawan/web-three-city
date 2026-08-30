@@ -32,6 +32,15 @@ importers:
 
   apps/game:
     dependencies:
+      '@web-three-city/orchestration-city-session':
+        specifier: workspace:*
+        version: link:../../orchestration/city-session
+      '@web-three-city/terrain':
+        specifier: workspace:*
+        version: link:../../systems/terrain
+      '@web-three-city/world':
+        specifier: workspace:*
+        version: link:../../systems/world
       three:
         specifier: 0.179.1
         version: 0.179.1
@@ -39,20 +48,33 @@ importers:
       '@types/three':
         specifier: 0.179.0
         version: 0.179.0
-      '@web-three-city/terrain':
-        specifier: workspace:*
-        version: link:../../systems/terrain
-      '@web-three-city/world':
-        specifier: workspace:*
-        version: link:../../systems/world
       typescript:
         specifier: 5.9.2
         version: 5.9.2
       vite:
         specifier: 7.1.3
         version: 7.1.3(@types/node@22.18.0)(tsx@4.20.4)(yaml@2.8.1)
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(@types/node@22.18.0)(tsx@4.20.4)(yaml@2.8.1)
 
   foundation/contracts:
+    devDependencies:
+      typescript:
+        specifier: 5.9.2
+        version: 5.9.2
+      vitest:
+        specifier: 3.2.4
+        version: 3.2.4(@types/node@22.18.0)(tsx@4.20.4)(yaml@2.8.1)
+
+  orchestration/city-session:
+    dependencies:
+      '@web-three-city/terrain':
+        specifier: workspace:*
+        version: link:../../systems/terrain
+      '@web-three-city/world':
+        specifier: workspace:*
+        version: link:../../systems/world
     devDependencies:
       typescript:
         specifier: 5.9.2

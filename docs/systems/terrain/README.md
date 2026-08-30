@@ -37,13 +37,14 @@ derived presentation
 fixed NW→SE diagonal
 Q16 sub-cell sampling
 balanced-temperate-generation / 2
-accepted seed 0x5EED5EED5EED5EED
+Seed64 = explicit canonical 64-bit hexadecimal input
+golden regression seed 0x5EED5EED5EED5EED
 8 × 8 Three.js render sectors
 ```
 
 ## Public surfaces
 
-Expected after implementation approval:
+Implemented package surfaces:
 
 ```text
 @web-three-city/terrain
@@ -74,10 +75,16 @@ Terrain contracts/application may use stable World public values/read capabiliti
 - `specs/TERRAIN-GENERATION-CONTRACT.md`
 - `specs/TERRAIN-MUTATION-CONTRACT.md`
 - `specs/TERRAIN-PRESENTATION-CONTRACT.md`
+- `specs/TERRAIN-SNAPSHOT-AND-RESTORE-CONTRACT.md`
+- `specs/TERRAIN-DEBUG-VISUALIZATION-CONTRACT.md`
 
 ## Snapshot ownership
 
 Terrain owns semantic snapshots of its canonical state and provenance. A later persistence layer serializes those snapshots but never owns Terrain meaning.
+
+## Verification evidence
+
+- `verification/TERRAIN-PRODUCT-INTEGRATION-V1.md`
 
 ## Verification boundary
 

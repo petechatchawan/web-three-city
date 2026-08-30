@@ -177,9 +177,9 @@ Surface queries and presentation use the same fixed topology.
 
 Terrain owns the deterministic algorithm and immutable prepared `ProductionTerrainField`.
 
-World owns MapDefinition and accepted seed catalog. Terrain validates profile/seed inputs and generates exactly once for the caller-selected accepted seed.
+World owns MapDefinition and Terrain generation profile identity/version. Terrain owns Seed64 validation/canonicalization and generates exactly once for the caller-selected valid seed.
 
-Generation never changes seed silently.
+Generation never changes seed silently, retries another seed, or mines for eligibility.
 
 ## 10. Mutation ownership
 
@@ -225,7 +225,8 @@ Expected invalid conditions use typed outcomes/rejections, including:
 
 ```text
 unsupported profile/version
-unaccepted seed
+invalid Seed64
+no eligible starting Region for the selected seed
 invalid/out-of-bounds World coordinate
 unloaded owner Chunk
 invalid elevation

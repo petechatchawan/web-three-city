@@ -1,8 +1,14 @@
+import type {
+  CreateTerrainThreeDebugOverlayInput,
+  TerrainThreeDebugOverlayConstructionResult,
+} from "./contracts/terrain-debug";
 import { prepareProductionTerrainInternal } from "./application/prepare-production-terrain";
 import {
   createTerrainAuthorityInternal,
   createTerrainSystemInternal,
+  restoreTerrainSystemInternal,
   createTerrainThreeProjectionCompositionInternal,
+  createTerrainThreeDebugOverlayCompositionInternal,
 } from "./composition/create-terrain";
 import type {
   PrepareProductionTerrainInput,
@@ -11,6 +17,7 @@ import type {
 } from "./contracts/generation";
 import type {
   CreateTerrainAuthorityInput,
+  RestoreTerrainInput,
   TerrainAuthoritySystem,
   TerrainConstructionResult,
   TerrainSystem,
@@ -44,6 +51,18 @@ function prepareTerrain(
   return prepareProductionTerrainInternal(input);
 }
 
+function constructTerrainThreeDebugOverlay(
+  input: CreateTerrainThreeDebugOverlayInput,
+): TerrainThreeDebugOverlayConstructionResult {
+  return createTerrainThreeDebugOverlayCompositionInternal(input);
+}
+
+export function createTerrainThreeDebugOverlay(
+  input: CreateTerrainThreeDebugOverlayInput,
+): TerrainThreeDebugOverlayConstructionResult {
+  return constructTerrainThreeDebugOverlay(input);
+}
+
 export function createTerrainThreeProjection(
   input: CreateTerrainThreeProjectionInput,
 ): TerrainThreeProjectionConstructionResult {
@@ -54,6 +73,18 @@ export function prepareProductionTerrain(
   input: PrepareProductionTerrainInput,
 ): TerrainGenerationResult<PreparedProductionTerrain> {
   return prepareTerrain(input);
+}
+
+function constructRestoredTerrain(
+  input: RestoreTerrainInput,
+): TerrainConstructionResult<TerrainSystem> {
+  return restoreTerrainSystemInternal(input);
+}
+
+export function restoreTerrainSystem(
+  input: RestoreTerrainInput,
+): TerrainConstructionResult<TerrainSystem> {
+  return constructRestoredTerrain(input);
 }
 
 export function createTerrainAuthoritySystem(
@@ -79,6 +110,7 @@ export type {
 
 export type {
   CreateTerrainAuthorityInput,
+  RestoreTerrainInput,
   TerrainAuthoritySystem,
   TerrainConstructionResult,
   TerrainFieldSource,
@@ -92,3 +124,12 @@ export type {
   TerrainThreeProjection,
   TerrainThreeProjectionConstructionResult,
 } from "./contracts/terrain-three";
+
+export type {
+  CreateTerrainThreeDebugOverlayInput,
+  TerrainDebugConfig,
+  TerrainDebugLayer,
+  TerrainDebugVisibility,
+  TerrainThreeDebugOverlay,
+  TerrainThreeDebugOverlayConstructionResult,
+} from "./contracts/terrain-debug";

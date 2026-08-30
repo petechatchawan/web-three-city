@@ -3,6 +3,7 @@ import type { Group, Raycaster } from "three";
 import type { TerrainSemanticPickResult } from "../../../contracts/terrain-three";
 import type { TerrainAuthorityRead } from "../../../contracts/terrain-read";
 import { Q16_ONE } from "../../../domain/surface";
+import { LOGICAL_ELEVATION_METERS } from "../../../domain/elevation";
 
 export interface TerrainRaycastCandidate {
   readonly x: number;
@@ -75,10 +76,18 @@ export function resolveSemanticTerrainCandidate(input: {
     status: "hit",
     value: {
       cell: cellResult.value,
+      uQ16,
+      vQ16,
+      worldPosition: Object.freeze({
+        x: input.candidate.x,
+        y: (sample.value.heightQ16 / Q16_ONE) * LOGICAL_ELEVATION_METERS,
+        z: input.candidate.z,
+      }),
       triangle: sample.value.triangle,
       heightQ16: sample.value.heightQ16,
       riseX: sample.value.riseX,
       riseZ: sample.value.riseZ,
+      runUnits: sample.value.runUnits,
       revision: sample.value.revision,
     },
   };

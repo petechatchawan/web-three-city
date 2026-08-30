@@ -1,6 +1,7 @@
 import type { WorldSpatialRead } from "@web-three-city/world";
 import type { TerrainCommands } from "./mutation";
 import type { TerrainAuthorityRead } from "./terrain-read";
+import type { TerrainStateSnapshotV1 } from "./snapshot";
 
 export interface TerrainFieldSource {
   readonly vertexWidth: number;
@@ -14,7 +15,14 @@ export interface CreateTerrainAuthorityInput {
   readonly generationProfileId: string;
   readonly generationProfileVersion: number;
   readonly selectedSeed64: string;
+  readonly fingerprint: string;
   readonly source: TerrainFieldSource;
+}
+
+export interface RestoreTerrainInput {
+  readonly world: WorldSpatialRead;
+  readonly mapDefinitionId: string;
+  readonly snapshot: TerrainStateSnapshotV1;
 }
 
 export type TerrainConstructionResult<T> =
@@ -24,7 +32,9 @@ export type TerrainConstructionResult<T> =
       readonly reason:
         | "invalid-source-dimensions"
         | "invalid-elevation"
-        | "world-topology-rejected";
+        | "world-topology-rejected"
+        | "snapshot-incompatible"
+        | "snapshot-invalid";
       readonly detail?: Readonly<Record<string, unknown>>;
     };
 
@@ -34,4 +44,5 @@ export interface TerrainAuthoritySystem {
 
 export interface TerrainSystem extends TerrainAuthoritySystem {
   readonly commands: TerrainCommands;
+  captureSnapshot(): TerrainStateSnapshotV1;
 }

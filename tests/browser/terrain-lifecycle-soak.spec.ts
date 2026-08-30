@@ -3,10 +3,16 @@ import { expect, test, type Page } from "@playwright/test";
 const GOLDEN_SEED = "0x5EED5EED5EED5EED";
 const GOLDEN_FINGERPRINT = "0xF2FA29BFD2AEB069";
 const SOAK_CYCLES = 20;
-const SOAK_ENABLED =
-  (globalThis as unknown as {
-    readonly process?: { readonly env?: Readonly<Record<string, string | undefined>> } };
-  }).process?.env?.TERRAIN_LIFECYCLE_SOAK === "1";
+
+function environmentFlag(name: string): boolean {
+  const processValue = Reflect.get(globalThis, "process");
+  if (typeof processValue !== "object" || processValue === null) return false;
+  const environment = Reflect.get(processValue, "env");
+  if (typeof environment !== "object" || environment === null) return false;
+  return Reflect.get(environment, name) === "1";
+}
+
+const SOAK_ENABLED = environmentFlag("TERRAIN_LIFECYCLE_SOAK");
 
 interface LifecycleDiagnostics {
   readonly activeTrackedListeners: number;

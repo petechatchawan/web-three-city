@@ -3,6 +3,7 @@
 @import "./ui/styles/foundation.css";
 @import "./ui/styles/primitives.css";
 @import "./ui/styles/components.css";
+@import "./ui/styles/patterns.css";
 
 .ui-button {
   min-height: var(--control-height);

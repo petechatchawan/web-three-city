@@ -1,12 +1,17 @@
 import "../src/style.css";
-import { createButton } from "../src/ui/primitives/button";
-import { createCheckbox } from "../src/ui/primitives/checkbox";
-import { createRadio } from "../src/ui/primitives/radio";
-import { createSlider } from "../src/ui/primitives/slider";
 import { createDialog } from "../src/ui/components/dialog";
 import { createPopover } from "../src/ui/components/popover";
 import { createSegmentedControl } from "../src/ui/components/segmented-control";
 import { createTabs } from "../src/ui/components/tabs";
+import { createContextSurface } from "../src/ui/patterns/context-surface";
+import { createDialogHost } from "../src/ui/patterns/dialog-host";
+import { createNotificationHost } from "../src/ui/patterns/notification-host";
+import { createToolDock } from "../src/ui/patterns/tool-dock";
+import { createButton } from "../src/ui/primitives/button";
+import { createCheckbox } from "../src/ui/primitives/checkbox";
+import { createRadio } from "../src/ui/primitives/radio";
+import { createSlider } from "../src/ui/primitives/slider";
+import type { GameToolDescriptor } from "../src/ui/tools/game-tool-contract";
 
 const mount = document.querySelector<HTMLElement>("#ui-components-test");
 if (mount === null) throw new Error("UI components test mount missing.");
@@ -98,6 +103,78 @@ const openDialog = createButton({
 });
 closeDialog.element.addEventListener("click", () => dialog.close());
 
+const terrain: GameToolDescriptor = {
+  id: "terrain",
+  label: "Terrain",
+  icon: "terrain",
+  shortcut: "T",
+  order: 10,
+};
+const roads: GameToolDescriptor = {
+  id: "roads",
+  label: "Roads",
+  icon: "roads",
+  shortcut: "R",
+  order: 20,
+};
+const zones: GameToolDescriptor = {
+  id: "zones",
+  label: "Zones",
+  icon: "zones",
+  shortcut: "Z",
+  order: 30,
+};
+const toolDock = createToolDock({
+  onToolPress: (id) => {
+    mount.dataset.toolPress = id;
+  },
+});
+toolDock.render({
+  tools: [
+    { descriptor: terrain, availability: { status: "available" } },
+    {
+      descriptor: roads,
+      availability: { status: "locked", reason: "Requires milestone" },
+    },
+    { descriptor: zones, availability: { status: "hidden" } },
+  ],
+  activeToolId: "terrain",
+});
+
+const contextContent = document.createElement("div");
+contextContent.textContent = "Terrain context controls";
+const context = createContextSurface({
+  onDismiss: () => {
+    mount.dataset.contextDismissed = "true";
+  },
+});
+context.render({
+  open: true,
+  label: "Terrain tools",
+  mode: "compact",
+  content: contextContent,
+});
+
+const worldUnderlay = document.createElement("div");
+worldUnderlay.dataset.testid = "pattern-world-underlay";
+worldUnderlay.textContent = "World";
+const hostedDialogBody = document.createElement("div");
+hostedDialogBody.textContent = "Hosted confirmation";
+const hostedDialog = createDialog({
+  ariaLabel: "Hosted confirmation",
+  content: hostedDialogBody,
+});
+const dialogHost = createDialogHost({ worldUnderlay });
+const openHostedDialog = createButton({
+  label: "Open hosted dialog",
+  onPress: () => dialogHost.open(hostedDialog),
+});
+const notificationHost = createNotificationHost();
+const notify = createButton({
+  label: "Notify",
+  onPress: () => notificationHost.notify({ message: "City saved" }),
+});
+
 mount.append(
   operation.element,
   checkbox.element,
@@ -109,6 +186,13 @@ mount.append(
   popover.element,
   openDialog.element,
   dialog.element,
+  worldUnderlay,
+  toolDock.element,
+  context.element,
+  openHostedDialog.element,
+  dialogHost.element,
+  notify.element,
+  notificationHost.element,
 );
 mount.dataset.ready = "true";
 
@@ -126,6 +210,13 @@ window.addEventListener(
     openDialog.dispose();
     closeDialog.dispose();
     dialog.dispose();
+    toolDock.dispose();
+    context.dispose();
+    dialogHost.dispose();
+    hostedDialog.dispose();
+    openHostedDialog.dispose();
+    notificationHost.dispose();
+    notify.dispose();
   },
   { once: true },
 );

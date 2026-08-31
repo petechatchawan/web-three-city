@@ -55,3 +55,51 @@ test("renders state-oriented reusable UI component semantics", async ({
   }
   expect(errors).toEqual([]);
 });
+
+test("generic game patterns own tool, context, modal and notification semantics", async ({
+  page,
+}) => {
+  await page.goto("/ui-components-test.html");
+  const root = page.locator("#ui-components-test");
+  await expect(root).toHaveAttribute("data-ready", "true");
+
+  const terrain = page.getByRole("button", { name: "Terrain (T)" });
+  await expect(terrain).toHaveAttribute("aria-pressed", "true");
+  const roads = page.getByRole("button", { name: "Roads (R)" });
+  await expect(roads).toBeDisabled();
+  await expect(roads).toHaveAttribute("title", "Requires milestone");
+  await expect(page.getByRole("button", { name: "Zones (Z)" })).toHaveCount(0);
+
+  await terrain.evaluate((element) => {
+    (element as HTMLElement).dataset.identityProbe = "stable";
+  });
+  await page.getByRole("button", { name: "Close Terrain tools" }).click();
+  await expect(root).toHaveAttribute("data-context-dismissed", "true");
+  await expect(terrain).toHaveAttribute("data-identity-probe", "stable");
+
+  const world = page.getByTestId("pattern-world-underlay");
+  await expect(world).not.toHaveAttribute("inert", "");
+  await page.getByRole("button", { name: "Open hosted dialog" }).click();
+  await expect(world).toHaveAttribute("inert", "");
+  await expect(
+    page.getByRole("dialog", { name: "Hosted confirmation" }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(world).not.toHaveAttribute("inert", "");
+
+  const notify = page.getByRole("button", { name: "Notify" });
+  await notify.focus();
+  await notify.click();
+  await expect(page.getByRole("status")).toContainText("City saved");
+  await expect(notify).toBeFocused();
+
+  for (const control of [
+    terrain,
+    roads,
+    page.getByRole("button", { name: "Notify" }),
+  ]) {
+    const box = await control.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.height).toBeGreaterThanOrEqual(44);
+  }
+});

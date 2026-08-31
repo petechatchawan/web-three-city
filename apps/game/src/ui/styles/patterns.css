@@ -1,0 +1,131 @@
+.game-tool-dock {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ui-space-1);
+  padding: var(--ui-space-1);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-md);
+  background: var(--ui-surface-glass);
+  box-shadow: var(--ui-shadow-sm);
+  backdrop-filter: blur(14px);
+}
+
+.game-context-surface,
+.game-inspector-surface {
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-md);
+  background: var(--ui-surface-panel);
+  box-shadow: var(--ui-shadow-sm);
+  backdrop-filter: blur(14px);
+}
+
+.game-context-surface[hidden],
+.game-inspector-surface[hidden] {
+  display: none;
+}
+
+.game-context-surface__header,
+.game-inspector-surface__header {
+  min-height: var(--ui-control-min);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ui-space-2);
+  padding: var(--ui-space-1) var(--ui-space-1) var(--ui-space-1)
+    var(--ui-space-3);
+}
+
+.game-context-surface__title,
+.game-inspector-surface__title,
+.game-menu__title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.game-context-surface__body,
+.game-inspector-surface__body {
+  padding: 0 var(--ui-space-3) var(--ui-space-3);
+}
+
+.game-context-surface[data-mode="compact"] {
+  width: fit-content;
+  max-width: min(760px, calc(100vw - var(--ui-space-6)));
+}
+
+.game-context-surface[data-mode="expanded"] {
+  width: min(900px, calc(100vw - var(--ui-space-6)));
+}
+
+.game-context-surface[data-mode="fullscreen"] {
+  width: calc(100vw - (2 * var(--ui-space-4)));
+  max-height: calc(100dvh - (2 * var(--ui-space-4)));
+}
+
+.game-inspector-surface {
+  width: min(340px, calc(100vw - var(--ui-space-6)));
+}
+
+.game-dialog-host {
+  position: relative;
+  z-index: var(--ui-layer-dialog);
+  pointer-events: none;
+}
+
+.game-dialog-host > dialog {
+  pointer-events: auto;
+}
+
+.game-notification-host {
+  position: fixed;
+  z-index: var(--ui-layer-toast);
+  top: calc(var(--ui-safe-top) + var(--ui-space-4));
+  right: calc(var(--ui-safe-right) + var(--ui-space-4));
+  width: min(360px, calc(100vw - var(--ui-space-8)));
+  display: grid;
+  gap: var(--ui-space-2);
+  pointer-events: none;
+}
+
+.game-notification-host > * {
+  pointer-events: auto;
+}
+
+.game-hud-pattern {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ui-space-3);
+  pointer-events: none;
+}
+
+.game-hud-pattern__identity,
+.game-hud-pattern__metrics,
+.game-hud-pattern__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--ui-space-2);
+  pointer-events: auto;
+}
+
+.game-hud-pattern__identity,
+.game-hud-pattern__metrics,
+.game-hud-pattern__actions {
+  min-height: var(--ui-control-min);
+  padding: var(--ui-space-1) var(--ui-space-2);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-md);
+  background: var(--ui-surface-glass);
+  backdrop-filter: blur(14px);
+}
+
+.game-menu__content {
+  min-width: min(320px, calc(100vw - var(--ui-space-8)));
+  display: grid;
+  gap: var(--ui-space-4);
+}
+
+.game-menu__actions {
+  display: grid;
+  gap: var(--ui-space-2);
+}

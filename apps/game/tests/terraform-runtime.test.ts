@@ -278,6 +278,15 @@ describe("Terraform live Terrain mutation runtime", () => {
     expect(harness.projectionChanges).toHaveLength(1);
   });
 
+  it("disposes idempotently and rejects use after disposal", () => {
+    const harness = createHarness(100);
+    harness.runtime.dispose();
+    expect(() => harness.runtime.dispose()).not.toThrow();
+    expect(() => harness.runtime.commit(plan(100))).toThrow(/disposed/);
+    expect(() => harness.runtime.undo()).toThrow(/disposed/);
+    expect(harness.appliedCommands).toHaveLength(0);
+  });
+
   it("invalidates stale Undo history after an external Terrain revision", () => {
     const harness = createHarness(100);
     expect(harness.runtime.commit(plan(100)).status).toBe("success");

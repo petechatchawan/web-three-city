@@ -649,3 +649,68 @@ button {
     bottom: var(--space-3);
   }
 }
+
+.terraform-entry,
+.terraform-toolbar__button {
+  min-height: 44px;
+}
+.terraform-toolbar {
+  position: absolute;
+  z-index: 5;
+  left: 50%;
+  bottom: max(var(--space-4), env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: min(760px, calc(100% - var(--space-6)));
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--background);
+  box-shadow: var(--shadow-sm);
+  pointer-events: auto;
+}
+.terraform-toolbar[hidden] {
+  display: none;
+}
+.terraform-toolbar__group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.terraform-toolbar__button {
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--background);
+  color: var(--foreground);
+  cursor: pointer;
+}
+.terraform-toolbar__button[aria-pressed="true"] {
+  border-color: var(--ring);
+  background: var(--accent);
+}
+.terraform-toolbar__button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.terraform-toolbar__actions {
+  justify-content: flex-end;
+}
+.terraform-toolbar__target,
+.terraform-toolbar__status {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.terraform-toolbar__status {
+  min-height: 18px;
+}
+@media (max-width: 620px) {
+  .terraform-toolbar {
+    bottom: max(var(--space-3), env(safe-area-inset-bottom));
+    width: calc(100% - var(--space-6));
+    max-height: 46vh;
+    overflow: auto;
+  }
+}

@@ -64,6 +64,8 @@ const session: LiveCitySession = {
   terrain: terrain.value,
 };
 
+const saveFails =
+  new URLSearchParams(window.location.search).get("save") === "fail";
 let saveCount = 0;
 let exitCount = 0;
 const experience = createLiveCityExperience({
@@ -72,7 +74,9 @@ const experience = createLiveCityExperience({
   onSave: async () => {
     saveCount += 1;
     mount.dataset.saves = String(saveCount);
-    return { status: "success" } as const;
+    return saveFails
+      ? ({ status: "error", message: "Save failed for test" } as const)
+      : ({ status: "success" } as const);
   },
   onExit: () => {
     exitCount += 1;

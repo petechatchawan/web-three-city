@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { gameMenuAction } from "./game-menu-test-helpers";
 
 const GOLDEN_SEED = "0x5EED5EED5EED5EED";
 const GOLDEN_FINGERPRINT = "0xF2FA29BFD2AEB069";
@@ -30,11 +31,11 @@ test("runs new save load and resume through the production city lifecycle", asyn
   const game = page.getByTestId("game-screen");
   await expect(game).toHaveAttribute("data-terrain-sectors", "64");
   await expect(game).toHaveAttribute("data-pick-status", "hit");
-  await expect(page.getByText(GOLDEN_SEED, { exact: false })).toBeVisible();
+  await expect(page.getByText(GOLDEN_SEED, { exact: false })).toHaveCount(0);
 
-  await page.getByRole("button", { name: "Save city" }).click();
-  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Exit city" }).click();
+  await gameMenuAction(page, "Save City");
+  await expect(page.getByText("City saved", { exact: true })).toBeVisible();
+  await gameMenuAction(page, "Exit City");
 
   await expect(app).toHaveAttribute("data-screen", "home");
   await expect(
@@ -50,7 +51,7 @@ test("runs new save load and resume through the production city lifecycle", asyn
   await page.getByRole("button", { name: "Load Production City" }).click();
   await expect(app).toHaveAttribute("data-screen", "live-city");
   await expect(app).toHaveAttribute("data-live-runtime", "ready");
-  await page.getByRole("button", { name: "Exit city" }).click();
+  await gameMenuAction(page, "Exit City");
 
   await expect(app).toHaveAttribute("data-screen", "home");
   await page.getByRole("button", { name: "Resume Production City" }).click();
@@ -86,12 +87,12 @@ test("repeats the same seed fingerprint and resumes the most recently played cit
   }
 
   const firstFingerprint = await createNamedCity("Repeat A");
-  await page.getByRole("button", { name: "Exit city" }).click();
+  await gameMenuAction(page, "Exit City");
   await expect(app).toHaveAttribute("data-screen", "home");
 
   const secondFingerprint = await createNamedCity("Repeat B");
   expect(secondFingerprint).toBe(firstFingerprint);
-  await page.getByRole("button", { name: "Exit city" }).click();
+  await gameMenuAction(page, "Exit City");
   await expect(app).toHaveAttribute("data-screen", "home");
 
   await expect(

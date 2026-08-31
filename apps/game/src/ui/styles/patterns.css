@@ -78,6 +78,9 @@
 }
 
 .game-inspector-surface {
+  position: absolute;
+  top: calc(var(--ui-safe-top) + var(--ui-space-4));
+  right: calc(var(--ui-safe-right) + var(--ui-space-4));
   width: min(340px, calc(100vw - var(--ui-space-6)));
 }
 
@@ -107,6 +110,10 @@
 }
 
 .game-hud-pattern {
+  position: absolute;
+  top: calc(var(--ui-safe-top) + var(--ui-space-4));
+  left: calc(var(--ui-safe-left) + var(--ui-space-4));
+  right: calc(var(--ui-safe-right) + var(--ui-space-4));
   display: flex;
   align-items: center;
   justify-content: space-between;

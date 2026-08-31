@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { gameMenuAction } from "./game-menu-test-helpers";
 
 test("Terraform disposal removes tool-view click listeners", async ({
   page,
@@ -65,7 +66,7 @@ test("Terraform disposal removes tool-view click listeners", async ({
     ),
   ).toBeGreaterThan(0);
 
-  await page.getByRole("button", { name: "Exit city" }).click();
+  await gameMenuAction(page, "Exit City");
   await expect(mount).toHaveAttribute("data-live-runtime", "disposed");
   expect(
     await page.evaluate(() =>

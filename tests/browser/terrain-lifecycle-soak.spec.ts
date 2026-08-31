@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { gameMenuAction } from "./game-menu-test-helpers";
 
 const GOLDEN_SEED = "0x5EED5EED5EED5EED";
 const GOLDEN_FINGERPRINT = "0xF2FA29BFD2AEB069";
@@ -166,9 +167,9 @@ test("cycles New, Load and Resume without accumulating presentation resources", 
   await page.getByRole("radio", { name: "R08" }).check();
   await page.getByRole("button", { name: "Create city" }).click();
   await expect(app).toHaveAttribute("data-live-runtime", "ready");
-  await page.getByRole("button", { name: "Save city" }).click();
-  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Exit city" }).click();
+  await gameMenuAction(page, "Save City");
+  await expect(page.getByText("City saved", { exact: true })).toBeVisible();
+  await gameMenuAction(page, "Exit City");
   await expect(app).toHaveAttribute("data-screen", "home");
 
   let liveListenerCount: number | undefined;
@@ -199,7 +200,7 @@ test("cycles New, Load and Resume without accumulating presentation resources", 
       expect(liveDiagnostics.activeTrackedListeners).toBe(liveListenerCount);
     }
 
-    await page.getByRole("button", { name: "Exit city" }).click();
+    await gameMenuAction(page, "Exit City");
     await expect(app).toHaveAttribute("data-screen", "home");
     await expect(page.locator("canvas.app-canvas")).toHaveCount(0);
     await expect

@@ -1,45 +1,5 @@
-import type { TerrainDebugLayer } from "@web-three-city/terrain/composition";
-import { createButton } from "../primitives/button";
-import { createSwitch } from "../primitives/switch";
 import { createGameShellView } from "./game/create-game-shell-view";
 import type { ScreenHandle } from "./screen-types";
-
-const DEBUG_OPTIONS: readonly {
-  readonly layer: TerrainDebugLayer;
-  readonly label: string;
-  readonly description: string;
-}[] = Object.freeze([
-  {
-    layer: "cellGrid",
-    label: "Gameplay grid",
-    description: "Gameplay Cell boundaries conforming to Terrain.",
-  },
-  {
-    layer: "renderSectors",
-    label: "Render sectors",
-    description: "Presentation-sector boundaries used for localized rebuilds.",
-  },
-  {
-    layer: "vertices",
-    label: "Terrain vertices",
-    description: "Canonical Terrain Vertex positions sampled by the surface.",
-  },
-  {
-    layer: "triangles",
-    label: "Triangle topology",
-    description: "Fixed semantic triangle topology for every Terrain Cell.",
-  },
-  {
-    layer: "normals",
-    label: "Normals",
-    description: "Sampled global presentation normals for seam inspection.",
-  },
-  {
-    layer: "elevation",
-    label: "Elevation",
-    description: "Deterministic colorized elevation diagnostic surface.",
-  },
-]);
 
 export interface GameScreenHandle extends ScreenHandle {
   readonly viewport: HTMLElement;
@@ -50,25 +10,16 @@ export interface GameScreenHandle extends ScreenHandle {
   readonly dialogHost: HTMLElement;
   readonly notificationHost: HTMLElement;
   readonly debugHost: HTMLElement;
-  setSaving(saving: boolean): void;
-  setSaveStatus(message?: string): void;
-  setPickStatus(message: string): void;
-  setDebugLayers(layers: readonly TerrainDebugLayer[]): void;
+  setBusy(busy: boolean): void;
   setActiveTool(toolId?: string): void;
 }
 
-export function createGameScreen(input: {
-  readonly cityName: string;
-  readonly seed64: string;
-  readonly revision: number;
-  readonly onSave: () => void;
-  readonly onExit: () => void;
-  readonly onDebugChange: (layer: TerrainDebugLayer, checked: boolean) => void;
-  readonly onClearDebug: () => void;
-}): GameScreenHandle {
+export function createGameScreen(): GameScreenHandle {
   const shell = createGameShellView();
   let busy = false;
   let activeToolId: string | undefined;
+  let disposed = false;
+
   const renderShell = (): void => {
     shell.render({
       busy,
@@ -77,81 +28,9 @@ export function createGameScreen(input: {
   };
   renderShell();
 
-  const element = shell.element;
-  const viewport = shell.viewport;
-  const hud = document.createElement("header");
-  hud.className = "game-hud";
-  const identity = document.createElement("div");
-  identity.className = "game-hud__identity";
-  const name = document.createElement("h1");
-  name.className = "game-hud__title";
-  name.textContent = input.cityName;
-  const meta = document.createElement("p");
-  meta.className = "game-hud__meta";
-  meta.textContent = `${input.seed64} · Revision ${input.revision}`;
-  identity.append(name, meta);
-
-  const actions = document.createElement("div");
-  actions.className = "game-hud__actions";
-  const save = createButton({
-    label: "Save city",
-    variant: "secondary",
-    onPress: input.onSave,
-  });
-  const exit = createButton({
-    label: "Exit city",
-    variant: "ghost",
-    onPress: input.onExit,
-  });
-  const status = document.createElement("span");
-  status.className = "game-hud__status";
-  status.setAttribute("aria-live", "polite");
-  actions.append(status, save.element, exit.element);
-  hud.append(identity, actions);
-
-  const debug = document.createElement("details");
-  debug.className = "game-debug";
-  const debugSummary = document.createElement("summary");
-  const debugSummaryText = document.createElement("span");
-  debugSummaryText.textContent = "Terrain Debug · 0 active";
-  debugSummary.append(debugSummaryText);
-  const debugBody = document.createElement("div");
-  debugBody.className = "game-debug__body";
-  const switches = DEBUG_OPTIONS.map(({ layer, label, description }) => {
-    const entry = createSwitch({
-      id: `game-debug-${layer}`,
-      label,
-      onChange: (checked) => input.onDebugChange(layer, checked),
-    });
-    const detail = document.createElement("span");
-    detail.className = "game-debug__description";
-    detail.textContent = description;
-    entry.element.append(detail);
-    return entry;
-  });
-  const clearDebug = createButton({
-    label: "Clear debug",
-    variant: "ghost",
-    onPress: input.onClearDebug,
-  });
-  clearDebug.element.disabled = true;
-  clearDebug.element.classList.add("game-debug__clear");
-  debugBody.append(
-    ...switches.map((entry) => entry.element),
-    clearDebug.element,
-  );
-  debug.append(debugSummary, debugBody);
-
-  const pickStatus = document.createElement("div");
-  pickStatus.className = "game-pick-status";
-  pickStatus.setAttribute("aria-live", "polite");
-  shell.hudHost.append(hud, pickStatus);
-  shell.debugHost.append(debug);
-
-  let disposed = false;
   return Object.freeze({
-    element,
-    viewport,
+    element: shell.element,
+    viewport: shell.viewport,
     hudHost: shell.hudHost,
     toolDockHost: shell.toolDockHost,
     contextHost: shell.contextHost,
@@ -159,26 +38,9 @@ export function createGameScreen(input: {
     dialogHost: shell.dialogHost,
     notificationHost: shell.notificationHost,
     debugHost: shell.debugHost,
-    setSaving(saving: boolean): void {
-      busy = saving;
-      save.element.disabled = saving;
-      exit.element.disabled = saving;
-      status.textContent = saving ? "Saving…" : status.textContent;
+    setBusy(next: boolean): void {
+      busy = next;
       renderShell();
-    },
-    setSaveStatus(message?: string): void {
-      status.textContent = message ?? "";
-    },
-    setPickStatus(message: string): void {
-      pickStatus.textContent = message;
-    },
-    setDebugLayers(layers: readonly TerrainDebugLayer[]): void {
-      const active = new Set(layers);
-      for (const [index, option] of DEBUG_OPTIONS.entries()) {
-        switches[index]!.input.checked = active.has(option.layer);
-      }
-      debugSummaryText.textContent = `Terrain Debug · ${layers.length} active`;
-      clearDebug.element.disabled = layers.length === 0;
     },
     setActiveTool(toolId?: string): void {
       activeToolId = toolId;
@@ -187,10 +49,6 @@ export function createGameScreen(input: {
     dispose(): void {
       if (disposed) return;
       disposed = true;
-      save.dispose();
-      exit.dispose();
-      clearDebug.dispose();
-      for (const item of switches) item.dispose();
       shell.dispose();
     },
   });

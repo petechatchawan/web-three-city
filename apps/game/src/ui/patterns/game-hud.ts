@@ -19,6 +19,9 @@ export function createGameHud(): GameHudHandle {
   element.className = "game-hud-pattern";
   const identity = document.createElement("div");
   identity.className = "game-hud-pattern__identity";
+  const cityLabel = document.createElement("h1");
+  cityLabel.className = "game-hud-pattern__city-label";
+  identity.append(cityLabel);
   const metrics = document.createElement("div");
   metrics.className = "game-hud-pattern__metrics";
   const actions = document.createElement("div");
@@ -31,7 +34,7 @@ export function createGameHud(): GameHudHandle {
     element,
     render(state: GameHudViewState): void {
       if (disposed) return;
-      identity.textContent = state.cityLabel ?? "";
+      cityLabel.textContent = state.cityLabel ?? "";
       identity.hidden =
         state.cityLabel === undefined || state.cityLabel.length === 0;
       const nextIds = new Set(state.metrics.map((metric) => metric.id));

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("composes a live city with Terrain, camera, picking, debug and lifecycle controls", async ({
+test("composes a live city with Terrain, camera, picking and production game UI", async ({
   page,
 }) => {
   test.setTimeout(60_000);
@@ -72,38 +72,50 @@ test("composes a live city with Terrain, camera, picking, debug and lifecycle co
     .poll(() => game.getAttribute("data-camera-distance"))
     .not.toBe(wheelResult.before);
 
-  await expect(
-    page.getByText("Terrain Debug · 0 active", { exact: true }),
-  ).toBeVisible();
-  await page.getByText("Terrain Debug · 0 active", { exact: true }).click();
-  await expect(
-    page.getByText("Gameplay Cell boundaries conforming to Terrain.", {
-      exact: true,
-    }),
-  ).toBeVisible();
-  const clearDebug = page.getByRole("button", { name: "Clear debug" });
+  await expect(page.getByText("Terrain Debug · 0 active")).toHaveCount(0);
+  await page.getByRole("button", { name: "Open game menu" }).click();
+  const menu = page.getByRole("dialog", { name: "Game menu" });
+  await menu.getByRole("button", { name: "Debug" }).click();
+  const debug = page.getByRole("region", { name: "Terrain Debug" });
+  await expect(debug).toBeVisible();
+  const clearDebug = debug.getByRole("button", { name: "Clear debug" });
   await expect(clearDebug).toBeDisabled();
-  await page.getByRole("checkbox", { name: "Gameplay grid" }).check();
+  await debug.getByRole("checkbox", { name: "Gameplay grid" }).check();
   await expect(game).toHaveAttribute("data-debug-layers", "cellGrid");
-  await expect(
-    page.getByText("Terrain Debug · 1 active", { exact: true }),
-  ).toBeVisible();
   await expect(clearDebug).toBeEnabled();
   await clearDebug.click();
   await expect(game).toHaveAttribute("data-debug-layers", "");
-  await expect(
-    page.getByText("Terrain Debug · 0 active", { exact: true }),
-  ).toBeVisible();
+  await debug.getByRole("button", { name: "Close debug" }).click();
 
-  await page.getByRole("button", { name: "Save city" }).click();
+  await page.getByRole("button", { name: "Open game menu" }).click();
+  await menu.getByRole("button", { name: "Save City" }).click();
   await expect(mount).toHaveAttribute("data-saves", "1");
-  await expect(page.getByText("Saved")).toBeVisible();
+  await expect(page.getByText("City saved", { exact: true })).toBeVisible();
 
-  await page.getByRole("button", { name: "Exit city" }).click();
+  await menu.getByRole("button", { name: "Exit City" }).click();
   await expect(mount).toHaveAttribute("data-exits", "1");
   await expect(mount).toHaveAttribute("data-live-runtime", "disposed");
   await expect(page.locator("canvas.app-canvas")).toHaveCount(0);
   expect(errors).toEqual([]);
+});
+
+test("save failure reports an error notification and keeps the live city running", async ({
+  page,
+}) => {
+  await page.goto("/live-city-test.html?save=fail");
+  const mount = page.locator("#live-city-test");
+  await expect(mount).toHaveAttribute("data-live-runtime", "ready");
+
+  await page.getByRole("button", { name: "Open game menu" }).click();
+  await page
+    .getByRole("dialog", { name: "Game menu" })
+    .getByRole("button", { name: "Save City" })
+    .click();
+
+  await expect(mount).toHaveAttribute("data-saves", "1");
+  await expect(page.getByRole("alert")).toContainText("Save failed for test");
+  await expect(mount).toHaveAttribute("data-live-runtime", "ready");
+  await expect(page.locator("canvas.app-canvas")).toHaveCount(1);
 });
 
 test("live city shell fits a mobile viewport", async ({ page }) => {

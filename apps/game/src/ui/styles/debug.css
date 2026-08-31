@@ -1,0 +1,74 @@
+.game-debug-surface {
+  position: absolute;
+  top: calc(var(--ui-safe-top) + var(--ui-space-4));
+  left: calc(var(--ui-safe-left) + var(--ui-space-4));
+  z-index: var(--ui-layer-debug);
+  width: min(360px, calc(100vw - var(--ui-space-8)));
+  max-height: calc(100dvh - var(--ui-space-8));
+  overflow: auto;
+  pointer-events: auto;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-md);
+  background: var(--ui-surface-raised);
+  box-shadow: var(--ui-shadow-md);
+}
+
+.game-debug-surface[hidden] {
+  display: none;
+}
+
+.game-debug-surface__header {
+  min-height: var(--ui-control-min);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ui-space-2);
+  padding: var(--ui-space-1) var(--ui-space-1) var(--ui-space-1)
+    var(--ui-space-3);
+  border-bottom: 1px solid var(--ui-border);
+}
+
+.game-debug-surface__header h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.game-debug-panel {
+  display: grid;
+  gap: var(--ui-space-2);
+  padding: var(--ui-space-3);
+}
+
+.game-debug-panel__status {
+  margin: 0;
+  color: var(--ui-muted-fg);
+  font-size: 11px;
+}
+
+.game-debug-panel__controls {
+  display: grid;
+  gap: var(--ui-space-1);
+}
+
+.game-debug-panel__controls .ui-switch {
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: start;
+}
+
+.game-debug-panel__description {
+  grid-column: 3;
+  color: var(--ui-muted-fg);
+  font-size: 11px;
+  line-height: 1.4;
+  pointer-events: none;
+}
+
+@media (max-width: 620px) {
+  .game-debug-surface {
+    top: calc(var(--ui-safe-top) + var(--ui-space-3));
+    left: calc(var(--ui-safe-left) + var(--ui-space-3));
+    width: min(320px, calc(100vw - var(--ui-space-6)));
+    max-height: calc(100dvh - var(--ui-space-6));
+  }
+}

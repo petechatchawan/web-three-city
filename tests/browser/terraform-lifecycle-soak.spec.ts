@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { gameMenuAction } from "./game-menu-test-helpers";
 
 const GOLDEN_SEED = "0x5EED5EED5EED5EED";
 const SOAK_CYCLES = 20;
@@ -172,9 +173,9 @@ test("cycles Terraform activation, edits, Load and Resume without leaking lifecy
   await page.getByRole("radio", { name: "R08" }).check();
   await page.getByRole("button", { name: "Create city" }).click();
   await expect(app).toHaveAttribute("data-live-runtime", "ready");
-  await page.getByRole("button", { name: "Save city" }).click();
-  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Exit city" }).click();
+  await gameMenuAction(page, "Save City");
+  await expect(page.getByText("City saved", { exact: true })).toBeVisible();
+  await gameMenuAction(page, "Exit City");
   await expect(app).toHaveAttribute("data-screen", "home");
 
   let liveListenerCount: number | undefined;
@@ -215,11 +216,11 @@ test("cycles Terraform activation, edits, Load and Resume without leaking lifecy
     if (cycle % 5 === 0) {
       await page.mouse.click(point.x, point.y);
       await expect(game).toHaveAttribute("data-terraform-undo-depth", "1");
-      await page.getByRole("button", { name: "Save city" }).click();
-      await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+      await gameMenuAction(page, "Save City");
+      await expect(page.getByText("City saved", { exact: true })).toBeVisible();
     }
 
-    await page.getByRole("button", { name: "Exit city" }).click();
+    await gameMenuAction(page, "Exit City");
     await expect(app).toHaveAttribute("data-screen", "home");
     await expect(page.locator("canvas.app-canvas")).toHaveCount(0);
     await expect

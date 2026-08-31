@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { gameMenuAction } from "./game-menu-test-helpers";
 
 const GOLDEN_SEED = "0x5EED5EED5EED5EED";
 
@@ -78,9 +79,10 @@ test("Terraform edits persist through unchanged CitySaveV1 Terrain authority and
   const app = page.locator("#app");
   const game = page.getByTestId("game-screen");
 
-  await page.getByRole("button", { name: "Save city" }).click();
-  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await gameMenuAction(page, "Save City");
+  await expect(page.getByText("City saved", { exact: true })).toBeVisible();
   const before = await savedTerrain(page);
+  await gameMenuAction(page, "Resume");
 
   await page.getByRole("button", { name: "Terrain", exact: true }).click();
   const point = await validTerraformPoint(page);
@@ -91,15 +93,15 @@ test("Terraform edits persist through unchanged CitySaveV1 Terrain authority and
   );
   expect(editedRevision).toBe(before.revision + 1);
 
-  await page.getByRole("button", { name: "Save city" }).click();
-  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await gameMenuAction(page, "Save City");
+  await expect(page.getByText("City saved", { exact: true })).toBeVisible();
   const postEdit = await savedTerrain(page);
   expect(postEdit.revision).toBe(editedRevision);
   expect(postEdit.chunksJson).not.toBe(before.chunksJson);
   expect(postEdit.hasTerrainSnapshot).toBe(true);
   expect(postEdit.hasTerraformSnapshot).toBe(false);
 
-  await page.getByRole("button", { name: "Exit city" }).click();
+  await gameMenuAction(page, "Exit City");
   await expect(app).toHaveAttribute("data-screen", "home");
   await page.getByRole("button", { name: "Load City" }).click();
   await page
@@ -112,8 +114,8 @@ test("Terraform edits persist through unchanged CitySaveV1 Terrain authority and
   );
   await expect(game).toHaveAttribute("data-terraform-undo-depth", "0");
 
-  await page.getByRole("button", { name: "Save city" }).click();
-  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await gameMenuAction(page, "Save City");
+  await expect(page.getByText("City saved", { exact: true })).toBeVisible();
   const roundTripped = await savedTerrain(page);
   expect(roundTripped.revision).toBe(postEdit.revision);
   expect(roundTripped.chunksJson).toBe(postEdit.chunksJson);

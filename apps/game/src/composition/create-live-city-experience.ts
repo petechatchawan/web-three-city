@@ -39,9 +39,17 @@ import {
   type GameToolCoordinator,
 } from "./game/create-game-tool-coordinator";
 import {
+  createGameUiCoordinator,
+  type GameUiCoordinator,
+} from "./game/create-game-ui-coordinator";
+import {
   createTerraformGameTool,
   type TerraformGameTool,
 } from "./game/create-terraform-game-tool";
+import {
+  createTerrainDebugPanel,
+  type TerrainDebugPanelHandle,
+} from "./game/create-terrain-debug-panel";
 
 const DEBUG_LAYER_ORDER: readonly TerrainDebugLayer[] = Object.freeze([
   "cellGrid",
@@ -58,24 +66,6 @@ export type SaveCityUiResult =
 
 export interface LiveCityExperience {
   dispose(): void;
-}
-
-function writePick(
-  screen: GameScreenHandle,
-  pick: TerrainPointerPickResult,
-): void {
-  screen.element.dataset.pickStatus = pick.status;
-  if (pick.status === "hit") {
-    screen.element.dataset.pickCell = `${pick.value.cell.x},${pick.value.cell.z}`;
-    screen.setPickStatus(`Cell ${pick.value.cell.x}, ${pick.value.cell.z}`);
-    return;
-  }
-  delete screen.element.dataset.pickCell;
-  screen.setPickStatus(
-    pick.status === "miss"
-      ? `No terrain hit: ${pick.reason}`
-      : "Terrain unavailable",
-  );
 }
 
 function writeCameraDiagnostics(
@@ -114,24 +104,10 @@ export function createLiveCityExperience(input: {
   let toolDock: ReturnType<typeof createToolDock> | undefined;
   let contextSurface: ReturnType<typeof createContextSurface> | undefined;
   let cameraController: ReturnType<typeof createCityCamera> | undefined;
+  let pickStatus = "";
   let saving = false;
 
-  const screen = createGameScreen({
-    cityName: input.session.metadata.name,
-    seed64: input.session.terrain.captureSnapshot().selectedSeed64,
-    revision: input.session.terrain.read.revision(),
-    onSave: () => void save(),
-    onExit: input.onExit,
-    onDebugChange: (layer, checked) => onDebugChange(layer, checked),
-    onClearDebug: () => {
-      if (debugOverlay === undefined || disposed) return;
-      debugOverlay.setVisibility(
-        Object.fromEntries(DEBUG_LAYER_ORDER.map((layer) => [layer, false])),
-      );
-      updateDebugDiagnostics();
-      requestRender();
-    },
-  });
+  const screen = createGameScreen();
 
   const updateTerraformDiagnostics = (
     state: TerraformToolViewState,
@@ -149,13 +125,30 @@ export function createLiveCityExperience(input: {
     );
   };
 
+  const activeDebugLayers = (): readonly TerrainDebugLayer[] =>
+    debugOverlay === undefined
+      ? []
+      : DEBUG_LAYER_ORDER.filter((layer) => debugOverlay?.visibility()[layer]);
+
   const updateDebugDiagnostics = (): void => {
-    if (debugOverlay === undefined) return;
-    const layers = DEBUG_LAYER_ORDER.filter(
-      (layer) => debugOverlay?.visibility()[layer],
-    );
+    const layers = activeDebugLayers();
     screen.element.dataset.debugLayers = layers.join(",");
-    screen.setDebugLayers(layers);
+    debugPanel?.render(layers, pickStatus);
+  };
+
+  const writePick = (pick: TerrainPointerPickResult): void => {
+    screen.element.dataset.pickStatus = pick.status;
+    if (pick.status === "hit") {
+      screen.element.dataset.pickCell = `${pick.value.cell.x},${pick.value.cell.z}`;
+      pickStatus = `Cell ${pick.value.cell.x}, ${pick.value.cell.z}`;
+    } else {
+      delete screen.element.dataset.pickCell;
+      pickStatus =
+        pick.status === "miss"
+          ? `No terrain hit: ${pick.reason}`
+          : "Terrain unavailable";
+    }
+    updateDebugDiagnostics();
   };
 
   const requestRender = (): void => {
@@ -168,16 +161,16 @@ export function createLiveCityExperience(input: {
   const save = async (): Promise<void> => {
     if (saving || disposed) return;
     saving = true;
-    screen.setSaving(true);
-    screen.setSaveStatus("Saving…");
+    screen.setBusy(true);
+    gameUi?.setBusy(true);
     try {
       const result = await input.onSave();
-      screen.setSaveStatus(
-        result.status === "success" ? "Saved" : result.message,
-      );
+      if (result.status === "success") gameUi?.notifySaveSuccess();
+      else gameUi?.notifySaveFailure(result.message);
     } finally {
       saving = false;
-      screen.setSaving(false);
+      screen.setBusy(false);
+      gameUi?.setBusy(false);
     }
   };
 
@@ -185,6 +178,15 @@ export function createLiveCityExperience(input: {
     if (debugOverlay === undefined || disposed) return;
     const next: Partial<TerrainDebugVisibility> = { [layer]: checked };
     debugOverlay.setVisibility(next);
+    updateDebugDiagnostics();
+    requestRender();
+  };
+
+  const clearDebug = (): void => {
+    if (debugOverlay === undefined || disposed) return;
+    debugOverlay.setVisibility(
+      Object.fromEntries(DEBUG_LAYER_ORDER.map((layer) => [layer, false])),
+    );
     updateDebugDiagnostics();
     requestRender();
   };
@@ -247,9 +249,33 @@ export function createLiveCityExperience(input: {
   );
   screen.element.dataset.terraformOverlayRoots = "0";
 
+  const debugPanel: TerrainDebugPanelHandle = createTerrainDebugPanel({
+    onDebugChange,
+    onClearDebug: clearDebug,
+  });
+  debugPanel.render([], "");
+  const gameUi: GameUiCoordinator = createGameUiCoordinator({
+    cityName: input.session.metadata.name,
+    hudHost: screen.hudHost,
+    inspectorHost: screen.inspectorHost,
+    dialogHost: screen.dialogHost,
+    notificationHost: screen.notificationHost,
+    debugHost: screen.debugHost,
+    worldUnderlay: screen.viewport,
+    debugContent: debugPanel.element,
+    hasActiveTool: () => toolCoordinator?.activeTool() !== undefined,
+    deactivateActiveTool: () => {
+      toolCoordinator?.deactivate();
+      syncToolUi();
+    },
+    onSave: () => void save(),
+    onExit: input.onExit,
+  });
+
   const scene = createScene(screen.viewport, createCitySceneCameraConfig(map));
   if (!scene.available) {
-    screen.setPickStatus("WebGL unavailable");
+    pickStatus = "WebGL unavailable";
+    updateDebugDiagnostics();
     input.mount.dataset.liveRuntime = "unavailable";
   } else {
     lighting = createCityLighting({ scene: scene.scene, map });
@@ -288,7 +314,7 @@ export function createLiveCityExperience(input: {
       debugOverlay,
       pickClientPoint: (clientX, clientY) =>
         picker.pickClientPoint(clientX, clientY),
-      onPick: (pick) => writePick(screen, pick),
+      onPick: writePick,
       requestRender,
       onStateChange: updateTerraformDiagnostics,
     });
@@ -323,7 +349,7 @@ export function createLiveCityExperience(input: {
     interactionRouter = createGameInteractionRouter({
       toolCoordinator,
       onSelectionTap: (clientX, clientY) =>
-        writePick(screen, picker.pickClientPoint(clientX, clientY)),
+        writePick(picker.pickClientPoint(clientX, clientY)),
     });
     commandRouter = createGameCommandRouter({
       toolShortcuts: [{ toolId: "terrain", key: "t" }],
@@ -332,10 +358,9 @@ export function createLiveCityExperience(input: {
           toolCoordinator?.toggle(command.toolId);
           syncToolUi();
         } else if (command.type === "dismiss-top-layer") {
-          if (toolCoordinator?.activeTool() !== undefined) {
-            toolCoordinator.deactivate();
-            syncToolUi();
-          }
+          gameUi?.dismissTopLayer();
+        } else if (command.type === "open-game-menu") {
+          gameUi?.openGameMenu();
         } else if (command.type === "save-city") {
           void save();
         }
@@ -358,7 +383,6 @@ export function createLiveCityExperience(input: {
     requestRender();
     const rect = screen.viewport.getBoundingClientRect();
     writePick(
-      screen,
       picker.pickClientPoint(
         rect.left + rect.width / 2,
         rect.top + rect.height / 2,
@@ -377,6 +401,8 @@ export function createLiveCityExperience(input: {
       toolCoordinator?.dispose();
       contextSurface?.dispose();
       toolDock?.dispose();
+      gameUi?.dispose();
+      debugPanel?.dispose();
       debugOverlay?.dispose();
       liveProjection?.dispose();
       lighting?.dispose();

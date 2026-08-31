@@ -1,0 +1,17 @@
+.ui-icon {
+  width: var(--ui-icon-md);
+  height: var(--ui-icon-md);
+  flex: 0 0 auto;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

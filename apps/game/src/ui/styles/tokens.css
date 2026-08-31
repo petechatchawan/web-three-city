@@ -1,0 +1,85 @@
+:root {
+  color-scheme: dark;
+  --ui-bg: hsl(222 24% 8%);
+  --ui-fg: hsl(210 20% 96%);
+  --ui-surface-glass: hsl(222 20% 10% / 0.78);
+  --ui-surface-panel: hsl(222 20% 11% / 0.94);
+  --ui-surface-raised: hsl(222 18% 14% / 0.98);
+  --ui-border: hsl(216 14% 23%);
+  --ui-border-strong: hsl(214 16% 38%);
+  --ui-muted-fg: hsl(215 12% 65%);
+  --ui-accent: hsl(216 18% 20%);
+  --ui-accent-fg: hsl(210 18% 94%);
+  --ui-positive: hsl(145 45% 42%);
+  --ui-warning: hsl(40 72% 52%);
+  --ui-danger: hsl(0 62% 48%);
+  --ui-info: hsl(205 70% 58%);
+  --ui-ring: hsl(210 18% 82%);
+
+  --ui-space-1: 4px;
+  --ui-space-2: 8px;
+  --ui-space-3: 12px;
+  --ui-space-4: 16px;
+  --ui-space-5: 20px;
+  --ui-space-6: 24px;
+  --ui-space-8: 32px;
+
+  --ui-control-min: 44px;
+  --ui-icon-sm: 16px;
+  --ui-icon-md: 20px;
+  --ui-icon-lg: 24px;
+  --ui-radius-sm: 7px;
+  --ui-radius-md: 10px;
+  --ui-radius-lg: 14px;
+
+  --ui-layer-world: 0;
+  --ui-layer-world-overlay: 10;
+  --ui-layer-hud: 20;
+  --ui-layer-tool: 30;
+  --ui-layer-inspector: 40;
+  --ui-layer-popover: 50;
+  --ui-layer-dialog: 60;
+  --ui-layer-toast: 70;
+  --ui-layer-debug: 80;
+
+  --ui-safe-top: env(safe-area-inset-top, 0px);
+  --ui-safe-right: env(safe-area-inset-right, 0px);
+  --ui-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --ui-safe-left: env(safe-area-inset-left, 0px);
+
+  --ui-motion-fast: 120ms;
+  --ui-motion-normal: 180ms;
+  --ui-shadow-sm: 0 1px 2px hsl(222 40% 2% / 0.3);
+
+  --background: var(--ui-bg);
+  --foreground: var(--ui-fg);
+  --card: var(--ui-surface-panel);
+  --card-foreground: var(--ui-fg);
+  --popover: var(--ui-surface-raised);
+  --primary: var(--ui-fg);
+  --primary-foreground: var(--ui-bg);
+  --secondary: var(--ui-surface-raised);
+  --secondary-foreground: var(--ui-fg);
+  --muted: var(--ui-surface-raised);
+  --muted-foreground: var(--ui-muted-fg);
+  --accent: var(--ui-accent);
+  --accent-foreground: var(--ui-accent-fg);
+  --danger: var(--ui-danger);
+  --danger-foreground: white;
+  --success: var(--ui-positive);
+  --warning: var(--ui-warning);
+  --border: var(--ui-border);
+  --input: var(--ui-border);
+  --ring: var(--ui-ring);
+  --radius: var(--ui-radius-md);
+  --radius-sm: var(--ui-radius-sm);
+  --control-height: var(--ui-control-min);
+  --space-1: var(--ui-space-1);
+  --space-2: var(--ui-space-2);
+  --space-3: var(--ui-space-3);
+  --space-4: var(--ui-space-4);
+  --space-5: var(--ui-space-5);
+  --space-6: var(--ui-space-6);
+  --space-8: var(--ui-space-8);
+  --shadow-sm: var(--ui-shadow-sm);
+}

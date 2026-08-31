@@ -13,6 +13,7 @@ test("renders accessible clean UI primitives with 44px interaction targets", asy
   await expect(
     page.getByRole("checkbox", { name: "Gameplay grid" }),
   ).toBeVisible();
+  await expect(page.locator('.ui-icon[data-ui-icon="terrain"]')).toBeVisible();
 
   for (const testId of ["ui-primary", "ui-secondary", "ui-switch"]) {
     const box = await page.getByTestId(testId).boundingBox();
@@ -33,5 +34,13 @@ test("renders accessible clean UI primitives with 44px interaction targets", asy
     await card.evaluate((element) => getComputedStyle(element).borderTopWidth),
   ).toBe("1px");
   await expect(page.getByText("No cities yet")).toBeVisible();
+
+  expect(
+    await page.evaluate(() =>
+      getComputedStyle(document.documentElement)
+        .getPropertyValue("--ui-layer-dialog")
+        .trim(),
+    ),
+  ).toBe("60");
   expect(errors).toEqual([]);
 });

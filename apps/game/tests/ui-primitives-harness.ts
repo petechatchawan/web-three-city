@@ -4,6 +4,7 @@ import { createButton } from "../src/ui/primitives/button";
 import { createCard } from "../src/ui/primitives/card";
 import { createEmptyState } from "../src/ui/primitives/empty-state";
 import { createField } from "../src/ui/primitives/field";
+import { createIcon } from "../src/ui/primitives/icon";
 import { createInput } from "../src/ui/primitives/input";
 import { createSwitch } from "../src/ui/primitives/switch";
 
@@ -15,6 +16,7 @@ const card = createCard({
   title: "Create city",
   description: "Primitive contract",
 });
+const terrainIcon = createIcon("terrain");
 const nameInput = createInput({
   id: "city-name-test",
   name: "cityName",
@@ -47,6 +49,7 @@ const empty = createEmptyState({
 });
 
 card.content.append(
+  terrainIcon,
   field.element,
   badge,
   toggle.element,

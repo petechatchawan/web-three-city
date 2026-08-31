@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("Terraform disposal removes toolbar-owned click listeners", async ({
+test("Terraform disposal removes tool-view click listeners", async ({
   page,
 }) => {
   await page.addInitScript(() => {
@@ -46,7 +46,7 @@ test("Terraform disposal removes toolbar-owned click listeners", async ({
       }
       originalRemove.call(this, type, listener, options);
     };
-    Object.defineProperty(window, "__terraformToolbarListenerCount", {
+    Object.defineProperty(window, "__terraformToolViewListenerCount", {
       configurable: false,
       value: () => active.size,
     });
@@ -59,9 +59,9 @@ test("Terraform disposal removes toolbar-owned click listeners", async ({
     await page.evaluate(() =>
       (
         window as unknown as {
-          __terraformToolbarListenerCount: () => number;
+          __terraformToolViewListenerCount: () => number;
         }
-      ).__terraformToolbarListenerCount(),
+      ).__terraformToolViewListenerCount(),
     ),
   ).toBeGreaterThan(0);
 
@@ -71,9 +71,9 @@ test("Terraform disposal removes toolbar-owned click listeners", async ({
     await page.evaluate(() =>
       (
         window as unknown as {
-          __terraformToolbarListenerCount: () => number;
+          __terraformToolViewListenerCount: () => number;
         }
-      ).__terraformToolbarListenerCount(),
+      ).__terraformToolViewListenerCount(),
     ),
   ).toBe(0);
 });

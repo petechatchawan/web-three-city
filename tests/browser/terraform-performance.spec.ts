@@ -38,7 +38,7 @@ test("records browser pointer-preview and tap-to-visible-update latency", async 
   const mount = page.locator("#live-city-test");
   const game = page.getByTestId("game-screen");
   await expect(mount).toHaveAttribute("data-live-runtime", "ready");
-  await page.getByRole("button", { name: "Terraform", exact: true }).click();
+  await page.getByRole("button", { name: "Terrain", exact: true }).click();
   const point = await validTerraformPoint(page);
 
   const previewStart = await page.evaluate(() => performance.now());

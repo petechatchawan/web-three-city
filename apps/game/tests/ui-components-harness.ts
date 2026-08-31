@@ -143,11 +143,21 @@ toolDock.render({
 
 const contextContent = document.createElement("div");
 contextContent.textContent = "Terrain context controls";
+const contextRef: {
+  current?: ReturnType<typeof createContextSurface>;
+} = {};
 const context = createContextSurface({
   onDismiss: () => {
     mount.dataset.contextDismissed = "true";
+    contextRef.current?.render({
+      open: false,
+      label: "Terrain tools",
+      mode: "compact",
+      content: contextContent,
+    });
   },
 });
+contextRef.current = context;
 context.render({
   open: true,
   label: "Terrain tools",
@@ -155,6 +165,10 @@ context.render({
   content: contextContent,
 });
 
+const patternStage = document.createElement("section");
+patternStage.className = "ui-components-pattern-stage";
+patternStage.style.position = "relative";
+patternStage.style.minHeight = "420px";
 const worldUnderlay = document.createElement("div");
 worldUnderlay.dataset.testid = "pattern-world-underlay";
 worldUnderlay.textContent = "World";
@@ -170,6 +184,7 @@ const openHostedDialog = createButton({
   onPress: () => dialogHost.open(hostedDialog),
 });
 const notificationHost = createNotificationHost();
+patternStage.append(worldUnderlay, toolDock.element, context.element);
 const notify = createButton({
   label: "Notify",
   onPress: () => notificationHost.notify({ message: "City saved" }),
@@ -186,9 +201,7 @@ mount.append(
   popover.element,
   openDialog.element,
   dialog.element,
-  worldUnderlay,
-  toolDock.element,
-  context.element,
+  patternStage,
   openHostedDialog.element,
   dialogHost.element,
   notify.element,

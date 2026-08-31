@@ -30,8 +30,24 @@ test("Terraform mouse tap commits once while navigation gestures never commit", 
   const mount = page.locator("#live-city-test");
   const game = page.getByTestId("game-screen");
   await expect(mount).toHaveAttribute("data-live-runtime", "ready");
-  await page.getByRole("button", { name: "Terraform", exact: true }).click();
+  const terrainTool = page.getByRole("button", {
+    name: "Terrain",
+    exact: true,
+  });
+  await terrainTool.click();
+  await expect(game).toHaveAttribute("data-active-tool", "terrain");
   await expect(game).toHaveAttribute("data-terraform-active", "true");
+  await expect(page.getByTestId("game-context-surface")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Raise", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+
+  await terrainTool.click();
+  await expect(game).toHaveAttribute("data-active-tool", "");
+  await expect(game).toHaveAttribute("data-terraform-active", "false");
+  await expect(page.getByTestId("game-context-surface")).toBeHidden();
+  await terrainTool.click();
+  await expect(game).toHaveAttribute("data-active-tool", "terrain");
   await expect(game).toHaveAttribute("data-terraform-operation", "raise");
   await expect(game).toHaveAttribute("data-terraform-brush", "1");
   await expect(game).toHaveAttribute("data-terraform-strength", "normal");
@@ -98,7 +114,7 @@ test("Flatten first tap selects a canonical level without mutating, then Undo re
     "data-live-runtime",
     "ready",
   );
-  await page.getByRole("button", { name: "Terraform", exact: true }).click();
+  await page.getByRole("button", { name: "Terrain", exact: true }).click();
   const point = await validTerraformPoint(page);
   await page.getByRole("button", { name: "Flatten", exact: true }).click();
   await expect(page.getByRole("button", { name: "Normal 1m" })).toBeDisabled();
@@ -122,9 +138,8 @@ test("Flatten first tap selects a canonical level without mutating, then Undo re
     );
   }
 
-  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await page.keyboard.press("Escape");
+  await expect(game).toHaveAttribute("data-active-tool", "");
   await expect(game).toHaveAttribute("data-terraform-active", "false");
-  await expect(page.getByTestId("terraform-flatten-target")).toHaveText(
-    "Level: not selected",
-  );
+  await expect(page.getByTestId("game-context-surface")).toBeHidden();
 });

@@ -82,7 +82,7 @@ test("Terraform edits persist through unchanged CitySaveV1 Terrain authority and
   await expect(page.getByText("Saved", { exact: true })).toBeVisible();
   const before = await savedTerrain(page);
 
-  await page.getByRole("button", { name: "Terraform", exact: true }).click();
+  await page.getByRole("button", { name: "Terrain", exact: true }).click();
   const point = await validTerraformPoint(page);
   await page.mouse.click(point.x, point.y);
   await expect(game).toHaveAttribute("data-terraform-undo-depth", "1");

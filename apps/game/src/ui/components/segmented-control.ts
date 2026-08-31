@@ -14,6 +14,7 @@ export function createSegmentedControl<T extends string | number>(input: {
     readonly value: T;
     readonly label: string;
     readonly ariaLabel?: string;
+    readonly testId?: string;
   }[];
   readonly onChange: (value: T) => void;
 }): SegmentedControlHandle<T> {
@@ -29,6 +30,7 @@ export function createSegmentedControl<T extends string | number>(input: {
     button.textContent = item.label;
     if (item.ariaLabel !== undefined)
       button.setAttribute("aria-label", item.ariaLabel);
+    if (item.testId !== undefined) button.dataset.testid = item.testId;
     button.setAttribute("aria-pressed", "false");
     const listener = (): void => input.onChange(item.value);
     button.addEventListener("click", listener);

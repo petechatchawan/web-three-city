@@ -204,12 +204,12 @@ test("cycles Terraform activation, edits, Load and Resume without leaking lifecy
       expect(liveDiagnostics.activeTrackedListeners).toBe(liveListenerCount);
     }
 
-    await page.getByRole("button", { name: "Terraform", exact: true }).click();
+    await page.getByRole("button", { name: "Terrain", exact: true }).click();
     const point = await validTerraformPoint(page);
     await expect(game).toHaveAttribute("data-terraform-preview", "valid");
-    await page.getByRole("button", { name: "Close", exact: true }).click();
+    await page.getByRole("button", { name: "Terrain", exact: true }).click();
     await expect(game).toHaveAttribute("data-terraform-active", "false");
-    await page.getByRole("button", { name: "Terraform", exact: true }).click();
+    await page.getByRole("button", { name: "Terrain", exact: true }).click();
     await expect(game).toHaveAttribute("data-terraform-active", "true");
 
     if (cycle % 5 === 0) {

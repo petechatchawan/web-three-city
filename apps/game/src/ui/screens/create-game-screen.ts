@@ -1,13 +1,4 @@
 import type { TerrainDebugLayer } from "@web-three-city/terrain/composition";
-import type {
-  TerraformBrushSize,
-  TerraformOperation,
-  TerraformStrength,
-} from "@web-three-city/terraform";
-import {
-  createTerraformToolbar,
-  type TerraformToolbarHandle,
-} from "../create-terraform-toolbar";
 import { createButton } from "../primitives/button";
 import { createSwitch } from "../primitives/switch";
 import { createGameShellView } from "./game/create-game-shell-view";
@@ -63,7 +54,7 @@ export interface GameScreenHandle extends ScreenHandle {
   setSaveStatus(message?: string): void;
   setPickStatus(message: string): void;
   setDebugLayers(layers: readonly TerrainDebugLayer[]): void;
-  readonly terraform: TerraformToolbarHandle;
+  setActiveTool(toolId?: string): void;
 }
 
 export function createGameScreen(input: {
@@ -74,19 +65,20 @@ export function createGameScreen(input: {
   readonly onExit: () => void;
   readonly onDebugChange: (layer: TerrainDebugLayer, checked: boolean) => void;
   readonly onClearDebug: () => void;
-  readonly onTerraformOpen: () => void;
-  readonly onTerraformClose: () => void;
-  readonly onTerraformOperation: (operation: TerraformOperation) => void;
-  readonly onTerraformBrushSize: (size: TerraformBrushSize) => void;
-  readonly onTerraformStrength: (strength: TerraformStrength) => void;
-  readonly onTerraformRepickLevel: () => void;
-  readonly onTerraformUndo: () => void;
 }): GameScreenHandle {
   const shell = createGameShellView();
-  shell.render({ busy: false });
+  let busy = false;
+  let activeToolId: string | undefined;
+  const renderShell = (): void => {
+    shell.render({
+      busy,
+      ...(activeToolId === undefined ? {} : { activeToolId }),
+    });
+  };
+  renderShell();
+
   const element = shell.element;
   const viewport = shell.viewport;
-
   const hud = document.createElement("header");
   hud.className = "game-hud";
   const identity = document.createElement("div");
@@ -114,16 +106,7 @@ export function createGameScreen(input: {
   const status = document.createElement("span");
   status.className = "game-hud__status";
   status.setAttribute("aria-live", "polite");
-  const terraform = createTerraformToolbar({
-    onOpen: input.onTerraformOpen,
-    onClose: input.onTerraformClose,
-    onOperation: input.onTerraformOperation,
-    onBrushSize: input.onTerraformBrushSize,
-    onStrength: input.onTerraformStrength,
-    onRepickLevel: input.onTerraformRepickLevel,
-    onUndo: input.onTerraformUndo,
-  });
-  actions.append(status, terraform.entry, save.element, exit.element);
+  actions.append(status, save.element, exit.element);
   hud.append(identity, actions);
 
   const debug = document.createElement("details");
@@ -164,10 +147,9 @@ export function createGameScreen(input: {
   pickStatus.setAttribute("aria-live", "polite");
   shell.hudHost.append(hud, pickStatus);
   shell.debugHost.append(debug);
-  shell.contextHost.append(terraform.tray);
 
   let disposed = false;
-  const handle: GameScreenHandle = {
+  return Object.freeze({
     element,
     viewport,
     hudHost: shell.hudHost,
@@ -177,20 +159,20 @@ export function createGameScreen(input: {
     dialogHost: shell.dialogHost,
     notificationHost: shell.notificationHost,
     debugHost: shell.debugHost,
-    terraform,
-    setSaving(saving): void {
+    setSaving(saving: boolean): void {
+      busy = saving;
       save.element.disabled = saving;
       exit.element.disabled = saving;
       status.textContent = saving ? "Saving…" : status.textContent;
-      shell.render({ busy: saving });
+      renderShell();
     },
-    setSaveStatus(message): void {
+    setSaveStatus(message?: string): void {
       status.textContent = message ?? "";
     },
-    setPickStatus(message): void {
+    setPickStatus(message: string): void {
       pickStatus.textContent = message;
     },
-    setDebugLayers(layers): void {
+    setDebugLayers(layers: readonly TerrainDebugLayer[]): void {
       const active = new Set(layers);
       for (const [index, option] of DEBUG_OPTIONS.entries()) {
         switches[index]!.input.checked = active.has(option.layer);
@@ -198,16 +180,18 @@ export function createGameScreen(input: {
       debugSummaryText.textContent = `Terrain Debug · ${layers.length} active`;
       clearDebug.element.disabled = layers.length === 0;
     },
+    setActiveTool(toolId?: string): void {
+      activeToolId = toolId;
+      renderShell();
+    },
     dispose(): void {
       if (disposed) return;
       disposed = true;
       save.dispose();
       exit.dispose();
       clearDebug.dispose();
-      terraform.dispose();
       for (const item of switches) item.dispose();
       shell.dispose();
     },
-  };
-  return Object.freeze(handle);
+  });
 }

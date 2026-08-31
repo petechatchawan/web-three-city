@@ -5,6 +5,7 @@
 @import "./ui/styles/components.css";
 @import "./ui/styles/patterns.css";
 @import "./ui/styles/screens.css";
+@import "./ui/tools/terraform/terraform-tool-view.css";
 
 .ui-button {
   min-height: var(--control-height);
@@ -506,7 +507,8 @@
   position: absolute;
   z-index: 4;
   left: var(--space-4);
-  bottom: var(--space-4);
+  top: calc(var(--ui-safe-top) + 76px);
+  bottom: auto;
   width: min(300px, calc(100% - var(--space-8)));
 }
 .game-debug > summary {
@@ -567,7 +569,8 @@
   }
   .game-debug {
     left: var(--space-3);
-    bottom: var(--space-3);
+    top: calc(var(--ui-safe-top) + 68px);
+    bottom: auto;
     width: min(260px, calc(100% - var(--space-6)));
   }
   .game-pick-status {

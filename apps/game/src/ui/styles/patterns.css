@@ -1,4 +1,9 @@
 .game-tool-dock {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--ui-safe-bottom) + var(--ui-space-3));
+  transform: translateX(-50%);
+  pointer-events: auto;
   display: inline-flex;
   align-items: center;
   gap: var(--ui-space-1);
@@ -12,11 +17,21 @@
 
 .game-context-surface,
 .game-inspector-surface {
+  pointer-events: auto;
   border: 1px solid var(--ui-border);
   border-radius: var(--ui-radius-md);
   background: var(--ui-surface-panel);
   box-shadow: var(--ui-shadow-sm);
   backdrop-filter: blur(14px);
+}
+
+.game-context-surface {
+  position: absolute;
+  left: 50%;
+  bottom: calc(
+    var(--ui-safe-bottom) + var(--ui-control-min) + var(--ui-space-6)
+  );
+  transform: translateX(-50%);
 }
 
 .game-context-surface[hidden],

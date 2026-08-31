@@ -1,15 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { createTerraformToolbarState } from "../src/ui/create-terraform-toolbar";
+import {
+  createTerraformToolViewState,
+  type TerraformToolViewState,
+} from "../src/ui/tools/terraform/terraform-tool-view-state";
 
-describe("Terraform toolbar defaults", () => {
-  it("opens with frozen product defaults", () => {
-    expect(createTerraformToolbarState()).toEqual({
-      active: false,
+describe("Terraform tool view state", () => {
+  it("starts with frozen product defaults without duplicating active-tool authority", () => {
+    const state = createTerraformToolViewState();
+
+    expect(state).toEqual({
       operation: "raise",
       brushSize: 1,
       strength: "normal",
-      flattenTargetMeters: undefined,
       undoDepth: 0,
-    });
+      validity: "idle",
+    } satisfies TerraformToolViewState);
+    expect(Object.isFrozen(state)).toBe(true);
+    expect("active" in state).toBe(false);
+    expect("flattenTargetMeters" in state).toBe(false);
+    expect("message" in state).toBe(false);
   });
 });

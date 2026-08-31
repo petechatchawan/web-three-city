@@ -16,12 +16,13 @@ export function createToolButton(input: {
 }): StatefulUiHandle<ToolButtonState, HTMLButtonElement> {
   const button = createIconButton({
     icon: input.icon,
-    ariaLabel:
-      input.shortcut === undefined
-        ? input.label
-        : `${input.label} (${input.shortcut})`,
+    ariaLabel: input.label,
     onPress: input.onPress,
   });
+  if (input.shortcut !== undefined) {
+    button.element.setAttribute("aria-keyshortcuts", input.shortcut);
+    button.element.title = `${input.label} (${input.shortcut})`;
+  }
   button.element.classList.add("ui-tool-button");
   const label = document.createElement("span");
   label.className = "ui-tool-button__label";

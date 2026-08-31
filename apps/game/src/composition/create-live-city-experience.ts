@@ -1,9 +1,5 @@
 import type { LiveCitySession } from "@web-three-city/orchestration-city-session";
 import {
-  logicalElevationToMeters,
-  type LogicalElevation,
-} from "@web-three-city/terrain";
-import {
   createTerrainThreeDebugOverlay,
   createTerrainThreeProjection,
   type TerrainDebugLayer,
@@ -11,20 +7,6 @@ import {
   type TerrainThreeDebugOverlay,
   type TerrainThreeProjection,
 } from "@web-three-city/terrain/composition";
-import {
-  selectFlattenReference,
-  type TerraformBrushSize,
-  type TerraformOperation,
-  type TerraformPreview,
-  type TerraformStrength,
-  type TerraformUndoHistory,
-} from "@web-three-city/terraform";
-import {
-  createTerraformThreeOverlay,
-  createTerraformUndoHistory,
-  planTerraform,
-  type TerraformThreeOverlay,
-} from "@web-three-city/terraform/composition";
 import { createCityCamera } from "../presentation/camera/create-city-camera";
 import { createCitySceneCameraConfig } from "../presentation/camera/create-city-scene-camera-config";
 import { createCityLighting } from "../presentation/create-city-lighting";
@@ -33,15 +15,17 @@ import {
   createCityInputController,
   type CityInputController,
 } from "../presentation/input/create-city-input-controller";
-import { CITY_INPUT_DEFAULT_CONFIG } from "../presentation/input/input-config";
 import {
   createTerrainPointerPicker,
   type TerrainPointerPickResult,
 } from "../presentation/interaction/create-terrain-pointer-picker";
+import { createContextSurface } from "../ui/patterns/context-surface";
+import { createToolDock } from "../ui/patterns/tool-dock";
 import {
   createGameScreen,
   type GameScreenHandle,
 } from "../ui/screens/create-game-screen";
+import type { TerraformToolViewState } from "../ui/tools/terraform/terraform-tool-view-state";
 import {
   createGameCommandRouter,
   type GameCommandRouter,
@@ -53,13 +37,11 @@ import {
 import {
   createGameToolCoordinator,
   type GameToolCoordinator,
-  type GameToolRuntime,
 } from "./game/create-game-tool-coordinator";
-import { createTerraformPointerSession } from "./terraform/terraform-pointer-session";
 import {
-  createTerraformRuntime,
-  type TerraformRuntime,
-} from "./terraform/create-terraform-runtime";
+  createTerraformGameTool,
+  type TerraformGameTool,
+} from "./game/create-terraform-game-tool";
 
 const DEBUG_LAYER_ORDER: readonly TerrainDebugLayer[] = Object.freeze([
   "cellGrid",
@@ -124,24 +106,48 @@ export function createLiveCityExperience(input: {
   let lighting: ReturnType<typeof createCityLighting> | undefined;
   let debugOverlay: TerrainThreeDebugOverlay | undefined;
   let liveProjection: TerrainThreeProjection | undefined;
-  let terraformOverlay: TerraformThreeOverlay | undefined;
-  let terraformRuntime: TerraformRuntime | undefined;
-  let terraformUndo: TerraformUndoHistory | undefined;
-  let terraformPointerSession:
-    | ReturnType<typeof createTerraformPointerSession>
-    | undefined;
   let inputController: CityInputController | undefined;
   let toolCoordinator: GameToolCoordinator | undefined;
   let interactionRouter: GameInteractionRouter | undefined;
   let commandRouter: GameCommandRouter | undefined;
+  let terraformTool: TerraformGameTool | undefined;
+  let toolDock: ReturnType<typeof createToolDock> | undefined;
+  let contextSurface: ReturnType<typeof createContextSurface> | undefined;
   let cameraController: ReturnType<typeof createCityCamera> | undefined;
   let saving = false;
-  let terraformActive = false;
-  let terraformOperation: TerraformOperation = "raise";
-  let terraformBrushSize: TerraformBrushSize = 1;
-  let terraformStrength: TerraformStrength = "normal";
-  let flattenTarget: LogicalElevation | undefined;
-  let lastPreviewPoint: readonly [number, number] | undefined;
+
+  const screen = createGameScreen({
+    cityName: input.session.metadata.name,
+    seed64: input.session.terrain.captureSnapshot().selectedSeed64,
+    revision: input.session.terrain.read.revision(),
+    onSave: () => void save(),
+    onExit: input.onExit,
+    onDebugChange: (layer, checked) => onDebugChange(layer, checked),
+    onClearDebug: () => {
+      if (debugOverlay === undefined || disposed) return;
+      debugOverlay.setVisibility(
+        Object.fromEntries(DEBUG_LAYER_ORDER.map((layer) => [layer, false])),
+      );
+      updateDebugDiagnostics();
+      requestRender();
+    },
+  });
+
+  const updateTerraformDiagnostics = (
+    state: TerraformToolViewState,
+    active: boolean,
+  ): void => {
+    screen.element.dataset.terraformActive = String(active);
+    screen.element.dataset.terraformOperation = state.operation;
+    screen.element.dataset.terraformBrush = String(state.brushSize);
+    screen.element.dataset.terraformStrength = state.strength;
+    screen.element.dataset.terraformPreview =
+      state.validity === "idle" ? "none" : state.validity;
+    screen.element.dataset.terraformUndoDepth = String(state.undoDepth);
+    screen.element.dataset.terrainRevision = String(
+      input.session.terrain.read.revision(),
+    );
+  };
 
   const updateDebugDiagnostics = (): void => {
     if (debugOverlay === undefined) return;
@@ -152,52 +158,12 @@ export function createLiveCityExperience(input: {
     screen.setDebugLayers(layers);
   };
 
-  const updateTerraformDiagnostics = (
-    preview?: TerraformPreview,
-    status?: string,
-  ): void => {
-    screen.element.dataset.terraformActive = String(terraformActive);
-    screen.element.dataset.terraformOperation = terraformOperation;
-    screen.element.dataset.terraformBrush = String(terraformBrushSize);
-    screen.element.dataset.terraformStrength = terraformStrength;
-    screen.element.dataset.terraformPreview = preview?.status ?? "none";
-    screen.element.dataset.terraformUndoDepth = String(
-      terraformUndo?.depth() ?? 0,
-    );
-    screen.element.dataset.terrainRevision = String(
-      input.session.terrain.read.revision(),
-    );
-    screen.terraform.setActive(terraformActive);
-    screen.terraform.setOperation(terraformOperation);
-    screen.terraform.setBrushSize(terraformBrushSize);
-    screen.terraform.setStrength(terraformStrength);
-    screen.terraform.setFlattenTargetMeters(
-      flattenTarget === undefined
-        ? undefined
-        : logicalElevationToMeters(flattenTarget),
-    );
-    screen.terraform.setUndoDepth(terraformUndo?.depth() ?? 0);
-    if (status !== undefined) screen.terraform.setStatus(status);
-  };
-
   const requestRender = (): void => {
     if (cameraController !== undefined) {
       writeCameraDiagnostics(screen, cameraController);
     }
     if (scene.available) scene.render();
   };
-
-  const clearTerraformPreview = (): void => {
-    lastPreviewPoint = undefined;
-    terraformOverlay?.setPreview(undefined);
-    updateTerraformDiagnostics(undefined);
-    requestRender();
-  };
-
-  let previewTerraformPoint: (clientX: number, clientY: number) => void = () =>
-    undefined;
-  let commitTerraformPoint: (clientX: number, clientY: number) => void = () =>
-    undefined;
 
   const save = async (): Promise<void> => {
     if (saving || disposed) return;
@@ -223,93 +189,63 @@ export function createLiveCityExperience(input: {
     requestRender();
   };
 
-  const refreshPreview = (): void => {
-    const point = lastPreviewPoint;
-    if (terraformActive && point !== undefined) {
-      previewTerraformPoint(point[0], point[1]);
-    } else {
-      clearTerraformPreview();
+  const inactiveContextContent = document.createElement("div");
+  const syncToolUi = (): void => {
+    const coordinator = toolCoordinator;
+    const terrain = terraformTool;
+    const dock = toolDock;
+    const context = contextSurface;
+    if (
+      coordinator === undefined ||
+      terrain === undefined ||
+      dock === undefined ||
+      context === undefined
+    ) {
+      screen.setActiveTool(undefined);
+      return;
     }
+    const active = coordinator.activeTool();
+    const activeToolId = coordinator.activeToolId();
+    screen.setActiveTool(activeToolId);
+    dock.render({
+      tools: [
+        {
+          descriptor: terrain.descriptor,
+          availability: terrain.availability(),
+        },
+      ],
+      ...(activeToolId === undefined ? {} : { activeToolId }),
+    });
+    if (active === undefined) {
+      context.render({
+        open: false,
+        label: "Tools",
+        mode: "compact",
+        content: inactiveContextContent,
+      });
+      return;
+    }
+    context.render({
+      open: true,
+      label: `${active.descriptor.label} tools`,
+      mode: "compact",
+      content: active.view.element,
+    });
   };
 
-  const activateLegacyTerraform = (): void => {
-    if (disposed || terraformActive) return;
-    terraformActive = true;
-    terraformOverlay?.setActive(true);
-    updateTerraformDiagnostics(undefined, "Terraform active");
-    requestRender();
-  };
-
-  const deactivateLegacyTerraform = (): void => {
-    if (disposed || !terraformActive) return;
-    terraformActive = false;
-    flattenTarget = undefined;
-    lastPreviewPoint = undefined;
-    terraformOverlay?.setPreview(undefined);
-    terraformOverlay?.setActive(false);
-    updateTerraformDiagnostics(undefined, "Terraform closed");
-    requestRender();
-  };
-
-  const screen = createGameScreen({
-    cityName: input.session.metadata.name,
-    seed64: input.session.terrain.captureSnapshot().selectedSeed64,
-    revision: input.session.terrain.read.revision(),
-    onSave: () => void save(),
-    onExit: input.onExit,
-    onDebugChange,
-    onClearDebug: () => {
-      if (debugOverlay === undefined || disposed) return;
-      debugOverlay.setVisibility(
-        Object.fromEntries(DEBUG_LAYER_ORDER.map((layer) => [layer, false])),
-      );
-      updateDebugDiagnostics();
-      requestRender();
-    },
-    onTerraformOpen: () => {
-      if (disposed) return;
-      if (toolCoordinator === undefined) activateLegacyTerraform();
-      else toolCoordinator.activate("terrain");
-    },
-    onTerraformClose: () => {
-      if (disposed) return;
-      if (toolCoordinator?.activeToolId() === "terrain")
-        toolCoordinator.deactivate();
-      else deactivateLegacyTerraform();
-    },
-    onTerraformOperation: (operation) => {
-      terraformOperation = operation;
-      if (operation !== "flatten") flattenTarget = undefined;
-      refreshPreview();
-    },
-    onTerraformBrushSize: (size) => {
-      terraformBrushSize = size;
-      refreshPreview();
-    },
-    onTerraformStrength: (strength) => {
-      terraformStrength = strength;
-      refreshPreview();
-    },
-    onTerraformRepickLevel: () => {
-      flattenTarget = undefined;
-      refreshPreview();
-      updateTerraformDiagnostics(undefined, "Pick a Flatten reference level");
-    },
-    onTerraformUndo: () => {
-      if (!terraformActive || terraformRuntime === undefined) return;
-      const result = terraformRuntime.undo();
-      refreshPreview();
-      updateTerraformDiagnostics(
-        undefined,
-        result.status === "success" ? "Undo applied" : "Undo unavailable",
-      );
-      requestRender();
-    },
-  });
   input.mount.replaceChildren(screen.element);
   input.mount.dataset.liveRuntime = "booting";
+  screen.setActiveTool(undefined);
+  screen.element.dataset.terraformActive = "false";
+  screen.element.dataset.terraformOperation = "raise";
+  screen.element.dataset.terraformBrush = "1";
+  screen.element.dataset.terraformStrength = "normal";
+  screen.element.dataset.terraformPreview = "none";
+  screen.element.dataset.terraformUndoDepth = "0";
+  screen.element.dataset.terrainRevision = String(
+    input.session.terrain.read.revision(),
+  );
   screen.element.dataset.terraformOverlayRoots = "0";
-  updateTerraformDiagnostics();
 
   const scene = createScene(screen.viewport, createCitySceneCameraConfig(map));
   if (!scene.available) {
@@ -337,31 +273,6 @@ export function createLiveCityExperience(input: {
       throw new Error(`Terrain debug overlay rejected: ${debug.code}`);
     }
     debugOverlay = debug.value;
-    terraformOverlay = createTerraformThreeOverlay({
-      mapDefinition: map,
-      spatial: input.session.world.spatial,
-      mapState: input.session.world.mapState,
-      terrain: input.session.terrain.read,
-    });
-    terraformOverlay.setActive(false);
-    terraformOverlay.root.userData.testid = "terraform-overlay-root";
-    scene.scene.add(projection.root, debugOverlay.root, terraformOverlay.root);
-    screen.element.dataset.terraformOverlayRoots = String(
-      scene.scene.children.filter(
-        (child) => child.name === "terraform-three-overlay",
-      ).length,
-    );
-
-    terraformUndo = createTerraformUndoHistory(
-      input.session.terrain.read.revision(),
-    );
-    terraformRuntime = createTerraformRuntime({
-      terrain: input.session.terrain,
-      projection,
-      debugOverlay,
-      terraformPresentation: terraformOverlay,
-      undo: terraformUndo,
-    });
 
     const camera = createCityCamera({ camera: scene.camera, map });
     cameraController = camera;
@@ -371,114 +282,44 @@ export function createLiveCityExperience(input: {
       projection,
     });
 
-    const planFromPick = (
-      pick: Extract<TerrainPointerPickResult, { status: "hit" }>,
-    ): TerraformPreview =>
-      planTerraform({
-        operation: terraformOperation,
-        targetCell: pick.value.cell,
-        brushSize: terraformBrushSize,
-        strength: terraformStrength,
-        ...(flattenTarget === undefined ? {} : { flattenTarget }),
-        mapDefinition: map,
-        mapState: input.session.world.mapState,
-        spatial: input.session.world.spatial,
-        terrain: input.session.terrain.read,
-      });
-
-    previewTerraformPoint = (clientX, clientY): void => {
-      if (!terraformActive || disposed) return;
-      lastPreviewPoint = Object.freeze([clientX, clientY]);
-      const pick = picker.pickClientPoint(clientX, clientY);
-      writePick(screen, pick);
-      if (pick.status !== "hit") {
-        terraformOverlay?.setPreview(undefined);
-        updateTerraformDiagnostics(undefined, "No editable Terrain target");
-        requestRender();
-        return;
-      }
-      const preview = planFromPick(pick);
-      terraformOverlay?.setPreview(preview);
-      updateTerraformDiagnostics(
-        preview,
-        preview.status === "valid" ? "Ready" : preview.reason,
-      );
-      requestRender();
-    };
-
-    commitTerraformPoint = (clientX, clientY): void => {
-      const pick = picker.pickClientPoint(clientX, clientY);
-      writePick(screen, pick);
-      if (!terraformActive || pick.status !== "hit") return;
-
-      if (terraformOperation === "flatten" && flattenTarget === undefined) {
-        const reference = selectFlattenReference({
-          pick: pick.value,
-          mapDefinition: map,
-          mapState: input.session.world.mapState,
-          spatial: input.session.world.spatial,
-          terrain: input.session.terrain.read,
-        });
-        if (reference.status === "success") {
-          flattenTarget = reference.value;
-          updateTerraformDiagnostics(
-            undefined,
-            `Flatten level ${logicalElevationToMeters(reference.value).toFixed(2)}m selected`,
-          );
-          previewTerraformPoint(clientX, clientY);
-        } else {
-          updateTerraformDiagnostics(undefined, reference.reason);
-        }
-        return;
-      }
-
-      const preview = planFromPick(pick);
-      if (preview.status !== "valid" || terraformRuntime === undefined) {
-        terraformOverlay?.setPreview(preview);
-        updateTerraformDiagnostics(
-          preview,
-          preview.status === "invalid" ? preview.reason : "Unavailable",
-        );
-        requestRender();
-        return;
-      }
-      const result = terraformRuntime.commit(preview.plan);
-      const refreshed = planFromPick(pick);
-      terraformOverlay?.setPreview(refreshed);
-      updateTerraformDiagnostics(
-        refreshed,
-        result.status === "success"
-          ? "Terrain updated"
-          : result.status === "noop"
-            ? "No Terrain change"
-            : result.reason,
-      );
-      requestRender();
-    };
-
-    terraformPointerSession = createTerraformPointerSession({
-      tapThresholdPixels: CITY_INPUT_DEFAULT_CONFIG.tapThresholdPixels,
-      onPreviewClientPoint: (x, y) => previewTerraformPoint(x, y),
-      onClearPreview: clearTerraformPreview,
+    terraformTool = createTerraformGameTool({
+      session: input.session,
+      projection,
+      debugOverlay,
+      pickClientPoint: (clientX, clientY) =>
+        picker.pickClientPoint(clientX, clientY),
+      onPick: (pick) => writePick(screen, pick),
+      requestRender,
+      onStateChange: updateTerraformDiagnostics,
     });
+    scene.scene.add(
+      projection.root,
+      debugOverlay.root,
+      terraformTool.overlay.root,
+    );
+    screen.element.dataset.terraformOverlayRoots = String(
+      scene.scene.children.filter(
+        (child) => child.name === "terraform-three-overlay",
+      ).length,
+    );
 
-    const legacyTerrainTool: GameToolRuntime = {
-      descriptor: {
-        id: "terrain",
-        label: "Terrain",
-        icon: "terrain",
-        shortcut: "T",
-        order: 10,
+    toolCoordinator = createGameToolCoordinator([terraformTool]);
+    toolDock = createToolDock({
+      onToolPress: (toolId) => {
+        toolCoordinator?.toggle(toolId);
+        syncToolUi();
       },
-      availability: () => ({ status: "available" }),
-      activate: activateLegacyTerraform,
-      deactivate: deactivateLegacyTerraform,
-      dispose: () => undefined,
-      view: { element: screen.terraform.tray, dispose: () => undefined },
-      pointerSink: terraformPointerSession,
-      onSemanticTap: commitTerraformPoint,
-    };
-    toolCoordinator = createGameToolCoordinator([legacyTerrainTool]);
+    });
+    contextSurface = createContextSurface({
+      onDismiss: () => {
+        toolCoordinator?.deactivate();
+        syncToolUi();
+      },
+    });
+    screen.toolDockHost.append(toolDock.element);
+    screen.contextHost.append(contextSurface.element);
+    syncToolUi();
+
     interactionRouter = createGameInteractionRouter({
       toolCoordinator,
       onSelectionTap: (clientX, clientY) =>
@@ -489,9 +330,12 @@ export function createLiveCityExperience(input: {
       onCommand: (command) => {
         if (command.type === "toggle-tool") {
           toolCoordinator?.toggle(command.toolId);
+          syncToolUi();
         } else if (command.type === "dismiss-top-layer") {
-          if (toolCoordinator?.activeTool() !== undefined)
+          if (toolCoordinator?.activeTool() !== undefined) {
             toolCoordinator.deactivate();
+            syncToolUi();
+          }
         } else if (command.type === "save-city") {
           void save();
         }
@@ -511,7 +355,6 @@ export function createLiveCityExperience(input: {
       projection.root.children.length,
     );
     updateDebugDiagnostics();
-    updateTerraformDiagnostics();
     requestRender();
     const rect = screen.viewport.getBoundingClientRect();
     writePick(
@@ -524,18 +367,16 @@ export function createLiveCityExperience(input: {
     input.mount.dataset.liveRuntime = "ready";
   }
 
-  const experience: LiveCityExperience = {
+  return Object.freeze({
     dispose(): void {
       if (disposed) return;
       disposed = true;
       commandRouter?.dispose();
+      inputController?.dispose();
       interactionRouter?.dispose();
       toolCoordinator?.dispose();
-      terraformPointerSession?.dispose();
-      inputController?.dispose();
-      terraformRuntime?.dispose();
-      terraformOverlay?.setPreview(undefined);
-      terraformOverlay?.dispose();
+      contextSurface?.dispose();
+      toolDock?.dispose();
       debugOverlay?.dispose();
       liveProjection?.dispose();
       lighting?.dispose();
@@ -544,6 +385,5 @@ export function createLiveCityExperience(input: {
       screen.element.remove();
       input.mount.dataset.liveRuntime = "disposed";
     },
-  };
-  return Object.freeze(experience);
+  });
 }

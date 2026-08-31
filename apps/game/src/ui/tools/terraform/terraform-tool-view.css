@@ -1,0 +1,77 @@
+.terraform-tool-view {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: var(--ui-space-3);
+  min-width: min(560px, calc(100vw - var(--ui-space-8)));
+}
+
+.terraform-tool-view__group {
+  display: grid;
+  align-items: end;
+  gap: var(--ui-space-1);
+}
+
+.terraform-tool-view__label {
+  color: var(--ui-muted-fg);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.terraform-tool-view__flatten,
+.terraform-tool-view__actions {
+  min-height: var(--ui-control-min);
+  align-items: center;
+}
+
+.terraform-tool-view__flatten[hidden] {
+  display: none;
+}
+
+.terraform-tool-view__flatten {
+  grid-template-columns: auto auto;
+  gap: var(--ui-space-2);
+}
+
+.terraform-tool-view__target {
+  color: var(--ui-muted-fg);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.terraform-tool-view__actions {
+  display: flex;
+  gap: var(--ui-space-3);
+  margin-left: auto;
+}
+
+.terraform-tool-view__actions .ui-status-indicator {
+  align-self: center;
+  max-width: 180px;
+  margin-left: auto;
+}
+
+@media (max-width: 640px) {
+  .terraform-tool-view {
+    min-width: 0;
+    width: 100%;
+    display: grid;
+    align-items: stretch;
+  }
+
+  .terraform-tool-view__group {
+    align-items: stretch;
+  }
+
+  .terraform-tool-view .ui-segmented-control {
+    width: 100%;
+  }
+
+  .terraform-tool-view .ui-segmented-control__button {
+    flex: 1 1 0;
+  }
+
+  .terraform-tool-view__actions {
+    margin-left: 0;
+  }
+}

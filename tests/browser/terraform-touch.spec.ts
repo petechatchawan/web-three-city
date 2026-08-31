@@ -34,7 +34,7 @@ test("single-touch tap commits once and two-touch takeover cancels Terraform com
     const mount = page.locator("#live-city-test");
     const game = page.getByTestId("game-screen");
     await expect(mount).toHaveAttribute("data-live-runtime", "ready");
-    await page.getByRole("button", { name: "Terraform", exact: true }).click();
+    await page.getByRole("button", { name: "Terrain", exact: true }).click();
     const point = await validTerraformPoint(page);
 
     const beforeTap = Number(await game.getAttribute("data-terrain-revision"));

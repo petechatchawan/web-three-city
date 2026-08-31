@@ -63,12 +63,12 @@ test("generic game patterns own tool, context, modal and notification semantics"
   const root = page.locator("#ui-components-test");
   await expect(root).toHaveAttribute("data-ready", "true");
 
-  const terrain = page.getByRole("button", { name: "Terrain (T)" });
+  const terrain = page.getByRole("button", { name: "Terrain", exact: true });
   await expect(terrain).toHaveAttribute("aria-pressed", "true");
-  const roads = page.getByRole("button", { name: "Roads (R)" });
+  const roads = page.getByRole("button", { name: "Roads" });
   await expect(roads).toBeDisabled();
   await expect(roads).toHaveAttribute("title", "Requires milestone");
-  await expect(page.getByRole("button", { name: "Zones (Z)" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Zones" })).toHaveCount(0);
 
   await terrain.evaluate((element) => {
     (element as HTMLElement).dataset.identityProbe = "stable";

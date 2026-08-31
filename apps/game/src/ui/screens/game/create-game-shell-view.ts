@@ -89,8 +89,7 @@ export function createGameShellView(): GameShellView {
     debugHost,
     render(state: GameShellViewState): void {
       if (disposed) return;
-      if (state.activeToolId === undefined) delete element.dataset.activeTool;
-      else element.dataset.activeTool = state.activeToolId;
+      element.dataset.activeTool = state.activeToolId ?? "";
       element.dataset.busy = String(state.busy ?? false);
     },
     dispose(): void {

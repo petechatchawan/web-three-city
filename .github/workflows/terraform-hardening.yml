@@ -1,0 +1,86 @@
+name: Terraform Hardening
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/terraform-hardening.yml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "docs/systems/terraform/**"
+      - "systems/terraform/**"
+      - "systems/terrain/**"
+      - "systems/world/**"
+      - "orchestration/city-session/**"
+      - "apps/game/**"
+      - "tests/browser/terraform*.spec.ts"
+      - "playwright.config.ts"
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/terraform-hardening.yml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "docs/systems/terraform/**"
+      - "systems/terraform/**"
+      - "systems/terrain/**"
+      - "systems/world/**"
+      - "orchestration/city-session/**"
+      - "apps/game/**"
+      - "tests/browser/terraform*.spec.ts"
+      - "playwright.config.ts"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terraform-hardening-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hardening:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22.18.0
+          package-manager-cache: false
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.15.1 --activate
+      - name: Install dependencies without lifecycle scripts
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Rebuild approved install-script dependency
+        run: pnpm rebuild esbuild
+      - name: Verify exact HEAD
+        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+      - name: Install Chromium
+        run: ./node_modules/.bin/playwright install --with-deps chromium
+      - name: Create hardening artifact directory
+        run: mkdir -p artifacts/terraform-hardening
+      - name: Verify repository
+        run: |
+          set -o pipefail
+          pnpm verify 2>&1 | tee artifacts/terraform-hardening/verify.txt
+      - name: Record Terraform performance baseline
+        run: |
+          set -o pipefail
+          pnpm terraform:performance:baseline 2>&1 | tee artifacts/terraform-hardening/performance.txt
+      - name: Run Terraform lifecycle soak
+        run: |
+          set -o pipefail
+          pnpm terraform:lifecycle:soak 2>&1 | tee artifacts/terraform-hardening/lifecycle-soak.txt
+      - name: Verify tracked worktree remains clean
+        run: git diff --exit-code
+      - name: Upload Terraform hardening evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-hardening-${{ github.sha }}
+          path: artifacts/terraform-hardening
+          if-no-files-found: error
+          retention-days: 30

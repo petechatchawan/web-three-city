@@ -1299,6 +1299,10 @@ git add tests/browser/terraform-lifecycle-soak.spec.ts .github/workflows/terrafo
 git commit -m "test(terraform): add lifecycle hardening gate"
 ```
 
+## Owner release-gate override — 2026-08-31
+
+SonarQube Cloud / SonarCloud is deferred and is not part of Terraform v1 production closure until a later explicit owner decision re-enables it. Any external GitHub App check is informational/non-gating while this deferral is active.
+
 ## Task 18: Create canonical runtime docs and closure evidence
 
 **Files:**
@@ -1327,7 +1331,7 @@ implementation commit
 PR numbers
 CI run IDs
 Terraform Hardening run ID
-Sonar result when configured
+SonarQube Cloud result is not required while the 2026-08-31 owner deferral is active
 performance baseline values
 lifecycle soak count/results
 browser E2E result
@@ -1383,7 +1387,7 @@ git rev-parse HEAD
 CI SUCCESS
 Terraform Hardening SUCCESS
 architecture check SUCCESS
-Sonar SUCCESS when repository gate is present
+SonarQube Cloud is deferred by owner decision dated 2026-08-31 and is not a Terraform v1 release gate until explicitly re-enabled
 ```
 
 Vercel preview is not a Terraform release gate unless release policy is explicitly changed.

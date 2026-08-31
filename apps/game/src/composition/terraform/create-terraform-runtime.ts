@@ -46,6 +46,7 @@ export type TerraformUndoResult =
 export interface TerraformRuntime {
   commit(plan: TerraformPlan): TerraformCommitResult;
   undo(): TerraformUndoResult;
+  dispose(): void;
 }
 
 interface TerraformMutationRejectedResult {
@@ -116,8 +117,14 @@ function fanOutPresentation(
 export function createTerraformRuntime(
   input: CreateTerraformRuntimeInput,
 ): TerraformRuntime {
+  let disposed = false;
+  const assertUsable = (): void => {
+    if (disposed) throw new Error("Terraform runtime is disposed.");
+  };
+
   const runtime: TerraformRuntime = {
     commit(plan) {
+      assertUsable();
       const currentRevision = input.terrain.read.revision();
       if (currentRevision !== plan.expectedTerrainRevision) {
         if (input.undo.expectedTerrainRevision() !== currentRevision) {
@@ -151,6 +158,7 @@ export function createTerraformRuntime(
     },
 
     undo() {
+      assertUsable();
       const currentRevision = input.terrain.read.revision();
       const entry = input.undo.peekUndo(currentRevision);
       if (entry === undefined) {
@@ -172,6 +180,12 @@ export function createTerraformRuntime(
       input.undo.recordUndo(receipt.newRevision);
       fanOutPresentation(receipt, input);
       return Object.freeze({ status: "success" as const, receipt });
+    },
+
+    dispose(): void {
+      if (disposed) return;
+      disposed = true;
+      input.undo.clear();
     },
   };
 

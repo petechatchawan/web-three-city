@@ -26,6 +26,10 @@ export interface CityInputController {
   dispose(): void;
 }
 
+export interface CityToolPointerSink {
+  onPointerEvent(event: NormalizedPointerEvent): void;
+}
+
 interface EventTargetLike {
   addEventListener(type: string, listener: EventListener): void;
   removeEventListener(type: string, listener: EventListener): void;
@@ -91,6 +95,7 @@ export function createCityInputController(input: {
   readonly keyboardTarget?: EventTargetLike;
   readonly visibilityTarget?: VisibilityTargetLike;
   readonly animationEnvironment?: CameraAnimationEnvironment;
+  readonly toolPointerSink?: CityToolPointerSink;
 }): CityInputController {
   const config = input.config ?? CITY_INPUT_DEFAULT_CONFIG;
   const keyboardTarget =
@@ -157,6 +162,7 @@ export function createCityInputController(input: {
   };
 
   const transition = (event: NormalizedPointerEvent): void => {
+    input.toolPointerSink?.onPointerEvent(event);
     const result = reduceGesture(gestureState, event, config);
     gestureState = result.state;
     for (const intent of result.intents) dispatchGestureIntent(intent);

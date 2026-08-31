@@ -25,7 +25,11 @@
     "terrain:performance:browser": "TERRAIN_PERFORMANCE_BASELINE=1 playwright test tests/browser/terrain-performance.spec.ts --workers=1",
     "terrain:performance:baseline": "pnpm terrain:performance:node && pnpm terrain:performance:browser",
     "terrain:lifecycle:soak": "TERRAIN_LIFECYCLE_SOAK=1 playwright test tests/browser/terrain-lifecycle-soak.spec.ts --workers=1",
-    "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm architecture:check && pnpm build && pnpm test:browser"
+    "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm architecture:check && pnpm build && pnpm test:browser",
+    "terraform:performance:node": "TERRAFORM_PERFORMANCE_BASELINE=1 pnpm --filter @web-three-city/app-game exec vitest run tests/terraform-performance-baseline.test.ts --reporter=verbose",
+    "terraform:performance:browser": "TERRAFORM_PERFORMANCE_BASELINE=1 playwright test tests/browser/terraform-performance.spec.ts --workers=1",
+    "terraform:performance:baseline": "pnpm terraform:performance:node && pnpm terraform:performance:browser",
+    "terraform:lifecycle:soak": "TERRAFORM_LIFECYCLE_SOAK=1 playwright test tests/browser/terraform-lifecycle-soak.spec.ts --workers=1"
   },
   "devDependencies": {
     "@eslint/js": "9.34.0",

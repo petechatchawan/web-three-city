@@ -1,0 +1,42 @@
+.game-shell {
+  position: relative;
+  width: 100%;
+  height: 100dvh;
+  min-height: 320px;
+  overflow: hidden;
+}
+
+.game-shell__viewport {
+  z-index: var(--ui-layer-world);
+}
+
+.game-shell__host {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.game-shell__hud-host {
+  z-index: var(--ui-layer-hud);
+}
+
+.game-shell__tool-dock-host,
+.game-shell__context-host {
+  z-index: var(--ui-layer-tool);
+}
+
+.game-shell__inspector-host {
+  z-index: var(--ui-layer-inspector);
+}
+
+.game-shell__dialog-host {
+  z-index: var(--ui-layer-dialog);
+}
+
+.game-shell__notification-host {
+  z-index: var(--ui-layer-toast);
+}
+
+.game-shell__debug-host {
+  z-index: var(--ui-layer-debug);
+}

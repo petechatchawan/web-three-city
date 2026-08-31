@@ -12,6 +12,13 @@ test("composes a live city with Terrain, camera, picking, debug and lifecycle co
   const game = page.getByTestId("game-screen");
   await expect(mount).toHaveAttribute("data-live-runtime", "ready");
   await expect(game).toBeVisible();
+  await expect(page.getByTestId("game-hud-host")).toBeVisible();
+  await expect(page.getByTestId("game-tool-dock-host")).toBeVisible();
+  await expect(page.getByTestId("game-context-host")).toBeVisible();
+  await expect(page.getByTestId("game-inspector-host")).toBeAttached();
+  await expect(page.getByTestId("game-dialog-host")).toBeAttached();
+  await expect(page.getByTestId("game-notification-host")).toBeAttached();
+  await expect(page.getByTestId("game-debug-host")).toBeAttached();
   await expect(game).toHaveAttribute("data-terrain-sectors", "64");
   await expect(game).toHaveAttribute("data-input-controller", "ready");
   await expect(game).toHaveAttribute("data-pick-status", "hit");

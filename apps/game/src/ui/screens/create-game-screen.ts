@@ -1,15 +1,16 @@
 import type { TerrainDebugLayer } from "@web-three-city/terrain/composition";
-import { createButton } from "../primitives/button";
-import {
-  createTerraformToolbar,
-  type TerraformToolbarHandle,
-} from "../create-terraform-toolbar";
 import type {
   TerraformBrushSize,
   TerraformOperation,
   TerraformStrength,
 } from "@web-three-city/terraform";
+import {
+  createTerraformToolbar,
+  type TerraformToolbarHandle,
+} from "../create-terraform-toolbar";
+import { createButton } from "../primitives/button";
 import { createSwitch } from "../primitives/switch";
+import { createGameShellView } from "./game/create-game-shell-view";
 import type { ScreenHandle } from "./screen-types";
 
 const DEBUG_OPTIONS: readonly {
@@ -51,6 +52,13 @@ const DEBUG_OPTIONS: readonly {
 
 export interface GameScreenHandle extends ScreenHandle {
   readonly viewport: HTMLElement;
+  readonly hudHost: HTMLElement;
+  readonly toolDockHost: HTMLElement;
+  readonly contextHost: HTMLElement;
+  readonly inspectorHost: HTMLElement;
+  readonly dialogHost: HTMLElement;
+  readonly notificationHost: HTMLElement;
+  readonly debugHost: HTMLElement;
   setSaving(saving: boolean): void;
   setSaveStatus(message?: string): void;
   setPickStatus(message: string): void;
@@ -74,12 +82,10 @@ export function createGameScreen(input: {
   readonly onTerraformRepickLevel: () => void;
   readonly onTerraformUndo: () => void;
 }): GameScreenHandle {
-  const element = document.createElement("section");
-  element.className = "game-screen";
-  element.dataset.testid = "game-screen";
-  const viewport = document.createElement("div");
-  viewport.className = "game-screen__viewport";
-  viewport.dataset.testid = "game-viewport";
+  const shell = createGameShellView();
+  shell.render({ busy: false });
+  const element = shell.element;
+  const viewport = shell.viewport;
 
   const hud = document.createElement("header");
   hud.className = "game-hud";
@@ -156,17 +162,27 @@ export function createGameScreen(input: {
   const pickStatus = document.createElement("div");
   pickStatus.className = "game-pick-status";
   pickStatus.setAttribute("aria-live", "polite");
-  element.append(viewport, hud, debug, pickStatus, terraform.tray);
+  shell.hudHost.append(hud, pickStatus);
+  shell.debugHost.append(debug);
+  shell.contextHost.append(terraform.tray);
 
   let disposed = false;
   const handle: GameScreenHandle = {
     element,
     viewport,
+    hudHost: shell.hudHost,
+    toolDockHost: shell.toolDockHost,
+    contextHost: shell.contextHost,
+    inspectorHost: shell.inspectorHost,
+    dialogHost: shell.dialogHost,
+    notificationHost: shell.notificationHost,
+    debugHost: shell.debugHost,
     terraform,
     setSaving(saving): void {
       save.element.disabled = saving;
       exit.element.disabled = saving;
       status.textContent = saving ? "Saving…" : status.textContent;
+      shell.render({ busy: saving });
     },
     setSaveStatus(message): void {
       status.textContent = message ?? "";
@@ -190,6 +206,7 @@ export function createGameScreen(input: {
       clearDebug.dispose();
       terraform.dispose();
       for (const item of switches) item.dispose();
+      shell.dispose();
     },
   };
   return Object.freeze(handle);

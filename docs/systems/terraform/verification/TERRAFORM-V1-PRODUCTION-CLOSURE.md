@@ -1,14 +1,16 @@
 # Terraform v1 Production Closure
 
-- **Status at this commit:** PRE-MERGE VERIFIED
+- **Status at this commit:** PRODUCTION CLOSED
 - **Evidence date:** 2026-08-31
 - **Implementation baseline:** `1a80f2d037ac34edf62598492f800824de8f5ba7`
+- **Final pre-merge candidate:** `fe9a2932abd943d3e5f961f5539a3718385fa18c`
+- **Production merge:** `ece3fe8ecbeb2c1e6d3393b6b19f7014852b2141`
 - **Pull request:** #123
 - **Owner:** `systems/terraform` with application composition in `apps/game`
 
 ## Closure decision
 
-Terraform v1 is ready for the final exact-head merge and post-merge verification gate. TF4–TF7 complete the production interaction path on top of the already-closed TF1–TF3 foundation without creating a second Terrain authority.
+Terraform v1 is production closed. TF4–TF7 complete the production interaction path on top of the already-closed TF1–TF3 foundation without creating a second Terrain authority. PR #123 merged with the verified expected head, and the resulting production merge passed fresh local and remote post-merge verification.
 
 The production boundary remains:
 
@@ -28,52 +30,87 @@ Terraform v1 introduces no canonical `terraformSnapshot`. Save/Load remains auth
 
 Owner decision on 2026-08-31: SonarQube Cloud / SonarCloud is deferred and is **not** part of the Terraform v1 production release gate at this time.
 
-The repository contains no Sonar workflow or `sonar-project.properties`; the currently visible `SonarCloud Code Analysis` check is emitted by the external SonarQubeCloud GitHub App. That external check is informational/non-gating until Sonar is explicitly re-enabled by a later owner decision. The GitHub App installation itself is account/repository integration state outside this repository and is not used as closure evidence here.
+The repository contains no Sonar workflow or `sonar-project.properties`; the visible `SonarCloud Code Analysis` check is emitted by the external SonarQubeCloud GitHub App. That external check is informational/non-gating until Sonar is explicitly re-enabled by a later owner decision. The GitHub App installation itself is account/repository integration state outside this repository and is not used as closure evidence here.
 
-## Pre-merge release evidence
+## Final pre-merge evidence
 
-Exact implementation SHA:
+Final pre-merge candidate SHA:
 
 ```text
-1a80f2d037ac34edf62598492f800824de8f5ba7
+fe9a2932abd943d3e5f961f5539a3718385fa18c
 ```
 
 Remote evidence on that exact SHA:
 
 ```text
 PR #123
-PR CI                    PASS — run 33368483265
-Push CI                  PASS — run 33368441018
-Terraform Hardening      PASS — run 33368483274
-Terrain Hardening        PASS — run 33368483214
+PR CI                    PASS — run 33369754784
+Push CI                  PASS — run 33369750814
+Terraform Hardening      PASS — run 33369754789
+Terrain Hardening        PASS — run 33369754774
 Architecture             PASS — 7 packages / 126 edges / 0 violations
 Tracked worktree         CLEAN
 ```
 
-Terraform Hardening run `33368483274` verified exact HEAD before executing the repository verification, performance baseline, lifecycle soak, clean-worktree check and artifact upload.
+Terraform Hardening run `33369754789` verified exact HEAD before executing repository verification, performance baseline, lifecycle soak, clean-worktree verification and artifact upload.
 
-## Automated verification
+## Production merge
 
-The exact implementation head passed:
+PR #123 merged the verified final candidate into `master` as:
 
 ```text
-Terraform package tests   53 / 53
-Game tests                49 passed / 2 opt-in performance tests skipped
-Browser suite             20 passed / 4 hardening-only tests skipped
-Architecture check        7 packages / 126 edges / 0 violations
-Production build          PASS
-Formatting                PASS
-Lint                      PASS
-Typecheck                 PASS
+ece3fe8ecbeb2c1e6d3393b6b19f7014852b2141
 ```
 
-Browser coverage includes mouse commit/navigation precedence, touch takeover, Flatten reference semantics, Undo, save/load exact Terrain persistence, mobile viewport behavior, disposal and existing Terrain regressions.
+The merge was executed with the expected PR head locked to:
 
-## GitHub-runner performance baseline
+```text
+fe9a2932abd943d3e5f961f5539a3718385fa18c
+```
 
-Measured in Terraform Hardening run `33368483274` on the GitHub-hosted Ubuntu runner. These values are regression references only; Terraform v1 does not adopt performance thresholds from these measurements.
+After fetch/checkout/pull, local `master` and `origin/master` both resolved to `ece3fe8ecbeb2c1e6d3393b6b19f7014852b2141` with a clean working tree.
 
-### Node / composition baseline
+## Post-merge remote evidence
+
+Fresh remote evidence on the exact production merge SHA:
+
+```text
+CI                    PASS — run 33372507204
+Terraform Hardening   PASS — run 33372507253
+Terrain Hardening     PASS — run 33372507254
+Exact HEAD checks     PASS
+Tracked worktree      CLEAN
+```
+
+Terraform Hardening run `33372507253` completed repository verification, performance baseline, the full Terraform lifecycle soak, clean-worktree verification and artifact upload on `master@ece3fe8e`.
+
+## Post-merge local verification
+
+Fresh local verification was executed on `master@ece3fe8e` using Node 22.18.0.
+
+```text
+pnpm verify                          PASS
+Terraform package tests             53 / 53
+Game tests                          49 passed / 2 opt-in skipped
+Browser suite                       20 passed / 4 opt-in skipped
+Architecture check                  7 packages / 126 edges / 0 violations
+Production build                    PASS
+Formatting                          PASS
+Lint                                PASS
+Typecheck                           PASS
+pnpm terraform:performance:baseline PASS
+pnpm terraform:lifecycle:soak       PASS — 20 cycles / 1 passed
+```
+
+The local post-merge browser suite continued to verify mouse commit/navigation precedence, touch takeover, Flatten reference semantics, Undo, save/load exact Terrain persistence, mobile viewport behavior, disposal and existing Terrain regressions.
+
+## Performance baseline
+
+Performance evidence is measurement-first and remains a regression reference, not an adopted production threshold.
+
+### GitHub-runner pre-merge baseline
+
+Measured in Terraform Hardening run `33368483274` on the GitHub-hosted Ubuntu runner:
 
 | Measurement                        |  Baseline |
 | ---------------------------------- | --------: |
@@ -98,7 +135,7 @@ Shared material count         1
 Geometry buffer bytes   655,008
 ```
 
-### Browser interaction baseline
+Browser interaction reference from the same hosted-runner evidence:
 
 ```text
 Pointer -> visible preview      383.1 ms
@@ -108,11 +145,34 @@ Terrain render sectors               64
 Undo depth after measured commit       1
 ```
 
-The browser baseline uses headless CI graphics characteristics and must not be interpreted as player-device FPS or latency acceptance.
+### Local post-merge baseline
+
+Measured on `master@ece3fe8e` after the production merge:
+
+```text
+Raise 1×1 planning                  0.390 ms
+Raise 3×3 planning                  0.319 ms
+Raise 5×5 planning                  0.086 ms
+Flatten planning                    0.078 ms
+Overlay construction                0.267 ms
+Initial unlocked-grid construction 23.307 ms
+Overlay rebuild — 1 logical chunk   1.370 ms
+Overlay rebuild — 2 logical chunks  1.969 ms
+Overlay rebuild — 4 logical chunks  3.749 ms
+Commit + localized presentation    12.848 ms
+Undo + localized presentation      10.600 ms
+Pointer -> visible preview          148.3 ms
+Tap -> visible Terrain update       418.8 ms
+Observed JS heap                 29,400,000 bytes
+```
+
+Headless browser measurements must not be interpreted as player-device FPS or latency acceptance.
 
 ## Lifecycle soak acceptance
 
-Terraform Hardening run `33368483274` executed the 20-cycle browser soak and completed successfully:
+The Terraform lifecycle soak exercises 20 alternating Load/Resume cycles with activation, preview, close/reactivation, periodic edit/save paths, disposal and IndexedDB cleanup.
+
+Accepted invariants:
 
 ```text
 20 alternating Load/Resume cycles              PASS
@@ -127,7 +187,13 @@ IndexedDB deletion after final disposal          PASS
 page/runtime errors                              NONE
 ```
 
-The soak test result was `1 passed` in approximately 5.4 minutes on the hosted runner.
+Evidence:
+
+```text
+Final pre-merge Terraform Hardening  PASS — run 33369754789
+Post-merge Terraform Hardening       PASS — run 33372507253
+Fresh local post-merge soak          PASS — 20 cycles / 1 passed
+```
 
 ## Persistence authority
 
@@ -157,6 +223,19 @@ Undo             same live session only; revision-safe; reset on Load/Resume
 Persistence      Terrain snapshot only
 ```
 
+## Closed phase status
+
+```text
+TF1 Core                         CLOSED
+TF2 Mutation + Undo              CLOSED
+TF3 Three.js Presentation        CLOSED
+TF4 Mouse/Touch                  CLOSED
+TF5 Production UI                CLOSED
+TF6 Persistence + Browser E2E    CLOSED
+TF7 Hardening                    CLOSED
+Post-merge Verification          CLOSED
+```
+
 ## Reopen criteria
 
 Terraform v1 may be reopened only for:
@@ -170,6 +249,6 @@ Terraform v1 may be reopened only for:
 
 Smooth/Slope/Redo, Economy, Roads, Water/Hydrology, Ground/Environment integration and other future gameplay expansion are separate follow-on work and do not silently change Terraform v1.
 
-## Final closure gate
+## Closure-record publication gate
 
-Production closure is declared only after the documentation candidate head passes fresh exact-head CI + Terraform Hardening, merges with the expected SHA, and the resulting `master` receives fresh post-merge CI + Terraform Hardening evidence. Pre-merge evidence above must not be reused as post-merge evidence.
+This closure-record change is documentation-only. After publication it must retain a clean working tree and pass fresh exact-head CI + Terraform Hardening. No pre-merge result is reused as post-merge evidence.

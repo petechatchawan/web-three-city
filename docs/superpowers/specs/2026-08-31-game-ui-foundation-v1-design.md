@@ -1,6 +1,6 @@
 # Game UI Foundation v1 Design
 
-- **Status:** REVIEW CANDIDATE — design direction approved 2026-08-31; written-spec review pending
+- **Status:** FROZEN — OWNER APPROVED 2026-08-31
 - **Date:** 2026-08-31
 - **Owner:** `apps/game`
 - **Scope:** Full product UI foundation for Home, New City, Load City, Game HUD, gameplay tools, inspector, overlays, dialogs, notifications, debug presentation, and responsive PC/mobile behavior

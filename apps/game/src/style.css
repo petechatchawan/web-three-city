@@ -1,6 +1,8 @@
 @import "./ui/styles/tokens.css";
 @import "./ui/styles/reset.css";
 @import "./ui/styles/foundation.css";
+@import "./ui/styles/primitives.css";
+@import "./ui/styles/components.css";
 
 .ui-button {
   min-height: var(--control-height);

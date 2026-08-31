@@ -42,6 +42,19 @@ import {
   createGameScreen,
   type GameScreenHandle,
 } from "../ui/screens/create-game-screen";
+import {
+  createGameCommandRouter,
+  type GameCommandRouter,
+} from "./game/create-game-command-router";
+import {
+  createGameInteractionRouter,
+  type GameInteractionRouter,
+} from "./game/create-game-interaction-router";
+import {
+  createGameToolCoordinator,
+  type GameToolCoordinator,
+  type GameToolRuntime,
+} from "./game/create-game-tool-coordinator";
 import { createTerraformPointerSession } from "./terraform/terraform-pointer-session";
 import {
   createTerraformRuntime,
@@ -118,6 +131,9 @@ export function createLiveCityExperience(input: {
     | ReturnType<typeof createTerraformPointerSession>
     | undefined;
   let inputController: CityInputController | undefined;
+  let toolCoordinator: GameToolCoordinator | undefined;
+  let interactionRouter: GameInteractionRouter | undefined;
+  let commandRouter: GameCommandRouter | undefined;
   let cameraController: ReturnType<typeof createCityCamera> | undefined;
   let saving = false;
   let terraformActive = false;
@@ -216,6 +232,25 @@ export function createLiveCityExperience(input: {
     }
   };
 
+  const activateLegacyTerraform = (): void => {
+    if (disposed || terraformActive) return;
+    terraformActive = true;
+    terraformOverlay?.setActive(true);
+    updateTerraformDiagnostics(undefined, "Terraform active");
+    requestRender();
+  };
+
+  const deactivateLegacyTerraform = (): void => {
+    if (disposed || !terraformActive) return;
+    terraformActive = false;
+    flattenTarget = undefined;
+    lastPreviewPoint = undefined;
+    terraformOverlay?.setPreview(undefined);
+    terraformOverlay?.setActive(false);
+    updateTerraformDiagnostics(undefined, "Terraform closed");
+    requestRender();
+  };
+
   const screen = createGameScreen({
     cityName: input.session.metadata.name,
     seed64: input.session.terrain.captureSnapshot().selectedSeed64,
@@ -233,20 +268,14 @@ export function createLiveCityExperience(input: {
     },
     onTerraformOpen: () => {
       if (disposed) return;
-      terraformActive = true;
-      terraformOverlay?.setActive(true);
-      updateTerraformDiagnostics(undefined, "Terraform active");
-      requestRender();
+      if (toolCoordinator === undefined) activateLegacyTerraform();
+      else toolCoordinator.activate("terrain");
     },
     onTerraformClose: () => {
       if (disposed) return;
-      terraformActive = false;
-      flattenTarget = undefined;
-      lastPreviewPoint = undefined;
-      terraformOverlay?.setPreview(undefined);
-      terraformOverlay?.setActive(false);
-      updateTerraformDiagnostics(undefined, "Terraform closed");
-      requestRender();
+      if (toolCoordinator?.activeToolId() === "terrain")
+        toolCoordinator.deactivate();
+      else deactivateLegacyTerraform();
     },
     onTerraformOperation: (operation) => {
       terraformOperation = operation;
@@ -433,18 +462,49 @@ export function createLiveCityExperience(input: {
       onClearPreview: clearTerraformPreview,
     });
 
+    const legacyTerrainTool: GameToolRuntime = {
+      descriptor: {
+        id: "terrain",
+        label: "Terrain",
+        icon: "terrain",
+        shortcut: "T",
+        order: 10,
+      },
+      availability: () => ({ status: "available" }),
+      activate: activateLegacyTerraform,
+      deactivate: deactivateLegacyTerraform,
+      dispose: () => undefined,
+      view: { element: screen.terraform.tray, dispose: () => undefined },
+      pointerSink: terraformPointerSession,
+      onSemanticTap: commitTerraformPoint,
+    };
+    toolCoordinator = createGameToolCoordinator([legacyTerrainTool]);
+    interactionRouter = createGameInteractionRouter({
+      toolCoordinator,
+      onSelectionTap: (clientX, clientY) =>
+        writePick(screen, picker.pickClientPoint(clientX, clientY)),
+    });
+    commandRouter = createGameCommandRouter({
+      toolShortcuts: [{ toolId: "terrain", key: "t" }],
+      onCommand: (command) => {
+        if (command.type === "toggle-tool") {
+          toolCoordinator?.toggle(command.toolId);
+        } else if (command.type === "dismiss-top-layer") {
+          if (toolCoordinator?.activeTool() !== undefined)
+            toolCoordinator.deactivate();
+        } else if (command.type === "save-city") {
+          void save();
+        }
+      },
+    });
+
     inputController = createCityInputController({
       viewport: screen.viewport,
       camera,
       requestRender,
-      toolPointerSink: terraformPointerSession,
-      onTap(clientX, clientY): void {
-        if (terraformActive) {
-          commitTerraformPoint(clientX, clientY);
-        } else {
-          writePick(screen, picker.pickClientPoint(clientX, clientY));
-        }
-      },
+      toolPointerSink: interactionRouter.toolPointerSink,
+      onTap: (clientX, clientY) =>
+        interactionRouter?.onSemanticTap(clientX, clientY),
     });
     screen.element.dataset.inputController = "ready";
     screen.element.dataset.terrainSectors = String(
@@ -468,6 +528,9 @@ export function createLiveCityExperience(input: {
     dispose(): void {
       if (disposed) return;
       disposed = true;
+      commandRouter?.dispose();
+      interactionRouter?.dispose();
+      toolCoordinator?.dispose();
       terraformPointerSession?.dispose();
       inputController?.dispose();
       terraformRuntime?.dispose();

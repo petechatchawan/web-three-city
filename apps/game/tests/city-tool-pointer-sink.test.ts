@@ -88,4 +88,38 @@ describe("City tool pointer forwarding", () => {
 
     controller.dispose();
   });
+
+  it("observes pointer up before the gesture reducer emits semantic tap", () => {
+    const viewport = new FakeViewport();
+    const order: string[] = [];
+    const controller = createCityInputController({
+      viewport: viewport as unknown as HTMLElement,
+      camera: createCityCamera({ camera: new PerspectiveCamera(), map }),
+      requestRender: vi.fn(),
+      onTap: () => order.push("tap"),
+      toolPointerSink: {
+        onPointerEvent(event) {
+          order.push(`tool:${event.type}`);
+        },
+      },
+    });
+
+    viewport.emit("pointerdown", {
+      pointerId: 1,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 50,
+      clientY: 60,
+    });
+    viewport.emit("pointerup", {
+      pointerId: 1,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 50,
+      clientY: 60,
+    });
+
+    expect(order).toEqual(["tool:down", "tool:up", "tap"]);
+    controller.dispose();
+  });
 });

@@ -174,6 +174,9 @@ worldUnderlay.dataset.testid = "pattern-world-underlay";
 worldUnderlay.textContent = "World";
 const hostedDialogBody = document.createElement("div");
 hostedDialogBody.textContent = "Hosted confirmation";
+const hostedFirst = createButton({ label: "Hosted first" });
+const hostedLast = createButton({ label: "Hosted last" });
+hostedDialogBody.append(hostedFirst.element, hostedLast.element);
 const hostedDialog = createDialog({
   ariaLabel: "Hosted confirmation",
   content: hostedDialogBody,
@@ -227,6 +230,8 @@ window.addEventListener(
     context.dispose();
     dialogHost.dispose();
     hostedDialog.dispose();
+    hostedFirst.dispose();
+    hostedLast.dispose();
     openHostedDialog.dispose();
     notificationHost.dispose();
     notify.dispose();

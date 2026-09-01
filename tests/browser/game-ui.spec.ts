@@ -80,3 +80,40 @@ test("central dismissal closes foreground UI before tools and toggles Game Menu 
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog", { name: "Game menu" })).toBeHidden();
 });
+
+test("keyboard focus and reduced motion keep production tool and menu interactions immediate", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/live-city-test.html");
+  const mount = page.locator("#live-city-test");
+  await expect(mount).toHaveAttribute("data-live-runtime", "ready");
+
+  await page.keyboard.press("Tab");
+  await expect(
+    page.getByRole("button", { name: "Open game menu" }),
+  ).toBeFocused();
+  await page.keyboard.press("Tab");
+  const terrain = page.getByRole("button", { name: "Terrain", exact: true });
+  await expect(terrain).toBeFocused();
+  await expect
+    .poll(() =>
+      terrain.evaluate((element) => getComputedStyle(element).outlineWidth),
+    )
+    .not.toBe("0px");
+
+  await page.keyboard.press("Enter");
+  await expect(page.getByTestId("game-screen")).toHaveAttribute(
+    "data-active-tool",
+    "terrain",
+  );
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("game-screen")).toHaveAttribute(
+    "data-active-tool",
+    "",
+  );
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog", { name: "Game menu" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog", { name: "Game menu" })).toBeHidden();
+});

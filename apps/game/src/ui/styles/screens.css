@@ -120,7 +120,7 @@
 
 .home-screen-v1__shell {
   position: relative;
-  z-index: 1;
+  z-index: var(--ui-layer-world-overlay);
   width: min(520px, 100%);
   display: grid;
   gap: var(--ui-space-4);

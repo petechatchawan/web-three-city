@@ -155,7 +155,7 @@
 }
 .ui-switch__input {
   position: absolute;
-  z-index: 1;
+  z-index: var(--ui-layer-world-overlay);
   inset: 0;
   width: 100%;
   height: 100%;
@@ -230,7 +230,7 @@
 }
 .app-header {
   position: absolute;
-  z-index: 1;
+  z-index: var(--ui-layer-world-overlay);
   top: var(--space-4);
   left: var(--space-4);
   display: flex;
@@ -436,7 +436,7 @@
 }
 .game-hud {
   position: absolute;
-  z-index: 4;
+  z-index: var(--ui-layer-hud);
   top: var(--space-4);
   left: var(--space-4);
   right: var(--space-4);
@@ -494,7 +494,7 @@
 }
 .terraform-toolbar {
   position: absolute;
-  z-index: 5;
+  z-index: var(--ui-layer-tool);
   left: 50%;
   bottom: max(var(--space-4), env(safe-area-inset-bottom));
   transform: translateX(-50%);

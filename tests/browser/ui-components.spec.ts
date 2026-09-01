@@ -79,13 +79,24 @@ test("generic game patterns own tool, context, modal and notification semantics"
 
   const world = page.getByTestId("pattern-world-underlay");
   await expect(world).not.toHaveAttribute("inert", "");
-  await page.getByRole("button", { name: "Open hosted dialog" }).click();
+  const openHosted = page.getByRole("button", { name: "Open hosted dialog" });
+  await openHosted.focus();
+  await openHosted.click();
   await expect(world).toHaveAttribute("inert", "");
+  const hosted = page.getByRole("dialog", { name: "Hosted confirmation" });
+  await expect(hosted).toBeVisible();
   await expect(
-    page.getByRole("dialog", { name: "Hosted confirmation" }),
-  ).toBeVisible();
+    page.getByRole("button", { name: "Hosted first" }),
+  ).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(page.getByRole("button", { name: "Hosted last" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(
+    page.getByRole("button", { name: "Hosted first" }),
+  ).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(world).not.toHaveAttribute("inert", "");
+  await expect(openHosted).toBeFocused();
 
   const notify = page.getByRole("button", { name: "Notify" });
   await notify.focus();

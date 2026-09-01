@@ -27,10 +27,25 @@ async function diagnostics(page: Page): Promise<UiLifecycleDiagnostics> {
   });
 }
 
-async function validTerraformPoint(page: Page) {
+interface TerraformPoint {
+  readonly x: number;
+  readonly y: number;
+}
+
+async function validTerraformPoint(
+  page: Page,
+  preferred?: TerraformPoint,
+): Promise<TerraformPoint> {
+  const game = page.getByTestId("game-screen");
+  if (preferred !== undefined) {
+    await page.mouse.move(preferred.x, preferred.y);
+    if ((await game.getAttribute("data-terraform-preview")) === "valid") {
+      return preferred;
+    }
+  }
+
   const box = await page.getByTestId("game-viewport").boundingBox();
   if (box === null) throw new Error("Game viewport has no bounding box.");
-  const game = page.getByTestId("game-screen");
   for (let row = 2; row <= 8; row += 1) {
     for (let column = 1; column <= 9; column += 1) {
       const point = {
@@ -180,6 +195,7 @@ test("cycles lifecycle screens, preview, game UI and Terrain without accumulatin
 
   const homeListenerBaseline = (await diagnostics(page)).activeTrackedListeners;
   let liveListenerBaseline: number | undefined;
+  let cachedTerraformPoint: TerraformPoint | undefined;
 
   for (let cycle = 0; cycle < SOAK_CYCLES; cycle += 1) {
     // Preview lifecycle: one canvas while active, zero after Back.
@@ -234,7 +250,8 @@ test("cycles lifecycle screens, preview, game UI and Terrain without accumulatin
     }
 
     await page.getByRole("button", { name: "Terrain", exact: true }).click();
-    const point = await validTerraformPoint(page);
+    const point = await validTerraformPoint(page, cachedTerraformPoint);
+    cachedTerraformPoint = point;
     await page.mouse.click(point.x, point.y);
     await expect(game).toHaveAttribute("data-terraform-undo-depth", "1");
     await page.getByRole("button", { name: "Terrain", exact: true }).click();

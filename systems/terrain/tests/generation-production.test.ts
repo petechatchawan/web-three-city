@@ -63,12 +63,32 @@ describe("production Terrain generation", () => {
   it("is bit-repeatable for independently generated fields", () => {
     const first = generateProductionTerrainField(PRODUCTION_SEED);
     const second = generateProductionTerrainField(PRODUCTION_SEED);
+    let firstMismatch:
+      | {
+          readonly x: number;
+          readonly z: number;
+          readonly first: number;
+          readonly second: number;
+        }
+      | undefined;
 
-    for (let z = 0; z <= 512; z += 1) {
+    outer: for (let z = 0; z <= 512; z += 1) {
       for (let x = 0; x <= 512; x += 1) {
-        expect(second.elevationAt(x, z)).toBe(first.elevationAt(x, z));
+        const firstElevation = first.elevationAt(x, z);
+        const secondElevation = second.elevationAt(x, z);
+        if (secondElevation !== firstElevation) {
+          firstMismatch = {
+            x,
+            z,
+            first: firstElevation,
+            second: secondElevation,
+          };
+          break outer;
+        }
       }
     }
+
+    expect(firstMismatch).toBeUndefined();
   });
 
   it("matches the frozen canonical FNV-1a fingerprint", () => {

@@ -92,16 +92,23 @@ describe("render-sector topology", () => {
   it("covers every production Cell exactly once", () => {
     const layout = createRenderSectorLayout(TEST_MAP_DEFINITION);
     const counts = new Map<string, number>();
+    let firstMissingCell:
+      | { readonly x: number; readonly z: number }
+      | undefined;
 
-    for (let z = 0; z < layout.heightCells; z += 1) {
+    outer: for (let z = 0; z < layout.heightCells; z += 1) {
       for (let x = 0; x < layout.widthCells; x += 1) {
         const sector = renderSectorForCell(layout, { x, z });
-        expect(sector).toBeDefined();
-        const key = `${sector!.x},${sector!.z}`;
+        if (sector === undefined) {
+          firstMissingCell = { x, z };
+          break outer;
+        }
+        const key = `${sector.x},${sector.z}`;
         counts.set(key, (counts.get(key) ?? 0) + 1);
       }
     }
 
+    expect(firstMissingCell).toBeUndefined();
     expect(counts.size).toBe(layout.totalSectors);
     for (const count of counts.values()) {
       expect(count).toBe(RENDER_SECTOR_CELLS * RENDER_SECTOR_CELLS);

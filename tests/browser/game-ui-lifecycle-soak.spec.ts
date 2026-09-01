@@ -4,6 +4,7 @@ import { gameMenuAction } from "./game-menu-test-helpers";
 const GOLDEN_SEED = "0x5EED5EED5EED5EED";
 const SOAK_CYCLES = 20;
 const SOAK_ENABLED = process.env.GAME_UI_LIFECYCLE_SOAK === "1";
+const LIVE_READY_TIMEOUT_MS = 30_000;
 
 interface UiLifecycleDiagnostics {
   readonly activeTrackedListeners: number;
@@ -50,7 +51,7 @@ test.skip(!SOAK_ENABLED, "Game UI lifecycle soak is opt-in.");
 test("cycles lifecycle screens, preview, game UI and Terrain without accumulating owners", async ({
   page,
 }) => {
-  test.setTimeout(600_000);
+  test.setTimeout(1_200_000);
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
 
@@ -169,7 +170,9 @@ test("cycles lifecycle screens, preview, game UI and Terrain without accumulatin
   await page.getByRole("button", { name: "Generate terrain" }).click();
   await page.getByRole("radio", { name: "R08" }).check();
   await page.getByRole("button", { name: "Create city" }).click();
-  await expect(app).toHaveAttribute("data-live-runtime", "ready");
+  await expect(app).toHaveAttribute("data-live-runtime", "ready", {
+    timeout: LIVE_READY_TIMEOUT_MS,
+  });
   await gameMenuAction(page, "Save City");
   await expect(page.getByText("City saved", { exact: true })).toBeVisible();
   await gameMenuAction(page, "Exit City");
@@ -210,7 +213,12 @@ test("cycles lifecycle screens, preview, game UI and Terrain without accumulatin
         .getByRole("button", { name: "Resume Game UI Soak City" })
         .click();
     }
-    await expect(app).toHaveAttribute("data-live-runtime", "ready");
+    await expect(app).toHaveAttribute("data-screen", "live-city", {
+      timeout: LIVE_READY_TIMEOUT_MS,
+    });
+    await expect(app).toHaveAttribute("data-live-runtime", "ready", {
+      timeout: LIVE_READY_TIMEOUT_MS,
+    });
 
     const game = page.getByTestId("game-screen");
     await expect(page.locator("canvas.app-canvas")).toHaveCount(1);

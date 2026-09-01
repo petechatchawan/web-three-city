@@ -18,6 +18,7 @@
     "lint": "eslint . --max-warnings=0",
     "typecheck": "pnpm -r --if-present typecheck",
     "test": "pnpm -r --if-present test",
+    "play": "pnpm --filter @web-three-city/app-game dev",
     "architecture:check": "pnpm --filter @web-three-city/tooling-architecture architecture:check",
     "build": "pnpm -r --if-present build",
     "test:browser": "playwright test",

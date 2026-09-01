@@ -6,6 +6,8 @@ test("home screen cleanly separates empty and resumable states", async ({
   await page.goto("/city-screens-test.html?screen=home-empty");
   const root = page.locator("#city-screens-test");
   await expect(root).toHaveAttribute("data-ready", "true");
+  await expect(page.getByTestId("home-screen")).toBeVisible();
+  await expect(page.locator("canvas")).toHaveCount(0);
   await expect(
     page.getByRole("heading", { name: "Web Three City" }),
   ).toBeVisible();

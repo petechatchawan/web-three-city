@@ -28,6 +28,9 @@ import type { ScreenHandle } from "../ui/screens/screen-types";
 
 export interface CityLifecycleCoordinator {
   start(): Promise<void>;
+  showNewCity(): void;
+  showLoadCity(): void;
+  showLive(session: LiveCitySession): void;
   dispose(): void;
 }
 
@@ -36,6 +39,7 @@ export function createCityLifecycleCoordinator(input: {
   readonly service: CitySessionService;
   readonly seedSource: SeedSource;
   readonly initialCities?: readonly CitySaveSummary[];
+  readonly onHomeRequested?: () => void;
 }): CityLifecycleCoordinator {
   let disposed = false;
   let transition = 0;
@@ -66,6 +70,10 @@ export function createCityLifecycleCoordinator(input: {
     if (message === undefined) delete input.mount.dataset.error;
     else input.mount.dataset.error = message;
   };
+  const requestHome = (): void => {
+    if (input.onHomeRequested !== undefined) input.onHomeRequested();
+    else void renderHome();
+  };
 
   const enterLive = (session: LiveCitySession): void => {
     nextTransition();
@@ -95,7 +103,7 @@ export function createCityLifecycleCoordinator(input: {
         liveExperience?.dispose();
         liveExperience = undefined;
         currentSession = undefined;
-        void renderHome();
+        requestHome();
       },
     });
     liveExperience = experience;
@@ -122,7 +130,7 @@ export function createCityLifecycleCoordinator(input: {
     const token = nextTransition();
     const screen = createLoadCityScreen({
       cities: [],
-      onBack: () => void renderHome(),
+      onBack: requestHome,
       onLoad: (cityId) => void loadCity(cityId, screen, token),
     });
     showScreen("load-city", screen);
@@ -161,7 +169,7 @@ export function createCityLifecycleCoordinator(input: {
     let preview: NewCityPreview | undefined;
     const screen = createNewCityScreen({
       initialSeed64: input.seedSource.nextSeed64(),
-      onBack: () => void renderHome(),
+      onBack: requestHome,
       onRandomizeSeed: () => input.seedSource.nextSeed64(),
       onGenerate: (request) => {
         if (!isCurrent(token)) return;
@@ -256,6 +264,18 @@ export function createCityLifecycleCoordinator(input: {
         return;
       }
       await renderHome();
+    },
+    showNewCity(): void {
+      if (disposed) return;
+      renderNew();
+    },
+    showLoadCity(): void {
+      if (disposed) return;
+      void renderLoad();
+    },
+    showLive(session: LiveCitySession): void {
+      if (disposed) return;
+      enterLive(session);
     },
     dispose(): void {
       if (disposed) return;

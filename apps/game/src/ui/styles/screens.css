@@ -40,3 +40,148 @@
 .game-shell__debug-host {
   z-index: var(--ui-layer-debug);
 }
+
+.home-screen-v1 {
+  position: relative;
+  width: 100%;
+  min-height: 100dvh;
+  overflow: hidden;
+  display: grid;
+  align-items: center;
+  padding: calc(var(--ui-safe-top) + var(--ui-space-6))
+    calc(var(--ui-safe-right) + var(--ui-space-6))
+    calc(var(--ui-safe-bottom) + var(--ui-space-6))
+    calc(var(--ui-safe-left) + var(--ui-space-6));
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--ui-bg) 88%, transparent),
+      var(--ui-bg)
+    ),
+    radial-gradient(
+      circle at 72% 28%,
+      color-mix(in srgb, var(--ui-accent) 12%, transparent),
+      transparent 34%
+    );
+}
+
+.home-screen-v1__backdrop {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.home-screen-v1__backdrop::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(
+      color-mix(in srgb, var(--ui-border) 18%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--ui-border) 18%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: 56px 56px;
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 5%,
+    black 48%,
+    transparent 96%
+  );
+}
+
+.home-screen-v1__glow {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(72px);
+  opacity: 0.16;
+}
+
+.home-screen-v1__glow--a {
+  width: min(42vw, 560px);
+  aspect-ratio: 1;
+  top: 8%;
+  right: 6%;
+  background: var(--ui-accent);
+}
+
+.home-screen-v1__glow--b {
+  width: min(34vw, 420px);
+  aspect-ratio: 1;
+  bottom: 4%;
+  left: 20%;
+  background: var(--ui-info);
+}
+
+.home-screen-v1__shell {
+  position: relative;
+  z-index: 1;
+  width: min(520px, 100%);
+  display: grid;
+  gap: var(--ui-space-4);
+  padding: var(--ui-space-6);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-lg);
+  background: var(--ui-surface-glass);
+  box-shadow: var(--ui-shadow-sm);
+  backdrop-filter: blur(18px);
+}
+
+.home-screen-v1__eyebrow,
+.home-screen-v1__title,
+.home-screen-v1__description {
+  margin: 0;
+}
+
+.home-screen-v1__eyebrow {
+  color: var(--ui-muted-fg);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.home-screen-v1__title {
+  font-size: clamp(30px, 5vw, 42px);
+  line-height: 1;
+}
+
+.home-screen-v1__description {
+  max-width: 46ch;
+  color: var(--ui-muted-fg);
+  line-height: 1.55;
+}
+
+.home-screen-v1__resume {
+  display: grid;
+  gap: var(--ui-space-3);
+}
+
+.home-screen-v1__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ui-space-2);
+}
+
+@media (max-width: 640px) {
+  .home-screen-v1 {
+    align-items: end;
+    padding: calc(var(--ui-safe-top) + var(--ui-space-4))
+      calc(var(--ui-safe-right) + var(--ui-space-4))
+      calc(var(--ui-safe-bottom) + var(--ui-space-4))
+      calc(var(--ui-safe-left) + var(--ui-space-4));
+  }
+
+  .home-screen-v1__shell {
+    padding: var(--ui-space-4);
+  }
+
+  .home-screen-v1__actions > * {
+    flex: 1 1 160px;
+  }
+}

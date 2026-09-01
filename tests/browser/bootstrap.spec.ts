@@ -11,6 +11,8 @@ test("boots the production city lifecycle home without uncaught page errors", as
   const app = page.locator("#app");
   await expect(app).toHaveAttribute("data-bootstrap", "ready");
   await expect(app).toHaveAttribute("data-screen", "home");
+  await expect(page.getByTestId("home-screen")).toBeVisible();
+  await expect(page.locator("canvas")).toHaveCount(0);
   await expect(
     page.getByRole("heading", { name: "Web Three City", exact: true }),
   ).toBeVisible();

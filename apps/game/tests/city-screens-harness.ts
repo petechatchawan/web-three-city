@@ -4,7 +4,8 @@ import {
   parseCityName,
   type CitySaveSummary,
 } from "@web-three-city/orchestration-city-session";
-import { createHomeScreen } from "../src/ui/screens/create-home-screen";
+import { createHomeView } from "../src/ui/screens/home/create-home-view";
+import type { HomeViewState } from "../src/ui/screens/home/home-view-state";
 import { createLoadCityScreen } from "../src/ui/screens/create-load-city-screen";
 import { createNewCityScreen } from "../src/ui/screens/create-new-city-screen";
 
@@ -48,20 +49,48 @@ if (mode === "home-empty" || mode === "home-populated") {
     mode === "home-populated"
       ? summary("city-a", "Metro Alpha", "2026-08-30T04:00:00.000Z")
       : undefined;
-  const screen = createHomeScreen({
-    latest,
+  let homeState: HomeViewState = {
+    ...(latest === undefined ? {} : { latest }),
     cityCount: latest === undefined ? 0 : 3,
-    onNewCity: () => calls.push("new"),
-    onLoadCity: () => calls.push("load"),
-    onResume: (cityId) => calls.push(`resume:${cityId}`),
+    phase: "idle" as const,
+  };
+  const view = createHomeView({
+    onIntent: (intent) => {
+      if (intent.type === "new-city") calls.push("new");
+      else if (intent.type === "load-city") calls.push("load");
+      else calls.push(`resume:${latest?.cityId ?? "none"}`);
+      mount.dataset.calls = calls.join(",");
+    },
   });
-  mount.append(screen.element);
-  screen.element.addEventListener("click", () => {
-    mount.dataset.calls = calls.join(",");
-  });
-  (window as typeof window & { screenHandle?: typeof screen }).screenHandle =
-    screen;
-  dispose = screen.dispose;
+  view.render(homeState);
+  mount.append(view.element);
+  const screenHandle = {
+    render: view.render,
+    setBusy(value: boolean): void {
+      homeState = { ...homeState, phase: value ? "resuming" : "idle" };
+      view.render(homeState);
+    },
+    setError(value?: string): void {
+      if (value === undefined) {
+        homeState = {
+          ...(homeState.latest === undefined
+            ? {}
+            : { latest: homeState.latest }),
+          cityCount: homeState.cityCount,
+          phase: homeState.phase,
+        };
+      } else {
+        homeState = { ...homeState, error: value };
+      }
+      view.render(homeState);
+    },
+  };
+  (
+    window as typeof window & {
+      screenHandle?: typeof screenHandle;
+    }
+  ).screenHandle = screenHandle;
+  dispose = view.dispose;
 } else if (mode === "new") {
   const calls: string[] = [];
   const screen = createNewCityScreen({

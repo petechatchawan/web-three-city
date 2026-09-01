@@ -1,4 +1,8 @@
 import { createCitySessionService } from "@web-three-city/orchestration-city-session/composition";
+import {
+  createCityNavigationCoordinator,
+  type CityNavigationCoordinator,
+} from "../application/navigation/create-city-navigation-coordinator";
 import { createBrowserClock } from "../environment/create-browser-clock";
 import { createBrowserIdSource } from "../environment/create-browser-id-source";
 import { createBrowserSeedSource } from "../environment/create-browser-seed-source";
@@ -6,10 +10,6 @@ import { createIndexedDbCitySaveRepository } from "../persistence/create-indexed
 import { createStartupErrorScreen } from "../ui/screens/create-startup-error-screen";
 import type { ScreenHandle } from "../ui/screens/screen-types";
 import { citySessionErrorMessage } from "./city-session-error-message";
-import {
-  createCityLifecycleCoordinator,
-  type CityLifecycleCoordinator,
-} from "./create-city-lifecycle-coordinator";
 import { createTerrainLifecycleAdapter } from "./systems/terrain-lifecycle-adapter";
 import { createWorldLifecycleAdapter } from "./systems/world-lifecycle-adapter";
 
@@ -39,7 +39,7 @@ export async function createGame(mount: HTMLElement): Promise<GameApplication> {
   });
   const seedSource = createBrowserSeedSource();
 
-  let coordinator: CityLifecycleCoordinator | undefined;
+  let coordinator: CityNavigationCoordinator | undefined;
   let startupError: ScreenHandle | undefined;
   let disposed = false;
 
@@ -58,20 +58,21 @@ export async function createGame(mount: HTMLElement): Promise<GameApplication> {
     if (initialCities.status !== "success") {
       showStartupError(citySessionErrorMessage(initialCities.code));
     } else {
-      coordinator = createCityLifecycleCoordinator({
+      coordinator = createCityNavigationCoordinator({
         mount,
         service,
         seedSource,
         initialCities: initialCities.value,
+        formatError: citySessionErrorMessage,
       });
-      await coordinator.start();
+      coordinator.start();
       mount.dataset.bootstrap = "ready";
     }
   } catch (error) {
     showStartupError(unknownStartupMessage(error));
   }
 
-  const application: GameApplication = {
+  return Object.freeze({
     dispose(): void {
       if (disposed) return;
       disposed = true;
@@ -85,6 +86,5 @@ export async function createGame(mount: HTMLElement): Promise<GameApplication> {
       delete mount.dataset.screen;
       delete mount.dataset.error;
     },
-  };
-  return Object.freeze(application);
+  });
 }

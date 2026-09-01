@@ -6,7 +6,8 @@ import {
 } from "@web-three-city/orchestration-city-session";
 import { createHomeView } from "../src/ui/screens/home/create-home-view";
 import type { HomeViewState } from "../src/ui/screens/home/home-view-state";
-import { createLoadCityScreen } from "../src/ui/screens/create-load-city-screen";
+import { createLoadCityView } from "../src/ui/screens/load-city/create-load-city-view";
+import type { LoadCityViewState } from "../src/ui/screens/load-city/load-city-view-state";
 import { createNewCityScreen } from "../src/ui/screens/create-new-city-screen";
 
 function requiredElement<T extends Element>(selector: string): T {
@@ -125,18 +126,28 @@ if (mode === "home-empty" || mode === "home-populated") {
           summary("city-b", "Metro Beta", "2026-08-30T03:00:00.000Z"),
         ]
       : [];
-  const screen = createLoadCityScreen({
-    cities,
-    onBack: () => calls.push("back"),
-    onLoad: (cityId) => calls.push(`load:${cityId}`),
+  let loadState: LoadCityViewState = { cities, phase: "idle" };
+  const view = createLoadCityView({
+    onIntent: (intent) => {
+      if (intent.type === "back") {
+        calls.push("back");
+      } else if (intent.type === "select") {
+        calls.push(`select:${intent.cityId}`);
+        loadState = {
+          cities,
+          selectedCityId: intent.cityId,
+          phase: "idle",
+        };
+        view.render(loadState);
+      } else {
+        calls.push(`load:${intent.cityId}`);
+      }
+      mount.dataset.calls = calls.join(",");
+    },
   });
-  mount.append(screen.element);
-  screen.element.addEventListener("click", () => {
-    mount.dataset.calls = calls.join(",");
-  });
-  (window as typeof window & { screenHandle?: typeof screen }).screenHandle =
-    screen;
-  dispose = screen.dispose;
+  view.render(loadState);
+  mount.append(view.element);
+  dispose = view.dispose;
 } else {
   throw new Error(`Unsupported screen test mode ${mode}`);
 }

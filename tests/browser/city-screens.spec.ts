@@ -144,71 +144,56 @@ test("new city screen randomizes, generates, previews and selects an eligible Re
   );
 });
 
-test("load screen presents empty and populated save states without horizontal overflow", async ({
+test("load screen selects a save before one explicit Load City action", async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/city-screens-test.html?screen=load-empty");
   await expect(page.getByText("No saved cities")).toBeVisible();
 
   await page.goto("/city-screens-test.html?screen=load-populated");
+  const root = page.locator("#city-screens-test");
   await expect(
-    page.getByRole("heading", { name: "Metro Alpha", exact: true }),
+    page.getByRole("button", { name: "Select Metro Alpha" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Metro Beta", exact: true }),
+    page.getByRole("button", { name: "Select Metro Beta" }),
   ).toBeVisible();
   await expect(
-    page.getByText("Last played 30 Aug 2026, 03:00 UTC", { exact: true }),
-  ).toBeVisible();
-  await page.evaluate(() => {
-    const handle = (
-      window as typeof window & {
-        screenHandle?: {
-          setBusy(cityId?: string): void;
-          setError(value?: string): void;
-        };
-      }
-    ).screenHandle;
-    if (handle === undefined) throw new Error("screen handle unavailable");
-    handle.setBusy("city-b");
-    handle.setError("Restore temporarily unavailable");
-  });
-  await expect(
-    page.getByRole("button", { name: "Load Metro Alpha" }),
+    page.getByRole("button", { name: "Load City", exact: true }),
   ).toBeDisabled();
-  await expect(
-    page.getByRole("button", { name: "Load Metro Beta" }),
-  ).toBeDisabled();
-  await expect(
-    page.getByText("Loading Metro Beta…", { exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByText("Restore temporarily unavailable", { exact: true }),
-  ).toBeVisible();
-  await page.evaluate(() => {
-    const handle = (
-      window as typeof window & {
-        screenHandle?: {
-          setBusy(cityId?: string): void;
-          setError(value?: string): void;
-        };
-      }
-    ).screenHandle;
-    if (handle === undefined) throw new Error("screen handle unavailable");
-    handle.setBusy(undefined);
-    handle.setError(undefined);
-  });
-  await page.getByRole("button", { name: "Load Metro Beta" }).click();
-  await expect(page.locator("#city-screens-test")).toHaveAttribute(
-    "data-calls",
-    "load:city-b",
-  );
 
-  const overflow = await page.evaluate(
-    () => document.documentElement.scrollWidth > innerWidth,
-  );
-  expect(overflow).toBe(false);
+  await page.getByRole("button", { name: "Select Metro Beta" }).click();
+  await expect(root).toHaveAttribute("data-calls", "select:city-b");
+  await expect(
+    page
+      .getByTestId("load-city-detail")
+      .getByRole("heading", { name: "Metro Beta", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Seed 0x1234567890ABCDEF", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Terrain revision 3", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Starting Region R06", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByTestId("load-city-detail")
+      .getByText("Last played 30 Aug 2026, 03:00 UTC", { exact: true }),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "Load City", exact: true }).click();
+  await expect(root).toHaveAttribute("data-calls", "select:city-b,load:city-b");
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByTestId("load-city-detail")).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth > innerWidth,
+    ),
+  ).toBe(false);
 });
 
 test("all city lifecycle screens remain within a mobile viewport", async ({

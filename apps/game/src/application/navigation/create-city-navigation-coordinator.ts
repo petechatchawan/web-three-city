@@ -10,6 +10,10 @@ import {
   type CityLifecycleCoordinator,
 } from "../../composition/create-city-lifecycle-coordinator";
 import { createHomeScreenController } from "../screens/create-home-screen-controller";
+import {
+  createLoadCityScreenController,
+  type LoadCityScreenController,
+} from "../screens/create-load-city-screen-controller";
 import type { ScreenController } from "./screen-controller";
 import { createTransitionGuard } from "./transition-guard";
 
@@ -27,6 +31,7 @@ export function createCityNavigationCoordinator(input: {
 }): CityNavigationCoordinator {
   const guard = createTransitionGuard();
   let home: ScreenController | undefined;
+  let loadScreen: LoadCityScreenController | undefined;
   let legacy: CityLifecycleCoordinator | undefined;
   let disposed = false;
   let initialCities = input.initialCities;
@@ -35,23 +40,31 @@ export function createCityNavigationCoordinator(input: {
     home?.dispose();
     home = undefined;
   };
+  const clearLoad = (): void => {
+    loadScreen?.dispose();
+    loadScreen = undefined;
+  };
   const clearLegacy = (): void => {
     legacy?.dispose();
     legacy = undefined;
   };
+  const clearPresentation = (): void => {
+    clearHome();
+    clearLoad();
+    clearLegacy();
+  };
   const mountHome = (cities: readonly CitySaveSummary[]): void => {
     if (disposed) return;
     guard.cancel();
-    clearLegacy();
-    clearHome();
+    clearPresentation();
     delete input.mount.dataset.error;
     const controller = createHomeScreenController({
       service: input.service,
       cities,
       formatError: input.formatError,
-      onNewCity: () => enterLegacy("new"),
-      onLoadCity: () => enterLegacy("load"),
-      onResumeSuccess: (session) => enterLive(session),
+      onNewCity: enterNew,
+      onLoadCity: enterLoad,
+      onResumeSuccess: enterLive,
       onResumeEmpty: () => void refreshHome(),
     });
     home = controller;
@@ -62,8 +75,7 @@ export function createCityNavigationCoordinator(input: {
     if (disposed) return;
     const token = guard.begin();
     if (token === undefined) return;
-    clearLegacy();
-    clearHome();
+    clearPresentation();
     const result = await input.service.listCities();
     if (!guard.isCurrent(token)) return;
     guard.finish(token);
@@ -77,8 +89,7 @@ export function createCityNavigationCoordinator(input: {
     mountHome(result.value);
   };
   const createLegacy = (): CityLifecycleCoordinator => {
-    clearHome();
-    clearLegacy();
+    clearPresentation();
     const coordinator = createCityLifecycleCoordinator({
       mount: input.mount,
       service: input.service,
@@ -88,18 +99,31 @@ export function createCityNavigationCoordinator(input: {
     legacy = coordinator;
     return coordinator;
   };
-  const enterLegacy = (screen: "new" | "load"): void => {
+  function enterNew(): void {
     if (disposed) return;
     guard.cancel();
-    const coordinator = createLegacy();
-    if (screen === "new") coordinator.showNewCity();
-    else coordinator.showLoadCity();
-  };
-  const enterLive = (session: LiveCitySession): void => {
+    createLegacy().showNewCity();
+  }
+  function enterLoad(): void {
+    if (disposed) return;
+    guard.cancel();
+    clearPresentation();
+    const controller = createLoadCityScreenController({
+      service: input.service,
+      formatError: input.formatError,
+      onBack: () => void refreshHome(),
+      onLoadSuccess: enterLive,
+    });
+    loadScreen = controller;
+    input.mount.replaceChildren(controller.element);
+    input.mount.dataset.screen = "load-city";
+    void controller.start();
+  }
+  function enterLive(session: LiveCitySession): void {
     if (disposed) return;
     guard.cancel();
     createLegacy().showLive(session);
-  };
+  }
 
   return Object.freeze({
     start(): void {
@@ -110,8 +134,7 @@ export function createCityNavigationCoordinator(input: {
       if (disposed) return;
       disposed = true;
       guard.dispose();
-      clearHome();
-      clearLegacy();
+      clearPresentation();
       input.mount.replaceChildren();
       delete input.mount.dataset.screen;
       delete input.mount.dataset.error;

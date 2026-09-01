@@ -48,7 +48,8 @@ test("runs new save load and resume through the production city lifecycle", asyn
   await expect(
     page.getByRole("heading", { name: "Production City", exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Load Production City" }).click();
+  await page.getByRole("button", { name: "Select Production City" }).click();
+  await page.getByRole("button", { name: "Load City", exact: true }).click();
   await expect(app).toHaveAttribute("data-screen", "live-city");
   await expect(app).toHaveAttribute("data-live-runtime", "ready");
   await gameMenuAction(page, "Exit City");

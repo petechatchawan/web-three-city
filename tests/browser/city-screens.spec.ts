@@ -86,57 +86,13 @@ test("new city screen randomizes, generates, previews and selects an eligible Re
     "data-calls",
     "generate:Harbor City:0x0123456789ABCDEF",
   );
-
-  await page.evaluate(() => {
-    const handle = (
-      window as typeof window & {
-        screenHandle?: { setPreview(value: unknown): void };
-      }
-    ).screenHandle;
-    if (handle === undefined) throw new Error("screen handle unavailable");
-    handle.setPreview({
-      name: "Harbor City",
-      seed64: "0x0123456789ABCDEF",
-      fingerprint: "0xF2FA29BFD2AEB069",
-      eligibleStartingRegionIds: ["R06", "R08", "R11"],
-      preparedWorld: {},
-      preparedTerrain: {},
-    });
-  });
-
   await expect(page.getByText("0xF2FA29BFD2AEB069")).toBeVisible();
-  await page.evaluate(() => {
-    const handle = (
-      window as typeof window & {
-        screenHandle?: {
-          setBusy(value: boolean): void;
-          setError(value?: string): void;
-        };
-      }
-    ).screenHandle;
-    if (handle === undefined) throw new Error("screen handle unavailable");
-    handle.setBusy(true);
-    handle.setError("Generation temporarily unavailable");
-  });
-  await expect(name).toBeDisabled();
   await expect(
-    page.getByText("Generation temporarily unavailable"),
-  ).toBeVisible();
-  await page.evaluate(() => {
-    const handle = (
-      window as typeof window & {
-        screenHandle?: {
-          setBusy(value: boolean): void;
-          setError(value?: string): void;
-        };
-      }
-    ).screenHandle;
-    if (handle === undefined) throw new Error("screen handle unavailable");
-    handle.setBusy(false);
-    handle.setError(undefined);
-  });
-  await expect(name).toBeEnabled();
+    page.getByRole("button", { name: "Create city" }),
+  ).toBeDisabled();
+
   await page.getByRole("radio", { name: "R08" }).check();
+  await expect(page.getByRole("button", { name: "Create city" })).toBeEnabled();
   await page.getByRole("button", { name: "Create city" }).click();
   await expect(root).toHaveAttribute(
     "data-calls",

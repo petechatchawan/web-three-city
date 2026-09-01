@@ -1,26 +1,19 @@
 import type {
   LifecyclePortResult,
-  PreparedTerrainHandle,
   TerrainLifecyclePort,
   TerrainSessionHandle,
 } from "@web-three-city/orchestration-city-session";
-import type { MapDefinitionRead } from "@web-three-city/world";
 import {
   createTerrainSystem,
   prepareProductionTerrain,
   restoreTerrainSystem,
-  type PreparedProductionTerrain,
   type TerrainConstructionResult,
   type TerrainSystem,
 } from "@web-three-city/terrain/composition";
-
-const PREPARED_TERRAIN_TOKEN = Symbol("prepared-terrain-adapter-token");
-
-interface PreparedTerrainOpaque {
-  readonly token: typeof PREPARED_TERRAIN_TOKEN;
-  readonly prepared: PreparedProductionTerrain;
-  readonly mapDefinition: MapDefinitionRead;
-}
+import {
+  createPreparedTerrainOpaque,
+  readPreparedTerrainPresentationSource,
+} from "./prepared-terrain-handle";
 
 function reject<T>(code: string): LifecyclePortResult<T> {
   return Object.freeze({ status: "rejected", code });
@@ -48,19 +41,6 @@ function adaptTerrainSystem(
   };
 }
 
-function preparedOpaque(
-  handle: PreparedTerrainHandle,
-): PreparedTerrainOpaque | undefined {
-  if (typeof handle.opaque !== "object" || handle.opaque === null)
-    return undefined;
-  const candidate = handle.opaque as Partial<PreparedTerrainOpaque>;
-  return candidate.token === PREPARED_TERRAIN_TOKEN &&
-    candidate.prepared !== undefined &&
-    candidate.mapDefinition !== undefined
-    ? (candidate as PreparedTerrainOpaque)
-    : undefined;
-}
-
 export function createTerrainLifecycleAdapter(): TerrainLifecyclePort {
   const adapter: TerrainLifecyclePort = {
     prepare(world, seed64) {
@@ -73,11 +53,6 @@ export function createTerrainLifecycleAdapter(): TerrainLifecyclePort {
         });
       }
       const prepared = result.value;
-      const opaque: PreparedTerrainOpaque = Object.freeze({
-        token: PREPARED_TERRAIN_TOKEN,
-        prepared,
-        mapDefinition: world.mapDefinition,
-      });
       return Object.freeze({
         status: "success",
         value: Object.freeze({
@@ -88,24 +63,27 @@ export function createTerrainLifecycleAdapter(): TerrainLifecyclePort {
               .filter((candidate) => candidate.eligible)
               .map((candidate) => candidate.regionId),
           ),
-          opaque,
+          opaque: createPreparedTerrainOpaque({
+            prepared,
+            mapDefinition: world.mapDefinition,
+          }),
         }),
       });
     },
     create(world, preparedTerrain) {
-      const opaque = preparedOpaque(preparedTerrain);
-      if (opaque === undefined)
+      const source = readPreparedTerrainPresentationSource(preparedTerrain);
+      if (source === undefined)
         return reject("TERRAIN_PREPARED_HANDLE_INVALID");
       return adaptTerrainSystem(
         createTerrainSystem({
           world,
-          mapDefinitionId: opaque.mapDefinition.mapDefinitionId,
-          generationProfileId: opaque.mapDefinition.terrainGenerationProfileId,
+          mapDefinitionId: source.mapDefinition.mapDefinitionId,
+          generationProfileId: source.mapDefinition.terrainGenerationProfileId,
           generationProfileVersion:
-            opaque.mapDefinition.terrainGenerationProfileVersion,
-          selectedSeed64: opaque.prepared.selectedSeed64,
-          fingerprint: opaque.prepared.fingerprint,
-          source: opaque.prepared.field,
+            source.mapDefinition.terrainGenerationProfileVersion,
+          selectedSeed64: source.prepared.selectedSeed64,
+          fingerprint: source.prepared.fingerprint,
+          source: source.prepared.field,
         }),
       );
     },

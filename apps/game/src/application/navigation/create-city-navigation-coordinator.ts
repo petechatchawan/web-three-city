@@ -9,11 +9,16 @@ import {
   createCityLifecycleCoordinator,
   type CityLifecycleCoordinator,
 } from "../../composition/create-city-lifecycle-coordinator";
+import { newCityTerrainPreviewFactory } from "../../presentation/preview/create-new-city-terrain-preview";
 import { createHomeScreenController } from "../screens/create-home-screen-controller";
 import {
   createLoadCityScreenController,
   type LoadCityScreenController,
 } from "../screens/create-load-city-screen-controller";
+import {
+  createNewCityScreenController,
+  type NewCityScreenController,
+} from "../screens/create-new-city-screen-controller";
 import type { ScreenController } from "./screen-controller";
 import { createTransitionGuard } from "./transition-guard";
 
@@ -32,6 +37,7 @@ export function createCityNavigationCoordinator(input: {
   const guard = createTransitionGuard();
   let home: ScreenController | undefined;
   let loadScreen: LoadCityScreenController | undefined;
+  let newScreen: NewCityScreenController | undefined;
   let legacy: CityLifecycleCoordinator | undefined;
   let disposed = false;
   let initialCities = input.initialCities;
@@ -44,6 +50,10 @@ export function createCityNavigationCoordinator(input: {
     loadScreen?.dispose();
     loadScreen = undefined;
   };
+  const clearNew = (): void => {
+    newScreen?.dispose();
+    newScreen = undefined;
+  };
   const clearLegacy = (): void => {
     legacy?.dispose();
     legacy = undefined;
@@ -51,6 +61,7 @@ export function createCityNavigationCoordinator(input: {
   const clearPresentation = (): void => {
     clearHome();
     clearLoad();
+    clearNew();
     clearLegacy();
   };
   const mountHome = (cities: readonly CitySaveSummary[]): void => {
@@ -102,7 +113,19 @@ export function createCityNavigationCoordinator(input: {
   function enterNew(): void {
     if (disposed) return;
     guard.cancel();
-    createLegacy().showNewCity();
+    clearPresentation();
+    const controller = createNewCityScreenController({
+      service: input.service,
+      initialSeed64: input.seedSource.nextSeed64(),
+      randomSeed64: () => input.seedSource.nextSeed64(),
+      formatError: input.formatError,
+      previewFactory: newCityTerrainPreviewFactory,
+      onBack: () => void refreshHome(),
+      onCreateSuccess: enterLive,
+    });
+    newScreen = controller;
+    input.mount.replaceChildren(controller.element);
+    input.mount.dataset.screen = "new-city";
   }
   function enterLoad(): void {
     if (disposed) return;

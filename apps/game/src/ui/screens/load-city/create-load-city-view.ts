@@ -1,5 +1,5 @@
+import { createSurface } from "../../components/surface";
 import { createButton } from "../../primitives/button";
-import { createCard } from "../../primitives/card";
 import { createEmptyState } from "../../primitives/empty-state";
 import { formatCityTimestamp } from "../../format-city-timestamp";
 import type { LoadCityIntent, LoadCityViewState } from "./load-city-view-state";
@@ -92,7 +92,8 @@ export function createLoadCityView(input: {
     }
 
     for (const city of state.cities) {
-      const card = createCard({
+      const card = createSurface({
+        tone: "panel",
         title: city.name,
         description: `Last played ${formatCityTimestamp(city.lastPlayedAt)}`,
       });
@@ -132,7 +133,8 @@ export function createLoadCityView(input: {
       return;
     }
 
-    const detailCard = createCard({
+    const detailCard = createSurface({
+      tone: "panel",
       title: selected.name,
       description: "Canonical save summary",
     });

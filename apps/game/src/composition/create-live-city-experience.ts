@@ -22,9 +22,9 @@ import {
 import { createContextSurface } from "../ui/patterns/context-surface";
 import { createToolDock } from "../ui/patterns/tool-dock";
 import {
-  createGameScreen,
-  type GameScreenHandle,
-} from "../ui/screens/create-game-screen";
+  createGameShellView,
+  type GameShellView,
+} from "../ui/screens/game/create-game-shell-view";
 import type { TerraformToolViewState } from "../ui/tools/terraform/terraform-tool-view-state";
 import {
   createGameCommandRouter,
@@ -69,7 +69,7 @@ export interface LiveCityExperience {
 }
 
 function writeCameraDiagnostics(
-  screen: GameScreenHandle,
+  screen: GameShellView,
   camera: ReturnType<typeof createCityCamera>,
 ): void {
   const state = camera.state();
@@ -107,7 +107,26 @@ export function createLiveCityExperience(input: {
   let pickStatus = "";
   let saving = false;
 
-  const screen = createGameScreen();
+  const screen = createGameShellView();
+  let screenBusy = false;
+  let screenActiveToolId: string | undefined;
+  const renderScreen = (): void => {
+    screen.render({
+      busy: screenBusy,
+      ...(screenActiveToolId === undefined
+        ? {}
+        : { activeToolId: screenActiveToolId }),
+    });
+  };
+  const setScreenBusy = (busy: boolean): void => {
+    screenBusy = busy;
+    renderScreen();
+  };
+  const setScreenActiveTool = (toolId?: string): void => {
+    screenActiveToolId = toolId;
+    renderScreen();
+  };
+  renderScreen();
 
   const updateTerraformDiagnostics = (
     state: TerraformToolViewState,
@@ -161,7 +180,7 @@ export function createLiveCityExperience(input: {
   const save = async (): Promise<void> => {
     if (saving || disposed) return;
     saving = true;
-    screen.setBusy(true);
+    setScreenBusy(true);
     gameUi?.setBusy(true);
     try {
       const result = await input.onSave();
@@ -169,7 +188,7 @@ export function createLiveCityExperience(input: {
       else gameUi?.notifySaveFailure(result.message);
     } finally {
       saving = false;
-      screen.setBusy(false);
+      setScreenBusy(false);
       gameUi?.setBusy(false);
     }
   };
@@ -203,12 +222,12 @@ export function createLiveCityExperience(input: {
       dock === undefined ||
       context === undefined
     ) {
-      screen.setActiveTool(undefined);
+      setScreenActiveTool(undefined);
       return;
     }
     const active = coordinator.activeTool();
     const activeToolId = coordinator.activeToolId();
-    screen.setActiveTool(activeToolId);
+    setScreenActiveTool(activeToolId);
     dock.render({
       tools: [
         {
@@ -237,7 +256,7 @@ export function createLiveCityExperience(input: {
 
   input.mount.replaceChildren(screen.element);
   input.mount.dataset.liveRuntime = "booting";
-  screen.setActiveTool(undefined);
+  setScreenActiveTool(undefined);
   screen.element.dataset.terraformActive = "false";
   screen.element.dataset.terraformOperation = "raise";
   screen.element.dataset.terraformBrush = "1";

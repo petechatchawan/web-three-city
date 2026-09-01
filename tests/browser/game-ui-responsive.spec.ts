@@ -106,7 +106,7 @@ test("Compact New City is preview-first with configuration foregrounded at the b
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/city-screens-test.html?screen=new");
   const preview = page.getByTestId("new-city-terrain-preview");
-  const config = page.locator(".new-city-layout > .ui-card");
+  const config = page.locator(".new-city-layout > .ui-surface");
   const previewBox = await preview.boundingBox();
   const configBox = await config.boundingBox();
   if (previewBox === null || configBox === null) {
@@ -154,7 +154,7 @@ test("Compact production New City keeps the live Terrain preview behind usable l
   await expect(preview.locator("canvas")).toHaveCount(1);
   const previewBox = await preview.boundingBox();
   const configBox = await page
-    .locator(".new-city-layout > .ui-card")
+    .locator(".new-city-layout > .ui-surface")
     .boundingBox();
   if (previewBox === null || configBox === null) {
     throw new Error("Compact production New City surfaces are unavailable.");

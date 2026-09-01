@@ -1,0 +1,83 @@
+name: Game UI Hardening
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/game-ui-hardening.yml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "docs/apps/game/**"
+      - "apps/game/**"
+      - "tests/browser/game-ui*.spec.ts"
+      - "tests/browser/city-*.spec.ts"
+      - "tests/browser/new-city-preview.spec.ts"
+      - "tests/browser/terraform*.spec.ts"
+      - "playwright.config.ts"
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/game-ui-hardening.yml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "docs/apps/game/**"
+      - "apps/game/**"
+      - "tests/browser/game-ui*.spec.ts"
+      - "tests/browser/city-*.spec.ts"
+      - "tests/browser/new-city-preview.spec.ts"
+      - "tests/browser/terraform*.spec.ts"
+      - "playwright.config.ts"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: game-ui-hardening-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hardening:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22.18.0
+          package-manager-cache: false
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.15.1 --activate
+      - name: Install dependencies without lifecycle scripts
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Rebuild approved install-script dependency
+        run: pnpm rebuild esbuild
+      - name: Verify exact HEAD
+        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+      - name: Install Chromium
+        run: ./node_modules/.bin/playwright install --with-deps chromium
+      - name: Create hardening artifact directory
+        run: mkdir -p artifacts/game-ui-hardening
+      - name: Verify repository
+        run: |
+          set -o pipefail
+          pnpm verify 2>&1 | tee artifacts/game-ui-hardening/verify.txt
+      - name: Run Game UI lifecycle soak
+        run: |
+          set -o pipefail
+          pnpm game-ui:lifecycle:soak 2>&1 | tee artifacts/game-ui-hardening/lifecycle-soak.txt
+      - name: Verify tracked worktree remains clean
+        run: git diff --exit-code
+      - name: Upload Game UI hardening evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: game-ui-hardening-${{ github.sha }}
+          path: |
+            artifacts/game-ui-hardening
+            test-results
+            playwright-report
+          if-no-files-found: ignore
+          retention-days: 30

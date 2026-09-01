@@ -1,6 +1,6 @@
+import { createSurface } from "../../components/surface";
 import { formatCityTimestamp } from "../../format-city-timestamp";
 import { createButton } from "../../primitives/button";
-import { createCard } from "../../primitives/card";
 import { createEmptyState } from "../../primitives/empty-state";
 import type { StatefulUiHandle } from "../../primitives/types";
 import type { HomeIntent, HomeViewState } from "./home-view-state";
@@ -91,7 +91,8 @@ export function createHomeView(input: {
       }
 
       const latest = state.latest;
-      const card = createCard({
+      const card = createSurface({
+        tone: "panel",
         title: latest.name,
         description: `Continue latest city · ${state.cityCount} saved ${state.cityCount === 1 ? "city" : "cities"}`,
       });

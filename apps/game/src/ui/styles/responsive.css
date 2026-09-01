@@ -150,7 +150,7 @@
     border-radius: 0;
   }
 
-  .new-city-layout > .ui-card {
+  .new-city-layout > .ui-surface {
     position: absolute;
     z-index: var(--ui-layer-tool);
     left: calc(var(--ui-safe-left) + var(--ui-space-2));
@@ -244,13 +244,6 @@
   .city-form__actions > .ui-button {
     width: 100%;
     flex-basis: auto;
-  }
-
-  .terraform-toolbar {
-    bottom: max(var(--space-3), var(--ui-safe-bottom));
-    width: calc(100% - var(--space-6));
-    max-height: 46dvh;
-    overflow: auto;
   }
 }
 

@@ -10,33 +10,42 @@ Define the browser-specific UI and persistence adapters used by city-session orc
 ## Screen model
 
 ```text
+Application Navigation
+-> typed Screen Controller
+-> typed presentation state
+-> Screen View
+
 Home
 ├─ Resume latest save when available
 ├─ New City
 └─ Load City
 
 New City
-├─ name
-├─ Seed64 + Randomize
-├─ Generate
-├─ fingerprint/eligible starting Regions
-└─ Create City
+├─ name + Seed64 + Randomize
+├─ Generate exact prepared Terrain
+├─ live Three.js preview of that prepared Terrain
+├─ accessible starting-Region selection
+└─ Create City consumes the same preview object
 
 Load City
-└─ saved city cards -> Load
+├─ lightweight save list
+├─ selected save metadata/detail
+└─ explicit Load City
 
 Game
-├─ viewport
-├─ city diagnostics
-├─ Save
-└─ Terrain Debug panel
+├─ live world viewport
+├─ compact production HUD
+├─ static Tool Dock
+├─ Context Surface
+├─ Inspector / Dialog / Notification / Debug hosts
+└─ centralized command/dismiss routing
 ```
 
-Screen factories own their DOM listeners and return `dispose()`.
+Views emit semantic intents and own only view-local DOM listeners. Controllers own presentation state and application calls. Navigation is single-flight and deterministically disposes the previous screen/runtime.
 
 ## Visual language
 
-Use CSS design tokens and small app-owned primitives. Visual target is clean/neutral/shadcn-like:
+Use one app-owned design system: Foundation tokens -> primitives -> components -> patterns -> typed feature views. No React/shadcn runtime is introduced. Visual target is game-first, world-first, compact, and neutral:
 
 ```text
 subtle 1px borders
@@ -84,15 +93,31 @@ The app initializes repository/orchestration, reads save summaries/latest save, 
 Entering a live session creates:
 
 ```text
+Generic GameShellView
+GameUiCoordinator
+static GameToolRegistry / GameToolCoordinator
+GameInteractionRouter / GameCommandRouter
 Scene
 TerrainThreeProjection
 TerrainThreeDebugOverlay
 CityCamera
 CityInputController
 TerrainPointerPicker
+TerraformGameTool (first reference tool)
 ```
 
-Leaving disposes these before switching screens. Save/Load does not serialize any of them.
+The Game Shell knows generic hosts, not Terraform internals. Pointer observation reaches the active tool before gesture reduction for preview/cancellation only; canonical commits remain post-arbitration semantic taps. Leaving Game disposes UI coordinators, tool runtime, input, Three.js projection/debug resources, camera/scene resources, and DOM roots. Save/Load serializes none of these presentation resources.
+
+## Responsive contract
+
+```text
+Compact  0–639 CSS px
+Medium   640–1023 CSS px
+Large    >=1024 CSS px
+Short    height <600 CSS px
+```
+
+Compact uses a safe-area-aware equal-slot Tool Dock and one foreground bottom surface. New City is preview-first with local configuration surfaces; Load City is list-to-detail. Game never document-scrolls; local sheets/panels own overflow. Orientation/resize changes presentation only and preserves semantic tool/camera state.
 
 ## Tests
 

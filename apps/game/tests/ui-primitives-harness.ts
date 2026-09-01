@@ -1,7 +1,7 @@
 import "../src/style.css";
+import { createSurface } from "../src/ui/components/surface";
 import { createBadge } from "../src/ui/primitives/badge";
 import { createButton } from "../src/ui/primitives/button";
-import { createCard } from "../src/ui/primitives/card";
 import { createEmptyState } from "../src/ui/primitives/empty-state";
 import { createField } from "../src/ui/primitives/field";
 import { createIcon } from "../src/ui/primitives/icon";
@@ -12,7 +12,8 @@ const mount = document.querySelector<HTMLElement>("#ui-primitives-test");
 if (mount === null) throw new Error("UI primitives test mount missing.");
 mount.className = "ui-test-page";
 
-const card = createCard({
+const card = createSurface({
+  tone: "panel",
   title: "Create city",
   description: "Primitive contract",
 });

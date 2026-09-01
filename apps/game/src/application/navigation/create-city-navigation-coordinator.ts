@@ -6,9 +6,9 @@ import type {
 } from "@web-three-city/orchestration-city-session";
 import type { SeedSource } from "../../environment/create-browser-seed-source";
 import {
-  createCityLifecycleCoordinator,
-  type CityLifecycleCoordinator,
-} from "../../composition/create-city-lifecycle-coordinator";
+  createLiveCityExperience,
+  type LiveCityExperience,
+} from "../../composition/create-live-city-experience";
 import { newCityTerrainPreviewFactory } from "../../presentation/preview/create-new-city-terrain-preview";
 import { createHomeScreenController } from "../screens/create-home-screen-controller";
 import {
@@ -38,7 +38,8 @@ export function createCityNavigationCoordinator(input: {
   let home: ScreenController | undefined;
   let loadScreen: LoadCityScreenController | undefined;
   let newScreen: NewCityScreenController | undefined;
-  let legacy: CityLifecycleCoordinator | undefined;
+  let liveExperience: LiveCityExperience | undefined;
+  let currentSession: LiveCitySession | undefined;
   let disposed = false;
   let initialCities = input.initialCities;
 
@@ -54,15 +55,16 @@ export function createCityNavigationCoordinator(input: {
     newScreen?.dispose();
     newScreen = undefined;
   };
-  const clearLegacy = (): void => {
-    legacy?.dispose();
-    legacy = undefined;
+  const clearLive = (): void => {
+    liveExperience?.dispose();
+    liveExperience = undefined;
+    currentSession = undefined;
   };
   const clearPresentation = (): void => {
     clearHome();
     clearLoad();
     clearNew();
-    clearLegacy();
+    clearLive();
   };
   const mountHome = (cities: readonly CitySaveSummary[]): void => {
     if (disposed) return;
@@ -99,17 +101,6 @@ export function createCityNavigationCoordinator(input: {
     initialCities = result.value;
     mountHome(result.value);
   };
-  const createLegacy = (): CityLifecycleCoordinator => {
-    clearPresentation();
-    const coordinator = createCityLifecycleCoordinator({
-      mount: input.mount,
-      service: input.service,
-      seedSource: input.seedSource,
-      onHomeRequested: () => void refreshHome(),
-    });
-    legacy = coordinator;
-    return coordinator;
-  };
   function enterNew(): void {
     if (disposed) return;
     guard.cancel();
@@ -145,7 +136,31 @@ export function createCityNavigationCoordinator(input: {
   function enterLive(session: LiveCitySession): void {
     if (disposed) return;
     guard.cancel();
-    createLegacy().showLive(session);
+    clearPresentation();
+    currentSession = session;
+    input.mount.dataset.screen = "live-city";
+    const experience = createLiveCityExperience({
+      mount: input.mount,
+      session,
+      onSave: async () => {
+        const active = currentSession;
+        if (disposed || active === undefined) {
+          return { status: "error", message: "City session is unavailable." };
+        }
+        const result = await input.service.saveCity(active);
+        if (result.status !== "success") {
+          return { status: "error", message: input.formatError(result.code) };
+        }
+        currentSession = result.value;
+        return { status: "success" };
+      },
+      onExit: () => {
+        if (disposed) return;
+        clearLive();
+        void refreshHome();
+      },
+    });
+    liveExperience = experience;
   }
 
   return Object.freeze({

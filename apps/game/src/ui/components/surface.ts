@@ -14,21 +14,21 @@ export function createSurface(
   } = {},
 ): SurfaceElements {
   const element = document.createElement("section");
-  element.className = `ui-surface ui-surface--${input.tone ?? "panel"} ui-card`;
+  element.className = `ui-surface ui-surface--${input.tone ?? "panel"}`;
   const header = document.createElement("header");
-  header.className = "ui-surface__header ui-card__header";
+  header.className = "ui-surface__header";
   const content = document.createElement("div");
-  content.className = "ui-surface__content ui-card__content";
+  content.className = "ui-surface__content";
 
   if (input.title !== undefined) {
     const title = document.createElement("h2");
-    title.className = "ui-surface__title ui-card__title";
+    title.className = "ui-surface__title";
     title.textContent = input.title;
     header.append(title);
   }
   if (input.description !== undefined) {
     const description = document.createElement("p");
-    description.className = "ui-surface__description ui-card__description";
+    description.className = "ui-surface__description";
     description.textContent = input.description;
     header.append(description);
   }

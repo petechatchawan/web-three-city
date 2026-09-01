@@ -28,7 +28,7 @@ test("renders accessible clean UI primitives with 44px interaction targets", asy
     await primary.evaluate((element) => getComputedStyle(element).outlineWidth),
   ).not.toBe("0px");
 
-  const card = page.locator(".ui-card");
+  const card = page.locator(".ui-surface");
   await expect(card).toBeVisible();
   expect(
     await card.evaluate((element) => getComputedStyle(element).borderTopWidth),

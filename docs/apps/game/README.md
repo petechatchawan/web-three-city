@@ -13,8 +13,10 @@
 ```text
 bootstrap and error boundary
 composition adapters
-Home / New City / Load City / Game screens
-shadcn-like design tokens and DOM primitives
+typed Home / New City / Load City / Game screen controllers and views
+Game UI Foundation tokens, primitives, components, patterns, and responsive contracts
+static Tool Registry + deterministic Tool Coordinator
+generic Game Shell + centralized command/dismiss routing
 Three.js Scene/Renderer lifecycle
 production city camera with demand-driven keyboard/wheel motion
 PC WASD + Q/E + Shift keyboard routing
@@ -61,9 +63,23 @@ city-session asks CitySaveRepository
 
 The application never depends on unload/pagehide to persist a city.
 
-## UI direction
+## Game UI Foundation v1
 
-Neutral, compact, accessible, mobile-first visual language inspired by shadcn. No React/shadcn dependency is introduced. Shared colors/radius/spacing/focus/shadow values live in design tokens; repeated controls use small DOM primitives.
+The production UI is app-owned Vanilla TypeScript DOM + CSS with no React/shadcn runtime. The visual direction is game-first, compact, world-first, translucent, and accessible. Shared colors, typography, spacing, layers, safe areas, focus, motion, and responsive values are owned by Foundation tokens.
+
+```text
+Foundation tokens
+-> Primitives
+-> Components / Surface
+-> Patterns
+-> Typed screen and tool views
+-> Game UI Coordinator / Tool Coordinator
+-> Application composition
+```
+
+The generic Game Shell owns viewport, HUD, Tool Dock, Context Surface, Inspector, Dialog, Notification, and Debug hosts. Terraform/Terrain is the first reference gameplay tool and does not define shell placement or generic control semantics. City Input remains the sole viewport pointer-listener authority.
+
+Responsive bands are Foundation-owned: Compact `0–639`, Medium `640–1023`, Large `>=1024`, with short-height adaptation below `600px`. Home remains lightweight; Load City is a metadata-first save browser; New City renders the exact prepared Terrain used by Create and disposes preview resources deterministically.
 
 ## Binding specs
 

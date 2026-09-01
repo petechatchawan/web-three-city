@@ -29,7 +29,8 @@
     "terraform:performance:node": "TERRAFORM_PERFORMANCE_BASELINE=1 pnpm --filter @web-three-city/app-game exec vitest run tests/terraform-performance-baseline.test.ts --reporter=verbose",
     "terraform:performance:browser": "TERRAFORM_PERFORMANCE_BASELINE=1 playwright test tests/browser/terraform-performance.spec.ts --workers=1",
     "terraform:performance:baseline": "pnpm terraform:performance:node && pnpm terraform:performance:browser",
-    "terraform:lifecycle:soak": "TERRAFORM_LIFECYCLE_SOAK=1 playwright test tests/browser/terraform-lifecycle-soak.spec.ts --workers=1"
+    "terraform:lifecycle:soak": "TERRAFORM_LIFECYCLE_SOAK=1 playwright test tests/browser/terraform-lifecycle-soak.spec.ts --workers=1",
+    "game-ui:lifecycle:soak": "GAME_UI_LIFECYCLE_SOAK=1 playwright test tests/browser/game-ui-lifecycle-soak.spec.ts --workers=1"
   },
   "devDependencies": {
     "@eslint/js": "9.34.0",

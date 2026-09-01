@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, test } from "vitest";
 
@@ -49,6 +49,28 @@ describe("Game UI Foundation architecture", () => {
       return /z-index:\s*\d+/.test(source) ? [relative(path)] : [];
     });
     expect(violations).toEqual([]);
+  });
+
+  test("legacy Game UI migration paths are removed and style entry is imports only", () => {
+    const legacy = [
+      "ui/create-terraform-toolbar.ts",
+      "ui/screens/create-home-screen.ts",
+      "ui/screens/create-load-city-screen.ts",
+      "ui/screens/create-new-city-screen.ts",
+      "ui/screens/create-game-screen.ts",
+      "ui/primitives/card.ts",
+      "composition/create-city-lifecycle-coordinator.ts",
+    ];
+    expect(
+      legacy.filter((path) => existsSync(resolve(APP_ROOT, path))),
+    ).toEqual([]);
+
+    const style = readFileSync(resolve(APP_ROOT, "style.css"), "utf8");
+    const nonImportLines = style
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line !== "" && !line.startsWith("@import "));
+    expect(nonImportLines).toEqual([]);
   });
 
   test("feature tools do not redefine generic button styling", () => {

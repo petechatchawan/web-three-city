@@ -1,6 +1,6 @@
+import { createSurface } from "../../components/surface";
 import { createBadge } from "../../primitives/badge";
 import { createButton } from "../../primitives/button";
-import { createCard } from "../../primitives/card";
 import { createField } from "../../primitives/field";
 import { createInput } from "../../primitives/input";
 import type { NewCityIntent, NewCityViewState } from "./new-city-view-state";
@@ -41,7 +41,10 @@ export function createNewCityView(input: {
   const body = document.createElement("div");
   body.className = "new-city-layout";
 
-  const configCard = createCard({ title: "City configuration" });
+  const configCard = createSurface({
+    tone: "panel",
+    title: "City configuration",
+  });
   const form = document.createElement("form");
   form.className = "city-form new-city-layout__form";
   const nameInput = createInput({

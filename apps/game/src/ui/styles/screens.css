@@ -1,3 +1,5 @@
+@import "../tools/terraform/terraform-tool-view.css";
+
 .game-shell {
   position: relative;
   width: 100%;
@@ -215,7 +217,7 @@
   align-items: stretch;
 }
 
-.new-city-layout > .ui-card {
+.new-city-layout > .ui-surface {
   flex: 1 1 340px;
   min-width: 0;
 }
@@ -251,4 +253,150 @@
 .new-city-preview__freshness {
   margin: 0;
   color: var(--ui-muted-fg);
+}
+
+.ui-test-page {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  padding: var(--space-6);
+  background: var(--background);
+}
+.ui-test-page > .ui-surface {
+  width: min(100%, 440px);
+}
+
+.screen-test-root,
+.city-screen {
+  width: 100%;
+  min-height: 100%;
+}
+.city-screen {
+  min-height: 100dvh;
+  overflow-y: auto;
+  background: var(--background);
+}
+.city-screen__container {
+  width: min(calc(100% - var(--space-8)), 760px);
+  margin: 0 auto;
+  padding: clamp(var(--space-6), 7vh, 72px) 0 var(--space-8);
+  display: grid;
+  gap: var(--space-6);
+}
+.city-screen__header,
+.city-screen__body,
+.city-form,
+.new-city-preview,
+.city-save-list {
+  display: grid;
+}
+.city-screen__header {
+  gap: var(--space-2);
+}
+.city-screen__body,
+.city-form,
+.new-city-preview {
+  gap: var(--space-4);
+}
+.city-save-list {
+  gap: var(--space-3);
+}
+.city-screen__eyebrow,
+.city-screen__title,
+.city-screen__description,
+.city-screen__error {
+  margin: 0;
+}
+.city-screen__eyebrow {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.city-screen__title {
+  font-size: clamp(28px, 5vw, 42px);
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+}
+.city-screen__description {
+  max-width: 620px;
+  color: var(--muted-foreground);
+  font-size: 14px;
+  line-height: 1.55;
+}
+.city-screen__actions,
+.city-form__actions,
+.city-save-facts,
+.new-city-preview__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.city-screen__actions > .ui-button {
+  flex: 1 1 180px;
+}
+.city-form__actions {
+  justify-content: flex-end;
+}
+.city-screen__status {
+  min-height: 18px;
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.city-screen__error {
+  padding: var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--danger) 50%, var(--border));
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  color: var(--danger);
+  font-size: 13px;
+}
+.city-save-facts {
+  gap: var(--space-2) var(--space-4);
+  color: var(--muted-foreground);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.new-city-preview__meta {
+  gap: var(--space-2);
+}
+.region-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.region-picker > legend {
+  grid-column: 1 / -1;
+  margin-bottom: var(--space-1);
+  font-size: 13px;
+  font-weight: 600;
+}
+.region-picker__option {
+  min-height: var(--control-height);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--background);
+  cursor: pointer;
+}
+.region-picker__option:has(input:checked) {
+  border-color: var(--ring);
+  background: var(--accent);
+}
+.region-picker__option input {
+  accent-color: var(--primary);
+}
+.game-screen__viewport {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }

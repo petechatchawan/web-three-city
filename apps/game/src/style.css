@@ -7,6 +7,7 @@
 @import "./ui/styles/debug.css";
 @import "./ui/styles/screens.css";
 @import "./ui/tools/terraform/terraform-tool-view.css";
+@import "./ui/styles/responsive.css";
 
 .ui-button {
   min-height: var(--control-height);
@@ -418,24 +419,6 @@
   accent-color: var(--primary);
 }
 
-@media (max-width: 520px) {
-  .city-screen__container {
-    width: min(calc(100% - var(--space-6)), 760px);
-    padding-top: var(--space-6);
-  }
-
-  .city-screen__actions,
-  .city-form__actions {
-    flex-direction: column;
-  }
-
-  .city-screen__actions > .ui-button,
-  .city-form__actions > .ui-button {
-    width: 100%;
-    flex-basis: auto;
-  }
-}
-
 /* Live city runtime */
 .game-screen {
   position: relative;
@@ -560,12 +543,4 @@
 }
 .terraform-toolbar__status {
   min-height: 18px;
-}
-@media (max-width: 620px) {
-  .terraform-toolbar {
-    bottom: max(var(--space-3), env(safe-area-inset-bottom));
-    width: calc(100% - var(--space-6));
-    max-height: 46vh;
-    overflow: auto;
-  }
 }

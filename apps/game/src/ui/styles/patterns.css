@@ -23,6 +23,10 @@
   background: var(--ui-surface-panel);
   box-shadow: var(--ui-shadow-sm);
   backdrop-filter: blur(14px);
+  max-height: calc(
+    100dvh - var(--ui-safe-top) - var(--ui-safe-bottom) - var(--ui-space-8)
+  );
+  overflow: hidden;
 }
 
 .game-context-surface {
@@ -60,7 +64,10 @@
 
 .game-context-surface__body,
 .game-inspector-surface__body {
+  min-height: 0;
   padding: 0 var(--ui-space-3) var(--ui-space-3);
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .game-context-surface[data-mode="compact"] {

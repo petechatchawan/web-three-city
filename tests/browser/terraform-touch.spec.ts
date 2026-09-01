@@ -35,6 +35,21 @@ test("single-touch tap commits once and two-touch takeover cancels Terraform com
     const game = page.getByTestId("game-screen");
     await expect(mount).toHaveAttribute("data-live-runtime", "ready");
     await page.getByRole("button", { name: "Terrain", exact: true }).click();
+    const dockBox = await page.locator(".game-tool-dock").boundingBox();
+    const contextBox = await page
+      .getByTestId("game-context-surface")
+      .boundingBox();
+    if (dockBox === null || contextBox === null) {
+      throw new Error("Compact Terraform surfaces have no bounding box.");
+    }
+    expect(dockBox.width).toBeGreaterThanOrEqual(366);
+    expect(contextBox.width).toBeGreaterThanOrEqual(366);
+    expect(contextBox.y + contextBox.height).toBeLessThan(dockBox.y);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true);
     const point = await validTerraformPoint(page);
 
     const beforeTap = Number(await game.getAttribute("data-terrain-revision"));

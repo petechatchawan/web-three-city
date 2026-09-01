@@ -152,25 +152,34 @@ test("load screen selects a save before one explicit Load City action", async ({
   ).toBe(false);
 });
 
-test("all city lifecycle screens remain within a mobile viewport", async ({
+test("all city lifecycle screens remain within compact and landscape viewport profiles", async ({
   page,
 }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  for (const screen of [
-    "home-empty",
-    "home-populated",
-    "new",
-    "load-empty",
-    "load-populated",
-  ]) {
-    await page.goto(`/city-screens-test.html?screen=${screen}`);
-    await expect(page.locator("#city-screens-test")).toHaveAttribute(
-      "data-ready",
-      "true",
-    );
-    const hasOverflow = await page.evaluate(
-      () => document.documentElement.scrollWidth > window.innerWidth,
-    );
-    expect(hasOverflow, `horizontal overflow on ${screen}`).toBe(false);
+  for (const viewport of [
+    { name: "portrait", width: 390, height: 844 },
+    { name: "landscape", width: 844, height: 390 },
+    { name: "minimum", width: 320, height: 568 },
+  ] as const) {
+    await page.setViewportSize(viewport);
+    for (const screen of [
+      "home-empty",
+      "home-populated",
+      "new",
+      "load-empty",
+      "load-populated",
+    ]) {
+      await page.goto(`/city-screens-test.html?screen=${screen}`);
+      await expect(page.locator("#city-screens-test")).toHaveAttribute(
+        "data-ready",
+        "true",
+      );
+      const hasOverflow = await page.evaluate(
+        () => document.documentElement.scrollWidth > window.innerWidth,
+      );
+      expect(
+        hasOverflow,
+        `horizontal overflow on ${screen} at ${viewport.name}`,
+      ).toBe(false);
+    }
   }
 });

@@ -50,28 +50,3 @@
   max-width: 180px;
   margin-left: auto;
 }
-
-@media (max-width: 640px) {
-  .terraform-tool-view {
-    min-width: 0;
-    width: 100%;
-    display: grid;
-    align-items: stretch;
-  }
-
-  .terraform-tool-view__group {
-    align-items: stretch;
-  }
-
-  .terraform-tool-view .ui-segmented-control {
-    width: 100%;
-  }
-
-  .terraform-tool-view .ui-segmented-control__button {
-    flex: 1 1 0;
-  }
-
-  .terraform-tool-view__actions {
-    margin-left: 0;
-  }
-}

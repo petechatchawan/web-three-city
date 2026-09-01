@@ -1,0 +1,317 @@
+/* Foundation-owned responsive bands. Feature styles must not define width/height breakpoints. */
+
+@media (max-width: 639px) {
+  :root {
+    --ui-layout-edge: var(--ui-space-2);
+    --ui-layout-surface-gap: var(--ui-space-2);
+  }
+
+  .home-screen-v1 {
+    align-items: end;
+    padding: calc(var(--ui-safe-top) + var(--ui-space-4))
+      calc(var(--ui-safe-right) + var(--ui-space-4))
+      calc(var(--ui-safe-bottom) + var(--ui-space-4))
+      calc(var(--ui-safe-left) + var(--ui-space-4));
+  }
+
+  .home-screen-v1__shell {
+    padding: var(--ui-space-4);
+  }
+
+  .home-screen-v1__actions > * {
+    flex: 1 1 160px;
+  }
+
+  .game-hud-pattern {
+    top: calc(var(--ui-safe-top) + var(--ui-space-2));
+    left: calc(var(--ui-safe-left) + var(--ui-space-2));
+    right: calc(var(--ui-safe-right) + var(--ui-space-2));
+    flex-wrap: nowrap;
+    gap: var(--ui-space-2);
+  }
+
+  .game-hud-pattern__identity {
+    min-width: 0;
+  }
+
+  .game-hud-pattern__metrics {
+    display: none;
+  }
+
+  .game-tool-dock {
+    left: calc(var(--ui-safe-left) + var(--ui-space-2));
+    right: calc(var(--ui-safe-right) + var(--ui-space-2));
+    bottom: calc(var(--ui-safe-bottom) + var(--ui-space-2));
+    width: auto;
+    transform: none;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+  }
+
+  .game-tool-dock .ui-tool-button {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .game-context-surface,
+  .game-inspector-surface {
+    top: auto;
+    left: calc(var(--ui-safe-left) + var(--ui-space-2));
+    right: calc(var(--ui-safe-right) + var(--ui-space-2));
+    bottom: calc(
+      var(--ui-safe-bottom) + var(--ui-control-min) + var(--ui-space-8)
+    );
+    width: auto;
+    max-width: none;
+    max-height: calc(
+      100dvh - var(--ui-safe-top) - var(--ui-safe-bottom) -
+        var(--ui-control-min) - var(--ui-space-8) - var(--ui-space-8)
+    );
+    transform: none;
+    overflow: hidden;
+  }
+
+  .game-context-surface[data-mode="compact"],
+  .game-context-surface[data-mode="expanded"],
+  .game-context-surface[data-mode="fullscreen"] {
+    width: auto;
+    max-width: none;
+  }
+
+  .game-context-surface__body,
+  .game-inspector-surface__body {
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+
+  .game-notification-host {
+    top: calc(var(--ui-safe-top) + var(--ui-space-2));
+    left: calc(var(--ui-safe-left) + var(--ui-space-2));
+    right: calc(var(--ui-safe-right) + var(--ui-space-2));
+    width: auto;
+  }
+
+  .game-debug-surface {
+    top: calc(var(--ui-safe-top) + var(--ui-space-2));
+    left: calc(var(--ui-safe-left) + var(--ui-space-2));
+    right: calc(var(--ui-safe-right) + var(--ui-space-2));
+    width: auto;
+    max-height: calc(
+      100dvh - var(--ui-safe-top) - var(--ui-safe-bottom) - var(--ui-space-4)
+    );
+  }
+
+  .new-city-screen-v1 {
+    position: relative;
+    height: 100dvh;
+    min-height: 100dvh;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .new-city-screen-v1__header {
+    position: absolute;
+    z-index: var(--ui-layer-hud);
+    top: calc(var(--ui-safe-top) + var(--ui-space-2));
+    left: calc(var(--ui-safe-left) + var(--ui-space-2));
+    right: calc(var(--ui-safe-right) + var(--ui-space-2));
+    margin: 0;
+    padding: var(--ui-space-2);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-md);
+    background: var(--ui-surface-glass);
+    backdrop-filter: blur(14px);
+  }
+
+  .new-city-screen-v1__header h1,
+  .new-city-screen-v1__header p {
+    display: none;
+  }
+
+  .new-city-layout {
+    position: absolute;
+    inset: 0;
+    display: block;
+  }
+
+  .new-city-layout__preview-panel {
+    position: absolute;
+    inset: 0;
+    display: block;
+  }
+
+  .new-city-terrain-preview {
+    position: absolute;
+    inset: 0;
+    min-height: 0;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .new-city-layout > .ui-card {
+    position: absolute;
+    z-index: var(--ui-layer-tool);
+    left: calc(var(--ui-safe-left) + var(--ui-space-2));
+    right: calc(var(--ui-safe-right) + var(--ui-space-2));
+    bottom: calc(var(--ui-safe-bottom) + var(--ui-space-2));
+    max-height: 52dvh;
+    overflow: auto;
+    overscroll-behavior: contain;
+    background: var(--ui-surface-panel);
+    backdrop-filter: blur(16px);
+  }
+
+  .new-city-preview-details:has(.new-city-preview-details__empty) {
+    display: none;
+  }
+
+  .new-city-preview-details:not(:has(.new-city-preview-details__empty)) {
+    position: absolute;
+    z-index: var(--ui-layer-world-overlay);
+    top: calc(var(--ui-safe-top) + var(--ui-control-min) + var(--ui-space-5));
+    left: calc(var(--ui-safe-left) + var(--ui-space-2));
+    right: calc(var(--ui-safe-right) + var(--ui-space-2));
+    max-height: 28dvh;
+    padding: var(--ui-space-3);
+    overflow: auto;
+    overscroll-behavior: contain;
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-md);
+    background: var(--ui-surface-glass);
+    backdrop-filter: blur(14px);
+  }
+
+  .load-city-screen {
+    height: 100dvh;
+    min-height: 100dvh;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+
+  .load-city-browser {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .load-city-browser__detail {
+    display: none;
+  }
+
+  .load-city-browser:has(
+      .load-city-browser__list .ui-button[aria-pressed="true"]
+    )
+    .load-city-browser__detail {
+    display: grid;
+    order: -1;
+  }
+
+  .terraform-tool-view {
+    min-width: 0;
+    width: 100%;
+    display: grid;
+    align-items: stretch;
+  }
+
+  .terraform-tool-view__group {
+    align-items: stretch;
+  }
+
+  .terraform-tool-view .ui-segmented-control {
+    width: 100%;
+  }
+
+  .terraform-tool-view .ui-segmented-control__button {
+    flex: 1 1 0;
+  }
+
+  .terraform-tool-view__actions {
+    margin-left: 0;
+  }
+
+  .city-screen__container {
+    width: min(calc(100% - var(--space-6)), 760px);
+    padding-top: var(--space-6);
+  }
+
+  .city-screen__actions,
+  .city-form__actions {
+    flex-direction: column;
+  }
+
+  .city-screen__actions > .ui-button,
+  .city-form__actions > .ui-button {
+    width: 100%;
+    flex-basis: auto;
+  }
+
+  .terraform-toolbar {
+    bottom: max(var(--space-3), var(--ui-safe-bottom));
+    width: calc(100% - var(--space-6));
+    max-height: 46dvh;
+    overflow: auto;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  :root {
+    --ui-layout-edge: var(--ui-space-3);
+    --ui-layout-surface-gap: var(--ui-space-3);
+  }
+
+  .game-context-surface[data-mode="compact"],
+  .game-context-surface[data-mode="expanded"] {
+    width: min(760px, calc(100vw - var(--ui-space-8)));
+  }
+
+  .game-inspector-surface {
+    width: min(320px, calc(100vw - var(--ui-space-8)));
+  }
+
+  .load-city-browser {
+    grid-template-columns: minmax(260px, 0.8fr) minmax(320px, 1.2fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --ui-layout-edge: var(--ui-space-4);
+    --ui-layout-surface-gap: var(--ui-space-4);
+  }
+
+  .load-city-browser {
+    grid-template-columns: minmax(300px, 0.72fr) minmax(420px, 1.28fr);
+  }
+}
+
+@media (max-height: 599px) {
+  .game-hud-pattern {
+    top: calc(var(--ui-safe-top) + var(--ui-space-2));
+  }
+
+  .game-tool-dock {
+    bottom: calc(var(--ui-safe-bottom) + var(--ui-space-2));
+  }
+
+  .game-context-surface,
+  .game-inspector-surface,
+  .game-debug-surface {
+    max-height: calc(
+      100dvh - var(--ui-safe-top) - var(--ui-safe-bottom) -
+        var(--ui-control-min) - var(--ui-space-6)
+    );
+  }
+
+  .game-context-surface__body,
+  .game-inspector-surface__body,
+  .game-debug-panel {
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+
+  .new-city-layout__preview-panel {
+    grid-template-rows: minmax(180px, 46dvh) auto;
+  }
+}

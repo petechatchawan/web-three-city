@@ -63,12 +63,3 @@
   line-height: 1.4;
   pointer-events: none;
 }
-
-@media (max-width: 620px) {
-  .game-debug-surface {
-    top: calc(var(--ui-safe-top) + var(--ui-space-3));
-    left: calc(var(--ui-safe-left) + var(--ui-space-3));
-    width: min(320px, calc(100vw - var(--ui-space-6)));
-    max-height: calc(100dvh - var(--ui-space-6));
-  }
-}

@@ -20,6 +20,7 @@ test("production HUD keeps only city identity and global menu entry", async ({
 test("Game Menu owns save, debug and exit while save feedback uses notifications", async ({
   page,
 }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/live-city-test.html");
   const mount = page.locator("#live-city-test");
   await expect(mount).toHaveAttribute("data-live-runtime", "ready");
@@ -31,6 +32,13 @@ test("Game Menu owns save, debug and exit while save feedback uses notifications
   await expect(menu.getByRole("button", { name: "Save City" })).toBeVisible();
   await expect(menu.getByRole("button", { name: "Debug" })).toBeVisible();
   await expect(menu.getByRole("button", { name: "Exit City" })).toBeVisible();
+  expect(
+    await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth <= window.innerWidth &&
+        document.documentElement.scrollHeight <= window.innerHeight,
+    ),
+  ).toBe(true);
 
   await menu.getByRole("button", { name: "Save City" }).click();
   await expect(mount).toHaveAttribute("data-saves", "1");

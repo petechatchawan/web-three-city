@@ -105,8 +105,9 @@ test("Terraform edits persist through unchanged CitySaveV1 Terrain authority and
   await expect(app).toHaveAttribute("data-screen", "home");
   await page.getByRole("button", { name: "Load City" }).click();
   await page
-    .getByRole("button", { name: "Load Terraform Persistence" })
+    .getByRole("button", { name: "Select Terraform Persistence" })
     .click();
+  await page.getByRole("button", { name: "Load City", exact: true }).click();
   await expect(app).toHaveAttribute("data-live-runtime", "ready");
   await expect(game).toHaveAttribute(
     "data-terrain-revision",

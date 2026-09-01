@@ -183,7 +183,10 @@ test("cycles Terraform activation, edits, Load and Resume without leaking lifecy
     if (cycle % 2 === 0) {
       await page.getByRole("button", { name: "Load City" }).click();
       await page
-        .getByRole("button", { name: "Load Terraform Soak City" })
+        .getByRole("button", { name: "Select Terraform Soak City" })
+        .click();
+      await page
+        .getByRole("button", { name: "Load City", exact: true })
         .click();
     } else {
       await page

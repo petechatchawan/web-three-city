@@ -178,7 +178,10 @@ test("cycles New, Load and Resume without accumulating presentation resources", 
       await page.getByRole("button", { name: "Load City" }).click();
       await expect(app).toHaveAttribute("data-screen", "load-city");
       await page
-        .getByRole("button", { name: "Load Terrain Soak City" })
+        .getByRole("button", { name: "Select Terrain Soak City" })
+        .click();
+      await page
+        .getByRole("button", { name: "Load City", exact: true })
         .click();
     } else {
       await page

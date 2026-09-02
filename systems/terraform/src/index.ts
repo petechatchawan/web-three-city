@@ -22,4 +22,8 @@ export {
   type FlattenReferenceResult,
   type SelectFlattenReferenceInput,
 } from "./domain/flatten-reference";
-export { strengthLevels, type TerraformStrength } from "./domain/strength";
+export {
+  strengthDeltaMeters,
+  strengthLevels,
+  type TerraformStrength,
+} from "./domain/strength";

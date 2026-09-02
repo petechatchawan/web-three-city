@@ -7,6 +7,7 @@ import { createSegmentedControl } from "../../components/segmented-control";
 import { createStatusIndicator } from "../../components/status-indicator";
 import { createButton } from "../../primitives/button";
 import type { StatefulUiHandle } from "../../primitives/types";
+import { TERRAFORM_STRENGTH_OPTIONS } from "./terraform-strength-options";
 import type { TerraformToolViewState } from "./terraform-tool-view-state";
 
 export type TerraformToolViewHandle = StatefulUiHandle<TerraformToolViewState>;
@@ -56,19 +57,7 @@ export function createTerraformToolView(input: {
   });
   const strength = createSegmentedControl<TerraformStrength>({
     ariaLabel: "Terrain strength",
-    items: [
-      { value: "fine", label: "Fine 0.25m", testId: "terraform-strength-fine" },
-      {
-        value: "normal",
-        label: "Normal 1m",
-        testId: "terraform-strength-normal",
-      },
-      {
-        value: "strong",
-        label: "Strong 4m",
-        testId: "terraform-strength-strong",
-      },
-    ],
+    items: TERRAFORM_STRENGTH_OPTIONS,
     onChange: input.onStrength,
   });
 

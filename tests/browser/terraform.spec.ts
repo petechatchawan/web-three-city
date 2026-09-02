@@ -30,6 +30,7 @@ test("Terraform mouse tap commits once while navigation gestures never commit", 
   const mount = page.locator("#live-city-test");
   const game = page.getByTestId("game-screen");
   await expect(mount).toHaveAttribute("data-live-runtime", "ready");
+  await page.getByRole("button", { name: "Environment", exact: true }).click();
   const terrainTool = page.getByRole("button", {
     name: "Terrain",
     exact: true,
@@ -38,6 +39,11 @@ test("Terraform mouse tap commits once while navigation gestures never commit", 
   await expect(game).toHaveAttribute("data-active-tool", "terrain");
   await expect(game).toHaveAttribute("data-terraform-active", "true");
   await expect(page.getByTestId("game-context-surface")).toBeVisible();
+  for (const label of ["Fine 0.25m", "Normal 1m", "Strong 4m"]) {
+    await expect(
+      page.getByRole("button", { name: label, exact: true }),
+    ).toBeVisible();
+  }
   await expect(
     page.getByRole("button", { name: "Raise", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
@@ -114,6 +120,7 @@ test("Flatten first tap selects a canonical level without mutating, then Undo re
     "data-live-runtime",
     "ready",
   );
+  await page.getByRole("button", { name: "Environment", exact: true }).click();
   await page.getByRole("button", { name: "Terrain", exact: true }).click();
   const point = await validTerraformPoint(page);
   await page.getByRole("button", { name: "Flatten", exact: true }).click();

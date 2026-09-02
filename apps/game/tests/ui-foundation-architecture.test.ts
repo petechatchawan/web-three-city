@@ -73,6 +73,24 @@ describe("Game UI Foundation architecture", () => {
     expect(nonImportLines).toEqual([]);
   });
 
+  test("Terraform strength labels are presented from canonical domain metadata", () => {
+    const view = readFileSync(
+      resolve(APP_ROOT, "ui/tools/terraform/create-terraform-tool-view.ts"),
+      "utf8",
+    );
+    expect(view).not.toMatch(/Fine 0\.25m|Normal 1m|Strong 4m/);
+
+    const optionsPath = resolve(
+      APP_ROOT,
+      "ui/tools/terraform/terraform-strength-options.ts",
+    );
+    expect(existsSync(optionsPath)).toBe(true);
+    if (!existsSync(optionsPath)) return;
+    const options = readFileSync(optionsPath, "utf8");
+    expect(options).toContain("strengthDeltaMeters");
+    expect(options).not.toMatch(/0\.25m|1m|4m/);
+  });
+
   test("feature tools do not redefine generic button styling", () => {
     const files = filesUnder("ui/tools").filter((path) =>
       path.endsWith(".css"),

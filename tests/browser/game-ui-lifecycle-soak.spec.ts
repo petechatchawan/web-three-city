@@ -190,7 +190,7 @@ test("cycles lifecycle screens, preview, game UI and Terrain without accumulatin
   });
   await gameMenuAction(page, "Save City");
   await expect(page.getByText("City saved", { exact: true })).toBeVisible();
-  await gameMenuAction(page, "Exit City");
+  await gameMenuAction(page, "Exit to Main Menu");
   await expect(app).toHaveAttribute("data-screen", "home");
 
   const homeListenerBaseline = (await diagnostics(page)).activeTrackedListeners;
@@ -264,7 +264,7 @@ test("cycles lifecycle screens, preview, game UI and Terrain without accumulatin
     await expect(page.getByRole("dialog", { name: "Game menu" })).toBeHidden();
     await expect(page.locator("dialog.ui-dialog")).toHaveCount(1);
 
-    await gameMenuAction(page, "Exit City");
+    await gameMenuAction(page, "Exit to Main Menu");
     await expect(app).toHaveAttribute("data-screen", "home");
     await expect(page.locator("canvas.app-canvas")).toHaveCount(0);
     await expect(page.locator(".game-tool-dock")).toHaveCount(0);

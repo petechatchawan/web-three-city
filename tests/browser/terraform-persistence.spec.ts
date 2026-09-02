@@ -84,6 +84,7 @@ test("Terraform edits persist through unchanged CitySaveV1 Terrain authority and
   const before = await savedTerrain(page);
   await gameMenuAction(page, "Resume");
 
+  await page.getByRole("button", { name: "Environment", exact: true }).click();
   await page.getByRole("button", { name: "Terrain", exact: true }).click();
   const point = await validTerraformPoint(page);
   await page.mouse.click(point.x, point.y);
@@ -101,7 +102,7 @@ test("Terraform edits persist through unchanged CitySaveV1 Terrain authority and
   expect(postEdit.hasTerrainSnapshot).toBe(true);
   expect(postEdit.hasTerraformSnapshot).toBe(false);
 
-  await gameMenuAction(page, "Exit City");
+  await gameMenuAction(page, "Exit to Main Menu");
   await expect(app).toHaveAttribute("data-screen", "home");
   await page.getByRole("button", { name: "Load City" }).click();
   await page

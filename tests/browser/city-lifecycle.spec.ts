@@ -35,7 +35,7 @@ test("runs new save load and resume through the production city lifecycle", asyn
 
   await gameMenuAction(page, "Save City");
   await expect(page.getByText("City saved", { exact: true })).toBeVisible();
-  await gameMenuAction(page, "Exit City");
+  await gameMenuAction(page, "Exit to Main Menu");
 
   await expect(app).toHaveAttribute("data-screen", "home");
   await expect(
@@ -52,7 +52,7 @@ test("runs new save load and resume through the production city lifecycle", asyn
   await page.getByRole("button", { name: "Load City", exact: true }).click();
   await expect(app).toHaveAttribute("data-screen", "live-city");
   await expect(app).toHaveAttribute("data-live-runtime", "ready");
-  await gameMenuAction(page, "Exit City");
+  await gameMenuAction(page, "Exit to Main Menu");
 
   await expect(app).toHaveAttribute("data-screen", "home");
   await page.getByRole("button", { name: "Resume Production City" }).click();
@@ -88,12 +88,12 @@ test("repeats the same seed fingerprint and resumes the most recently played cit
   }
 
   const firstFingerprint = await createNamedCity("Repeat A");
-  await gameMenuAction(page, "Exit City");
+  await gameMenuAction(page, "Exit to Main Menu");
   await expect(app).toHaveAttribute("data-screen", "home");
 
   const secondFingerprint = await createNamedCity("Repeat B");
   expect(secondFingerprint).toBe(firstFingerprint);
-  await gameMenuAction(page, "Exit City");
+  await gameMenuAction(page, "Exit to Main Menu");
   await expect(app).toHaveAttribute("data-screen", "home");
 
   await expect(

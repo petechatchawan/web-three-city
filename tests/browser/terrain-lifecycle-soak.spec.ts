@@ -169,7 +169,7 @@ test("cycles New, Load and Resume without accumulating presentation resources", 
   await expect(app).toHaveAttribute("data-live-runtime", "ready");
   await gameMenuAction(page, "Save City");
   await expect(page.getByText("City saved", { exact: true })).toBeVisible();
-  await gameMenuAction(page, "Exit City");
+  await gameMenuAction(page, "Exit to Main Menu");
   await expect(app).toHaveAttribute("data-screen", "home");
 
   let liveListenerCount: number | undefined;
@@ -203,7 +203,7 @@ test("cycles New, Load and Resume without accumulating presentation resources", 
       expect(liveDiagnostics.activeTrackedListeners).toBe(liveListenerCount);
     }
 
-    await gameMenuAction(page, "Exit City");
+    await gameMenuAction(page, "Exit to Main Menu");
     await expect(app).toHaveAttribute("data-screen", "home");
     await expect(page.locator("canvas.app-canvas")).toHaveCount(0);
     await expect

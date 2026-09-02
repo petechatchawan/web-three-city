@@ -66,7 +66,7 @@ test("Terraform disposal removes tool-view click listeners", async ({
     ),
   ).toBeGreaterThan(0);
 
-  await gameMenuAction(page, "Exit City");
+  await gameMenuAction(page, "Exit to Main Menu");
   await expect(mount).toHaveAttribute("data-live-runtime", "disposed");
   expect(
     await page.evaluate(() =>

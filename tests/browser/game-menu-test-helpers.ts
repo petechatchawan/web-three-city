@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 
-export type GameMenuAction = "Resume" | "Save City" | "Debug" | "Exit City";
+export type GameMenuAction = "Resume" | "Save City" | "Exit to Main Menu";
 
 export async function gameMenuAction(
   page: Page,

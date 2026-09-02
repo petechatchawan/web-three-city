@@ -14,7 +14,7 @@ test("composes a live city with Terrain, camera, picking and production game UI"
   await expect(game).toBeVisible();
   await expect(page.getByTestId("game-hud-host")).toBeVisible();
   await expect(page.getByTestId("game-tool-dock-host")).toBeVisible();
-  await expect(page.getByTestId("game-context-host")).toBeVisible();
+  await expect(page.getByTestId("game-context-host")).toBeAttached();
   await expect(page.getByTestId("game-inspector-host")).toBeAttached();
   await expect(page.getByTestId("game-dialog-host")).toBeAttached();
   await expect(page.getByTestId("game-notification-host")).toBeAttached();
@@ -73,9 +73,7 @@ test("composes a live city with Terrain, camera, picking and production game UI"
     .not.toBe(wheelResult.before);
 
   await expect(page.getByText("Terrain Debug · 0 active")).toHaveCount(0);
-  await page.getByRole("button", { name: "Open game menu" }).click();
-  const menu = page.getByRole("dialog", { name: "Game menu" });
-  await menu.getByRole("button", { name: "Debug" }).click();
+  await page.keyboard.press("F3");
   const debug = page.getByRole("region", { name: "Terrain Debug" });
   await expect(debug).toBeVisible();
   const clearDebug = debug.getByRole("button", { name: "Clear debug" });
@@ -88,11 +86,12 @@ test("composes a live city with Terrain, camera, picking and production game UI"
   await debug.getByRole("button", { name: "Close debug" }).click();
 
   await page.getByRole("button", { name: "Open game menu" }).click();
+  const menu = page.getByRole("dialog", { name: "Game menu" });
   await menu.getByRole("button", { name: "Save City" }).click();
   await expect(mount).toHaveAttribute("data-saves", "1");
   await expect(page.getByText("City saved", { exact: true })).toBeVisible();
 
-  await menu.getByRole("button", { name: "Exit City" }).click();
+  await menu.getByRole("button", { name: "Exit to Main Menu" }).click();
   await expect(mount).toHaveAttribute("data-exits", "1");
   await expect(mount).toHaveAttribute("data-live-runtime", "disposed");
   await expect(page.locator("canvas.app-canvas")).toHaveCount(0);

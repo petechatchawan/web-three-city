@@ -1,11 +1,49 @@
-.game-tool-dock {
+.game-tool-stack {
   position: absolute;
   left: 50%;
   bottom: calc(var(--ui-safe-bottom) + var(--ui-space-3));
+  width: fit-content;
+  max-width: calc(
+    100vw - var(--ui-safe-left) - var(--ui-safe-right) - (2 * var(--ui-space-3))
+  );
+  max-height: calc(
+    100dvh - var(--ui-safe-top) - var(--ui-safe-bottom) - var(--ui-space-4)
+  );
+  display: grid;
+  grid-template-rows: minmax(0, auto) auto;
+  justify-items: center;
+  gap: var(--ui-space-2);
   transform: translateX(-50%);
-  pointer-events: auto;
-  display: inline-flex;
+  pointer-events: none;
+}
+
+.game-tool-stack__context-host,
+.game-tool-stack__dock-host {
+  min-width: 0;
+  pointer-events: none;
+}
+
+.game-tool-stack__context-host {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.game-tool-dock {
+  width: fit-content;
+  max-width: 100%;
+  display: grid;
+  justify-items: center;
+  gap: var(--ui-space-2);
+  pointer-events: none;
+}
+
+.game-tool-dock__tool-tray,
+.game-tool-dock__category-dock {
+  min-width: 0;
+  max-width: 100%;
+  display: flex;
   align-items: center;
+  justify-content: center;
   gap: var(--ui-space-1);
   padding: var(--ui-space-1);
   border: 1px solid var(--ui-border);
@@ -13,33 +51,16 @@
   background: var(--ui-surface-glass);
   box-shadow: var(--ui-shadow-sm);
   backdrop-filter: blur(14px);
+  pointer-events: auto;
 }
 
-.game-tool-dock__category {
-  min-width: 0;
-  display: grid;
-  gap: 2px;
+.game-tool-dock__tool-tray[hidden] {
+  display: none;
 }
 
-.game-tool-dock__category + .game-tool-dock__category {
-  margin-left: var(--ui-space-1);
-  padding-left: var(--ui-space-2);
-  border-left: 1px solid var(--ui-border);
-}
-
-.game-tool-dock__category-label {
-  padding-inline: var(--ui-space-1);
-  color: var(--ui-muted-fg);
-  font-size: 10px;
-  line-height: 1.2;
-  font-weight: 650;
-}
-
-.game-tool-dock__tools {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--ui-space-1);
+.game-tool-dock__category-button[aria-expanded="true"] {
+  border-color: var(--ui-accent);
+  background: color-mix(in srgb, var(--ui-accent) 14%, var(--ui-surface-glass));
 }
 
 .game-context-surface,
@@ -57,12 +78,9 @@
 }
 
 .game-context-surface {
-  position: absolute;
-  left: 50%;
-  bottom: calc(
-    var(--ui-safe-bottom) + var(--ui-control-min) + var(--ui-space-8)
-  );
-  transform: translateX(-50%);
+  position: static;
+  max-height: 100%;
+  transform: none;
 }
 
 .game-context-surface[hidden],

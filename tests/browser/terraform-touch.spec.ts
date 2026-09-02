@@ -34,17 +34,28 @@ test("single-touch tap commits once and two-touch takeover cancels Terraform com
     const mount = page.locator("#live-city-test");
     const game = page.getByTestId("game-screen");
     await expect(mount).toHaveAttribute("data-live-runtime", "ready");
+    await page
+      .getByRole("button", { name: "Environment", exact: true })
+      .click();
     await page.getByRole("button", { name: "Terrain", exact: true }).click();
-    const dockBox = await page.locator(".game-tool-dock").boundingBox();
+
     const contextBox = await page
       .getByTestId("game-context-surface")
       .boundingBox();
-    if (dockBox === null || contextBox === null) {
+    const trayBox = await page
+      .locator(".game-tool-dock__tool-tray")
+      .boundingBox();
+    const categoriesBox = await page
+      .locator(".game-tool-dock__category-dock")
+      .boundingBox();
+    if (contextBox === null || trayBox === null || categoriesBox === null) {
       throw new Error("Compact Terraform surfaces have no bounding box.");
     }
-    expect(dockBox.width).toBeGreaterThanOrEqual(366);
     expect(contextBox.width).toBeGreaterThanOrEqual(366);
-    expect(contextBox.y + contextBox.height).toBeLessThan(dockBox.y);
+    expect(trayBox.width).toBeGreaterThanOrEqual(366);
+    expect(categoriesBox.width).toBeGreaterThanOrEqual(366);
+    expect(contextBox.y + contextBox.height).toBeLessThanOrEqual(trayBox.y - 8);
+    expect(trayBox.y + trayBox.height).toBeLessThanOrEqual(categoriesBox.y - 8);
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= window.innerWidth,

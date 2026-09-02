@@ -22,8 +22,7 @@
   z-index: var(--ui-layer-hud);
 }
 
-.game-shell__tool-dock-host,
-.game-shell__context-host {
+.game-shell__tool-stack-host {
   z-index: var(--ui-layer-tool);
 }
 

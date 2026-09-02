@@ -30,6 +30,11 @@ async function expectInsideViewport(
   expect(box.y + box.height).toBeLessThanOrEqual(viewport.height + 0.5);
 }
 
+async function activateTerrain(page: Page): Promise<void> {
+  await page.getByRole("button", { name: "Environment", exact: true }).click();
+  await page.getByRole("button", { name: "Terrain", exact: true }).click();
+}
+
 for (const profile of PROFILES) {
   test(`${profile.name} keeps lifecycle screens and game shell inside the viewport`, async ({
     page,
@@ -61,7 +66,7 @@ for (const profile of PROFILES) {
     ).toBe(true);
     await expectInsideViewport(page, ".game-tool-dock");
 
-    await page.getByRole("button", { name: "Terrain", exact: true }).click();
+    await activateTerrain(page);
     await expect(page.getByTestId("game-screen")).toHaveAttribute(
       "data-active-tool",
       "terrain",
@@ -71,7 +76,7 @@ for (const profile of PROFILES) {
   });
 }
 
-test("Compact layout uses one full-width tool zone and a non-overlapping Context bottom sheet", async ({
+test("Compact layout stacks Context, Tool Tray and Category Dock without overlap", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -86,17 +91,24 @@ test("Compact layout uses one full-width tool zone and a non-overlapping Context
   if (dockBox === null) throw new Error("Tool Dock has no bounding box.");
   expect(dockBox.width).toBeGreaterThanOrEqual(366);
 
-  await page.getByRole("button", { name: "Terrain", exact: true }).click();
-  const context = page.getByTestId("game-context-surface");
-  const contextBox = await context.boundingBox();
-  const activeDockBox = await dock.boundingBox();
-  if (contextBox === null || activeDockBox === null) {
+  await activateTerrain(page);
+  const contextBox = await page
+    .getByTestId("game-context-surface")
+    .boundingBox();
+  const trayBox = await page
+    .locator(".game-tool-dock__tool-tray")
+    .boundingBox();
+  const categoriesBox = await page
+    .locator(".game-tool-dock__category-dock")
+    .boundingBox();
+  if (contextBox === null || trayBox === null || categoriesBox === null) {
     throw new Error("Compact game surfaces have no bounding box.");
   }
   expect(contextBox.width).toBeGreaterThanOrEqual(366);
-  expect(contextBox.y + contextBox.height).toBeLessThanOrEqual(
-    activeDockBox.y - 8,
-  );
+  expect(trayBox.width).toBeGreaterThanOrEqual(366);
+  expect(categoriesBox.width).toBeGreaterThanOrEqual(366);
+  expect(contextBox.y + contextBox.height).toBeLessThanOrEqual(trayBox.y - 8);
+  expect(trayBox.y + trayBox.height).toBeLessThanOrEqual(categoriesBox.y - 8);
   await expectNoHorizontalOverflow(page);
 });
 
@@ -180,7 +192,7 @@ test("orientation changes preserve the active Terrain tool and responsive surfac
     "data-live-runtime",
     "ready",
   );
-  await page.getByRole("button", { name: "Terrain", exact: true }).click();
+  await activateTerrain(page);
   await expect(game).toHaveAttribute("data-active-tool", "terrain");
 
   for (const viewport of [

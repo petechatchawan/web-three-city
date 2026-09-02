@@ -26,7 +26,6 @@
     top: calc(var(--ui-safe-top) + var(--ui-space-2));
     left: calc(var(--ui-safe-left) + var(--ui-space-2));
     right: calc(var(--ui-safe-right) + var(--ui-space-2));
-    flex-wrap: nowrap;
     gap: var(--ui-space-2);
   }
 
@@ -38,23 +37,42 @@
     display: none;
   }
 
-  .game-tool-dock {
+  .game-tool-stack {
     left: calc(var(--ui-safe-left) + var(--ui-space-2));
     right: calc(var(--ui-safe-right) + var(--ui-space-2));
     bottom: calc(var(--ui-safe-bottom) + var(--ui-space-2));
     width: auto;
+    max-width: none;
     transform: none;
+    justify-items: stretch;
+  }
+
+  .game-tool-dock {
+    width: 100%;
+    justify-items: stretch;
+  }
+
+  .game-tool-dock__tool-tray,
+  .game-tool-dock__category-dock {
+    width: 100%;
     display: grid;
     grid-auto-flow: column;
     grid-auto-columns: minmax(0, 1fr);
   }
 
-  .game-tool-dock .ui-tool-button {
+  .game-tool-dock .ui-tool-button,
+  .game-tool-dock__category-button {
     width: 100%;
     min-width: 0;
   }
 
-  .game-context-surface,
+  .game-context-surface {
+    width: 100%;
+    max-width: none;
+    max-height: 100%;
+    overflow: hidden;
+  }
+
   .game-inspector-surface {
     top: auto;
     left: calc(var(--ui-safe-left) + var(--ui-space-2));
@@ -283,11 +301,10 @@
     top: calc(var(--ui-safe-top) + var(--ui-space-2));
   }
 
-  .game-tool-dock {
+  .game-tool-stack {
     bottom: calc(var(--ui-safe-bottom) + var(--ui-space-2));
   }
 
-  .game-context-surface,
   .game-inspector-surface,
   .game-debug-surface {
     max-height: calc(

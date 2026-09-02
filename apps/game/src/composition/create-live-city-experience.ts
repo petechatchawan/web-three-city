@@ -39,6 +39,11 @@ import {
   type GameToolCoordinator,
 } from "./game/create-game-tool-coordinator";
 import {
+  createGameToolNavigationController,
+  type GameToolNavigationController,
+  type GameToolNavigationState,
+} from "./game/create-game-tool-navigation-controller";
+import {
   createGameUiCoordinator,
   type GameUiCoordinator,
 } from "./game/create-game-ui-coordinator";
@@ -98,6 +103,7 @@ export function createLiveCityExperience(input: {
   let liveProjection: TerrainThreeProjection | undefined;
   let inputController: CityInputController | undefined;
   let toolCoordinator: GameToolCoordinator | undefined;
+  let toolNavigation: GameToolNavigationController | undefined;
   let interactionRouter: GameInteractionRouter | undefined;
   let commandRouter: GameCommandRouter | undefined;
   let terraformTool: TerraformGameTool | undefined;
@@ -106,6 +112,7 @@ export function createLiveCityExperience(input: {
   let cameraController: ReturnType<typeof createCityCamera> | undefined;
   let pickStatus = "";
   let saving = false;
+  let toolNavigationState: GameToolNavigationState = Object.freeze({});
 
   const screen = createGameShellView();
   let screenBusy = false;
@@ -235,6 +242,9 @@ export function createLiveCityExperience(input: {
           availability: terrain.availability(),
         },
       ],
+      ...(toolNavigationState.expandedCategoryId === undefined
+        ? {}
+        : { expandedCategoryId: toolNavigationState.expandedCategoryId }),
       ...(activeToolId === undefined ? {} : { activeToolId }),
     });
     if (active === undefined) {
@@ -282,11 +292,8 @@ export function createLiveCityExperience(input: {
     debugHost: screen.debugHost,
     worldUnderlay: screen.viewport,
     debugContent: debugPanel.element,
-    hasActiveTool: () => toolCoordinator?.activeTool() !== undefined,
-    deactivateActiveTool: () => {
-      toolCoordinator?.deactivate();
-      syncToolUi();
-    },
+    dismissToolNavigation: () =>
+      toolNavigation?.dismissToolNavigation() ?? false,
     onSave: () => void save(),
     onExit: input.onExit,
   });
@@ -349,16 +356,25 @@ export function createLiveCityExperience(input: {
     );
 
     toolCoordinator = createGameToolCoordinator([terraformTool]);
-    toolDock = createToolDock({
-      onToolPress: (toolId) => {
-        toolCoordinator?.toggle(toolId);
+    toolNavigation = createGameToolNavigationController({
+      tools: [terraformTool],
+      toolCoordinator,
+      onStateChange: (state) => {
+        toolNavigationState = state;
         syncToolUi();
+      },
+    });
+    toolDock = createToolDock({
+      onCategoryPress: (categoryId) => {
+        toolNavigation?.pressCategory(categoryId);
+      },
+      onToolPress: (toolId) => {
+        toolNavigation?.pressTool(toolId);
       },
     });
     contextSurface = createContextSurface({
       onDismiss: () => {
-        toolCoordinator?.deactivate();
-        syncToolUi();
+        toolNavigation?.dismissToolNavigation();
       },
     });
     screen.toolDockHost.append(toolDock.element);
@@ -372,14 +388,16 @@ export function createLiveCityExperience(input: {
     });
     commandRouter = createGameCommandRouter({
       toolShortcuts: [{ toolId: "terrain", key: "t" }],
+      commandShortcuts: [{ key: "F3", command: { type: "open-debug" } }],
       onCommand: (command) => {
         if (command.type === "toggle-tool") {
-          toolCoordinator?.toggle(command.toolId);
-          syncToolUi();
+          toolNavigation?.toggleToolShortcut(command.toolId);
         } else if (command.type === "dismiss-top-layer") {
           gameUi?.dismissTopLayer();
         } else if (command.type === "open-game-menu") {
           gameUi?.openGameMenu();
+        } else if (command.type === "open-debug") {
+          gameUi?.openDebug();
         } else if (command.type === "save-city") {
           void save();
         }
@@ -417,6 +435,7 @@ export function createLiveCityExperience(input: {
       commandRouter?.dispose();
       inputController?.dispose();
       interactionRouter?.dispose();
+      toolNavigation?.dispose();
       toolCoordinator?.dispose();
       contextSurface?.dispose();
       toolDock?.dispose();

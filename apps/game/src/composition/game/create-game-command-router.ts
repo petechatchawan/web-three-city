@@ -2,6 +2,7 @@ export type GameUiCommand =
   | { readonly type: "toggle-tool"; readonly toolId: string }
   | { readonly type: "dismiss-top-layer" }
   | { readonly type: "open-game-menu" }
+  | { readonly type: "open-debug" }
   | { readonly type: "save-city" };
 
 interface KeyboardTargetLike {
@@ -40,6 +41,10 @@ export function createGameCommandRouter(input: {
     readonly toolId: string;
     readonly key: string;
   }[];
+  readonly commandShortcuts?: readonly {
+    readonly key: string;
+    readonly command: GameUiCommand;
+  }[];
   readonly onCommand: (command: GameUiCommand) => void;
 }): GameCommandRouter {
   const keyboardTarget =
@@ -47,10 +52,16 @@ export function createGameCommandRouter(input: {
     (typeof window === "undefined"
       ? undefined
       : (window as KeyboardTargetLike));
-  const shortcuts = new Map(
+  const toolShortcuts = new Map(
     input.toolShortcuts.map((shortcut) => [
       shortcut.key.toLowerCase(),
       shortcut.toolId,
+    ]),
+  );
+  const commandShortcuts = new Map(
+    (input.commandShortcuts ?? []).map((shortcut) => [
+      shortcut.key.toLowerCase(),
+      shortcut.command,
     ]),
   );
   let disposed = false;
@@ -69,7 +80,16 @@ export function createGameCommandRouter(input: {
       input.onCommand({ type: "dismiss-top-layer" });
       return;
     }
-    const toolId = shortcuts.get(event.key.toLowerCase());
+
+    const shortcutKey = event.key.toLowerCase();
+    const command = commandShortcuts.get(shortcutKey);
+    if (command !== undefined) {
+      event.preventDefault();
+      input.onCommand(command);
+      return;
+    }
+
+    const toolId = toolShortcuts.get(shortcutKey);
     if (toolId === undefined) return;
     event.preventDefault();
     input.onCommand({ type: "toggle-tool", toolId });

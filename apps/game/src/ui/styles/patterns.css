@@ -15,6 +15,33 @@
   backdrop-filter: blur(14px);
 }
 
+.game-tool-dock__category {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.game-tool-dock__category + .game-tool-dock__category {
+  margin-left: var(--ui-space-1);
+  padding-left: var(--ui-space-2);
+  border-left: 1px solid var(--ui-border);
+}
+
+.game-tool-dock__category-label {
+  padding-inline: var(--ui-space-1);
+  color: var(--ui-muted-fg);
+  font-size: 10px;
+  line-height: 1.2;
+  font-weight: 650;
+}
+
+.game-tool-dock__tools {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--ui-space-1);
+}
+
 .game-context-surface,
 .game-inspector-surface {
   pointer-events: auto;
@@ -33,7 +60,7 @@
   position: absolute;
   left: 50%;
   bottom: calc(
-    var(--ui-safe-bottom) + var(--ui-control-min) + var(--ui-space-6)
+    var(--ui-safe-bottom) + var(--ui-control-min) + var(--ui-space-8)
   );
   transform: translateX(-50%);
 }
@@ -121,31 +148,65 @@
   top: calc(var(--ui-safe-top) + var(--ui-space-4));
   left: calc(var(--ui-safe-left) + var(--ui-space-4));
   right: calc(var(--ui-safe-right) + var(--ui-space-4));
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
   gap: var(--ui-space-3);
   pointer-events: none;
 }
 
 .game-hud-pattern__identity,
+.game-hud-pattern__center,
 .game-hud-pattern__metrics,
+.game-hud-pattern__simulation-controls,
 .game-hud-pattern__actions {
   display: flex;
   align-items: center;
   gap: var(--ui-space-2);
-  pointer-events: auto;
 }
 
 .game-hud-pattern__identity,
 .game-hud-pattern__metrics,
+.game-hud-pattern__simulation-controls,
 .game-hud-pattern__actions {
+  pointer-events: auto;
   min-height: var(--ui-control-min);
   padding: var(--ui-space-1) var(--ui-space-2);
   border: 1px solid var(--ui-border);
   border-radius: var(--ui-radius-md);
   background: var(--ui-surface-glass);
   backdrop-filter: blur(14px);
+}
+
+.game-hud-pattern__center[hidden],
+.game-hud-pattern__metrics[hidden],
+.game-hud-pattern__simulation-controls[hidden] {
+  display: none;
+}
+
+.game-hud-pattern__identity {
+  justify-self: start;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.game-hud-pattern__center {
+  justify-self: center;
+}
+
+.game-hud-pattern__actions {
+  justify-self: end;
+}
+
+.game-hud-pattern__city-label {
+  margin: 0;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.2;
+  font-weight: 650;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .game-menu__content {

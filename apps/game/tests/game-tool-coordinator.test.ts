@@ -17,6 +17,7 @@ function fakeTool(
       label: id.toUpperCase(),
       icon: "terrain",
       order: id.charCodeAt(0),
+      category: { id: "test", label: "Test", order: 0 },
     },
     availability: () => currentAvailability,
     activate: () => events.push(`${id}:activate`),

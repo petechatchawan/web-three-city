@@ -252,6 +252,7 @@ export function createTerraformGameTool(input: {
       icon: "terrain",
       shortcut: "T",
       order: 10,
+      category: { id: "environment", label: "Environment", order: 20 },
     },
     availability: () => ({ status: "available" }),
     view,

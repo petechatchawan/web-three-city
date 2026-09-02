@@ -1,13 +1,44 @@
 import { expect, test } from "@playwright/test";
 
-test("production HUD keeps only city identity and global menu entry", async ({
+test("production HUD keeps only city identity, categories and global menu entry", async ({
   page,
 }) => {
   await page.goto("/live-city-test.html");
   const mount = page.locator("#live-city-test");
   await expect(mount).toHaveAttribute("data-live-runtime", "ready");
 
-  await expect(page.getByRole("heading", { name: "Live City" })).toBeVisible();
+  const hud = page.locator(".game-hud-pattern");
+  const cityIdentity = page.getByRole("heading", { name: "Live City" });
+  await expect(cityIdentity).toBeVisible();
+  await expect(hud).toHaveAttribute("data-density", "compact");
+  expect(
+    await cityIdentity.evaluate((element) =>
+      Number.parseFloat(getComputedStyle(element).fontSize),
+    ),
+  ).toBeLessThanOrEqual(14);
+
+  const hudCenter = page.getByTestId("game-hud-center");
+  await expect(hudCenter).toHaveCount(1);
+  await expect(hudCenter).toBeHidden();
+
+  const toolDock = page.getByRole("navigation", { name: "Gameplay tools" });
+  const categories = toolDock.getByRole("group", { name: "Tool categories" });
+  const environment = categories.getByRole("button", {
+    name: "Environment",
+    exact: true,
+  });
+  await expect(environment).toBeVisible();
+  await expect(environment).toHaveAttribute("aria-expanded", "false");
+  await expect(
+    toolDock.getByRole("button", { name: "Terrain", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    categories.getByRole("button", { name: "Build", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    categories.getByRole("button", { name: "Services", exact: true }),
+  ).toHaveCount(0);
+
   await expect(
     page.getByRole("button", { name: "Open game menu" }),
   ).toBeVisible();
@@ -17,7 +48,45 @@ test("production HUD keeps only city identity and global menu entry", async ({
   await expect(page.getByText("Terrain Debug · 0 active")).toHaveCount(0);
 });
 
-test("Game Menu owns save, debug and exit while save feedback uses notifications", async ({
+test("Tool Dock expands a category before tool activation and never leaves a hidden active tool", async ({
+  page,
+}) => {
+  await page.goto("/live-city-test.html");
+  const mount = page.locator("#live-city-test");
+  const game = page.getByTestId("game-screen");
+  await expect(mount).toHaveAttribute("data-live-runtime", "ready");
+
+  const dock = page.getByRole("navigation", { name: "Gameplay tools" });
+  const environment = dock.getByRole("button", {
+    name: "Environment",
+    exact: true,
+  });
+  await expect(environment).toHaveAttribute("aria-expanded", "false");
+  await expect(
+    dock.getByRole("button", { name: "Terrain", exact: true }),
+  ).toHaveCount(0);
+
+  await environment.click();
+  await expect(environment).toHaveAttribute("aria-expanded", "true");
+  const terrain = dock.getByRole("button", { name: "Terrain", exact: true });
+  await expect(terrain).toBeVisible();
+
+  await terrain.click();
+  await expect(game).toHaveAttribute("data-active-tool", "terrain");
+  await expect(page.getByTestId("game-context-surface")).toBeVisible();
+
+  await terrain.evaluate((element) => (element as HTMLButtonElement).click());
+  await expect(game).toHaveAttribute("data-active-tool", "");
+  await expect(environment).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByTestId("game-context-surface")).toBeHidden();
+
+  await environment.click();
+  await expect(environment).toHaveAttribute("aria-expanded", "false");
+  await expect(terrain).toHaveCount(0);
+  await expect(game).toHaveAttribute("data-active-tool", "");
+});
+
+test("Game Menu keeps production actions while Debug uses the developer shortcut", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -30,8 +99,10 @@ test("Game Menu owns save, debug and exit while save feedback uses notifications
   await expect(menu).toBeVisible();
   await expect(menu.getByRole("button", { name: "Resume" })).toBeVisible();
   await expect(menu.getByRole("button", { name: "Save City" })).toBeVisible();
-  await expect(menu.getByRole("button", { name: "Debug" })).toBeVisible();
-  await expect(menu.getByRole("button", { name: "Exit City" })).toBeVisible();
+  await expect(menu.getByRole("button", { name: "Debug" })).toHaveCount(0);
+  await expect(
+    menu.getByRole("button", { name: "Exit to Main Menu" }),
+  ).toBeVisible();
   expect(
     await page.evaluate(
       () =>
@@ -44,24 +115,26 @@ test("Game Menu owns save, debug and exit while save feedback uses notifications
   await expect(mount).toHaveAttribute("data-saves", "1");
   await expect(page.getByText("City saved", { exact: true })).toBeVisible();
   await expect(menu).toBeVisible();
-
-  await menu.getByRole("button", { name: "Debug" }).click();
+  await menu.getByRole("button", { name: "Resume" }).click();
   await expect(menu).toBeHidden();
+
+  await page.keyboard.press("F3");
   const debug = page.getByRole("region", { name: "Terrain Debug" });
   await expect(debug).toBeVisible();
   await expect(
     debug.getByRole("checkbox", { name: "Gameplay grid" }),
   ).toBeVisible();
-  await debug.getByRole("button", { name: "Close debug" }).click();
+  await page.keyboard.press("Escape");
   await expect(debug).toBeHidden();
+  await expect(menu).toBeHidden();
 
   await page.getByRole("button", { name: "Open game menu" }).click();
-  await menu.getByRole("button", { name: "Exit City" }).click();
+  await menu.getByRole("button", { name: "Exit to Main Menu" }).click();
   await expect(mount).toHaveAttribute("data-exits", "1");
   await expect(mount).toHaveAttribute("data-live-runtime", "disposed");
 });
 
-test("central dismissal closes foreground UI before tools and toggles Game Menu last", async ({
+test("central dismissal collapses active tool navigation before toggling Game Menu", async ({
   page,
 }) => {
   await page.goto("/live-city-test.html");
@@ -69,10 +142,23 @@ test("central dismissal closes foreground UI before tools and toggles Game Menu 
   const game = page.getByTestId("game-screen");
   await expect(mount).toHaveAttribute("data-live-runtime", "ready");
 
-  await page.getByRole("button", { name: "Terrain", exact: true }).click();
+  const dock = page.getByRole("navigation", { name: "Gameplay tools" });
+  const environment = dock.getByRole("button", {
+    name: "Environment",
+    exact: true,
+  });
+  await environment.click();
+  await dock.getByRole("button", { name: "Terrain", exact: true }).click();
   await expect(game).toHaveAttribute("data-active-tool", "terrain");
+  await expect(environment).toHaveAttribute("aria-expanded", "true");
+
   await page.keyboard.press("Escape");
   await expect(game).toHaveAttribute("data-active-tool", "");
+  await expect(environment).toHaveAttribute("aria-expanded", "false");
+  await expect(
+    dock.getByRole("button", { name: "Terrain", exact: true }),
+  ).toHaveCount(0);
+  await expect(page.getByTestId("game-context-surface")).toBeHidden();
   await expect(page.getByRole("dialog", { name: "Game menu" })).toBeHidden();
 
   await page.keyboard.press("Escape");
@@ -81,39 +167,48 @@ test("central dismissal closes foreground UI before tools and toggles Game Menu 
   await expect(page.getByRole("dialog", { name: "Game menu" })).toBeHidden();
 });
 
-test("keyboard focus and reduced motion keep production tool and menu interactions immediate", async ({
+test("T shortcut toggles Terrain with its category while focus and reduced motion remain usable", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/live-city-test.html");
   const mount = page.locator("#live-city-test");
+  const game = page.getByTestId("game-screen");
   await expect(mount).toHaveAttribute("data-live-runtime", "ready");
+
+  const dock = page.getByRole("navigation", { name: "Gameplay tools" });
+  const environment = dock.getByRole("button", {
+    name: "Environment",
+    exact: true,
+  });
+
+  await page.keyboard.press("T");
+  await expect(game).toHaveAttribute("data-active-tool", "terrain");
+  await expect(environment).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByTestId("game-context-surface")).toBeVisible();
+
+  await page.keyboard.press("T");
+  await expect(game).toHaveAttribute("data-active-tool", "");
+  await expect(environment).toHaveAttribute("aria-expanded", "false");
+  await expect(page.getByTestId("game-context-surface")).toBeHidden();
 
   await page.keyboard.press("Tab");
   await expect(
     page.getByRole("button", { name: "Open game menu" }),
   ).toBeFocused();
   await page.keyboard.press("Tab");
-  const terrain = page.getByRole("button", { name: "Terrain", exact: true });
-  await expect(terrain).toBeFocused();
+  await expect(environment).toBeFocused();
   await expect
     .poll(() =>
-      terrain.evaluate((element) => getComputedStyle(element).outlineWidth),
+      environment.evaluate((element) => getComputedStyle(element).outlineWidth),
     )
     .not.toBe("0px");
 
   await page.keyboard.press("Enter");
-  await expect(page.getByTestId("game-screen")).toHaveAttribute(
-    "data-active-tool",
-    "terrain",
-  );
-  await page.keyboard.press("Escape");
-  await expect(page.getByTestId("game-screen")).toHaveAttribute(
-    "data-active-tool",
-    "",
-  );
-  await page.keyboard.press("Escape");
-  await expect(page.getByRole("dialog", { name: "Game menu" })).toBeVisible();
-  await page.keyboard.press("Escape");
-  await expect(page.getByRole("dialog", { name: "Game menu" })).toBeHidden();
+  await expect(environment).toHaveAttribute("aria-expanded", "true");
+  const terrain = dock.getByRole("button", { name: "Terrain", exact: true });
+  await terrain.focus();
+  await expect(terrain).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(game).toHaveAttribute("data-active-tool", "terrain");
 });

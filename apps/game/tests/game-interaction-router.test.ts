@@ -13,6 +13,7 @@ function fakeTool(id: string, events: string[]): GameToolRuntime {
       label: id,
       icon: "terrain",
       order: id === "terrain" ? 10 : 20,
+      category: { id: "test", label: "Test", order: 0 },
     },
     availability: () => ({ status: "available" }),
     activate: () => events.push(`${id}:activate`),
@@ -156,6 +157,21 @@ describe("Game command router", () => {
     ]);
     router.dispose();
     expect(target.listeners.size).toBe(0);
+  });
+
+  it("maps configured developer shortcuts to semantic commands", () => {
+    const target = new FakeKeyboardTarget();
+    const commands: GameUiCommand[] = [];
+    const router = createGameCommandRouter({
+      keyboardTarget: target,
+      toolShortcuts: [],
+      commandShortcuts: [{ key: "F3", command: { type: "open-debug" } }],
+      onCommand: (command) => commands.push(command),
+    });
+
+    expect(target.emit({ key: "F3", code: "F3" }).prevented).toBe(true);
+    expect(commands).toEqual([{ type: "open-debug" }]);
+    router.dispose();
   });
 
   it("ignores editable targets and camera movement keys", () => {

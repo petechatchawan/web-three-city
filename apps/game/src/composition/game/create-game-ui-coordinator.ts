@@ -30,8 +30,7 @@ export function createGameUiCoordinator(input: {
   readonly debugHost: HTMLElement;
   readonly worldUnderlay: HTMLElement;
   readonly debugContent: HTMLElement;
-  readonly hasActiveTool: () => boolean;
-  readonly deactivateActiveTool: () => void;
+  readonly dismissToolNavigation: () => boolean;
   readonly onSave: () => void;
   readonly onExit: () => void;
 }): GameUiCoordinator {
@@ -85,16 +84,12 @@ export function createGameUiCoordinator(input: {
     actions: [
       { id: "resume", label: "Resume" },
       { id: "save", label: "Save City" },
-      { id: "debug", label: "Debug" },
-      { id: "exit", label: "Exit City", variant: "danger" },
+      { id: "exit", label: "Exit to Main Menu", variant: "danger" },
     ],
     onAction: (actionId) => {
       if (actionId === "resume") closeGameMenu();
       else if (actionId === "save") input.onSave();
-      else if (actionId === "debug") {
-        closeGameMenu();
-        openDebug();
-      } else if (actionId === "exit") input.onExit();
+      else if (actionId === "exit") input.onExit();
     },
   });
 
@@ -172,10 +167,7 @@ export function createGameUiCoordinator(input: {
         setInspector();
         return;
       }
-      if (input.hasActiveTool()) {
-        input.deactivateActiveTool();
-        return;
-      }
+      if (input.dismissToolNavigation()) return;
       openGameMenu();
     },
     dispose(): void {

@@ -6,10 +6,17 @@ export type GameToolAvailability =
   | { readonly status: "disabled"; readonly reason: string }
   | { readonly status: "hidden" };
 
+export interface GameToolCategoryDescriptor {
+  readonly id: string;
+  readonly label: string;
+  readonly order: number;
+}
+
 export interface GameToolDescriptor {
   readonly id: string;
   readonly label: string;
   readonly icon: UiIconName;
   readonly shortcut?: string;
   readonly order: number;
+  readonly category: GameToolCategoryDescriptor;
 }

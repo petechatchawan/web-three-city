@@ -5,6 +5,7 @@ import { createSegmentedControl } from "../src/ui/components/segmented-control";
 import { createTabs } from "../src/ui/components/tabs";
 import { createContextSurface } from "../src/ui/patterns/context-surface";
 import { createDialogHost } from "../src/ui/patterns/dialog-host";
+import { createGameHud } from "../src/ui/patterns/game-hud";
 import { createNotificationHost } from "../src/ui/patterns/notification-host";
 import { createToolDock } from "../src/ui/patterns/tool-dock";
 import { createButton } from "../src/ui/primitives/button";
@@ -103,12 +104,23 @@ const openDialog = createButton({
 });
 closeDialog.element.addEventListener("click", () => dialog.close());
 
+const environmentCategory = {
+  id: "environment",
+  label: "Environment",
+  order: 20,
+} as const;
+const buildCategory = {
+  id: "build",
+  label: "Build",
+  order: 10,
+} as const;
 const terrain: GameToolDescriptor = {
   id: "terrain",
   label: "Terrain",
   icon: "terrain",
   shortcut: "T",
   order: 10,
+  category: environmentCategory,
 };
 const roads: GameToolDescriptor = {
   id: "roads",
@@ -116,6 +128,7 @@ const roads: GameToolDescriptor = {
   icon: "roads",
   shortcut: "R",
   order: 20,
+  category: buildCategory,
 };
 const zones: GameToolDescriptor = {
   id: "zones",
@@ -123,8 +136,12 @@ const zones: GameToolDescriptor = {
   icon: "zones",
   shortcut: "Z",
   order: 30,
+  category: buildCategory,
 };
 const toolDock = createToolDock({
+  onCategoryPress: (id) => {
+    mount.dataset.categoryPress = id;
+  },
   onToolPress: (id) => {
     mount.dataset.toolPress = id;
   },
@@ -138,6 +155,7 @@ toolDock.render({
     },
     { descriptor: zones, availability: { status: "hidden" } },
   ],
+  expandedCategoryId: "environment",
   activeToolId: "terrain",
 });
 
@@ -169,6 +187,14 @@ const patternStage = document.createElement("section");
 patternStage.className = "ui-components-pattern-stage";
 patternStage.style.position = "relative";
 patternStage.style.minHeight = "420px";
+const simulationControl = createButton({ label: "Simulation control" });
+const hud = createGameHud();
+hud.render({
+  cityLabel: "Harness City",
+  metrics: [],
+  simulationControls: [simulationControl.element],
+  actions: [],
+});
 const worldUnderlay = document.createElement("div");
 worldUnderlay.dataset.testid = "pattern-world-underlay";
 worldUnderlay.textContent = "World";
@@ -187,7 +213,12 @@ const openHostedDialog = createButton({
   onPress: () => dialogHost.open(hostedDialog),
 });
 const notificationHost = createNotificationHost();
-patternStage.append(worldUnderlay, toolDock.element, context.element);
+patternStage.append(
+  worldUnderlay,
+  hud.element,
+  toolDock.element,
+  context.element,
+);
 const notify = createButton({
   label: "Notify",
   onPress: () => notificationHost.notify({ message: "City saved" }),
@@ -226,6 +257,8 @@ window.addEventListener(
     openDialog.dispose();
     closeDialog.dispose();
     dialog.dispose();
+    hud.dispose();
+    simulationControl.dispose();
     toolDock.dispose();
     context.dispose();
     dialogHost.dispose();

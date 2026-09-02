@@ -56,6 +56,20 @@ test("renders state-oriented reusable UI component semantics", async ({
   expect(errors).toEqual([]);
 });
 
+test("game HUD reveals its center only for supplied simulation controls", async ({
+  page,
+}) => {
+  await page.goto("/ui-components-test.html");
+  const root = page.locator("#ui-components-test");
+  await expect(root).toHaveAttribute("data-ready", "true");
+
+  const center = page.getByTestId("game-hud-center");
+  await expect(center).toBeVisible();
+  await expect(
+    center.getByRole("button", { name: "Simulation control" }),
+  ).toBeVisible();
+});
+
 test("generic game patterns own tool, context, modal and notification semantics", async ({
   page,
 }) => {
@@ -63,12 +77,35 @@ test("generic game patterns own tool, context, modal and notification semantics"
   const root = page.locator("#ui-components-test");
   await expect(root).toHaveAttribute("data-ready", "true");
 
-  const terrain = page.getByRole("button", { name: "Terrain", exact: true });
+  const toolDock = page.getByRole("navigation", { name: "Gameplay tools" });
+  const categories = toolDock.getByRole("group", { name: "Tool categories" });
+  const build = categories.getByRole("button", { name: "Build", exact: true });
+  const environment = categories.getByRole("button", {
+    name: "Environment",
+    exact: true,
+  });
+  await expect(build).toHaveAttribute("aria-expanded", "false");
+  await expect(environment).toHaveAttribute("aria-expanded", "true");
+
+  const environmentTools = toolDock.getByRole("group", {
+    name: "Environment tools",
+  });
+  await expect(environmentTools).toBeVisible();
+  const terrain = environmentTools.getByRole("button", {
+    name: "Terrain",
+    exact: true,
+  });
   await expect(terrain).toHaveAttribute("aria-pressed", "true");
-  const roads = page.getByRole("button", { name: "Roads" });
-  await expect(roads).toBeDisabled();
-  await expect(roads).toHaveAttribute("title", "Requires milestone");
-  await expect(page.getByRole("button", { name: "Zones" })).toHaveCount(0);
+  await expect(
+    toolDock.getByRole("button", { name: "Roads", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    toolDock.getByRole("button", { name: "Zones", exact: true }),
+  ).toHaveCount(0);
+
+  await build.evaluate((element) => (element as HTMLButtonElement).click());
+  await expect(root).toHaveAttribute("data-category-press", "build");
+  await expect(environment).toHaveAttribute("aria-expanded", "true");
 
   await terrain.evaluate((element) => {
     (element as HTMLElement).dataset.identityProbe = "stable";
@@ -104,11 +141,7 @@ test("generic game patterns own tool, context, modal and notification semantics"
   await expect(page.getByRole("status")).toContainText("City saved");
   await expect(notify).toBeFocused();
 
-  for (const control of [
-    terrain,
-    roads,
-    page.getByRole("button", { name: "Notify" }),
-  ]) {
+  for (const control of [terrain, build, environment, notify]) {
     const box = await control.boundingBox();
     expect(box).not.toBeNull();
     expect(box!.height).toBeGreaterThanOrEqual(44);
